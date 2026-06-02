@@ -56,6 +56,7 @@ up, into `~/.config/hypr`.
 | Skill | `desktop-shell`             | User-invoked. Functional configs for the bar (waybar), launcher (wofi/rofi), and notifications (mako/dunst). |
 | Skill | `dotfiles`                  | User-invoked. Version-controls the configs in git (bare-repo / stow / chezmoi) and commits after each verified change. |
 | Skill | `hyprland-reference`        | Auto-triggered. Hyprland config syntax, ecosystem, and **testing** knowledge. |
+| Command | `reset-config`            | User-invoked. Wipes `~/.config/hypr` to a minimal bare-bones `hyprland.conf` — full backup + live-test + auto-rollback. |
 | Agent | `hyprland-config-validator` | Static validation (plus an optional live load-test) of a generated/edited config. |
 
 ## Usage
@@ -152,6 +153,20 @@ an ecosystem catalog of the common companion packages.
 > `hyprpaper.conf`, `hypridle.conf`, `hyprlock.conf`) are left in place, and the full prior
 > state is preserved in the timestamped backup regardless.
 
+### Starting over (bare-bones reset)
+
+```bash
+/hyprland-config:reset-config        # confirms first
+/hyprland-config:reset-config -y     # skip the confirmation
+```
+
+Wipes `~/.config/hypr` down to a single minimal, working `hyprland.conf` (monitor auto-detect,
+basic input, and essential keybinds — terminal, close, exit, launcher, focus, workspaces 1–5,
+mouse move/resize) so you can rebuild from a clean slate. The **entire** existing directory is
+backed up to `~/.config/hypr.bak.<timestamp>` first, the result is live-tested, and it
+auto-rolls-back if it somehow fails to load. Configs outside `~/.config/hypr` (waybar, rofi, etc.)
+are untouched. Rebuild with `/hyprland-config:generate-config` or extend with `edit-config`.
+
 ### Restoring a backup
 
 ```bash
@@ -192,6 +207,8 @@ claude --plugin-dir /home/nschatz/projects/hyprland-plugin
 ```
 hyprland-config/
 ├── .claude-plugin/plugin.json
+├── commands/
+│   └── reset-config.md              # /hyprland-config:reset-config (bare-bones reset)
 ├── agents/
 │   └── hyprland-config-validator.md
 ├── scripts/                         # shared across skills
