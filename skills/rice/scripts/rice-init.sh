@@ -3,8 +3,8 @@
 #   - templates/        : the .tmpl color templates (copied from the plugin; user-editable)
 #   - templates.list    : the render manifest (name <tab> template <tab> output <tab> reload)
 #   - render-templates.sh + rice : the engine + CLI (so it runs without the plugin)
-#   - palette.conf      : seeded with Catppuccin Mocha if absent (change via theme-config)
-#   - profiles/         : saved theme profiles (used by theme-profiles)
+#   - palette.conf      : seeded with Catppuccin Mocha if absent (change via rice)
+#   - profiles/         : saved theme profiles (used by rice)
 # Idempotent: never clobbers an existing palette.conf, templates.list, or user-edited templates
 # unless --force is passed.
 #
@@ -12,7 +12,7 @@
 set -euo pipefail
 
 RICE_DIR="${RICE_DIR:-$HOME/.config/hypr-rice}"
-SRC="${CLAUDE_PLUGIN_ROOT:?CLAUDE_PLUGIN_ROOT not set}/skills/theme-config"
+SRC="${CLAUDE_PLUGIN_ROOT:?CLAUDE_PLUGIN_ROOT not set}/skills/rice"
 force=0; [ "${1:-}" = "--force" ] && force=1
 
 mkdir -p "$RICE_DIR/templates" "$RICE_DIR/profiles"
@@ -54,11 +54,11 @@ if [ ! -f "$mf" ] || [ "$force" -eq 1 ]; then
     } > "$mf"
 fi
 
-# Seed a palette so `rice apply` works immediately (Catppuccin Mocha; change via theme-config).
+# Seed a palette so `rice apply` works immediately (Catppuccin Mocha; change via rice).
 pal="$RICE_DIR/palette.conf"
 if [ ! -f "$pal" ]; then
     cat > "$pal" <<'EOF'
-# hypr-rice palette — source of truth. Hex without '#'. Change via the theme-config skill or edit here.
+# hypr-rice palette — source of truth. Hex without '#'. Change via the rice skill or edit here.
 scheme=catppuccin-mocha
 bg=1e1e2e
 fg=cdd6f4

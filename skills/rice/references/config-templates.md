@@ -42,7 +42,7 @@ Use `$mainMod` (the official default's variable name), defaulting to `SUPER`. Om
 **`colors.conf` is not written by hand** — it is rendered by the rice engine from the chosen
 palette (`~/.config/hypr-rice/palette.conf`), and defines `$accent $accent2 $bg $fg $surface
 $muted` as Hyprland variables. It is sourced early so `looknfeel.conf` can use `$accent`/`$accent2`
-for the border. Re-theming later (`/hyprland-config:theme-config`) just rewrites `colors.conf` from
+for the border. Re-theming later (`/hyprland-config:rice`) just rewrites `colors.conf` from
 the same palette — the rest of `hyprland.conf` never changes. See the SKILL's step 4 for how it's
 scaffolded and rendered during generation.
 

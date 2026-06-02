@@ -92,7 +92,7 @@ have_pkg nwg_look       nwg-look
 # --- Active GPU driver (decides whether the proprietary NVIDIA env block is appropriate) ---
 # An NVIDIA *card* does NOT imply the proprietary driver. Many systems run the open `nouveau`
 # driver, under which `LIBVA_DRIVER_NAME=nvidia` / `__GLX_VENDOR_LIBRARY_NAME=nvidia` /
-# `NVD_BACKEND=direct` BREAK GLX and VA-API. So the generate-config interview must key the NVIDIA
+# `NVD_BACKEND=direct` BREAK GLX and VA-API. So the rice interview must key the NVIDIA
 # env block on the *loaded driver*, not on lspci's vendor string. Emit:
 #   NVIDIA_PROPRIETARY=1  -> only when the proprietary `nvidia` kmod is actually loaded
 #   GPU_DRIVER=<name>     -> nvidia | nouveau | amdgpu | radeon | i915 | unknown

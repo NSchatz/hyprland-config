@@ -24,7 +24,7 @@ TAB-separated line in `templates.list`; then `rice apply`.
 | cava | `cava.tmpl` | merge `[color]` into `~/.config/cava/config` | restart |
 
 "merge" templates aren't included via a colors file (the app has no include directive) — the
-theme-config / desktop-shell skill folds them into the app's config. The `@import`/`include`/`source`
+rice / desktop-shell skill folds them into the app's config. The `@import`/`include`/`source`
 ones go straight in the manifest. To enable an `@import` app in the engine, add its line to
 `templates.list`, e.g.:
 

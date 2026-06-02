@@ -342,7 +342,7 @@ Give cpu/memory/clock a `min-width` in CSS so the bar doesn't reflow every secon
 
 **Idle inhibitor (built-in).** A click-toggle that suppresses hypridle (presentations, long videos): `"idle_inhibitor": { "format": "{icon}", "format-icons": { "activated": "", "deactivated": "" } }`. Style `#idle_inhibitor.activated { color: @accent; }`.
 
-**Notification toggle (swaync).** A bell with an unread badge that opens the control center — mirrors the swaync daemon generate-config autostarts:
+**Notification toggle (swaync).** A bell with an unread badge that opens the control center — mirrors the swaync daemon rice autostarts:
 ```jsonc
 "custom/notification": {
     "return-type": "json", "exec-if": "which swaync-client", "exec": "swaync-client -swb",

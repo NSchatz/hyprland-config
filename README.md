@@ -47,11 +47,8 @@ up, into `~/.config/hypr`.
 
 | Type  | Name                        | Purpose                                                        |
 |-------|-----------------------------|----------------------------------------------------------------|
-| Skill | `generate-config`           | User-invoked. Runs the interview (incl. **palette & fonts**), writes the config, **establishes the theme via the shared rice engine** (so a fresh config comes out coherently styled, not stock-gray), and live-tests it. |
+| Skill | `rice`                      | User-invoked. The whole rice in one skill: **generate** a config from scratch (interview incl. palette & fonts → modular config → install + live-test), **theme** every surface from one palette (named / wallpaper-generated / manual + font choices), manage named **profiles** (5 presets + a user-override cascade), and set/cycle the **wallpaper** with dynamic theming — all driven by a self-contained rice engine (`~/.config/hypr-rice/` with `palette.conf` + templates + a `rice` CLI). |
 | Skill | `edit-config`               | User-invoked. Reads an existing config and makes changes, **testing after every change** with auto-rollback. |
-| Skill | `theme-config`              | User-invoked. Applies one palette (named / wallpaper-generated / manual) across **every surface** — Hyprland, hyprlock, waybar, notifications, launcher, terminal, GTK/Qt/cursor/icons — **presents font choices**, and drives the **rice engine** (a self-contained `~/.config/hypr-rice/` with `palette.conf` + templates + a `rice` CLI). |
-| Skill | `wallpaper`                 | User-invoked. Sets the wallpaper (swww/hyprpaper) and **dynamically themes** the desktop from it (matugen/wallust/pywal), with cycling. |
-| Skill | `theme-profiles`            | User-invoked. Save/list/switch named "rices" (5 presets shipped) with a **user-override layer** that survives re-theming. |
 | Skill | `shell-config`              | User-invoked. Configures the terminal shell (bash/zsh/fish): prompt, aliases, env, history, a startup **fetch** (fastfetch default / neofetch), and modern-CLI integration — syntax-checked after every change. |
 | Skill | `desktop-shell`             | User-invoked. Functional configs for the bar (waybar), launcher (wofi/rofi), and notifications (mako/dunst). |
 | Skill | `dotfiles`                  | User-invoked. Version-controls the configs in git (bare-repo / stow / chezmoi) and commits after each verified change. |
@@ -61,19 +58,20 @@ up, into `~/.config/hypr`.
 
 ## Usage
 
-Run the generator:
+Build a config from scratch:
 
 ```
-/hyprland-config:generate-config
+/hyprland-config:rice
 ```
 
 Optionally pass hints to pre-fill the interview:
 
 ```
-/hyprland-config:generate-config dual monitor, vim keybinds, no animations
+/hyprland-config:rice set up from scratch — dual monitor, vim keybinds, no animations
 ```
 
-The skill walks you through a short interview, generates the config into a staging directory,
+The `rice` skill picks the mode from your request (generate / theme / profiles / wallpaper). For a
+fresh build it walks you through one short interview, generates the config into a staging directory,
 statically validates it, backs up and installs it to `~/.config/hypr`, then **live-tests** it
 (`hyprctl reload` + `configerrors`) — rolling back automatically if it fails to load.
 
@@ -93,12 +91,12 @@ and just report.
 ### Theming the whole desktop
 
 ```
-/hyprland-config:theme-config catppuccin mocha
-/hyprland-config:theme-config match my wallpaper
-/hyprland-config:theme-config set my accent to #89b4fa
+/hyprland-config:rice catppuccin mocha
+/hyprland-config:rice match my wallpaper
+/hyprland-config:rice set my accent to #89b4fa
 ```
 
-`theme-config` resolves **one palette** — a named scheme (Catppuccin, Gruvbox, Nord, Tokyo Night,
+`rice` resolves **one palette** — a named scheme (Catppuccin, Gruvbox, Nord, Tokyo Night,
 Rosé Pine), wallpaper-generated (matugen/wallust), or manual hex — and renders it into a separate
 colors file for each app (Hyprland, hyprlock, waybar, mako/dunst, wofi/rofi, kitty, GTK4 `gtk.css`,
 Qt, cursor/icons/fonts), then reloads each running app so it shows immediately. Re-theming later is
@@ -115,20 +113,20 @@ a one-file-per-app rewrite + reload.
 startup **fetch** [fastfetch by default, or neofetch], and guarded `eza`/`bat`/`zoxide`/`fzf`
 integration) inside a managed block, **syntax-checking after every change** (parse-only, never
 executed). `desktop-shell` writes the **functional** configs for waybar / launcher / notifications
-(colors come from `theme-config`). `theme-config` also **presents font choices** — a UI font and a
+(colors come from `rice`). `rice` also **presents font choices** — a UI font and a
 monospace/Nerd font (needed for bar/fetch/prompt glyphs) — and applies them across GTK, kitty, and
 waybar.
 
 ### The rice engine, wallpaper, profiles
 
 ```
-/hyprland-config:wallpaper      ~/Pictures/wall.png and theme from it
-/hyprland-config:theme-profiles switch to nord
-/hyprland-config:theme-profiles save my current look as midnight
-/hyprland-config:dotfiles       set up a bare repo and push to github
+/hyprland-config:rice     ~/Pictures/wall.png and theme from it
+/hyprland-config:rice     switch to nord
+/hyprland-config:rice     save my current look as midnight
+/hyprland-config:dotfiles set up a bare repo and push to github
 ```
 
-`theme-config` scaffolds a self-contained engine into `~/.config/hypr-rice/` — one `palette.conf`
+`rice` scaffolds a self-contained engine into `~/.config/hypr-rice/` — one `palette.conf`
 + per-app templates + a `rice` CLI. After setup it keeps working **without Claude**:
 
 ```bash
@@ -165,7 +163,7 @@ basic input, and essential keybinds — terminal, close, exit, launcher, focus, 
 mouse move/resize) so you can rebuild from a clean slate. The **entire** existing directory is
 backed up to `~/.config/hypr.bak.<timestamp>` first, the result is live-tested, and it
 auto-rolls-back if it somehow fails to load. Configs outside `~/.config/hypr` (waybar, rofi, etc.)
-are untouched. Rebuild with `/hyprland-config:generate-config` or extend with `edit-config`.
+are untouched. Rebuild with `/hyprland-config:rice` or extend with `edit-config`.
 
 ### Restoring a backup
 
@@ -193,7 +191,7 @@ rm -rf ~/.config/hypr && mv ~/.config/hypr.bak.<timestamp> ~/.config/hypr
 
 - `HYPR_DIR` — override the install target (default `~/.config/hypr`). Useful for testing:
   ```bash
-  HYPR_DIR=/tmp/hypr-test bash skills/generate-config/scripts/install-config.sh <staging-dir>
+  HYPR_DIR=/tmp/hypr-test bash skills/rice/scripts/install-config.sh <staging-dir>
   ```
 
 ## Installation (local testing)
@@ -215,16 +213,16 @@ hyprland-config/
 │   ├── backup-path.sh               # timestamped backup of arbitrary paths
 │   └── dotfiles.sh                  # git versioning: bare / stow / chezmoi
 ├── skills/
-│   ├── generate-config/   (interview → modular config, install + live-test + rollback)
-│   ├── edit-config/       (read + change existing config, test after every change)
-│   ├── theme-config/
-│   │   ├── references/   (theming, palettes, templates, fonts, engine, apps, login, interview)
-│   │   ├── scripts/      (detect-theme-tools, apply-theme, rice-init, render-templates,
-│   │   │                  set-wallpaper, palette-from-wallpaper)
+│   ├── rice/              (generate + theme + profiles + wallpaper — the whole rice)
+│   │   ├── references/   (interview, config-templates, theming, palettes, templates, fonts,
+│   │   │                  engine, apps, login, wallpaper)
+│   │   ├── scripts/      (detect-version, detect-theme-tools, rice-init, render-templates,
+│   │   │                  apply-theme, set-wallpaper, palette-from-wallpaper, safe-apply,
+│   │   │                  install-config, verify-config, backup-config, reset-config)
 │   │   ├── templates/    (*.tmpl color templates rendered by the engine)
-│   │   └── assets/       (rice CLI, profiles/*.conf presets)
-│   ├── wallpaper/         (set wallpaper + dynamic theming + cycling)
-│   ├── theme-profiles/    (save/switch named rices + user-override cascade)
+│   │   ├── assets/       (rice CLI, profiles/*.conf presets)
+│   │   └── examples/     (a complete generated modular config)
+│   ├── edit-config/       (read + change existing config, test after every change)
 │   ├── shell-config/      (bash/zsh/fish: prompt, aliases, fetch; parse-checked)
 │   ├── desktop-shell/     (waybar / launcher / notification functional configs)
 │   ├── dotfiles/          (git version control of the configs)

@@ -175,7 +175,7 @@ gtk-application-prefer-dark-theme=1
 
 ## Qt — qt6ct / kvantum
 
-- qt6ct: ensure `env = QT_QPA_PLATFORMTHEME,qt6ct` is in the Hyprland env (generate-config can add
+- qt6ct: ensure `env = QT_QPA_PLATFORMTHEME,qt6ct` is in the Hyprland env (rice can add
   it). Set the color scheme in `~/.config/qt6ct/qt6ct.conf` (`color_scheme_path=`) or point it at a
   generated `~/.config/qt6ct/colors/<scheme>.conf`. Mirror for qt5ct.
 - kvantum: pick a theme with `kvantummanager`; set `env = QT_STYLE_OVERRIDE,kvantum`.
@@ -188,5 +188,5 @@ After setting the gsettings cursor, also apply it to the running session:
 hyprctl setcursor '<Cursor>' 24
 ```
 
-and ensure the env is set (generate-config env.conf): `XCURSOR_THEME`, `XCURSOR_SIZE`,
+and ensure the env is set (rice env.conf): `XCURSOR_THEME`, `XCURSOR_SIZE`,
 `HYPRCURSOR_THEME`, `HYPRCURSOR_SIZE`.

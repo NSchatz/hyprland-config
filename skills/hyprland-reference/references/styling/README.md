@@ -11,7 +11,7 @@ palette-driven, copy-pasteable recipe.
 pages add up to a single designed system instead of a pile of independently-pretty windows.
 
 Every recipe is built on the plugin's **rice palette contract** (`~/.config/hypr-rice/palette.conf`,
-see `theme-config/references/engine.md`): keys `bg fg surface muted cursor accent accent2 red green
+see `rice/references/engine.md`): keys `bg fg surface muted cursor accent accent2 red green
 yellow blue magenta cyan color0..color15`, plus `font_ui` / `font_mono`. Recipes show colors as
 `{{key}}` placeholders (so they drop straight into the rice templates) **and** as a worked
 Catppuccin Mocha example.
@@ -32,8 +32,8 @@ Catppuccin Mocha example.
 
 ## Who reads this
 
-- **`generate-config`** — for tasteful structural + palette defaults when building from scratch.
-- **`theme-config`** — for how to color each surface (the recipes assume its rice palette).
+- **`rice`** — for tasteful structural + palette defaults when building from scratch.
+- **`rice`** — for how to color each surface (the recipes assume its rice palette).
 - **`desktop-shell`** — for the *layout/structure* of the bar, launcher, and notifications.
 
 These are design references, not syntax authorities — for the exact, current option names defer to

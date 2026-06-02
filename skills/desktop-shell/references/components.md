@@ -2,7 +2,7 @@
 
 Functional configs for the Wayland "shell" around Hyprland: the status bar, the app launcher, and
 the notification daemon. This is the **structure/behavior** (modules, layout, behavior) — colors
-come from the **theme-config** skill (each config `@import`s/includes the generated colors file).
+come from the **rice** skill (each config `@import`s/includes the generated colors file).
 Reload commands are in `apply-theme.sh` and below.
 
 ## Waybar
@@ -92,7 +92,7 @@ The glyphs need a Nerd Font (see Fonts below); fall back to text labels if none 
 ### `style.css`
 
 ```css
-/* theme-config renders colors.css: @bg @fg @surface @muted @accent @accent2 @red @green @yellow */
+/* rice renders colors.css: @bg @fg @surface @muted @accent @accent2 @red @green @yellow */
 @import "colors.css";
 
 * {
@@ -177,7 +177,7 @@ gtk_dark=true
 key_expand=Tab
 term=kitty                # terminal for run-in-terminal entries
 ```
-`style.css`: `@import "colors.css";` then style `window/#input/#entry:selected` (see theme-config
+`style.css`: `@import "colors.css";` then style `window/#input/#entry:selected` (see rice
 templates). Launch: `wofi --show drun`. Read at launch — no reload. For frosted glass, add a
 `layerrule` blur block for the `wofi` namespace in `hyprland.conf` (see launchers.md → Pitfalls).
 
@@ -229,11 +229,11 @@ markup=1
 format=<b>%s</b>\n%b
 default-timeout=5000
 ignore-timeout=1
-# colors come from theme-config: background-color / text-color / border-color / progress-color
+# colors come from rice: background-color / text-color / border-color / progress-color
 
 [urgency=high]
 default-timeout=0
-# border-color set red by theme-config
+# border-color set red by rice
 
 [mode=do-not-disturb]
 invisible=1
@@ -271,9 +271,9 @@ dunst uses **INI sections** (`[section]` then indented `key = value` lines) — 
 
 [urgency_critical]
     timeout = 0
-    # frame_color set red by theme-config
+    # frame_color set red by rice
 ```
-Per-urgency colors (`background`/`foreground`/`frame_color`) come from theme-config. Note
+Per-urgency colors (`background`/`foreground`/`frame_color`) come from rice. Note
 `offset = (x, y)` is the modern form (older configs used a `geometry` string). Reload:
 `dunstctl reload`.
 
@@ -307,12 +307,12 @@ Bars and notifications use icon glyphs from a **Nerd Font** (e.g. `ttf-jetbrains
 `ttf-firacode-nerd`). If none is installed, the glyphs render as tofu boxes — either install one or
 switch the modules to plain text labels. Detect with `fc-list | grep -i nerd`. Do not install
 fonts automatically — suggest the package. The font **catalog and selection** (and applying a
-Nerd Font as the bar's `font-family`) live in the theme-config skill —
-`${CLAUDE_PLUGIN_ROOT}/skills/theme-config/references/fonts.md`.
+Nerd Font as the bar's `font-family`) live in the rice skill —
+`${CLAUDE_PLUGIN_ROOT}/skills/rice/references/fonts.md`.
 
 ## Coordination with other skills
 
-- **Colors**: never hardcode hex here — reference the theme-config colors file
+- **Colors**: never hardcode hex here — reference the rice colors file
   (`@import "colors.css"` / `colors.rasi`). Generate functional config here; theme it there.
 - **Autostart**: `exec-once = waybar` / `mako` etc. live in the Hyprland config — the
-  **generate-config** skill manages those. This skill writes the component's own config files.
+  **rice** skill manages those. This skill writes the component's own config files.

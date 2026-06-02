@@ -59,8 +59,8 @@ bash "${CLAUDE_PLUGIN_ROOT}/scripts/dotfiles.sh" push       # if a remote is set
 
 ### 4. Commit after every verified change (the habit)
 
-This is the point of the skill: after **any** verified config change — a `generate-config`
-install, an `edit-config` edit, a `theme-config`/`rice apply`, a profile switch — run
+This is the point of the skill: after **any** verified config change — a `rice` generate/theme, an
+`edit-config` edit, a `rice apply`, a profile switch — run
 `dotfiles.sh commit "<what changed>"` (and `push`). Suggest doing this automatically as part of
 those flows so history stays granular and the remote is current.
 

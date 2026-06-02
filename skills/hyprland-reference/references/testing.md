@@ -57,9 +57,9 @@ Editing a live config risks leaving the session broken. Always:
 
 The plugin implements this:
 
-- `skills/generate-config/scripts/verify-config.sh` — step 3 (reload + configerrors). Prints
+- `skills/rice/scripts/verify-config.sh` — step 3 (reload + configerrors). Prints
   `VERIFY=ok|errors|skipped`; exit 0/1/2.
-- `skills/generate-config/scripts/safe-apply.sh` — full cycle: install a staged config, verify,
+- `skills/rice/scripts/safe-apply.sh` — full cycle: install a staged config, verify,
   and auto-rollback to the backup on failure. Prints `SAFE_APPLY=ok|rolled-back|installed-untested|…`.
 
 Run verify after **every** change to a live config — generation, an incremental edit, or a

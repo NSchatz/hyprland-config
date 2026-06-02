@@ -121,7 +121,7 @@ wallpaper daemon (`swww-daemon`, `swaybg`, or the swww fork `awww-daemon`).
 Kvantum), `GDK_BACKEND=wayland,x11,*`, `MOZ_ENABLE_WAYLAND=1`, `ELECTRON_OZONE_PLATFORM_HINT=auto`.
 Ship the NVIDIA block (`LIBVA_DRIVER_NAME=nvidia`, `__GLX_VENDOR_LIBRARY_NAME=nvidia`,
 `GBM_BACKEND=nvidia-drm`, `NVD_BACKEND=direct`) **only** under the proprietary driver — under nouveau
-those break GLX/VA-API (see `generate-config`).
+those break GLX/VA-API (see `rice`).
 
 ## Categories quick map
 

@@ -44,7 +44,7 @@ find "$target" -mindepth 1 -delete 2>/dev/null || true
 {
     echo "# ----------------------------------------------------------------------------"
     echo "# Bare-bones Hyprland config — reset by the hyprland-config plugin."
-    echo "# A minimal, working baseline. Rebuild with /hyprland-config:generate-config"
+    echo "# A minimal, working baseline. Rebuild with /hyprland-config:rice"
     echo "# (full interview) or extend piecemeal with /hyprland-config:edit-config."
     echo "# ----------------------------------------------------------------------------"
     echo ""

@@ -91,7 +91,7 @@ Recommended (the plugin's `add-defaults` adds those that exist):
 ## Commit-after-every-change
 
 The rice stays reproducible only if history is kept current. After each **verified** change
-(`generate-config` install, `edit-config` edit, `theme-config`/`rice apply`, profile switch), run:
+(a `rice` generate/theme, an `edit-config` edit, a `rice apply`, a profile switch), run:
 
 ```bash
 dotfiles.sh commit "<what changed>" && dotfiles.sh push

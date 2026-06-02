@@ -26,7 +26,7 @@ preference order:
   `color4`/`color5`. Best for terminal-accurate palettes.
 
 If no generator is installed, set the wallpaper and pick a **named/manual** palette via
-`theme-config` instead; suggest installing `matugen` (or `wallust`) for automatic extraction.
+`rice` instead; suggest installing `matugen` (or `wallust`) for automatic extraction.
 
 ## Cycling
 

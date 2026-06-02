@@ -106,7 +106,7 @@ if status is-interactive
 end
 ```
 
-Glyphs/logo render best with a **Nerd Font** terminal font (see the theme-config fonts reference);
+Glyphs/logo render best with a **Nerd Font** terminal font (see the rice fonts reference);
 fastfetch can also show an image logo on terminals that support it. Don't install the fetch tool —
 suggest the package.
 
@@ -126,7 +126,7 @@ Concrete, attributed idioms from real rices. All guard-friendly.
 ## Theme integration
 
 - The terminal's colors come from the terminal emulator (kitty/alacritty/foot), which the
-  **theme-config** skill themes — the shell rc doesn't set terminal colors.
+  **rice** skill themes — the shell rc doesn't set terminal colors.
 - The shell can still align: set `LS_COLORS` via `vivid` (`command -v vivid && export LS_COLORS="$(vivid generate <theme>)"`)
   or rely on `eza`'s own coloring; point `starship`/prompt accents at the scheme.
 

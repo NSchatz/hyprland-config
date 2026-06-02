@@ -1,6 +1,6 @@
 ---
 name: edit-config
-description: This skill should be used when the user runs "/hyprland-config:edit-config" or asks to change, fix, inspect, or test an EXISTING Hyprland config — e.g. "add a keybind to my hyprland config", "change my gaps", "add a window rule", "add my second monitor to my existing config", "read my hyprland config", or "test my hyprland config". Reads the current ~/.config/hypr config, makes the change, and live-tests after every edit (hyprctl reload + configerrors) with automatic rollback. To build a config from scratch, use generate-config instead.
+description: This skill should be used when the user runs "/hyprland-config:edit-config" or asks to change, fix, inspect, or test an EXISTING Hyprland config — e.g. "add a keybind to my hyprland config", "change my gaps", "add a window rule", "add my second monitor to my existing config", "read my hyprland config", or "test my hyprland config". Reads the current ~/.config/hypr config, makes the change, and live-tests after every edit (hyprctl reload + configerrors) with automatic rollback. To build a config from scratch, use rice instead.
 argument-hint: "[what to change, e.g. 'add SUPER+T for thunar' or 'read my config']"
 allowed-tools: Read, Edit, Write, Bash, Glob, Grep, Agent
 version: 0.1.0
@@ -15,7 +15,7 @@ requested change (or a read/inspect request).
 Use the **Hyprland Config Reference** skill for correct syntax — read its reference files under
 `${CLAUDE_PLUGIN_ROOT}/skills/hyprland-reference/references/` (especially `testing.md` for the
 test/rollback mechanics, `deprecations.md` to avoid stale syntax, and the section/keybind/
-window-rule files). For generating a config from scratch, defer to the **generate-config** skill
+window-rule files). For generating a config from scratch, defer to the **rice** skill
 instead.
 
 ## Workflow
@@ -27,14 +27,14 @@ instead.
   autostart. Companion configs (`hyprlock.conf`, `hypridle.conf`, `hyprpaper.conf`) are read by
   their own daemons, not `source=`d — read them only when the change concerns them.
 - Detect the version:
-  `bash "${CLAUDE_PLUGIN_ROOT}/skills/generate-config/scripts/detect-version.sh"`. Emit syntax
+  `bash "${CLAUDE_PLUGIN_ROOT}/skills/rice/scripts/detect-version.sh"`. Emit syntax
   matching it (window-rule block vs line form, `gesture=` vs `gestures{}`, etc.).
 - If the user only asked to **read/inspect/explain**, do that now and stop — no backup needed.
 
 ### 2. Back up once, before the first edit
 
 ```bash
-bash "${CLAUDE_PLUGIN_ROOT}/skills/generate-config/scripts/backup-config.sh"
+bash "${CLAUDE_PLUGIN_ROOT}/skills/rice/scripts/backup-config.sh"
 ```
 
 Record the `BACKUP=` path. This is the rollback target for the whole session.
@@ -52,7 +52,7 @@ Record the `BACKUP=` path. This is the rollback target for the whole session.
 After each individual edit, live-test:
 
 ```bash
-bash "${CLAUDE_PLUGIN_ROOT}/skills/generate-config/scripts/verify-config.sh"
+bash "${CLAUDE_PLUGIN_ROOT}/skills/rice/scripts/verify-config.sh"
 ```
 
 Read the `VERIFY=` line:
@@ -97,9 +97,9 @@ applies immediately and is reverted by the next reload — handy for "show me be
 
 - **`${CLAUDE_PLUGIN_ROOT}/skills/hyprland-reference/references/testing.md`** — read/test/rollback
   mechanics in depth.
-- **`${CLAUDE_PLUGIN_ROOT}/skills/generate-config/scripts/verify-config.sh`** — live test;
+- **`${CLAUDE_PLUGIN_ROOT}/skills/rice/scripts/verify-config.sh`** — live test;
   `VERIFY=ok|errors|skipped`.
-- **`${CLAUDE_PLUGIN_ROOT}/skills/generate-config/scripts/backup-config.sh`** — timestamped
+- **`${CLAUDE_PLUGIN_ROOT}/skills/rice/scripts/backup-config.sh`** — timestamped
   backup; prints `BACKUP=`.
-- **`${CLAUDE_PLUGIN_ROOT}/skills/generate-config/scripts/detect-version.sh`** — installed
+- **`${CLAUDE_PLUGIN_ROOT}/skills/rice/scripts/detect-version.sh`** — installed
   version + ecosystem probe.

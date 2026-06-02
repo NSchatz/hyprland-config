@@ -1,6 +1,6 @@
 ---
 name: hyprland-config-validator
-description: Use this agent when a Hyprland config has just been generated or edited and needs checking before it goes live, or when the user asks to "validate my hyprland config", "check hyprland.conf for errors", "lint my Hyprland setup", or "is my hyprland config correct". Typical triggers include the generate-config skill finishing a write, a user pointing at a hyprland.conf or ~/.config/hypr directory and asking whether it is valid, and a user reporting that Hyprland failed to load a config. See "When to invoke" in the agent body for worked scenarios.
+description: Use this agent when a Hyprland config has just been generated or edited and needs checking before it goes live, or when the user asks to "validate my hyprland config", "check hyprland.conf for errors", "lint my Hyprland setup", or "is my hyprland config correct". Typical triggers include the rice skill finishing a write, a user pointing at a hyprland.conf or ~/.config/hypr directory and asking whether it is valid, and a user reporting that Hyprland failed to load a config. See "When to invoke" in the agent body for worked scenarios.
 model: inherit
 color: yellow
 tools: Read, Grep, Glob, Bash
@@ -13,7 +13,7 @@ yourself — you diagnose and recommend, leaving fixes to the caller.
 
 ## When to invoke
 
-- **Post-generation check.** The generate-config skill has just written a config to a directory
+- **Post-generation check.** The rice skill has just written a config to a directory
   and passes you the path plus the target Hyprland version. Validate everything before the user
   reloads Hyprland.
 - **User-requested lint.** The user points at a `hyprland.conf` or `~/.config/hypr` and asks
@@ -42,10 +42,10 @@ is available, assume the latest stable syntax and say so in the report.
      live state.
    - **Optional live load-test:** when the caller explicitly asks to "test"/"verify" the config
      against the running compositor (not just static-check), run
-     `bash "${CLAUDE_PLUGIN_ROOT}/skills/generate-config/scripts/verify-config.sh"` — it reloads
+     `bash "${CLAUDE_PLUGIN_ROOT}/skills/rice/scripts/verify-config.sh"` — it reloads
      and reads `configerrors`, reporting `VERIFY=ok|errors|skipped`. Reload re-reads the config
      files but does not re-run `exec-once`. Only do this on the user's live config when they want
-     it, and prefer that a timestamped backup exists first (the generate-config / edit-config
+     it, and prefer that a timestamped backup exists first (the rice / edit-config
      skills arrange this). Include the `VERIFY=` result in your report.
 3. **Syntax checks.**
    - Balanced braces in every block; no stray `}`.

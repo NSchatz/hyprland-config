@@ -50,7 +50,7 @@ before anything is removed, and the script rolls back to it if the bare config f
 
    ```bash
    BARE_TERMINAL="$term" BARE_MENU="$menu" \
-     bash "${CLAUDE_PLUGIN_ROOT}/skills/generate-config/scripts/reset-config.sh"
+     bash "${CLAUDE_PLUGIN_ROOT}/skills/rice/scripts/reset-config.sh"
    ```
 
 4. **Relay the outcome** from the final `RESET=` line and the `BACKUP=` path:
@@ -65,7 +65,7 @@ before anything is removed, and the script rolls back to it if the bare config f
 
 5. **Tell the user how to restore and how to rebuild:**
    - Restore: `rm -rf ~/.config/hypr && cp -a <BACKUP> ~/.config/hypr && hyprctl reload`
-   - Rebuild from scratch: `/hyprland-config:generate-config` (full interview), or extend the bare
+   - Rebuild from scratch: `/hyprland-config:rice` (full interview), or extend the bare
      config piecemeal with `/hyprland-config:edit-config`.
 
 ## Notes

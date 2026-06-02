@@ -136,7 +136,7 @@ of `@define-color` entries and `@import` it. Reload: `killall -SIGUSR2 waybar`.
 ### Qt
 
 - `qt6ct` (+`qt5ct`): set the color scheme/style in their config; require
-  `env = QT_QPA_PLATFORMTHEME,qt6ct` in the Hyprland env (the generate-config skill can add this).
+  `env = QT_QPA_PLATFORMTHEME,qt6ct` in the Hyprland env (the rice skill can add this).
 - `kvantum`: SVG theme engine; `kvantummanager` to pick, `env = QT_STYLE_OVERRIDE,kvantum`.
 - First-party `hyprland-qt-support`/`hyprqt6engine` theme the hypr tools' Qt dialogs.
 

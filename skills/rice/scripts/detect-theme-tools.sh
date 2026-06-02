@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Probe theming/shell tooling and the current desktop appearance so the theme-config /
+# Probe theming/shell tooling and the current desktop appearance so the rice /
 # shell-config skills can bias toward what's installed and read the current state.
 # Detection only — changes nothing.
 #

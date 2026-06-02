@@ -13,7 +13,7 @@ templates/         # <app>.tmpl files using {{key}} placeholders (user-editable)
 templates.list     # manifest: name <TAB> template <TAB> output <TAB> reload-cmd
 render-templates.sh# the render engine (rendered from palette.conf -> outputs -> reload)
 rice               # the CLI: `rice apply`, `rice palette`, …
-profiles/          # saved theme profiles (theme-profiles skill)
+profiles/          # saved theme profiles (rice skill)
 ```
 
 Scaffold/refresh it with `scripts/rice-init.sh` (idempotent — never clobbers `palette.conf`,
@@ -52,7 +52,7 @@ written whole by the desktop-shell skill, which folds the colors in. Templates f
 
 ## Palette sources → `palette.conf`
 
-- **Named / manual** — the theme-config skill writes `palette.conf` directly from `palettes.md`
+- **Named / manual** — the rice skill writes `palette.conf` directly from `palettes.md`
   (or user hex).
 - **Wallpaper-generated (matugen/wallust)** — use the generator to *produce* the palette, then let
   the engine render everything:
@@ -78,7 +78,7 @@ source per run so the two stay consistent.
 ## State & reproducibility
 
 `palette.conf` records the current `scheme`, `wallpaper`, and fonts — it *is* the rice state.
-Saving a profile (theme-profiles) snapshots it; version-controlling `~/.config/hypr-rice/` (and
+Saving a profile (rice) snapshots it; version-controlling `~/.config/hypr-rice/` (and
 the app configs) in git makes the whole rice reproducible. See the dotfiles skill.
 
 ## CLI

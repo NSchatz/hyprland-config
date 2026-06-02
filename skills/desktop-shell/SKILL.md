@@ -1,6 +1,6 @@
 ---
 name: desktop-shell
-description: This skill should be used when the user runs "/hyprland-config:desktop-shell" or asks to set up or change the desktop shell components around Hyprland — e.g. "set up my waybar", "configure my status bar", "add modules to waybar", "set up wofi/rofi", "configure mako/dunst notifications", or "give me a working bar". Writes the functional config for the bar (waybar config.jsonc + style.css), launcher (wofi/rofi), and notification daemon (mako/dunst) — backing up and reloading each. For the colors of these components, use theme-config; for autostarting them, use generate-config.
+description: This skill should be used when the user runs "/hyprland-config:desktop-shell" or asks to set up or change the desktop shell components around Hyprland — e.g. "set up my waybar", "configure my status bar", "add modules to waybar", "set up wofi/rofi", "configure mako/dunst notifications", or "give me a working bar". Writes the functional config for the bar (waybar config.jsonc + style.css), launcher (wofi/rofi), and notification daemon (mako/dunst) — backing up and reloading each. For the colors and autostart of these components, use the rice skill.
 argument-hint: "[request, e.g. 'set up waybar with battery and tray']"
 allowed-tools: AskUserQuestion, Bash, Read, Write, Edit, Glob, Grep
 version: 0.1.0
@@ -10,8 +10,8 @@ version: 0.1.0
 
 Set up the functional configs for the Wayland shell around Hyprland — status bar, launcher, and
 notification daemon. This skill owns **structure and behavior** (modules, layout, keybind-free
-behavior); **colors** are owned by the **theme-config** skill (each config `@import`s/includes the
-generated colors file), and **autostart** (`exec-once = waybar`…) is owned by **generate-config**.
+behavior); **colors** and **autostart** (`exec-once = waybar`…) are owned by the **rice** skill
+(each config `@import`s/includes the generated colors file).
 Treat `$ARGUMENTS` as the request.
 
 Read `references/components.md` for concrete waybar / wofi / rofi / mako / dunst configs, module
@@ -29,7 +29,7 @@ rather than default. Their recipes use the same rice palette `@import`/`include`
 ### 1. Detect what's installed
 
 ```bash
-bash "${CLAUDE_PLUGIN_ROOT}/skills/theme-config/scripts/detect-theme-tools.sh"
+bash "${CLAUDE_PLUGIN_ROOT}/skills/rice/scripts/detect-theme-tools.sh"
 ```
 
 Use the `HAVE_*` lines for `waybar/hyprpanel/wofi/rofi/mako/dunst`. Configure the tools the user
@@ -59,11 +59,11 @@ bash "${CLAUDE_PLUGIN_ROOT}/scripts/backup-path.sh" \
 From `components.md`, write each component's config file(s) with `Write`/`Edit`:
 
 - waybar: `~/.config/waybar/config.jsonc` + `style.css` (with `@import "colors.css";` at the top
-  of `style.css` so theme-config can color it).
+  of `style.css` so rice can color it).
 - wofi: `~/.config/wofi/config` + `style.css` (`@import "colors.css";`).
 - rofi: `~/.config/rofi/config.rasi` (+ a theme that `@import`s `colors.rasi`).
 - mako: `~/.config/mako/config` / dunst: `~/.config/dunst/dunstrc` (leave color keys to
-  theme-config, or set neutral defaults the user can re-theme).
+  rice, or set neutral defaults the user can re-theme).
 
 Keep modules aligned to installed tools (e.g. only add the `network` on-click if
 `nm-connection-editor` exists; `pulseaudio` on-click → `pavucontrol`). Do not hardcode theme
@@ -74,7 +74,7 @@ colors — reference the colors file.
 Reload the affected running apps:
 
 ```bash
-bash "${CLAUDE_PLUGIN_ROOT}/skills/theme-config/scripts/apply-theme.sh"
+bash "${CLAUDE_PLUGIN_ROOT}/skills/rice/scripts/apply-theme.sh"
 ```
 
 (It reloads waybar via `SIGUSR2`, mako via `makoctl reload`, dunst via `dunstctl reload` — only if
@@ -94,8 +94,8 @@ run `waybar` once in the foreground to read the error.
 ### 6. Report
 
 Summarize components configured, files written, backup paths, reload results, and any package the
-user should install (a missing tool, or a Nerd Font for glyphs). Remind them that **colors** come
-from `theme-config` and **autostart** from `generate-config` if those aren't set up yet.
+user should install (a missing tool, or a Nerd Font for glyphs). Remind them that **colors** and
+**autostart** come from the `rice` skill if those aren't set up yet.
 
 ## Safety rules
 
@@ -107,6 +107,6 @@ from `theme-config` and **autostart** from `generate-config` if those aren't set
 ## Resources
 
 - **`references/components.md`** — waybar/wofi/rofi/mako/dunst configs, modules, reloads, fonts.
-- **`${CLAUDE_PLUGIN_ROOT}/skills/theme-config/scripts/apply-theme.sh`** — reload running apps.
+- **`${CLAUDE_PLUGIN_ROOT}/skills/rice/scripts/apply-theme.sh`** — reload running apps.
 - **`${CLAUDE_PLUGIN_ROOT}/scripts/backup-path.sh`** — timestamped backup of arbitrary paths.
-- **`${CLAUDE_PLUGIN_ROOT}/skills/theme-config/scripts/detect-theme-tools.sh`** — tool probe.
+- **`${CLAUDE_PLUGIN_ROOT}/skills/rice/scripts/detect-theme-tools.sh`** — tool probe.
