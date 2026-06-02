@@ -38,19 +38,14 @@ which surfaces exist to theme, and (b) read the starting state.
 
 ### 2. Choose the palette source (always ask)
 
-Ask the palette questions from the **shared theme interview** in **`references/interview.md`** (T1
-source → scheme/wallpaper/manual, T2 accent, T3 light/dark). This is the same bank `generate-config`
-uses, so a freshly generated config and a re-theme stay consistent. In short:
+Ask the palette questions (T1 source → scheme/wallpaper/manual, T2 accent, T3 light/dark) from the
+**shared theme interview** in **`references/interview.md`** — that file owns the question wording,
+options, and fallbacks (the same bank `generate-config` uses, so a re-theme and a fresh config stay
+consistent). Don't restate it here; just run it.
 
-- **Named scheme** → pick from `palettes.md` (Catppuccin Mocha/Latte, Gruvbox, Nord, Tokyo Night,
-  Rosé Pine). Resolve straight to the palette contract.
-- **Wallpaper-generated** → needs `matugen` or `wallust`. If neither is installed (per step 1),
-  **offer a named scheme or manual instead** and tell the user the package to install — do not
-  install it. If available, run it on the wallpaper, obtain the palette (matugen
-  `matugen image <img> --json hex`; wallust writes a colors file), and map to the contract.
-- **Manual** → ask for at least `bg`, `fg`, `accent`; derive the rest, or ask for the full 16.
-
-Resolve everything to the **palette contract** (`theming.md`) as bare `RRGGBB` before rendering.
+Caller-specific to this skill: the named-scheme catalog is `palettes.md`, and every answer must
+resolve to the **palette contract** (`theming.md`) as bare `RRGGBB` before rendering. For the
+wallpaper source, `palette-from-wallpaper.sh` produces the palette when matugen/wallust is present.
 
 ### 3. Choose surfaces (default: all installed)
 
@@ -61,16 +56,9 @@ fonts. Skip surfaces whose app isn't present (note them).
 ### 3b. Present font choices (always ask)
 
 Fonts are a presented choice — don't pick silently. Ask T4 (UI/sans) and T5 (monospace/Nerd) from
-the shared **`references/interview.md`**, backed by the detail in `references/fonts.md`. Using the
-`HAVE_NERD_FONT` / `FONT_MONO=` / `FONT_SANS=` / `CURRENT_*FONT*` lines from step 1, present the
-user with options for:
-
-- a **UI / sans font** (GTK text), and
-- a **monospace / Nerd font** (terminal, bar, fetch, prompt) — default to an **installed Nerd
-  Font** (e.g. `JetBrainsMono Nerd Font`) so glyphs render.
-
-Offer the installed families first; if `MISSING_NERD_FONT`, offer the catalog from `fonts.md` and
-note the package to install (don't install it). Apply the chosen fonts across `gsettings`
+the shared **`references/interview.md`** (it owns the options, the installed-first ordering, the
+Nerd-Font default, and the `MISSING_NERD_FONT` fallback); `references/fonts.md` has the catalog
+detail. Then **apply** the chosen fonts (the caller-specific part) across `gsettings`
 (`font-name`, `monospace-font-name`), GTK `settings.ini`, kitty `font_family`, and waybar
 `font-family` per `fonts.md`/`templates.md`.
 

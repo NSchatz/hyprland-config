@@ -103,11 +103,14 @@ look cheap is to apply it inconsistently. Rules:
 
   ```
   layerrule {
-      namespace = waybar
+      name = blur-waybar
+      match:namespace = waybar
       blur = true
   }
   ```
-  (also typical namespaces: `wofi`/`rofi`, `notifications`, `swaync-control-center`, `gtk-layer-shell`).
+  (the `name` + `match:namespace` keys are required on 0.54.x; see `hyprland-decoration.md` and
+  `../window-rules.md`. Also typical namespaces: `wofi`/`rofi`, `notifications`,
+  `swaync-control-center`, `gtk-layer-shell`.)
 - **Decide opaque-vs-glass once and globally.** A fully opaque flat rice is perfectly coherent; a
   fully glass rice is coherent. A rice where half the surfaces are glass and half are opaque, for no
   semantic reason, is the incoherent one. If you go opaque, turn blur off and skip the layerrules.

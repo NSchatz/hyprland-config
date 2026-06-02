@@ -44,23 +44,20 @@ killall -SIGUSR2 waybar
 - `font-size`: 13–15px is the sweet spot. JaKooLit and HyDE scale the whole bar by setting `font-size` as a **percentage** (e.g. `97%`, bump to `104%` on 4K) so geometry tracks the font.
 - `font-weight: bold;` on the workspace/clock reads crisper on a translucent bg.
 
-**Transparency + Hyprland blur.** A translucent bar over a busy wallpaper looks muddy *unless the compositor blurs what's behind it*. Add a layer rule in `hyprland.conf` targeting Waybar's layer namespace (`waybar`):
-
-```conf
-layerrule = blur, waybar
-layerrule = ignorealpha 0.1, waybar   # don't blur fully-transparent gaps between pills
-```
-
-On **Hyprland 0.54+** the single-line `layerrule = blur, waybar` is accepted, but some 0.54.x point releases reject inline forms — if `hyprctl configerrors` complains, use the block form:
+**Transparency + Hyprland blur.** A translucent bar over a busy wallpaper looks muddy *unless the compositor blurs what's behind it*. Add a layer rule in `hyprland.conf` targeting Waybar's layer namespace (`waybar`). **On Hyprland 0.54.x use the block form — the single-line `layerrule = blur, waybar` is rejected** (`invalid field blur: missing a value`) and fails the whole reload. The current (0.54+) form, with the required `name` key (see `../window-rules.md`):
 
 ```conf
 layerrule {
-    match = waybar
+    name = blur-waybar
+    match:namespace = waybar
     blur = true
+    ignore_alpha = 0.1   # don't blur the fully-transparent gaps between pills
 }
 ```
 
-Confirm the namespace with `hyprctl layers` (look for `namespace: waybar`). Known quirk: `layerrule = blur` may not apply to the bar until the first window opens on that workspace ([Hyprland #6130](https://github.com/hyprwm/Hyprland/issues/6130)).
+On **older targets (pre-0.53)** use the single-line form instead (`layerrule = blur, waybar` / `layerrule = ignorealpha 0.1, waybar`). Pick the form by version; never mix them for one rule.
+
+Confirm the namespace with `hyprctl layers` (look for `namespace: waybar`). Known quirk: blur may not apply to the bar until the first window opens on that workspace ([Hyprland #6130](https://github.com/hyprwm/Hyprland/issues/6130)).
 
 **Icons / glyphs & states.**
 - Module text comes from `format` strings with `{icon}` placeholders resolved by `format-icons` (an array picked by level, or a keyed map). E.g. battery `"format-icons": ["", "", "", "", ""]`, volume keyed by `"headphone"`/`"default"`.
@@ -88,7 +85,7 @@ window#waybar { background: transparent; }
     margin: 6px;
 }
 ```
-Pair with `layerrule = blur, waybar` for the frosted-glass effect.
+Pair with the `layerrule … blur = true` block (above) for the frosted-glass effect.
 
 **(b) Edge-to-edge solid bar** — the classic Waybar default and many minimalist Sway rices. No margins, `exclusive: true`, a solid or lightly-translucent full-width bar, square corners. The official sample uses `background: rgba(43,48,59, 0.5); border-bottom: 3px solid rgba(100,114,125,0.5);` with `#workspaces button.focused { border-bottom: 3px solid white; }`.
 
@@ -254,16 +251,20 @@ tooltip  { background: #313244; border: 1px solid #cba6f7; }
 ```
 If you prefer the official Catppuccin port's variable style, `@import "mocha.css";` and reference `@text`, `@base`, `@mauve`, `@blue`, with `alpha(@base, 0.85)` for the translucent group bg.
 
-Then enable blur in `hyprland.conf`:
+Then enable blur in `hyprland.conf` (0.54.x block form — see `../window-rules.md`):
 ```conf
-layerrule = blur, waybar
-layerrule = ignorealpha 0.1, waybar
+layerrule {
+    name = blur-waybar
+    match:namespace = waybar
+    blur = true
+    ignore_alpha = 0.1
+}
 ```
 
 ## Pitfalls
 
 - **Tofu boxes (▯) instead of icons** — `font-family` isn't a Nerd Font, or the Nerd Font isn't installed. Always list a Nerd Font first (and `"Symbols Nerd Font"` as a fallback for raw glyphs).
-- **Muddy translucency** — translucent bar with **no** `layerrule = blur, waybar`, so the wallpaper bleeds through at full sharpness. Add the blur rule; add `ignorealpha` so the transparent gaps between pills aren't blurred into a haze.
+- **Muddy translucency** — translucent bar with **no** `layerrule … blur` block, so the wallpaper bleeds through at full sharpness. Add the blur rule; add `ignore_alpha = 0.1` so the transparent gaps between pills aren't blurred into a haze.
 - **Harsh pure-black, full-opacity bg** (`#000` / `rgba(0,0,0,1)`) — reads heavy and dated. Use your palette `bg` at `0.8–0.9` alpha instead.
 - **Inconsistent `border-radius`** — bar islands at `14px` but inner workspace buttons at `4px` looks accidental. Keep inner radius a notch smaller than outer (e.g. islands `14`, buttons `10`).
 - **Modules touching / text clipped by rounded edges** — no `padding` or `min-width`. Give every module `padding: 0 10px` (and `min-width` for jittery ones like clock/battery so the bar doesn't reflow each second).

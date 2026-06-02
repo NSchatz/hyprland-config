@@ -126,7 +126,7 @@ accent, UI font, monospace/Nerd font). It is the same bank `theme-config` uses, 
 generated here and a later `/hyprland-config:theme-config` run stay perfectly consistent.
 
 Run `theme-config/scripts/detect-theme-tools.sh` first so the font/generator options reflect
-what's installed. Resolve the answers into the rice engine's `palette.conf` (see step 4 of the
+what's installed. Resolve the answers into the rice engine's `palette.conf` (see step 4b of the
 SKILL and `theme-config/references/engine.md`) — that's what renders `colors.conf` (the `$accent`
 etc. used by C6) and themes any companion apps. Don't silently pick a scheme or fonts; present
 them. If the user says "just pick good defaults", use Catppuccin Mocha + an installed Nerd Font for

@@ -67,6 +67,11 @@ font_ui=<Family size>
 font_mono=<Family size>
 ```
 
+**Always populate `accent2`**, including on the manual-hex path where the user only gave
+`bg`/`fg`/`accent` — default it to `accent` or a derived neighbouring hue. Templates such as the
+Hyprland border (`col.active_border = $accent $accent2 45deg`) reference it, so a missing value
+errors the reload.
+
 Then `rice apply` renders every wired app's colors file and reloads it. For the full contract and
 render flow see `engine.md`; for the per-scheme hex see `palettes.md`; for fonts see `fonts.md`.
 

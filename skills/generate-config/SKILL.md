@@ -89,7 +89,7 @@ in `~/.config/hypr`. Use the templates in **`references/templates.md`** as the s
 |-------------------|-----------------------------------------------------------------|
 | `hyprland.conf`   | Variables (`$mod`, apps) + `source=` lines for the files below  |
 | `env.conf`        | `env=` lines (sourced first, before anything that needs them)   |
-| `colors.conf`     | Palette vars (`$accent` …) — rendered by the rice engine (4b)   |
+| `colors.conf`     | Palette vars (`$accent` …) — **do not author by hand; filled in step 4b** |
 | `monitors.conf`   | `monitor=` lines                                                |
 | `input.conf`      | `input {}` block                                                |
 | `looknfeel.conf`  | `general {}`, `decoration {}`, `animations {}`, layout block    |
@@ -129,22 +129,35 @@ Read `theme-config/references/engine.md` for the contract. Do this:
    bash "${CLAUDE_PLUGIN_ROOT}/skills/theme-config/scripts/rice-init.sh"
    ```
 2. **Write `~/.config/hypr-rice/palette.conf`** from the Area C-theme answers — resolve the chosen
-   named scheme (`theme-config/references/palettes.md`), wallpaper-generated palette
-   (`palette-from-wallpaper.sh`), or manual hex into the contract keys, and set `scheme`,
-   `wallpaper`, `font_ui`, `font_mono`. This file is the source of truth; overwrite the seeded
-   default with the user's actual choice.
-3. **Render `colors.conf` into the staging dir** so it installs and backs up with the rest. Render
-   the Hyprland color template against the palette and write the result to
-   `<staging>/colors.conf` (the engine's `hyprland.tmpl` → `$accent`/`$accent2`/`$bg`/`$fg`/
-   `$surface`/`$muted`). Fill the `{{accent_hex}}`/`{{surface_hex}}`/`{{fg_hex}}`/`{{font_ui_family}}`
-   placeholders in any companion configs (e.g. `hyprlock.conf`) from the same palette.
-4. After install (step 5), run `rice apply` so any *already-present* app configs (kitty, waybar if
-   the user already had them) also pick up the palette: `bash ~/.config/hypr-rice/rice apply`.
+   named scheme (`theme-config/references/palettes.md`), wallpaper-generated palette (run
+   `${CLAUDE_PLUGIN_ROOT}/skills/theme-config/scripts/palette-from-wallpaper.sh`), or manual hex
+   into the contract keys, and set `scheme`, `wallpaper`, `font_ui`, `font_mono`. This file is the
+   source of truth; overwrite the seeded default with the user's actual choice. **Always populate
+   `accent2`** even for the manual-hex path (default it to `accent`, or a derived neighbouring hue)
+   — the border template below references `$accent2`, so an undefined value would error the reload.
+3. **Fill `colors.conf` into the staging dir** so it installs and backs up with the rest (do *not*
+   let the engine write to `~/.config/hypr` yet — that breaks the "nothing touches `~/.config/hypr`
+   before step 5" rule). Take the engine's Hyprland template
+   `${CLAUDE_PLUGIN_ROOT}/skills/theme-config/templates/hyprland.tmpl`, substitute its `{{accent}}`
+   `{{accent2}}` `{{bg}}` `{{fg}}` `{{surface}}` `{{muted}}` placeholders with the bare hex from
+   `palette.conf`, and `Write` the result to `<staging>/colors.conf` (it defines `$accent`/`$accent2`
+   /`$bg`/`$fg`/`$surface`/`$muted`). Likewise fill the `{{accent_hex}}`/`{{surface_hex}}`/`{{fg_hex}}`
+   /`{{font_ui_family}}` placeholders in any companion configs (e.g. `hyprlock.conf`) from the same
+   palette. (Equivalently you can run `render-templates.sh --no-reload <palette> <manifest>` with a
+   one-line manifest whose output column is `<staging>/colors.conf`, but inline substitution is
+   simpler and keeps the write inside staging.)
+4. **Only after a successful install** (step 5 returns `SAFE_APPLY=ok` or `installed-untested`), run
+   `bash ~/.config/hypr-rice/rice apply` so any *already-present* app configs (kitty, waybar if the
+   user already had them) also pick up the palette. **Skip `rice apply` on `SAFE_APPLY=rolled-back`
+   or `install-failed`** — it would re-render `~/.config/hypr/colors.conf` and `hyprctl reload`
+   outside the safe-apply harness, undoing the rollback.
 
-On a fresh setup the only wired app is Hyprland itself; the bar/terminal/GTK get themed from this
-same `palette.conf` as those configs come to exist (the `desktop-shell` skill folds colors in, and
-a later `theme-config`/`rice apply` renders them). Mention this in the final summary so the user
-knows the palette is already set for everything downstream.
+On a fresh setup the only wired app is Hyprland itself (its `colors.conf` is already installed by
+step 5), so `rice apply` here is essentially a no-op except for apps the user already had. The
+bar/terminal/GTK get themed from this same `palette.conf` as those configs come to exist (the
+`desktop-shell` skill folds colors in, and a later `theme-config`/`rice apply` renders them).
+Mention this in the final summary so the user knows the palette is already set for everything
+downstream.
 
 ### 5. Back up and install
 
@@ -239,6 +252,9 @@ right form per `hyprland-reference/references/deprecations.md`:
   (`palette.conf` source of truth, `colors.conf` render, the `rice` CLI).
 - **`skills/theme-config/references/palettes.md`** — named schemes → palette contract hex.
 - **`skills/theme-config/scripts/rice-init.sh`** — scaffolds `~/.config/hypr-rice/` (step 4b).
+- **`skills/theme-config/scripts/palette-from-wallpaper.sh`** — generates a palette from a wallpaper
+  (matugen/wallust) for the wallpaper-source path in step 4b.2.
+- **`skills/theme-config/templates/hyprland.tmpl`** — the `colors.conf` template filled in step 4b.3.
 - **`skills/theme-config/scripts/detect-theme-tools.sh`** — probes installed fonts/generators for
   the Area C-theme options.
 - **`references/templates.md`** — annotated templates for every generated file.

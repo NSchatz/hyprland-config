@@ -190,9 +190,9 @@ bright4=89b4fa   bright5=f5c2e7   bright6=94e2d5   bright7=a6adc8
 ```
 font-family = JetBrainsMono Nerd Font
 font-size = 11
-background = 1e1e2e
-foreground = cdd6f4
-cursor-color = f5e0dc
+background = #1e1e2e
+foreground = #cdd6f4
+cursor-color = #f5e0dc
 background-opacity = 0.92
 background-blur = 20
 window-padding-x = 12

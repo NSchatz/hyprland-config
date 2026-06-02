@@ -11,6 +11,12 @@ config section, keybinding/dispatcher syntax, window rules, and a catalog of opt
 been renamed or removed across versions. Use this to answer "how do I configure X in Hyprland"
 questions and to write or audit `hyprland.conf` files that use correct, current syntax.
 
+It also carries a **styling reference library** (`references/styling/`) for the *visual design*
+side — how to make waybar, launchers, notifications, terminals, hyprlock, GTK/Qt apps, and the
+Hyprland decoration/animation look genuinely good, plus cross-cutting design principles. Reach for
+that section when the question is about appearance ("make my X look nice / match / ricing") rather
+than syntax; see the dedicated section below.
+
 ## Hyprland config in 60 seconds
 
 - Default config path: `~/.config/hypr/hyprland.conf`.
