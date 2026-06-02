@@ -217,6 +217,19 @@ Hyprland start (next login). So after a `SAFE_APPLY=ok` the user will see the ne
   placeholder (`hyprpaper` with no `wall.png` shows nothing); point the user at the wallpaper skill.
 - **Or tell them explicitly** that the bar/daemons appear on next login and how to trigger them now.
 
+After starting a daemon live, **verify it stayed up** (`pgrep -x <name>`) — some exit immediately
+and `hyprctl dispatch exec` swallows the error. Two common silent failures:
+
+- **Notification daemon name conflict.** Only one notification daemon can own the
+  `org.freedesktop.Notifications` D-Bus name. If another (often `dunst`, which is D-Bus-activated
+  on the first notification even when not in `autostart.conf`) is already running, the chosen one
+  (e.g. `swaync`) exits with "Could not acquire notification name." Check `pgrep -ax 'dunst|mako|swaync'`,
+  stop the stray daemon (`pkill -x dunst`), then start the chosen one. For a permanent fix point the
+  user at removing/masking the other daemon — they can't coexist.
+- **Wrong wallpaper binary.** `awww` (the swww fork) ships `awww-daemon`, not `swww-daemon`; a
+  hard-coded `swww-daemon` exec fails with "No such file or directory." Use the `SWWW_DAEMON_BIN`
+  reported by `detect-version.sh`.
+
 Note in the summary that any `exec-once` daemon not already running won't be visible until then.
 
 ## Version-sensitive forms (match the detected version)

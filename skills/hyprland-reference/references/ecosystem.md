@@ -64,6 +64,14 @@ Libraries (not user-facing, listed for recognition): `hyprutils`, `hyprlang`, `h
 
 Many daemons start automatically via D-Bus activation; an explicit `exec-once` is still common.
 
+**Only one notification daemon can run at a time** — they all claim the
+`org.freedesktop.Notifications` D-Bus name, and the second to start exits with "Could not acquire
+notification name." Because daemons like `dunst` are D-Bus-activated by the first notification,
+one can be running even without an `exec-once`. When switching daemons, stop the old one
+(`pkill -x dunst`) before starting the new one, and remove or mask it for a permanent switch
+(`pacman -Rns dunst`, or symlink its `dbus-1/services/*.service` to `/dev/null`). After starting a
+daemon, confirm it stayed up with `pgrep -x <name>`.
+
 ## Wallpaper
 
 | Package     | Notes                                                                      |
