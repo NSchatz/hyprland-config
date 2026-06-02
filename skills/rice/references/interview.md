@@ -116,8 +116,9 @@ silently — present them; if the user says "good defaults", use **Catppuccin Mo
 Nerd Font (mono) + an installed UI font, and say what you chose.
 
 **D1. Palette source** (always ask)
-- **Named scheme (default)** → one from `palettes.md` (Catppuccin Mocha/Latte, Gruvbox, Nord, Tokyo
-  Night, Rosé Pine). Ask the scheme as a second question.
+- **Named scheme (default)** → one from `palettes.md` (Catppuccin Mocha/Frappé/Macchiato/Latte,
+  Gruvbox, Nord, Tokyo Night, Rosé Pine, Dracula, Everforest, Kanagawa, Solarized Dark). Ask the
+  scheme as a second question; each ships a ready preset profile + matching wallpapers (D6).
 - **Match my wallpaper** → needs `matugen` or `wallust`; confirm the wallpaper path. If neither is
   installed, say so and fall back to a named scheme or manual (don't install). With matugen, the
   scheme type is selectable (`-t scheme-tonal-spot`/`-expressive`/`-vibrant`/…); Material-You →

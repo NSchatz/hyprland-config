@@ -185,8 +185,9 @@ themed, files written, backups, reload/verify results, and any package to instal
 ## Mode C — Named profiles & the override cascade
 
 A **profile** is a snapshot of `palette.conf` (palette + scheme + wallpaper + fonts) at
-`~/.config/hypr-rice/profiles/<name>.conf`. Five presets ship: `catppuccin-mocha`, `gruvbox`, `nord`,
-`tokyo-night`, `rose-pine`.
+`~/.config/hypr-rice/profiles/<name>.conf`. Twelve presets ship: `catppuccin-mocha`,
+`catppuccin-frappe`, `catppuccin-macchiato`, `catppuccin-latte` (light), `gruvbox`, `nord`,
+`tokyo-night`, `rose-pine`, `dracula`, `everforest`, `kanagawa`, `solarized-dark`.
 
 1. Ensure the engine exists: `bash "${CLAUDE_PLUGIN_ROOT}/skills/rice/scripts/rice-init.sh"` (also
    installs the presets without clobbering customized ones).

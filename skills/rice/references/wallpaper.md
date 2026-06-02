@@ -18,9 +18,10 @@ The engine ships a **theme-tagged wallpaper catalog** so a user can pick a wallp
 scheme they chose, without hunting for one. It lives at `assets/wallpapers.tsv` in the plugin and is
 copied into `~/.config/hypr-rice/wallpapers.tsv` by `rice-init.sh`. Format is
 `scheme<TAB>name<TAB>url`, where every `url` is a **direct `raw.githubusercontent.com` blob** that
-`curl -L` downloads. Entries are tagged by scheme key (`catppuccin-mocha`, `catppuccin-latte`,
-`rose-pine`, `gruvbox`, `nord`, `tokyo-night`) plus an `any` group of theme-agnostic dark wallpapers
-offered alongside every dark scheme. All links are verified live when shipped.
+`curl -L` downloads. Entries are tagged by scheme key — `catppuccin-mocha`/`-frappe`/`-macchiato`/
+`-latte`, `rose-pine`, `gruvbox`, `nord`, `tokyo-night`, `dracula`, `everforest`, `kanagawa`,
+`solarized` — plus an `any` group of theme-agnostic dark wallpapers offered alongside every dark
+scheme (~100 entries total). All links are verified live when shipped.
 
 Two `rice` CLI commands drive it (so it works standalone, without the plugin):
 
@@ -41,8 +42,10 @@ scheme, list `rice wallpapers <scheme>`, present the names via `AskUserQuestion`
 
 **Sources & licensing** (community wallpaper repos — the same ecosystem the styling research drew
 from): zhichaoh/catppuccin-wallpapers (MIT), rose-pine/wallpapers (CC0), AngelJumbo/gruvbox-wallpapers
-(community), linuxdotexe/nordic-wallpapers (MIT), tokyo-night/wallpapers (MIT), JaKooLit/Wallpaper-Bank
-and dharmx/walls (community — personal use, attribution unclear). Tell the user where a wallpaper came
+(community), linuxdotexe/nordic-wallpapers (MIT), tokyo-night/wallpapers (MIT), dracula/wallpaper (MIT),
+Apeiros-46B/everforest-walls (community), Gurjaka/Kanagawa-Wallpapers + philikarus/Kanagawa-wallpapers
+(community), visika/solarized-wallpapers (Unlicense), JaKooLit/Wallpaper-Bank and dharmx/walls
+(community — personal use, attribution unclear). Tell the user where a wallpaper came
 from when relevant. To extend the catalog, add a `scheme<TAB>name<TAB>url` line (verify the raw URL
 resolves first); `rice-init.sh --force` re-copies the plugin's copy over the engine's.
 

@@ -47,7 +47,7 @@ up, into `~/.config/hypr`.
 
 | Type  | Name                        | Purpose                                                        |
 |-------|-----------------------------|----------------------------------------------------------------|
-| Skill | `rice`                      | User-invoked. The whole rice in one skill: **generate** a config from scratch (interview incl. palette & fonts → modular config → install + live-test), **theme** every surface from one palette (named / wallpaper-generated / manual + font choices), manage named **profiles** (5 presets + a user-override cascade), and set/cycle the **wallpaper** with dynamic theming — all driven by a self-contained rice engine (`~/.config/hypr-rice/` with `palette.conf` + templates + a `rice` CLI). |
+| Skill | `rice`                      | User-invoked. The whole rice in one skill: **generate** a config from scratch (interview incl. palette & fonts → modular config → install + live-test), **theme** every surface from one palette (named / wallpaper-generated / manual + font choices), manage named **profiles** (12 presets + a user-override cascade), and set/cycle the **wallpaper** with dynamic theming — all driven by a self-contained rice engine (`~/.config/hypr-rice/` with `palette.conf` + templates + a `rice` CLI). |
 | Skill | `edit-config`               | User-invoked. Reads an existing config and makes changes, **testing after every change** with auto-rollback. |
 | Skill | `shell-config`              | User-invoked. Configures the terminal shell (bash/zsh/fish): prompt, aliases, env, history, a startup **fetch** (fastfetch default / neofetch), and modern-CLI integration — syntax-checked after every change. |
 | Skill | `desktop-shell`             | User-invoked. Functional configs for the bar (waybar), launcher (wofi/rofi), and notifications (mako/dunst). |
@@ -135,7 +135,7 @@ rice wallpaper PIC.png   # set wallpaper, regenerate palette from it, re-theme e
 rice random ~/Pictures   # random wallpaper + re-theme (bind it to a key or a timer)
 rice wallpapers nord     # list curated, theme-matched wallpapers you can download
 rice get-wallpaper nord 2 --set   # curl a matching wallpaper and set it (keeps the palette)
-rice theme nord          # switch to a saved profile (5 ship: catppuccin-mocha, gruvbox, nord, …)
+rice theme nord          # switch to a saved profile (12 ship: catppuccin-{mocha,frappe,macchiato,latte}, gruvbox, nord, tokyo-night, rose-pine, dracula, everforest, kanagawa, solarized-dark)
 rice save midnight       # snapshot the current palette as a profile
 ```
 

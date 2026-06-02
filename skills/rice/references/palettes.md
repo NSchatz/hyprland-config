@@ -54,6 +54,47 @@ bg `191724` · fg `e0def4` · surface `1f1d2e` · muted `6e6a86` · accent `c4a7
 accent2 `31748f` (pine) · red `eb6f92` (love) · green `31748f` (pine) · yellow `f6c177` (gold) ·
 blue `9ccfd8` (foam) · magenta `c4a7e7` (iris) · cyan `9ccfd8` (foam) · rose `ebbcba`.
 
+## Catppuccin Frappé (dark, warmer)
+
+bg `303446` · fg `c6d0f5` · surface `414559` · muted `737994` · cursor `f2d5cf` ·
+accent `ca9ee6` (mauve) · accent2 `8caaee` (blue) · red `e78284` · green `a6d189` ·
+yellow `e5c890` · blue `8caaee` · magenta `f4b8e4` (pink) · cyan `81c8be` (teal).
+
+## Catppuccin Macchiato (dark)
+
+bg `24273a` · fg `cad3f5` · surface `363a4f` · muted `6e738d` · cursor `f4dbd6` ·
+accent `c6a0f6` (mauve) · accent2 `8aadf4` (blue) · red `ed8796` · green `a6da95` ·
+yellow `eed49f` · blue `8aadf4` · magenta `f5bde6` (pink) · cyan `8bd5ca` (teal).
+
+## Dracula
+
+bg `282a36` · fg `f8f8f2` · surface `44475a` · muted `6272a4` (comment) · accent `bd93f9` (purple) ·
+accent2 `ff79c6` (pink) · red `ff5555` · green `50fa7b` · yellow `f1fa8c` · blue `bd93f9`
+(Dracula has no pure blue — purple stands in) · magenta `ff79c6` · cyan `8be9fd`. Bright variants
+exist (`ff6e6e`/`69ff94`/`ffffa5`/`d6acff`/`ff92df`/`a4ffff`).
+
+## Everforest (dark, medium)
+
+bg `2d353b` · fg `d3c6aa` · surface `3d484d` · muted `7a8478` · accent `a7c080` (green) ·
+accent2 `83c092` (aqua) · red `e67e80` · green `a7c080` · yellow `dbbc7f` · blue `7fbbb3` ·
+magenta `d699b6` · cyan `83c092`. Soft, low-contrast forest palette (sainnhe/everforest).
+
+## Kanagawa (Wave)
+
+bg `1f1f28` · fg `dcd7ba` · surface `2a2a37` · muted `727169` · accent `7e9cd8` (crystalBlue) ·
+accent2 `957fb8` (oniViolet) · red `e46876` (waveRed) · green `98bb6c` (springGreen) ·
+yellow `e6c384` (carpYellow) · blue `7e9cd8` · magenta `957fb8` · cyan `6a9589` (waveAqua).
+Muted "Great Wave" ink palette (rebelot/kanagawa.nvim).
+
+## Solarized Dark
+
+bg `002b36` (base03) · fg `839496` (base0) · surface `073642` (base02) · muted `586e75` (base01) ·
+accent `268bd2` (blue) · accent2 `2aa198` (cyan) · red `dc322f` · green `859900` · yellow `b58900` ·
+blue `268bd2` · magenta `d33682` · cyan `2aa198` · violet `6c71c4` · orange `cb4b16`. Note: Solarized's
+"bright" ANSI slots are intentionally repurposed as the base0x tonal greys + violet/orange, not lighter
+hues — a deliberate low-contrast design (Ethan Schoonover). A `solarized-light` swaps the base tones
+(bg `fdf6e3`, fg `657b83`) and needs GTK `color-scheme = prefer-light`.
+
 ---
 
 ## Matching GTK / icon / cursor themes per scheme
@@ -68,6 +109,10 @@ gtk.css color overrides and keep the user's current theme. Common matches (insta
 | Nord          | `nordic-theme`/`arc` (AUR)          | Nordzy-cursors; Papirus-Dark            |
 | Tokyo Night   | `tokyonight-gtk-theme` (AUR)        | Bibata; Papirus-Dark                    |
 | Rosé Pine     | `rose-pine-gtk-theme` (AUR)         | rose-pine-cursor; Papirus               |
+| Dracula       | `dracula-gtk-theme` (AUR)           | Bibata; Papirus-Dark (dracula-icons)    |
+| Everforest    | `everforest-gtk-theme-git` (AUR)    | Bibata; Papirus-Dark                    |
+| Kanagawa      | `kanagawa-gtk-theme-git` (AUR)      | Bibata; Papirus-Dark                    |
+| Solarized     | `solarized-gtk-theme`/`gnome-solarized` | Bibata; Papirus(-Dark)              |
 
 If the matching theme isn't installed, do not install it — apply colors via `gtk.css` overrides
 and tell the user the package if they want the full theme.
