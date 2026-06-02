@@ -23,9 +23,12 @@ for t in "$SRC"/templates/*.tmpl; do
     if [ ! -e "$dest" ] || [ "$force" -eq 1 ]; then cp "$t" "$dest"; fi
 done
 
-# Install the engine + CLI (always refresh these — they're plugin-owned code).
-cp "$SRC/scripts/render-templates.sh" "$RICE_DIR/render-templates.sh"; chmod +x "$RICE_DIR/render-templates.sh"
-cp "$SRC/assets/rice" "$RICE_DIR/rice"; chmod +x "$RICE_DIR/rice"
+# Install the engine + CLI + wallpaper helpers (always refresh — plugin-owned code).
+cp "$SRC/scripts/render-templates.sh"      "$RICE_DIR/render-templates.sh"
+cp "$SRC/scripts/set-wallpaper.sh"         "$RICE_DIR/set-wallpaper.sh"
+cp "$SRC/scripts/palette-from-wallpaper.sh" "$RICE_DIR/palette-from-wallpaper.sh"
+cp "$SRC/assets/rice"                      "$RICE_DIR/rice"
+chmod +x "$RICE_DIR"/render-templates.sh "$RICE_DIR"/set-wallpaper.sh "$RICE_DIR"/palette-from-wallpaper.sh "$RICE_DIR"/rice
 
 # Default manifest (only the cleanly include-able apps; others added by their skills).
 mf="$RICE_DIR/templates.list"

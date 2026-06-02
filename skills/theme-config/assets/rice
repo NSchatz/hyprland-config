@@ -14,6 +14,22 @@ case "$cmd" in
         # Apply recorded GTK/cursor/font settings, if present.
         if [ -f "$RICE_DIR/apply-extra.sh" ]; then bash "$RICE_DIR/apply-extra.sh" || true; fi
         ;;
+    wallpaper)
+        # Set wallpaper, regenerate the palette from it, then re-theme everything.
+        img="${1:-}"; [ -n "$img" ] || { echo "usage: rice wallpaper <image> [--no-theme]" >&2; exit 1; }
+        shift 2>/dev/null || true
+        bash "$RICE_DIR/set-wallpaper.sh" "$img"
+        if [ "${1:-}" != "--no-theme" ]; then
+            bash "$RICE_DIR/palette-from-wallpaper.sh" "$img" && bash "$RICE_DIR/render-templates.sh"
+        fi
+        ;;
+    random)
+        # Pick a random wallpaper from a dir (default ~/Pictures/wallpapers) and apply it.
+        dir="${1:-$HOME/Pictures/wallpapers}"
+        img="$(find "$dir" -type f \( -iname '*.jpg' -o -iname '*.jpeg' -o -iname '*.png' -o -iname '*.webp' \) 2>/dev/null | shuf -n1)"
+        [ -n "$img" ] || { echo "no images found in $dir" >&2; exit 1; }
+        exec "$0" wallpaper "$img"
+        ;;
     palette)
         cat "$RICE_DIR/palette.conf" 2>/dev/null || echo "no palette yet ($RICE_DIR/palette.conf)";;
     templates|list)
@@ -26,6 +42,9 @@ hypr-rice — desktop theme engine ($RICE_DIR)
 
   rice apply              render all templates from palette.conf and reload apps
   rice apply --no-reload  render only (no app reloads)
+  rice wallpaper <img>    set wallpaper, regenerate palette from it, and re-theme
+  rice wallpaper <img> --no-theme   set wallpaper only
+  rice random [dir]       random wallpaper from dir (default ~/Pictures/wallpapers) + re-theme
   rice palette            print the current palette
   rice templates          print the template manifest (name -> output -> reload)
   rice edit               edit palette.conf in \$EDITOR
