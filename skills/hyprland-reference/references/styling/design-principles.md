@@ -129,6 +129,49 @@ Two fonts, chosen once:
 - **Keep sizes consistent** — one base UI size, one mono size, scaled by your spacing logic. Mixing
   five sizes across bar modules is as noisy as mixing five accents.
 
+## Coherence techniques harvested from real rices
+
+The rules above aren't theory — they're what the polished configs actually do. Concrete, attributed
+moves pulled from reading their `hyprland.conf` / nix files and design write-ups directly:
+
+- *Funnel the one accent through a single variable* (basecamp/omarchy, Matt-FTW/dotfiles): the theme
+  defines `$activeBorderColor` once and reuses it for **both** the window border and the group
+  border (`general { col.active_border = $activeBorderColor }`, `group { col.border_active = $activeBorderColor }`).
+  One variable = one accent doing one job, and re-theming is a one-line change. This is the
+  60-30-10 "10% accent" rule expressed as code.
+- *Build backgrounds from a tonal ladder, not arbitrary grays* (catppuccin/hyprland): the palette is
+  a designed depth ramp — `crust < mantle < base < surface0/1/2 < overlay0/1/2 < subtext < text`.
+  Backgrounds, panels, borders and text each pull from a graded step of **one** family, so hierarchy
+  comes from value, not from introducing new hues. namishh's *Ricing Guide* states the numeric
+  version: a widget surface should be "an alternate background color which is usually **10–15%
+  lighter** than the background color."
+- *Reserve red and green* (namishh): "Red and green are reserved" for universally-understood
+  semantics (close button, battery/recording state) — don't spend them as decorative accents, or you
+  break the status signal. Matches the checklist's "semantic colors reserved" rule.
+- *Gap rhythm: `gaps_out ≈ 2× gaps_in`* — holds across omarchy (`10`/`5`) and SolDoesTech (`10`/`5`);
+  HyDE pushes ~2.7× (`8`/`3`). The Hyprland default is 4× (`20`/`5`); community rices deliberately
+  *tighten* it. And **rounding tracks `gaps_out`** — HyDE `rounding 10 = gaps_out 10`, SolDoesTech
+  `rounding 5 ≈ gaps_in` — so the corner radius and the breathing room read as one scale.
+- *Emphasize the active window through the border, not `dim_inactive`*: every surveyed rice ships
+  `dim_inactive` **off** (Matt-FTW even stages `dim_strength 0.05` then disables it). Emphasis is a
+  spectrum applied to the *inactive* border instead — muted neutral (typecraft `$subtext0`) →
+  fully transparent (Frost-Phoenix `0x00000000`) → borderless entirely (chadcat7, koeqaife). The
+  active window pops by *suppressing* the others, which stays legible.
+- *Transparency hierarchy: chrome translucent, content opaque* (hyprdots, omarchy, Matt-FTW): the bar
+  blurs via `layerrule`, the scratchpad recedes via `dim_special = 0.3`, terminals sit ~0.95 via a
+  **per-app** `windowrule = opacity 0.95 0.90, class:^(kitty)$` — while content windows keep
+  `active_opacity = 1.0`. namishh's legibility rule pairs with it: "blur if you are decreasing the
+  opacity of windows, as that makes the text easier to read."
+- *Flat as a deliberate identity* (basecamp/omarchy): `rounding = 0` across the **entire** theme set
+  — a designer-distro choice that reads crisp and intentional, proving the "one radius, commit to it"
+  rule works at radius zero just as well as at 16. vinceliuice's Graphite theme codifies the same
+  discipline from the GTK side: a fixed neutral shell + **one** swappable accent (never several at
+  once), with rounding tunable in a `2px–16px` band.
+- *Negative space is a number* (namishh): "atleast 16px padding on terminals (my preference is
+  32px)" — the spacing scale extends inside the terminal, not just between windows.
+- *Sans-serif UI fonts with personality* (namishh): prefer "sans serif fonts like **Lexend,
+  Gabarito or Rubik**" for UI surfaces — a concrete, current alternative to the ubiquitous Inter.
+
 ## Aesthetic archetypes
 
 The recognizable "looks" people build are mostly combinations of *palette character* + *shape/
@@ -228,5 +271,10 @@ Per-app styling pages in this `styling/` directory:
 - pywal (wallpaper → 16-color scheme, app propagation): <https://pywal.com/>
 - 60-30-10 color rule for UI: UX Planet <https://uxplanet.org/the-60-30-10-rule-a-foolproof-way-to-choose-colors-for-your-ui-design-d15625e56d25> and NN/g, *Using Color to Enhance Your Design*: <https://www.nngroup.com/articles/color-enhance-design/>
 - Preconfigured Hyprland setups — Hyprland Wiki: <https://wiki.hypr.land/Getting-Started/Preconfigured-setups/>
-</content>
-</invoke>
+
+**Config corpus read for the coherence techniques** (attributed inline above):
+- basecamp/omarchy — single-`$activeBorderColor` discipline, flat `rounding 0` doctrine, per-theme opacity tuning: <https://github.com/basecamp/omarchy> (`default/hypr/looknfeel.conf`, `themes/*/hyprland.conf`)
+- Matt-FTW/dotfiles — color-by-variable, selective per-app translucency: <https://github.com/Matt-FTW/dotfiles> (`.config/hypr/theme/decoration.conf`)
+- catppuccin/hyprland — dual color forms + semantic neutral ladder: <https://github.com/catppuccin/hyprland> (`themes/mocha.conf`)
+- typecraft-dev/dotfiles, Frost-Phoenix/nixos-config, chadcat7/crystal, linkfrg/dotfiles, koeqaife/hyprland-material-you, SolDoesTech/HyprV4 — the active-emphasis spectrum + gap/rounding rhythm data points.
+- vinceliuice Graphite (neutral shell + one swappable accent, tunable rounding): <https://github.com/vinceliuice/Graphite-gtk-theme>

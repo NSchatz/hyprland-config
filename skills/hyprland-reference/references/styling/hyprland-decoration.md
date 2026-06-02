@@ -202,6 +202,49 @@ Named projects worth studying: **end-4/dots-hyprland** (Material-Design motion c
 fade-outs), **HyDE** and **ml4w/JaKooLit looknfeel** modules (clean, swappable animation presets),
 and the upstream **Hyprland wiki Animations** page (curve reference + the default block).
 
+## Battle-tested techniques (harvested from ~20 real configs)
+
+A catalog of concrete, reusable moves pulled from real `hyprland.conf` / nix / Lua-wrapper configs
+across the big rice projects. Each is attributed and quoted close to verbatim — swap literal hexes
+for the rice `$accent`/`$accent2`/`$surface` vars. All values verified valid on 0.54.3 via
+`hyprctl getoption`. Grouped by what they buy you.
+
+**Borders & accent.**
+- *Two-stop accent→accent2 gradient, full-alpha active / muted-translucent inactive* (HyDE, hyprdots, typecraft): the dominant polished look. `col.active_border = rgba(ca9ee6ff) rgba(f2d5cfff) 45deg`, `col.inactive_border = rgba(b4befecc) rgba(6c7086cc) 45deg` — same idea on both, but the inactive pair is muted and dropped to `cc` alpha so only the focused window "lights up." Never a 3-stop rainbow; two adjacent palette hues at `45deg` (or `90deg`, typecraft) is the convention.
+- *Animated rotating gradient border.* One-shot sweep on focus — `animation = borderangle, 1, 30, liner, once` (hyprdots) — is cheap; continuous spin — `animation = borderangle, 1, 180, liner, loop` (JaKooLit) — is the "living RGB border" but runs the GPU forever (skip on laptops). `liner = 1, 1, 1, 1` is the constant-velocity driver both need.
+- *Borderless, emphasis from suppression* (end-4, chadcat7, koeqaife/HyprYou, linkfrg, Frost-Phoenix): `border_size = 0` or `1` with a **fully transparent inactive border** — `col.inactive_border = rgba(31313600)` / `0x00000000` — so the active window shows a faint accent edge and inactive ones show nothing. Separation then comes from gaps + blur + shadow, not outlines.
+- *One accent funneled through a single variable* (basecamp/omarchy, Matt-FTW): define `$activeBorderColor = rgb(dcd7ba)` once, then reuse it for **both** the window and the group border — `general { col.active_border = $activeBorderColor }` and `group { col.border_active = $activeBorderColor }`. Re-theming = change one line. (`group:col.border_active` is itself a gradient field — verified on 0.54.3.)
+- *Reserve a second hue strictly for tabbed groups* (justchokingaround): monochrome window borders (`col.active_border = rgb(393939)`) but bright accents only on `col.group_border_active` / `col.group_border` — the color tells you "this is a grouped/tabbed stack," nothing else.
+- *Dual color forms in the palette file* (catppuccin/hyprland): export every color twice — `$mauve = rgb(cba6f7)` (solid) and `$mauveAlpha = cba6f7` (bare hex) — so transparency is spliced at the use site as `rgba($mauveAlphaee)`. Decouples hue from opacity; this is exactly how a `source`d `colors.conf` should be shaped.
+
+**Blur (frosted glass).**
+- *See-through frosted terminals* (HyDE, JaKooLit): `blur { ignore_opacity = on; xray = true }` together — `ignore_opacity` makes blur apply under semi-transparent windows, `xray` blurs the wallpaper rather than the windows stacked beneath. The combo is what makes a translucent kitty read as frosted glass instead of muddy.
+- *The Nix community frosted preset* (fufexan and sioodmy, independently identical): `blur { size = 7; passes = 4; vibrancy = 0.2; vibrancy_darkness = 0.5; noise = 0.01; popups = true; popups_ignorealpha = 0.2 }`. A de-facto shared default — heavier passes than the stock `1`, with `vibrancy` keeping colors from going grey.
+- *Full polish stack* (end-4): `blur { size = 10; passes = 3; noise = 0.05; contrast = 0.89; vibrancy = 0.5; vibrancy_darkness = 0.5 }` — the most complete tuning of the set, for pronounced glassmorphism.
+- *Punchy blur via contrast* (Frost-Phoenix): `blur { passes = 2; contrast = 1.4; noise = 0 }` — bumping `contrast` above 1 keeps blurred content crisp instead of washed out.
+- *Dimmed, calmer glass* (omarchy): `blur { size = 2; passes = 2; brightness = 0.60; contrast = 0.75 }` — drop brightness/contrast below 1 for a darker, restrained frost rather than a bright bloom.
+
+**Shadow (depth).**
+- *Theme-tinted shadow that tracks the palette* (JaKooLit, Matt-FTW): `shadow { color = $color12; color_inactive = $color10 }` (JaKooLit) or `color = $surface0; color_inactive = $crust` (Matt-FTW) — the drop shadow recolors with the wallust/Catppuccin palette instead of being flat black, and unfocused windows get a quieter shadow. `color_inactive` verified on 0.54.3.
+- *Big soft floating-card shadow* (fufexan, linkfrg): `shadow { range = 30; render_power = 4; offset = 0 2; color = rgba(00000055) }` — a wide diffuse shadow with a downward `offset` fakes a light source above; `scale = 0.97` (fufexan) insets it slightly. Lifts rounded windows off the wallpaper without any border.
+- *Shadow off, blur carries the depth* (hyprdots): `shadow { enabled = false }` when the blur is already strong — avoids the doubled-up "halo + frost" heaviness.
+
+**Rounding.**
+- *Squircle corners* (end-4 `rounding = 18; rounding_power = 2.5`; ml4w/fufexan `rounding_power = 2.0–2.5`): bump `rounding_power` above the default `2` for the softer iOS-style corner that modern rices favour, independent of the radius.
+- *Flat doctrine* (omarchy, Frost-Phoenix, sioodmy): `rounding = 0` as a deliberate designed identity — crisp/technical, leaning on gaps + a single accent border. (omarchy rejects rounded corners across its whole theme set.)
+
+**Motion (beziers & animation).**
+- *The `wind/winIn/winOut/liner` slide-with-overshoot family* — the most-forked set in the scene (prasanthrangan/hyprdots → JaKooLit → HyDE). `wind = 0.05, 0.9, 0.1, 1.05` for slides; `winIn = 0.1, 1.1, 0.1, 1.1` overshoots past 1 on both axes for a poppy entrance; `winOut = 0.3, -0.3, 0, 1` undershoots on exit. Already in the preset block below.
+- *Material Design 3 motion* (ml4w, koeqaife/HyprYou, chadcat7): pair a decel curve on enter with an accel curve on exit — `bezier = md3_decel, 0.05, 0.7, 0.1, 1` and `bezier = md3_accel, 0.3, 0, 0.8, 0.15`, then `animation = windowsIn, 1, 5, md3_decel, popin 60%` / `animation = windowsOut, 1, 4, md3_accel, popin 60%`. The `popin 60%` (vs the gentler `80–94%`) gives a stronger shrink-in.
+- *Animate layers separately from windows* (ml4w, end-4, koeqaife): give bars/menus/popups their own `layersIn`/`layersOut` with a slide + `popin 93%` so chrome animates distinctly from window open/close — `animation = layersIn, 1, 3, md3_decel, slide`.
+- *Role-mapped easing palette* (Frost-Phoenix): distinct named beziers per job — `easeOutCubic` for windows, `fluent_decel` for moves, a dedicated `fade_curve` for opacity — deliberate motion design instead of one global curve. The opposite school is *one curve everywhere* (linkfrg: `bezier = quart, 0.25, 1, 0.5, 1` reused across windows/border/fade/workspaces) for maximal consistency.
+- *Spend the motion budget on the border, not the windows* (typecraft): near-instant window/fade speeds (`0.1`) with the only lively motion being a looping `borderangle` — a calm desktop whose one flourish is the rotating gradient.
+- *Spring-physics curves* (fufexan): expressed through the home-manager Lua wrapper as `spring { mass = 1; stiffness = 50; dampening = 10 }` for natural overshoot without hand-tuned beziers. Note this is a **wrapper abstraction**, not vanilla hyprlang `.conf` syntax — on a plain `.conf` setup, reach for an overshoot bezier (`winIn`, `expressiveFastSpatial = 0.42, 1.67, 0.21, 0.90` from end-4) instead.
+
+**Per-app & special-workspace transparency.**
+- *Make terminals translucent per-app, keep content windows opaque* (omarchy, Matt-FTW): global `active_opacity = 1.0` (content stays crisp) plus a per-app rule for chrome only — `windowrule = opacity 0.95 0.90, class:^(kitty)$` (block form on 0.53+). omarchy tunes this *per theme* (e.g. terminals to `0.98 0.95` only when a theme's backdrop is too strong).
+- *Dim + blur the scratchpad layer* (hyprdots, JaKooLit): `decoration { dim_special = 0.3; blur { special = true } }` so the special/scratchpad workspace recedes behind a dimmed frost. JaKooLit pushes `dim_special = 0.8` for a strong fade.
+
 ## Tasteful default recipe
 
 Drop-in `general{}` + `decoration{}` + `animations{}` that looks great immediately and reads as
@@ -317,3 +360,13 @@ decoration {
   <https://github.com/end-4/dots-hyprland>
 - This skill's `deprecations.md` (blur/shadow subcategory migration, `rounding_power`, gestures,
   windowrule) and `window-rules.md` / layer-rule blur (`layerrule { blur = true }`).
+
+**Community config corpus** — the "Battle-tested techniques" section was harvested by reading these
+`hyprland.conf` / nix / Lua-wrapper configs directly. Grouped by what they best demonstrate:
+
+- *Two-stop gradient borders + rotating `borderangle` + wind/winIn/winOut beziers*: prasanthrangan/hyprdots (`Configs/.config/hypr/themes/theme.conf`, `animations/animations-default.conf` — origin of the `wind` family + the one-shot `borderangle … once`), HyDE-Project/HyDE (`Configs/.config/hypr/themes/theme.conf`, swappable `animations/*.conf` presets), JaKooLit/Hyprland-Dots (`UserConfigs/UserDecorations.conf` + `UserAnimations.conf` — `$color12` shadow tint, `borderangle … loop`), typecraft-dev/dotfiles (`$mauve $flamingo 90deg`, `borderangle` loop with near-instant windows).
+- *Material Design 3 motion + borderless rounding*: mylinuxforwork/dotfiles / ml4w (`conf/decorations/default.lua`, `conf/animations/default.lua` — full MD3 bezier set, `rounding_power 2`, `passes 4`), koeqaife/hyprland-material-you "HyprYou" (`hypryou-assets/hyprland/animation.conf` — MD3 decel/accel, `border_size 0`), chadcat7/crystal (MD3 set, `gaps_in = gaps_out = 20` airy borderless).
+- *Expressive-spatial / heavy frosted glass*: end-4/dots-hyprland (`dots/.config/hypr/hyprland/general.lua` — `rounding 18`/`rounding_power 2.5`, full `noise`+`contrast`+`vibrancy` blur, "expressive spatial" overshoot beziers; **shell is AGS/Quickshell, inspiration-only — only the decoration/animation values transfer**), linkfrg/dotfiles (`home/desktop/hyprland/general.nix` — `size 12`/`passes 4` glass, one `quart` curve everywhere).
+- *Nix frosted preset + spring physics + role-mapped easing*: fufexan/dotfiles (`system/programs/hyprland/{settings,animations}.lua`, `variables.nix` — `spring { mass/stiffness/dampening }`, `passes 4`/`size 7`, `scale 0.97` shadow), sioodmy/dotfiles (`user/wrapped/hypr/configs/Hyprland.nix` — same blur preset, `rounding 0`), Frost-Phoenix/nixos-config (`modules/home/hyprland/settings.nix` — modern `shadow {}` block, `contrast 1.4`, per-property beziers).
+- *Flat designer-distro doctrine + single-accent variable*: basecamp/omarchy (`default/hypr/looknfeel.conf` + per-theme `themes/*/hyprland.conf` — `rounding 0`, `$activeBorderColor` reused for window+group border, per-theme terminal opacity), Matt-FTW/dotfiles (`.config/hypr/theme/decoration.conf` — `color`/`color_inactive` shadow depth, selective per-app opacity).
+- *Named-palette source convention*: catppuccin/hyprland (`themes/mocha.conf` @ tag `v1.3` — dual `$mauve`/`$mauveAlpha` color forms, semantic neutral ladder), SolDoesTech/HyprV4 (`HyprV/hypr/hyprland.conf` — tutorial-grade solid-accent starter; note its `drop_shadow`/`shadow_range` is the deprecated flat form).
