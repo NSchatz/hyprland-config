@@ -1,5 +1,5 @@
 ---
-name: Hyprland Config Reference
+name: hyprland-reference
 description: This skill should be used when the user asks about Hyprland configuration syntax, "hyprland.conf", how to configure monitors, input, decoration, animations, keybinds/keybindings, dispatchers, submaps, window rules, layer rules, workspace rules, gestures, or environment variables in Hyprland, what a Hyprland config option or hyprctl keyword does, whether a Hyprland option is deprecated or renamed, to review/audit an existing hyprland.conf for outdated syntax, or about the Hyprland ecosystem and companion packages (hyprlock, hypridle, hyprpaper, hyprpicker, hyprsunset, hyprpolkitagent, waybar, status bars, launchers like wofi/rofi/fuzzel, notification daemons, clipboard managers, screenshot tools, portals/screen sharing) and how to wire them in. Provides authoritative reference material for the Hyprland (Wayland compositor) config language and ecosystem.
 version: 0.1.0
 ---

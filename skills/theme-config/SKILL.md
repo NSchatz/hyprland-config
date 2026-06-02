@@ -1,5 +1,5 @@
 ---
-name: Theme Hyprland Desktop
+name: theme-config
 description: This skill should be used when the user runs "/hyprland-config:theme-config" or asks to theme, recolor, restyle, or set the fonts of their Hyprland desktop — e.g. "theme my desktop", "apply Catppuccin/Gruvbox/Nord/Tokyo Night to everything", "change my color scheme", "make my colors match my wallpaper", "set up matugen/wallust", "theme my waybar/kitty/gtk", "change my accent color", or "change/choose my font". Resolves one palette (named scheme, wallpaper-generated, or manual hex), presents font choices (UI + monospace/Nerd), and applies them consistently across Hyprland, hyprlock, waybar, notifications, launcher, terminal, and GTK/Qt/cursor/icons/fonts — backing up and reloading each app.
 argument-hint: "[scheme or request, e.g. 'catppuccin mocha' or 'match my wallpaper']"
 allowed-tools: AskUserQuestion, Bash, Read, Write, Edit, Glob, Grep

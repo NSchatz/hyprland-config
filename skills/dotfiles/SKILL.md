@@ -1,5 +1,5 @@
 ---
-name: Version-Control Dotfiles
+name: dotfiles
 description: This skill should be used when the user runs "/hyprland-config:dotfiles" or asks to version-control, back up to git, or sync their config/dotfiles — e.g. "put my hyprland config in git", "version control my dotfiles", "set up a dotfiles repo", "commit my config", "push my dotfiles", "track my config in git", or "back up my rice to github". Initializes a dotfiles git repo (bare-repo, GNU Stow, or chezmoi), tracks the Hyprland/desktop configs, and commits/pushes — committing after each verified change.
 argument-hint: "[action, e.g. 'set up a bare repo and push to github']"
 allowed-tools: AskUserQuestion, Bash, Read, Write, Edit, Glob, Grep

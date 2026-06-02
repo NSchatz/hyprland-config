@@ -1,5 +1,5 @@
 ---
-name: Configure Desktop Shell
+name: desktop-shell
 description: This skill should be used when the user runs "/hyprland-config:desktop-shell" or asks to set up or change the desktop shell components around Hyprland — e.g. "set up my waybar", "configure my status bar", "add modules to waybar", "set up wofi/rofi", "configure mako/dunst notifications", or "give me a working bar". Writes the functional config for the bar (waybar config.jsonc + style.css), launcher (wofi/rofi), and notification daemon (mako/dunst) — backing up and reloading each. For the colors of these components, use theme-config; for autostarting them, use generate-config.
 argument-hint: "[request, e.g. 'set up waybar with battery and tray']"
 allowed-tools: AskUserQuestion, Bash, Read, Write, Edit, Glob, Grep

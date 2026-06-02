@@ -1,5 +1,5 @@
 ---
-name: Edit & Test Hyprland Config
+name: edit-config
 description: This skill should be used when the user runs "/hyprland-config:edit-config" or asks to change, fix, inspect, or test an EXISTING Hyprland config — e.g. "add a keybind to my hyprland config", "change my gaps", "add a window rule", "add my second monitor to my existing config", "read my hyprland config", or "test my hyprland config". Reads the current ~/.config/hypr config, makes the change, and live-tests after every edit (hyprctl reload + configerrors) with automatic rollback. To build a config from scratch, use generate-config instead.
 argument-hint: "[what to change, e.g. 'add SUPER+T for thunar' or 'read my config']"
 allowed-tools: Read, Edit, Write, Bash, Glob, Grep, Agent

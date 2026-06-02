@@ -1,5 +1,5 @@
 ---
-name: Generate Hyprland Config
+name: generate-config
 description: This skill should be used when the user runs "/hyprland-config:generate-config" or asks to "generate a hyprland config", "create my hyprland.conf", "set up Hyprland from scratch", "make me a new Hyprland config", or "build a hyprland config". Runs an interactive interview, generates a modular Hyprland config matching the installed version, backs up any existing config, writes it to ~/.config/hypr, and validates the result.
 argument-hint: "[optional notes, e.g. 'dual monitor, vim keybinds']"
 allowed-tools: AskUserQuestion, Bash, Read, Write, Glob, Agent

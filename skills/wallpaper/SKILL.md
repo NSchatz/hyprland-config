@@ -1,5 +1,5 @@
 ---
-name: Wallpaper & Dynamic Theming
+name: wallpaper
 description: This skill should be used when the user runs "/hyprland-config:wallpaper" or asks to set, change, or cycle their wallpaper, or to theme their desktop from the wallpaper — e.g. "set my wallpaper to X", "change wallpaper and match my colors", "make my theme match my wallpaper", "cycle wallpapers", "random wallpaper", or "set up wallpaper-based theming". Sets the wallpaper (swww/hyprpaper/swaybg), optionally extracts a palette from it (matugen/wallust/pywal) and re-themes the whole desktop via the rice engine, and can set up wallpaper cycling.
 argument-hint: "[image path or request, e.g. '~/Pictures/wall.png and theme from it']"
 allowed-tools: AskUserQuestion, Bash, Read, Write, Edit, Glob, Grep

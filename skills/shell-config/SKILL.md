@@ -1,5 +1,5 @@
 ---
-name: Configure Terminal Shell
+name: shell-config
 description: This skill should be used when the user runs "/hyprland-config:shell-config" or asks to set up or change their terminal shell — e.g. "configure my bash/zsh/fish", "set up my shell", "add a starship prompt", "add shell aliases", "add fastfetch/neofetch to my shell", "set up my zshrc/bashrc", "switch to zsh/fish", or "make my shell nicer". Configures the interactive shell (bash/zsh/fish): prompt (starship or built-in), aliases, environment, history, a startup fetch (fastfetch by default, or neofetch), and guarded modern-CLI integration — backing up rc files and syntax-checking after every change. For coloring the terminal emulator itself, use theme-config.
 argument-hint: "[request, e.g. 'set up zsh with starship and aliases']"
 allowed-tools: AskUserQuestion, Bash, Read, Write, Edit, Glob, Grep

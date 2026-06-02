@@ -1,5 +1,5 @@
 ---
-name: Theme Profiles
+name: theme-profiles
 description: This skill should be used when the user runs "/hyprland-config:theme-profiles" or asks to save, switch, list, or manage named desktop theme profiles ("rices") — e.g. "save my current theme as X", "switch to nord/gruvbox/tokyo-night", "list my themes", "load my <name> rice", "go back to my saved theme", or "pin my accent color so re-theming doesn't change it". Manages saved theme profiles and the user-override layer on top of the rice engine.
 argument-hint: "[action, e.g. 'save as midnight' or 'switch to nord']"
 allowed-tools: AskUserQuestion, Bash, Read, Write, Edit, Glob, Grep
