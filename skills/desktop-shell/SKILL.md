@@ -17,6 +17,13 @@ Treat `$ARGUMENTS` as the request.
 Read `references/components.md` for concrete waybar / wofi / rofi / mako / dunst configs, module
 options, reload commands, and the Nerd-Font note.
 
+**For how to make these look good** (layout archetypes, pill/island modules, spacing, the
+selection highlight, tasteful defaults) consult the styling library in
+`skills/hyprland-reference/references/styling/` — `waybar.md`, `launchers.md`, `notifications.md`,
+and `design-principles.md` for the cross-cutting rules. These pages distill how the community
+(HyDE, JaKooLit, ml4w, Catppuccin, r/unixporn) styles each surface, so the result looks designed
+rather than default. Their recipes use the same rice palette `@import`/`include` this skill wires.
+
 ## Workflow
 
 ### 1. Detect what's installed

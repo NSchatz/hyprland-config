@@ -1,7 +1,7 @@
 ---
 name: hyprland-reference
-description: This skill should be used when the user asks about Hyprland configuration syntax, "hyprland.conf", how to configure monitors, input, decoration, animations, keybinds/keybindings, dispatchers, submaps, window rules, layer rules, workspace rules, gestures, or environment variables in Hyprland, what a Hyprland config option or hyprctl keyword does, whether a Hyprland option is deprecated or renamed, to review/audit an existing hyprland.conf for outdated syntax, or about the Hyprland ecosystem and companion packages (hyprlock, hypridle, hyprpaper, hyprpicker, hyprsunset, hyprpolkitagent, waybar, status bars, launchers like wofi/rofi/fuzzel, notification daemons, clipboard managers, screenshot tools, portals/screen sharing) and how to wire them in. Provides authoritative reference material for the Hyprland (Wayland compositor) config language and ecosystem.
-version: 0.1.0
+description: This skill should be used when the user asks about Hyprland configuration syntax, "hyprland.conf", how to configure monitors, input, decoration, animations, keybinds/keybindings, dispatchers, submaps, window rules, layer rules, workspace rules, gestures, or environment variables in Hyprland, what a Hyprland config option or hyprctl keyword does, whether a Hyprland option is deprecated or renamed, to review/audit an existing hyprland.conf for outdated syntax, or about the Hyprland ecosystem and companion packages (hyprlock, hypridle, hyprpaper, hyprpicker, hyprsunset, hyprpolkitagent, waybar, status bars, launchers like wofi/rofi/fuzzel, notification daemons, clipboard managers, screenshot tools, portals/screen sharing) and how to wire them in. Also covers how to make the desktop look visually appealing — styling guides for waybar, launchers, notifications, terminals, hyprlock, GTK/Qt apps, btop/cava/fastfetch/starship, and the Hyprland decoration/animation look, plus cross-cutting design principles (palette coherence, accent, spacing, transparency, fonts) drawn from how the community rices these. Provides authoritative reference material for the Hyprland (Wayland compositor) config language, ecosystem, and visual styling.
+version: 0.2.0
 ---
 
 # Hyprland Config Reference
@@ -60,6 +60,28 @@ Consult these as needed — each is loaded only when relevant:
   community packages commonly paired with Hyprland (status bars, launchers, notification
   daemons, clipboard, screenshots, OSD, theming), with launch commands and the `hyprlock` /
   `hypridle` / `hyprpaper` config formats. Use when wiring companion apps into a config.
+
+## Styling reference library (how to make it look good)
+
+For *visual design* — not syntax — consult **`references/styling/`**. Each page surveys how the
+community actually styles a component and distills a palette-driven recipe. Start with
+`design-principles.md` (the coherence layer), then the per-app page. Use these whenever building or
+theming a desktop for looks, or when the user asks "how do I make my X look good / nicer / match".
+
+- **`references/styling/README.md`** — index + the rice palette contract every recipe uses.
+- **`references/styling/design-principles.md`** — **read first.** Coherence rules (one palette,
+  accent discipline, spacing, shape, transparency, typography), the aesthetic archetypes
+  (Catppuccin/Tokyo Night/Gruvbox/Nord/Material You/minimal/maximalist), wallpaper-driven theming,
+  a coherence checklist.
+- **`references/styling/hyprland-decoration.md`** — gaps, gradient borders, rounding, blur, shadow,
+  animations/beziers — the compositor's own look.
+- **`references/styling/waybar.md`** — the status bar (`config.jsonc` layout + `style.css`).
+- **`references/styling/launchers.md`** — wofi / rofi / fuzzel / tofi.
+- **`references/styling/notifications.md`** — mako / dunst / swaync.
+- **`references/styling/terminals.md`** — kitty / alacritty / foot / wezterm / ghostty.
+- **`references/styling/hyprlock.md`** — the lock screen.
+- **`references/styling/gtk-qt.md`** — GTK/libadwaita + Qt app theming (themes, icons, cursors).
+- **`references/styling/tui-and-prompt.md`** — btop / cava / fastfetch / starship.
 
 ## Common pitfalls
 

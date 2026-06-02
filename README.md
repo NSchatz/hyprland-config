@@ -55,7 +55,7 @@ up, into `~/.config/hypr`.
 | Skill | `shell-config`              | User-invoked. Configures the terminal shell (bash/zsh/fish): prompt, aliases, env, history, a startup **fetch** (fastfetch default / neofetch), and modern-CLI integration — syntax-checked after every change. |
 | Skill | `desktop-shell`             | User-invoked. Functional configs for the bar (waybar), launcher (wofi/rofi), and notifications (mako/dunst). |
 | Skill | `dotfiles`                  | User-invoked. Version-controls the configs in git (bare-repo / stow / chezmoi) and commits after each verified change. |
-| Skill | `hyprland-reference`        | Auto-triggered. Hyprland config syntax, ecosystem, and **testing** knowledge. |
+| Skill | `hyprland-reference`        | Auto-triggered. Hyprland config syntax, ecosystem, **testing**, and a **styling reference library** (per-package design guides + cross-cutting design principles, researched from the community). |
 | Command | `reset-config`            | User-invoked. Wipes `~/.config/hypr` to a minimal bare-bones `hyprland.conf` — full backup + live-test + auto-rollback. |
 | Agent | `hyprland-config-validator` | Static validation (plus an optional live load-test) of a generated/edited config. |
 
@@ -218,7 +218,7 @@ hyprland-config/
 │   ├── generate-config/   (interview → modular config, install + live-test + rollback)
 │   ├── edit-config/       (read + change existing config, test after every change)
 │   ├── theme-config/
-│   │   ├── references/   (theming, palettes, templates, fonts, engine, apps, login)
+│   │   ├── references/   (theming, palettes, templates, fonts, engine, apps, login, interview)
 │   │   ├── scripts/      (detect-theme-tools, apply-theme, rice-init, render-templates,
 │   │   │                  set-wallpaper, palette-from-wallpaper)
 │   │   ├── templates/    (*.tmpl color templates rendered by the engine)
@@ -229,6 +229,7 @@ hyprland-config/
 │   ├── desktop-shell/     (waybar / launcher / notification functional configs)
 │   ├── dotfiles/          (git version control of the configs)
 │   └── hyprland-reference/  (auto-triggered: syntax, ecosystem, testing knowledge)
+│       └── references/styling/  (per-package styling guides + design principles, researched)
 └── README.md
 ```
 

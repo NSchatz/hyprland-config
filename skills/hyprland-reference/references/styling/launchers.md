@@ -1,0 +1,219 @@
+# Styling Launchers (wofi / rofi / fuzzel / tofi)
+
+The four common Wayland launchers all chase the same look — a centered, floating, rounded panel with a search field on top, a scrollable result list, and one strongly-accented selection bar. Only the *mechanism* differs: wofi is GTK CSS, rofi is its own RASI language, and fuzzel/tofi are flat INI files.
+
+## What you're styling
+
+| Launcher | Config file(s) | Styling language | Preview |
+|---|---|---|---|
+| **wofi** | `~/.config/wofi/config` (behavior) + `~/.config/wofi/style.css` (look) | GTK3 **CSS** (`#window`, `#input`, `#entry`…) | `wofi --show drun` |
+| **rofi** | `~/.config/rofi/config.rasi` + a theme `.rasi` (e.g. `~/.config/rofi/theme.rasi`) | **RASI** (CSS-like box model with `@import`/`@theme`) | `rofi -show drun` or `rofi -show drun -theme theme.rasi` |
+| **fuzzel** | `~/.config/fuzzel/fuzzel.ini` | **INI** (`[main]`, `[colors]`, `[border]`) | `fuzzel` (re-reads file on each launch) |
+| **tofi** | `~/.config/tofi/config` (or any `*.tofi` via `--config`) | **INI**-ish `key = value` | `tofi-drun \| sh` / `tofi-run \| sh` |
+
+All four re-read their config on launch, so the edit→preview loop is just "save, run again." rofi has the nicest live workflow: `rofi -show drun -theme ./mytheme.rasi` lets you iterate on a theme without touching `config.rasi`.
+
+## Design anatomy — the knobs that change the look
+
+These concepts map across all four; only the key names change.
+
+- **Panel geometry** — width + number of rows + centered anchoring is what produces the "floating box" feeling.
+  - wofi: `width`/`height` in `config` (px or `%`), `location=center`.
+  - rofi: `window { width: 800px; }`, `listview { lines: 10; columns: 1; }`.
+  - fuzzel: `width=` (in **characters**, default 30), `lines=` (default 15), `anchor=center`, `x-margin`/`y-margin`.
+  - tofi: `width`/`height` (px or `%`), `anchor = center`, `num-results`.
+- **Shape** — corner radius + a thin border. A 1–2px border in the accent color reads as "designed"; a fat 8–12px border reads as a frame.
+  - wofi/rofi: `border-radius` + `border`. rofi border is `border: 2px;` on `window`.
+  - fuzzel: `[border] radius=` and `width=`.
+  - tofi: `corner-radius`, `border-width`, `outline-width` (a second outer ring — usually set to 0).
+- **Padding** — interior breathing room. Missing padding is the #1 thing that makes a launcher look cheap. Aim for ~8–20px.
+- **The prompt / search field** — the `> ` glyph, the typed text, and the placeholder. Color the prompt with the accent or a muted tone; keep input text at full `fg`.
+- **Entry rows** — per-row padding and spacing. Optional zebra striping (wofi `#entry:nth-child(even)`).
+- **The SELECTION highlight** — *the highest-impact element.* This is the bar (or text) marking the focused result. Make it the accent: a filled accent background with contrasting text, OR accent-colored text on a subtle surface fill. Everything else can be quiet; this should not be.
+- **Icons** — app icons next to entries.
+  - wofi: needs `allow-images=true` + `image_size=` in `config`; `drun` mode supplies icons.
+  - rofi: `configuration { icon-theme: "Papirus"; show-icons: true; }` and `element-icon { size: 24px; }`.
+  - fuzzel: icons on by default (`icons-enabled=yes`, `icon-theme=`, `image-size-ratio=`).
+  - tofi: no app icons (text-only by design).
+- **Typography** — a clean UI font (Inter, Cantarell, Noto Sans) for labels; a mono font (JetBrainsMono) for a dmenu feel. Use a **Nerd Font** if your prompt/labels include glyph icons.
+- **Transparency / blur** — translucent background + Hyprland blur is the signature "frosted glass" look. Set the background alpha below `ff`, then add a Hyprland `layerrule` blur on the launcher's namespace (see Pitfalls). wofi blur needs the layerrule; fuzzel/rofi-wayland honor it too.
+
+## How the community styles it
+
+- **Centered blurred pastel panel (Catppuccin)** — the dominant r/unixporn look. Translucent base background (`1e1e2edd`), 1px accent border (mauve `cba6f7`), radius ~12–16px, generous padding. Selection = a subtle surface fill (`585b70`) with the *match* substring colored mauve; prompt in a muted blue. Ports exist for every launcher: [catppuccin/rofi](https://github.com/catppuccin/rofi), [catppuccin/fuzzel](https://github.com/catppuccin/fuzzel), [catppuccin/tofi](https://github.com/catppuccin/tofi), and community wofi themes like [alxndr13/wofi-catppuccin](https://github.com/alxndr13/wofi-catppuccin) / [quantumfate/wofi](https://github.com/quantumfate/wofi).
+- **adi1090x rofi "launchers/applets"** — the big, polished rofi set ([adi1090x/rofi](https://github.com/adi1090x/rofi)). Characteristic values: `window { width: 800px; border-radius: 20px; }`, a 1- or 2-column `listview` with `lines: 10`, rounded `element { border-radius: 20px; padding: 5px 10px; }`, and a fully-filled accent `element selected`. Colors live in a shared `colors.rasi` you swap out. This is the source of the "pill-shaped rows" aesthetic.
+- **Minimal dmenu-like (fuzzel / tofi)** — flat, fast, often a single accent. fuzzel default is already tasteful (radius 10, 1px border, ~40px horizontal pad). tofi minimal themes use a small box (`width=640 height=24` for a single-line bar, or a centered box with `num-results=5`), `border-width=4` in the accent, `corner-radius` 0–8, selection via `selection-color` only.
+- **Accent-bordered floating box** — opaque (or lightly translucent) surface background, a bold 2px accent border, mid radius (10–16px), and an accent-filled selection. Reads as "intentional" without relying on blur. Common in [HyDE](https://github.com/HyDE-Project/HyDE), [JaKooLit](https://github.com/JaKooLit/Hyprland-Dots), and [ml4w](https://github.com/mylinuxforwork/dotfiles) rofi setups.
+
+## Tasteful default recipe
+
+Each uses the plugin's rice keys (`bg fg surface muted accent accent2 color0..15 font_ui font_mono`, hex **without** `#`). Shown twice: a `{{placeholder}}` template form and a worked **Catppuccin Mocha** example (`bg 1e1e2e`, `fg cdd6f4`, `surface 313244`, `muted 6c7086`, `accent cba6f7`, `accent2 89b4fa`, `font_ui Inter`, `font_mono JetBrainsMono Nerd Font`). Selection = accent; subtle border = accent. This plugin's rice renders `wofi/colors.css` and `rofi/colors.rasi` — `@import` those so re-theming Just Works.
+
+### wofi — `~/.config/wofi/style.css`
+
+```css
+@import "colors.css";   /* rendered by the rice: defines @bg @fg @accent ... */
+
+window {
+  margin: 0;
+  background-color: rgba(30, 30, 46, 0.92);  /* {{bg}} at ~0.92 */
+  border-radius: 14px;
+  border: 1px solid @accent;                 /* #{{accent}} */
+  font-family: "Inter", sans-serif;          /* {{font_ui}} */
+  font-size: 14px;
+}
+#input {
+  margin: 10px;
+  padding: 8px 12px;
+  border-radius: 10px;
+  border: none;
+  background-color: @surface;                 /* #{{surface}} */
+  color: @fg;
+}
+#inner-box  { margin: 6px; }
+#outer-box  { padding: 8px; }
+#entry      { padding: 6px 10px; border-radius: 8px; }
+#entry image { -gtk-icon-transform: none; }
+#text       { color: @fg; }
+#entry:selected      { background-color: @accent; }   /* the highlight */
+#entry:selected #text { color: @bg; }                 /* contrast on accent */
+```
+
+Companion `~/.config/wofi/config`: `allow-images=true`, `image_size=24`, `location=center`, `width=600`, `height=400`, `insensitive=true`.
+
+### rofi — `~/.config/rofi/theme.rasi`
+
+```rasi
+@import "colors.rasi"   /* rendered by the rice: * { accent: ...; bg: ...; } */
+
+* {
+  bg:      #1e1e2e;   /* {{bg}}      */
+  bg-alt:  #313244;   /* {{surface}} */
+  fg:      #cdd6f4;   /* {{fg}}      */
+  accent:  #cba6f7;   /* {{accent}}  */
+  muted:   #6c7086;   /* {{muted}}   */
+}
+window {
+  width: 700px;
+  border-radius: 14px;
+  border: 1px solid;
+  border-color: @accent;
+  background-color: @bg;
+  padding: 12px;
+}
+inputbar { spacing: 8px; padding: 8px; margin: 0 0 8px 0;
+           background-color: @bg-alt; border-radius: 10px; }
+prompt  { text-color: @accent; }
+entry   { text-color: @fg; placeholder: "Search…"; placeholder-color: @muted; }
+listview { lines: 8; columns: 1; spacing: 4px; scrollbar: false; }
+element  { padding: 7px 10px; border-radius: 8px; }
+element-icon { size: 22px; }
+element selected { background-color: @accent; text-color: @bg; }  /* highlight */
+element selected normal.normal { background-color: @accent; text-color: @bg; }
+```
+
+Companion `~/.config/rofi/config.rasi`: `configuration { modi: "drun"; show-icons: true; icon-theme: "Papirus"; }` then `@theme "~/.config/rofi/theme.rasi"`.
+
+### fuzzel — `~/.config/fuzzel/fuzzel.ini`
+
+Fuzzel colors are **`RRGGBBAA` hex, no `#`**. Append an alpha pair to any rice color: `{{bg}}ee` → `1e1e2eee`.
+
+```ini
+[main]
+font=Inter:size=13          ; {{font_ui}}
+prompt=">   "
+icon-theme=Papirus
+icons-enabled=yes
+width=32
+lines=12
+horizontal-pad=20
+vertical-pad=12
+inner-pad=8
+layer=overlay
+
+[colors]
+background=1e1e2eee          ; {{bg}} + ee alpha
+text=cdd6f4ff               ; {{fg}}
+prompt=cba6f7ff             ; {{accent}}
+placeholder=6c7086ff        ; {{muted}}
+input=cdd6f4ff              ; {{fg}}
+match=cba6f7ff              ; {{accent}}  (matched substring)
+selection=cba6f7ff          ; {{accent}}  — the highlight bar
+selection-text=1e1e2eff     ; {{bg}}      — text on the highlight
+selection-match=1e1e2eff    ; {{bg}}
+border=cba6f7ff             ; {{accent}}
+counter=6c7086ff            ; {{muted}}
+
+[border]
+width=1
+radius=14
+```
+
+### tofi — `~/.config/tofi/config`
+
+Tofi colors here take a leading `#`. Centered box, single accent.
+
+```ini
+anchor = center
+width = 640
+height = 320
+horizontal = false
+font = "Inter"                 # {{font_ui}}; or a Nerd Font path
+font-size = 14
+num-results = 7
+
+background-color = #1e1e2eee   # {{bg}} + alpha
+outline-width = 0
+border-width = 2
+border-color = #cba6f7         # {{accent}}
+corner-radius = 12
+padding-top = 16
+padding-bottom = 16
+padding-left = 18
+padding-right = 18
+
+prompt-text = ">  "
+prompt-color = #cba6f7         # {{accent}}
+text-color = #cdd6f4           # {{fg}}
+result-spacing = 6
+
+selection-color = #cba6f7            # {{accent}} — the highlight (text)
+selection-background = #31324480     # {{surface}} + soft alpha
+```
+
+## Pitfalls
+
+- **wofi blur needs a Hyprland layer rule.** A translucent `#window` alone is just see-through, not frosted. On Hyprland 0.54 use the **block form** (the single-line `layerrule = blur, wofi` is rejected with `invalid field blur: missing a value`):
+  ```
+  layerrule {
+      name = blur-wofi
+      match:namespace = wofi
+      blur = true
+      ignore_alpha = 0.2
+  }
+  ```
+  Add matching blocks for `rofi`, `fuzzel`, `tofi` (those are the default layer namespaces). Global blur must be on: `decoration { blur { enabled = true } }`.
+- **rofi-wayland vs classic rofi.** Classic `rofi` is X11; on Hyprland it runs through XWayland (no layer-shell, so blur/anchoring via layerrule won't apply). Use a Wayland-capable build — `rofi-wayland` (lbonn's fork, now merged upstream as rofi ≥ 2.0). Some X-only features (fine monitor selection, certain positioning) are unavailable in Wayland mode.
+- **fuzzel alpha is `RRGGBBAA`, not `RGB`/`#RGB`.** No leading `#`, and you **must** include the two alpha digits — `1e1e2e` is invalid; write `1e1e2eff` (opaque) or `1e1e2eee` (translucent).
+- **Over-transparent text → unreadable.** Keep `text`/`selection-text` near full alpha (`…ff`). Only the *background* should be translucent; thin text at 60% over a blurred wallpaper disappears.
+- **No padding → cramped.** Always set `horizontal-pad`/`vertical-pad` (fuzzel), `padding` (wofi/rofi), or `padding-*` (tofi). A launcher with zero padding looks broken even with perfect colors.
+- **Missing icon theme.** `show-icons`/`allow-images` with no installed icon theme yields blank or generic squares. Install e.g. Papirus and name it exactly (`icon-theme` is case-sensitive in fuzzel).
+- **rofi `element selected` doesn't take.** rofi splits selection by row state — also set `element selected normal.normal { … }` (and `urgent`/`active` variants if used) or the highlight won't apply to drun rows.
+
+## Sources
+
+- fuzzel.ini(5) — Arch manual: <https://man.archlinux.org/man/fuzzel.ini.5.en>
+- rofi-theme(5) — Arch manual: <https://man.archlinux.org/man/rofi-theme.5.en>
+- rofi-theme(5) markdown (upstream): <https://github.com/davatorium/rofi/blob/next/doc/rofi-theme.5.markdown>
+- tofi config reference: <https://github.com/philj56/tofi/blob/master/doc/config>
+- adi1090x/rofi (launchers/applets collection): <https://github.com/adi1090x/rofi>
+- adi1090x type-1 launcher style: <https://github.com/adi1090x/rofi/blob/master/files/launchers/type-1/style-1.rasi>
+- catppuccin/rofi: <https://github.com/catppuccin/rofi>
+- catppuccin/fuzzel: <https://github.com/catppuccin/fuzzel>
+- catppuccin/tofi: <https://github.com/catppuccin/tofi>
+- alxndr13/wofi-catppuccin: <https://github.com/alxndr13/wofi-catppuccin>
+- quantumfate/wofi (Catppuccin): <https://github.com/quantumfate/wofi>
+- wofi(5) styling: <https://manpages.ubuntu.com/manpages/questing/man5/wofi.5.html>
+- rofi-wayland fork (lbonn / in0ni): <https://github.com/in0ni/rofi-wayland>
+- HyDE: <https://github.com/HyDE-Project/HyDE> · JaKooLit Hyprland-Dots: <https://github.com/JaKooLit/Hyprland-Dots> · ml4w dotfiles: <https://github.com/mylinuxforwork/dotfiles>
+- Hyprland layer-rule blur for launchers: <https://github.com/hyprwm/Hyprland/issues/8408>

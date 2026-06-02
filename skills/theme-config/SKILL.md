@@ -17,6 +17,13 @@ Read `references/theming.md` (architecture, per-surface mechanics, reload comman
 before applying. Use only currently-correct syntax — for Hyprland color files defer to the
 **hyprland-reference** skill.
 
+**For how each surface should look** (not just which colors, but where the accent goes, contrast,
+transparency, the recognizable archetypes) consult the styling library in
+`skills/hyprland-reference/references/styling/` — `design-principles.md` for the coherence rules
+(accent discipline, 60-30-10, one shape language), and the per-app pages (`waybar.md`,
+`terminals.md`, `notifications.md`, `gtk-qt.md`, `hyprlock.md`, `tui-and-prompt.md`). They're
+written around this skill's rice palette contract, so their recipes map straight onto the palette.
+
 ## Workflow
 
 ### 1. Detect tooling & current appearance

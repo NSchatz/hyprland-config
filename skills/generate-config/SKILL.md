@@ -17,7 +17,12 @@ pre-fill or skip interview questions, but still confirm anything load-bearing.
 
 This skill leans on the **Hyprland Config Reference** skill for syntax. Read its reference files
 (under `skills/hyprland-reference/references/`) whenever generating a section, and cross-check
-every option against `deprecations.md` so deprecated syntax is never emitted. For companion apps
+every option against `deprecations.md` so deprecated syntax is never emitted. For **tasteful
+look-and-feel and palette defaults** (so the generated config looks designed, not stock-gray),
+consult its styling library `skills/hyprland-reference/references/styling/` — especially
+`hyprland-decoration.md` (gaps/borders/rounding/blur/shadow/animation values that look good) and
+`design-principles.md` (palette coherence, accent discipline). The Area C and C-theme answers map
+onto these. For companion apps
 (bars, launchers, lock/idle, screenshots, clipboard, portals) read
 `hyprland-reference/references/ecosystem.md` — it has the package names, launch commands, and the
 `hyprlock`/`hypridle`/`hyprpaper` config formats. Prefer the first-party Hypr ecosystem tools as
