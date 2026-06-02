@@ -34,15 +34,30 @@ directly to the contract. Apply the same palette to every surface for a coherent
 ### Wallpaper-generated
 
 - **matugen** (Material You / Material Design 3). Config `~/.config/matugen/config.toml`. Define
-  `[[templates]]` with `input`/`output`; templates reference `{{colors.primary.default.hex}}`,
-  `{{colors.surface.default.hex}}`, etc. A `[config]`/post-hook reloads apps. Run
-  `matugen image /path/to/wall.png`. Map Material roles → contract: `primary→accent`,
+  per-app `[templates.<name>]` tables with `input_path`/`output_path` (+ optional `post_hook`,
+  `index`); templates reference `{{colors.primary.default.hex}}`, `{{colors.surface.default.hex}}`,
+  etc. (mode-aware `.dark.hex`/`.light.hex`; formats `.hex`/`.hex_stripped`/`.rgb`/`.rgba`; filters
+  like `| lighten: 10.0`). Run `matugen image /path/to/wall.png` (`-m dark|light`, `-t scheme-tonal-spot`
+  — also `scheme-expressive`/`scheme-vibrant`/`scheme-content`/`scheme-neutral`/etc.). A
+  `[config.wallpaper] set = true; command = "swww img {{ image }}"` block lets one invocation set the
+  wallpaper **and** regenerate every template. Map Material roles → contract: `primary→accent`,
   `secondary→accent2`, `surface→bg`, `on_surface→fg`.
-- **wallust** ("better pywal"). Config `~/.config/wallust/wallust.toml`. `[templates]` with
-  `template`/`target`; Jinja2-subset or pywal syntax (`{color1}`, `{background}`,
-  `{foreground}`). Outputs a 16-color scheme → maps straight onto `color0..15`/`bg`/`fg`. Run
-  `wallust run /path/to/wall.png`.
-- **pywal / pywal16** (`wal -i wall.png`) — older; same idea, writes `~/.cache/wal/`.
+- **wallust** ("better pywal"). Config `~/.config/wallust/wallust.toml`. `[templates]` entries with
+  `template`/`target` (and `pywal = true` to opt into pywal `{color1}` single-brace syntax; the
+  default engine is Jinja2-subset `{{color1}}`/`{{background}}`/`{{cursor}}` with filters like
+  `{{ color2 | lighten(0.3) }}`). Tunables: `backend` (`Resized`/`FastResize` fast, `Kmeans`/`Full`
+  accurate), `palette` (`dark16`/`harddark`/…), `color_space`, `check_contrast`. Outputs a 16-color
+  scheme → maps straight onto `color0..15`/`bg`/`fg`. Run `wallust run /path/to/wall.png`. (Note:
+  the old `new_engine` key is gone — it's the default now; use `pywal = true` for pywal syntax.)
+- **pywal / pywal16** (`wal -i wall.png`) — older; same idea, writes `~/.cache/wal/` (`colors.json`,
+  `sequences`). `wal -R` restores the last scheme; re-sourcing `~/.cache/wal/sequences` at shell start
+  re-themes open terminals. Largely superseded by wallust (Rust, faster, contrast-checked).
+
+**Running on wallpaper change.** The hook is: generate the palette, (set the wallpaper), reload apps.
+matugen's `post_hook` per template (or pywal's `-o script`, or wallust's `target` write) is where the
+reloads live; or batch them: `matugen image "$W"` (or `wallust run "$W"` / `wal -i "$W"`) → `hyprctl reload`
+→ `makoctl reload || swaync-client -rs` → `pkill -SIGUSR2 waybar`. matugen writes a `colors.conf`
+Hyprland `source`s and a `colors.css` waybar `@import`s — the same wiring this plugin's engine uses.
 
 If the chosen generator isn't installed, fall back to a named scheme or manual hex and tell the
 user the package to install (`matugen`, `wallust`). Detection: `detect-theme-tools.sh`.

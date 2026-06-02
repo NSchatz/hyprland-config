@@ -42,6 +42,36 @@ The exact family **string** to put in configs is the `fc-list` family name (e.g.
 `JetBrainsMono Nerd Font`, not the package name). The detect script's `FONT_MONO=`/`FONT_SANS=`
 lines already give usable strings.
 
+## Real-world pairings (what the big rices ship)
+
+One UI sans + one monospace Nerd Font is the universal pattern; the Nerd side supplies all the
+bar/prompt/fetch glyphs. What the surveyed rices actually use (cite when recommending):
+
+| Rice | UI / sans | Mono / Nerd | 
+|------|-----------|-------------|
+| **omarchy** | Liberation Sans (fontconfig `sans-serif`) | **JetBrainsMono Nerd Font** (fontconfig `monospace`) |
+| **HyDE** | theme-driven (resolved at runtime via `fc-list`) | **JetBrainsMono Nerd Font** (de-facto default) |
+| **JaKooLit** | Noto Sans | **JetBrainsMono Nerd Font** (+ Fira Code, Fantasque/Victor Mono) |
+| **ml4w** | Fira Sans (rofi UI) | JetBrainsMono Nerd Font |
+| **Matt-FTW** | — | **Maple Mono NF** |
+| **end-4** (quickshell) | Google Sans Flex / Readex Pro / Space Grotesk | JetBrains Mono NF + Material Symbols Rounded |
+| **SDDM** (catppuccin, sugar-candy) | Noto Sans | — (login) |
+
+**JetBrainsMono Nerd Font is the single most common mono** across every surveyed rice — a safe
+default. Tasteful pairings: *Inter or Noto Sans + JetBrainsMono NF* (universal), *Space Grotesk +
+JetBrains Mono NF* (geometric/modern), *Rubik/Readex Pro + Maple Mono NF* (cozy/rounded). Login
+screens default to Noto Sans.
+
+**fontconfig default-family trick** (omarchy): map the generic aliases in
+`~/.config/fontconfig/fonts.conf` so every app inherits the rice's fonts —
+`<alias><family>monospace</family><prefer><family>JetBrainsMono Nerd Font</family></prefer></alias>`
+(likewise `sans-serif` → your UI font, and `emoji` → `Noto Color Emoji` as universal fallback).
+
+**More Arch packages:** `ttf-maple-font` (Maple Mono NF), `ttf-nerd-fonts-symbols` /
+`ttf-nerd-fonts-symbols-mono` (symbol-only fallback — glyphs without changing the text font),
+`otf-font-awesome` (waybar icons), `noto-fonts-emoji` (`Noto Color Emoji`), `ttf-lexend`,
+`space-grotesk` (UI alternates).
+
 ## Applying a font across surfaces
 
 Pick one **UI font** + size and one **monospace/Nerd font** + size, then:

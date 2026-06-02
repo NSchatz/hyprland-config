@@ -48,6 +48,37 @@ theme without logging out: `sddm-greeter --test-mode --theme /usr/share/sddm/the
 These are coarse (palette-matched backgrounds, not live-generated) and entirely root-side — offer
 them as suggestions, generate the files, and provide the `sudo` commands; never run them silently.
 
+## Battle-tested specifics (from real setups)
+
+**tuigreet flags** (apognu/tuigreet) — beyond `--time`/`--remember`/`--theme`: `--asterisks`
+(mask the password with `*`), `--user-menu` (graphical user picker), `--greeting "<text>"`,
+`--issue` (show `/etc/issue`), `--power-shutdown 'CMD'` / `--power-reboot 'CMD'`, `--width N`.
+Launch Hyprland with `--cmd Hyprland`, or UWSM-managed with `--cmd "uwsm start hyprland.desktop"`.
+
+**SDDM theme repos** (all share the `[Theme] Current=` mechanism; themes in
+`/usr/share/sddm/themes/`, SDDM is **Qt** so the Qt runtime is a hard dep):
+- *Keyitdev/sddm-astronaut-theme* — Qt6 (`sddm qt6-svg qt6-virtualkeyboard qt6-multimedia-ffmpeg`,
+  needs `sddm ≥ 0.21`); sub-themes selected by editing `metadata.desktop` → `ConfigFile=Themes/<name>.conf`.
+- *sddm-sugar-candy* (Kangie fork; the original moved off GitHub) — Qt5 + `qt5-graphicaleffects`;
+  `theme.conf` keys `Background`, `MainColor`, `AccentColor="#fb884f"`, `Font="Noto Sans"`,
+  `FormPosition`, `RoundCorners`, `BlurRadius`, `HaveFormBackground`.
+- *catppuccin/sddm* — `qt6-svg qt6-declarative qt5-quickcontrols2`; flavor+accent baked into the
+  build (one theme dir per `catppuccin-mocha-mauve`), `theme.conf` `Font="Noto Sans"`.
+- Preview without logging out: `sddm-greeter --test-mode --theme /usr/share/sddm/themes/<name>`.
+
+**ly** (TUI greeter alternative) — config `/etc/ly/config.ini`, colors are `0xSSRRGGBB`
+(`bg`/`fg`/`border_fg`/`error_fg`), keys `animation = matrix|doom|none`, `asterisk`, `clock`,
+`auto_login_user`/`auto_login_session`, `shutdown_key = F1`. No theme files — all in the ini.
+**GDM** is only lightly themeable (background/logo via gresource hacks); treat as "use defaults".
+
+**Launch via UWSM** (the current Hyprland-recommended path from any greeter/autologin):
+`uwsm start hyprland.desktop`, or in a shell profile —
+```sh
+if uwsm check may-start; then exec uwsm start hyprland.desktop; fi
+```
+ReGreet (GTK greeter for greetd) runs inside a nested compositor:
+`command = "dbus-run-session cage -s -- regreet"`, themed via `regreet.toml` + its GTK settings.
+
 ## Safety
 
 - Editing `/etc`/`/usr` needs `sudo`/`sudoedit` — present the commands, let the user run them.

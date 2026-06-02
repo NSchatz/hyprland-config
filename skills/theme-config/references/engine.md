@@ -65,11 +65,15 @@ written whole by the desktop-shell skill, which folds the colors in. Templates f
 
 ## matugen as an additional renderer (optional, for breadth)
 
-matugen ships templates for **40+ apps** (btop, cava, starship, spicetify, discord, firefox,
-neovim, qt/kvantum, …). To cover apps beyond our template set, *also* configure matugen
-(`~/.config/matugen/config.toml` with `[templates.app]` input/output/`post_hook`) using the same
-wallpaper, so it themes the long tail while our engine owns the core + non-templated bits
-(gsettings, cursor, login). Keep one palette source per run so the two stay consistent.
+matugen ships templates for **50+ apps** (btop, cava, starship, spicetify, discord, firefox,
+neovim, qt/kvantum, niri, ghostty, helix, zed, yazi, zathura, tmux, zellij, …). To cover apps beyond
+our template set, *also* configure matugen (`~/.config/matugen/config.toml` with `[templates.<app>]`
+`input_path`/`output_path`/`post_hook`, optional `index` for ordering) using the same wallpaper, so
+it themes the long tail while our engine owns the core + non-templated bits (gsettings, cursor,
+login). Pick the scheme with `-t scheme-tonal-spot` (or `-expressive`/`-vibrant`/`-content`/
+`-neutral`/`-monochrome`) and `-m dark|light`; a `[config.wallpaper] set = true; command = "swww img {{ image }}"`
+block makes one `matugen image <wall>` set the wallpaper and regenerate everything. Keep one palette
+source per run so the two stay consistent.
 
 ## State & reproducibility
 
