@@ -154,19 +154,32 @@ hot-reload; with `reload_style_on_change: true`, CSS edits also reload on save).
 
 ## App launcher
 
+For the styling-technique catalog (palette/layout split, the three selection idioms, icon-grid vs
+pill-list, `em`/`%` sizing, blur) see
+`${CLAUDE_PLUGIN_ROOT}/skills/hyprland-reference/references/styling/launchers.md`.
+
 ### wofi — `~/.config/wofi/config` + `style.css`
 
-`config`:
+`config` (behavior; the look is in `style.css`):
 ```ini
 show=drun
 prompt=Search
 width=600
 height=400
-insensitive=true
+location=center
+insensitive=true          # case-insensitive matching
 allow_images=true
+image_size=24
+no_actions=true           # don't show drun actions submenu
+hide_scroll=true
+matching=fuzzy
+gtk_dark=true
+key_expand=Tab
+term=kitty                # terminal for run-in-terminal entries
 ```
-`style.css`: `@import "colors.css";` then style `window/#input/#entry` (see theme-config templates).
-Launch: `wofi --show drun`. No reload (read at launch).
+`style.css`: `@import "colors.css";` then style `window/#input/#entry:selected` (see theme-config
+templates). Launch: `wofi --show drun`. Read at launch — no reload. For frosted glass, add a
+`layerrule` blur block for the `wofi` namespace in `hyprland.conf` (see launchers.md → Pitfalls).
 
 ### rofi — `~/.config/rofi/config.rasi`
 
@@ -174,16 +187,28 @@ Launch: `wofi --show drun`. No reload (read at launch).
 configuration {
     modi: "drun,run,window";
     show-icons: true;
+    icon-theme: "Papirus";
     drun-display-format: "{name}";
+    display-drun: "  Apps";
+    display-run:  "  Run";
+    display-window: "  Windows";
+    drun-match-fields: "name,generic,exec,categories";
+    kb-cancel: "Escape";
 }
 @theme "custom"      /* loads ~/.config/rofi/custom.rasi */
 ```
 
 Put the colors import **inside the theme file** it points to — e.g. in
 `~/.config/rofi/custom.rasi` add `@import "colors.rasi"` at the top, then reference the color names.
-Launch: `rofi -show drun`. Read at launch.
+Use a **Wayland-capable** build (`rofi-wayland`, or rofi ≥ 2.0) so layer-shell blur/anchoring works;
+classic X11 rofi runs through XWayland and ignores the `layerrule`. Launch: `rofi -show drun`.
 
 ## Notification daemon
+
+**Run exactly one** — mako, dunst, and swaync all claim the `org.freedesktop.Notifications` D-Bus
+name; the second to start exits. For the styling-technique catalog (DND mode, per-urgency accents,
+rounded translucent cards, swaync widget stack) see
+`${CLAUDE_PLUGIN_ROOT}/skills/hyprland-reference/references/styling/notifications.md`.
 
 ### mako — `~/.config/mako/config`
 
@@ -195,28 +220,86 @@ margin=10
 padding=12
 border-size=2
 border-radius=8
+anchor=top-right
+layer=overlay
+max-visible=5
+icons=1
+max-icon-size=48
+markup=1
+format=<b>%s</b>\n%b
 default-timeout=5000
-# colors come from theme-config: background-color / text-color / border-color
+ignore-timeout=1
+# colors come from theme-config: background-color / text-color / border-color / progress-color
+
 [urgency=high]
 default-timeout=0
+# border-color set red by theme-config
+
+[mode=do-not-disturb]
+invisible=1
 ```
+Toggle DND with `makoctl mode -t do-not-disturb`; dismiss with `makoctl dismiss` (`-a` for all).
 Reload: `makoctl reload`.
 
 ### dunst — `~/.config/dunst/dunstrc`
 
+dunst uses **INI sections** (`[section]` then indented `key = value` lines) — **not** brace blocks.
 ```ini
 [global]
     font = Sans 11
     frame_width = 2
     corner_radius = 8
-    offset = 12x12
     origin = top-right
+    offset = (12, 12)
+    gap_size = 8
+    separator_color = frame
+    markup = full
     format = "<b>%s</b>\n%b"
-[urgency_low]    { timeout = 5 }
-[urgency_normal] { timeout = 8 }
-[urgency_critical] { timeout = 0 }
+    icon_position = left
+    min_icon_size = 16
+    max_icon_size = 48
+    progress_bar = true
+    mouse_left_click = do_action, close_current
+    mouse_middle_click = close_all
+    mouse_right_click = context
+
+[urgency_low]
+    timeout = 5
+
+[urgency_normal]
+    timeout = 8
+
+[urgency_critical]
+    timeout = 0
+    # frame_color set red by theme-config
 ```
-(Colors from theme-config.) Reload: `dunstctl reload`.
+Per-urgency colors (`background`/`foreground`/`frame_color`) come from theme-config. Note
+`offset = (x, y)` is the modern form (older configs used a `geometry` string). Reload:
+`dunstctl reload`.
+
+### swaync — `~/.config/swaync/config.json` + `style.css`
+
+swaync adds a slide-out control center (DND toggle, MPRIS, sliders, quick toggles). The panel layout
+is **data** in `config.json`'s `widgets` array, not CSS:
+```json
+{
+  "positionX": "right",
+  "positionY": "top",
+  "control-center-width": 440,
+  "timeout": 8,
+  "timeout-low": 4,
+  "timeout-critical": 0,
+  "widgets": ["title", "dnd", "notifications", "mpris", "volume", "backlight", "buttons-grid"],
+  "widget-config": {
+    "title": { "text": "Notifications", "clear-all-button": true, "button-text": "Clear All" },
+    "dnd": { "text": "Do Not Disturb" }
+  }
+}
+```
+`style.css` is **GTK CSS**: `@import "colors.css";` then style `.control-center`, `.notification`,
+`.widget-dnd switch:checked`, and the slider `scale trough progress` (see notifications.md). For a
+frosted control center, add a block-form `layerrule` blur on the `swaync-control-center` and
+`swaync-notification-window` namespaces. Reload: `swaync-client -rs` (CSS), `swaync-client -R` (config).
 
 ## Fonts (glyphs)
 

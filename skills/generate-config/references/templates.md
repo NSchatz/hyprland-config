@@ -111,7 +111,12 @@ monitor = eDP-1, preferred, auto, 1.5               # laptop HiDPI, explicit fra
 ```
 
 The shipped default uses `monitor=,preferred,auto,auto` — `auto` scale lets Hyprland choose.
-Use an explicit scale (`1`, `1.5`, `2`) only when the user wants to pin it.
+Use an explicit scale (`1`, `1.5`, `2`) only when the user wants to pin it. For unknown hardware,
+the `highrr`/`highres` "magic" modes pick the highest refresh / resolution (`monitor=,highrr,auto,1`).
+**Fractional-scaling gotcha** (real-world, from omarchy): when you pin a fractional `scale` (e.g.
+`1.6`), also emit a matching `env = GDK_SCALE,N` in `env.conf` (e.g. `GDK_SCALE,2` for a HiDPI panel)
+or XWayland/GTK apps render blurry/wrong-sized — `xwayland { force_zero_scaling = true }` is the
+companion fix for blurry XWayland.
 
 ---
 
@@ -141,6 +146,11 @@ gesture = 3, horizontal, workspace
 
 Omit the `touchpad {}` block and the `gesture =` line entirely for desktops. On a target older
 than 0.45, use a `gestures { workspace_swipe = true }` block instead (see `deprecations.md`).
+
+Common `{{kb_options}}` recipes (from real configs): `caps:swapescape` or `caps:escape` (the most
+popular), `compose:caps`, or for a multi-layout `kb_layout = us, es` add `grp:win_space_toggle`
+(or `grp:alt_shift_toggle`) to cycle layouts. Add `numlock_by_default = true` and
+`accel_profile = flat` (disable mouse acceleration) to the `input {}` block if the user wants them.
 
 ---
 
