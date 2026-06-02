@@ -150,6 +150,72 @@ Screen sharing and native file pickers need an xdg-desktop-portal backend:
 
 ---
 
+## Battle-tested wiring (from real dotfiles)
+
+Concrete, attributed commands harvested from real configs (HyDE, JaKooLit, omarchy, Matt-FTW, the
+Hyprland wiki). The exact one-liners that make each subsystem work.
+
+**hypridle — lock before DPMS, idempotent locker** (universal). Give the lock listener a *lower*
+timeout than the DPMS-off listener so the screen is never visible on wake, and make the locker
+idempotent so it never stacks:
+```ini
+general {
+    lock_cmd = pidof hyprlock || hyprlock          # never spawn a second locker
+    before_sleep_cmd = loginctl lock-session        # lock before suspend
+    after_sleep_cmd = hyprctl dispatch dpms on       # displays back on resume
+}
+listener { timeout = 540; on-timeout = brightnessctl -s set 10%; on-resume = brightnessctl -r }  # dim/warn
+listener { timeout = 600; on-timeout = loginctl lock-session }                                    # lock (via dbus -> lock_cmd)
+listener { timeout = 660; on-timeout = hyprctl dispatch dpms off; on-resume = hyprctl dispatch dpms on }
+listener { timeout = 1800; on-timeout = systemctl suspend }
+```
+Trigger the lock with `loginctl lock-session` (fires `lock_cmd` over D-Bus), not by calling
+`hyprlock` directly in a listener. Newer keys `inhibit_sleep` (omarchy) and `ignore_systemd_inhibit`
+exist but are newer than `ignore_dbus_inhibit` — verify on older hypridle. *Avoid* end-4's
+`hyprctl dispatch 'hl.dsp.dpms…'` Lua-dispatch form — it needs Quickshell and isn't 0.54.3-portable.
+
+**Screenshot one-liners** (JaKooLit, omarchy):
+- Region → clipboard: `grim -g "$(slurp)" - | wl-copy`.
+- Save **and** copy at once: `grim - | tee "$file" | wl-copy`.
+- Active window geometry from Hyprland: `hyprctl -j activewindow | jq -r '"\(.at[0]),\(.at[1]) \(.size[0])x\(.size[1])"' | grim -g - "$file"`.
+- Freeze the screen before selecting so moving content doesn't shift: `hyprpicker -r -z` (omarchy) running under the `slurp`.
+- Annotate: pipe into `satty -f -` or `swappy -f -`. Bind the bare `Print` key with **`bindl`** so it works on the lock screen.
+
+**Clipboard picker** (wiki, JaKooLit): two watchers (text + image), one picker pipeline, toggled:
+```ini
+exec-once = wl-paste --type text  --watch cliphist store
+exec-once = wl-paste --type image --watch cliphist store
+# picker bind (toggle with pkill):
+bind = $mod, V, exec, pkill -x rofi || cliphist list | rofi -dmenu | cliphist decode | wl-copy
+```
+Map custom rofi keys to `cliphist delete` (one entry) and `cliphist wipe` (all).
+
+**Polkit — prefer the systemd user unit** (wiki): `systemctl --user enable --now hyprpolkitagent.service`
+so it survives `hyprctl reload` (an `exec-once` re-spawns it on every reload). Run exactly one agent;
+`polkit-gnome` (`/usr/lib/polkit-gnome/polkit-gnome-authentication-agent-1`) is unmaintained — the
+first-party `hyprpolkitagent` is the current pick.
+
+**Portals / screen-share — install both + propagate the env** (wiki, Matt-FTW). `xdg-desktop-portal-hyprland`
+does screencast (via `hyprland-share-picker`); `xdg-desktop-portal-gtk` provides the file chooser —
+you need **both**. The single most common "screen share is black / no file picker" fix is propagating
+the session env to D-Bus/systemd:
+```ini
+exec-once = dbus-update-activation-environment --systemd --all
+exec-once = systemctl --user import-environment $(env | cut -d'=' -f 1)
+```
+plus `env = XDG_CURRENT_DESKTOP,Hyprland` so the right backend is chosen. XDPH config lives at
+`~/.config/hypr/xdph.conf` (keys `screencopy {}`, `custom_picker_path`). Portals are normally
+D-Bus-activated; only launch them manually (hyprland first, then base `xdg-desktop-portal`) if
+activation is unreliable.
+
+**Wallpaper daemon ordering**: start the daemon, then set the image after the socket is up —
+`exec-once = swww-daemon` then a later `swww img <path>` (errors if the daemon isn't running). One
+daemon only (they fight over the layer surface). For the **awww** fork, autostart `awww-daemon` and
+use `awww img` — detect the real binary rather than assuming `swww-daemon` (see the Wallpaper table
+above; `awww` declares `provides=swww`).
+
+---
+
 ## hypridle config format
 
 Default path: `~/.config/hypr/hypridle.conf`. The `general` block defines lock/sleep hooks;
