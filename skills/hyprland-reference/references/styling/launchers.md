@@ -45,6 +45,43 @@ These concepts map across all four; only the key names change.
 - **Minimal dmenu-like (fuzzel / tofi)** — flat, fast, often a single accent. fuzzel default is already tasteful (radius 10, 1px border, ~40px horizontal pad). tofi minimal themes use a small box (`width=640 height=24` for a single-line bar, or a centered box with `num-results=5`), `border-width=4` in the accent, `corner-radius` 0–8, selection via `selection-color` only.
 - **Accent-bordered floating box** — opaque (or lightly translucent) surface background, a bold 2px accent border, mid radius (10–16px), and an accent-filled selection. Reads as "intentional" without relying on blur. Common in [HyDE](https://github.com/HyDE-Project/HyDE), [JaKooLit](https://github.com/JaKooLit/Hyprland-Dots), and [ml4w](https://github.com/mylinuxforwork/dotfiles) rofi setups.
 
+## Battle-tested techniques (from real launcher themes)
+
+Concrete, reusable moves harvested from real launcher theme files across the big collections and
+rices. Each is attributed and quoted close to verbatim — swap literal hexes for the rice keys.
+Grouped by what they buy you.
+
+**Theming workflow — split palette from layout.** This is the single most reusable idiom; every
+polished collection does it.
+- *rofi: tiny `*{}` color block + reusable layout* (adi1090x, catppuccin/rofi, lr-tech): each theme file is **only** a color block (`* { background-colour: …; selected-normal-background: …; }`) that `@import`s a shared layout `.rasi`. lr-tech's `rounded-template.rasi` is reused by ~10 variants that each supply just an 8-name `bg0..bg3 / fg0..fg3` block. Re-theming = swap one file.
+- *rofi: `@theme` indirection for wallpaper-generated palettes* (HyDE): layouts reference `@main-bg`/`@select-bg` from a `theme.rasi` regenerated per wallpaper (`@theme "~/.config/rofi/theme.rasi"`), so all styles re-skin from one machine-written file.
+- *fuzzel/tofi: `include=` a colors-only file* (catppuccin/fuzzel, vaelixd, caelestia): keep geometry in `fuzzel.ini` `[main]`, colors in a separate `[colors]` file pulled via `include=`. caelestia points `include` at a `current.ini` **symlink** so the whole desktop reskins at once. catppuccin/fuzzel ships pure `[colors]` files (4 flavors × 14 accents) meant to be `include`d.
+
+**Structure & shape.**
+- *Two launcher shapes.* Vertical pill list — `listview { columns: 1 }` + rounded `element { border-radius: 16px }` — or icon grid — `listview { columns: 5–7 }` + `element { orientation: vertical }` + a large `element-icon { size: 72px }` (adi1090x type-3, JaKooLit). 
+- *Fullscreen launcher.* rofi: `window { fullscreen: true }` + `listview { columns: 5; lines: 5 }` with **percentage icon size** `element-icon { size: 5% }` so it scales to the screen (JaKooLit `KooL_style-3-FullScreen`). tofi: `width = 100%; height = 100%` + `padding-left = 35%; padding-top = 35%` centers a short list over a dimmed overlay (`background-color = #000A`) (philj56 `fullscreen` theme).
+- *Spotlight bar* (lr-tech `spotlight-*`): narrow centered `window { width: 640 }`, a large input font, a search glyph as an inputbar child (`inputbar { children: [icon-search, entry] }`), results dropping below behind a hairline top border (`listview { border: 1px 0 0 }`).
+- *Floating top-drop card* (lr-tech `rounded-*`): `window { location: north; border-radius: 24px; padding: 12px }` detaches the launcher from the top edge as a rounded card.
+- *Full-height wallpaper sidebar* (HyDE `style_1`): `mainbox { orientation: horizontal; children: ["dummywall","listbox"] }` puts a blurred `wall.blur` image panel beside the list; `entry { enabled: false }` hides search-as-you-type for a clean icon+label column.
+- *wofi: transparent window, opaque rounded card* (alxndr13, quantumfate): `window { background-color: transparent }` + an opaque rounded `#outer-box` so the card floats and the compositor blur shows through the gap.
+
+**Selection highlight — three idioms.**
+- *Solid accent fill + contrasting text* (adi1090x, JaKooLit, lr-tech rounded): `element selected { background-color: @accent; text-color: @bg }` — the highest-contrast, most-copied highlight.
+- *Translucent tinted overlay* (caelestia, adi1090x): the accent at partial alpha — `selection=d19a6687` (~53%) in fuzzel, or rofi `element selected { background-color: white / 5% }` — a soft highlight instead of a solid bar.
+- *Accent outline ring* (quantumfate wofi): `#entry:selected { border: 0.11em solid @accent }` rings the focused row rather than filling it; pair with `#text:selected { background: transparent }` so you don't get a doubled highlight.
+
+**Color details.**
+- *fuzzel: only the background carries alpha.* The 11 `[colors]` keys are `RRGGBBAA`; convention is `background=…dd` (~87%) and everything else `…ff`. Set `match` **and** `selection-match` to the accent so typed/matched letters glow (catppuccin/fuzzel).
+- *tofi: distinct accents per role* (catppuccin/tofi): `prompt-color = #f38ba8` (red), `selection-color = #f9e2af` (yellow) — themes well with as few as four keys (text/prompt/selection/background).
+- *rofi: `white/NN%` color algebra* (JaKooLit): alpha-blended literals like `background-color: black/90%`, `border-color: white/30%` for instant translucency without defining vars.
+- *wofi zebra rows* (alxndr13): `#entry:nth-child(even) { background-color: <surface-alt> }` for readable striping; a focus glow via `#input:focus { box-shadow: … rgba(accent) }`.
+
+**Sizing & translucency.**
+- *`em`/`%` over px for DPI independence* (catppuccin/rofi `size: 1.0000em`, HyDE `width: 63em` / icon `size: 2.8em`, wofi `border: 0.16em`): geometry scales with the configured font size/DPI instead of breaking on a HiDPI monitor.
+- *True compositor blur* (adi1090x): `window { transparency: "real" }` in rofi (plus the Hyprland `layerrule` blur on the `rofi` namespace) — without `transparency: "real"`, rofi composites its own opaque background and the layerrule has nothing translucent to blur.
+- *fuzzel placement & dismissal* (vaelixd, chikobara): `layer = overlay` to float above Hyprland layers, `exit-on-keyboard-focus-loss = yes` for click-away dismiss, `anchor = top-left` + `x-margin`/`y-margin` for corner (not centered) placement; remember fuzzel `width` is in **characters**, not px.
+- *tofi two-ring frame* (philj56 `dos`): `outline-width` is the thin inner line, `border-width` the thick outer band — set `outline-width = 0` for a single clean ring; `hide-cursor = true` for a kiosk/overlay feel.
+
 ## Tasteful default recipe
 
 Each uses the plugin's rice keys (`bg fg surface muted accent accent2 color0..15 font_ui font_mono`, hex **without** `#`). Shown twice: a `{{placeholder}}` template form and a worked **Catppuccin Mocha** example (`bg 1e1e2e`, `fg cdd6f4`, `surface 313244`, `muted 6c7086`, `accent cba6f7`, `accent2 89b4fa`, `font_ui Inter`, `font_mono JetBrainsMono Nerd Font`). Selection = accent; subtle border = accent. This plugin's rice renders `wofi/colors.css` and `rofi/colors.rasi` — `@import` those so re-theming Just Works.
@@ -217,3 +254,12 @@ selection-background = #31324480     # {{surface}} + soft alpha
 - rofi-wayland fork (lbonn / in0ni): <https://github.com/in0ni/rofi-wayland>
 - HyDE: <https://github.com/HyDE-Project/HyDE> · JaKooLit Hyprland-Dots: <https://github.com/JaKooLit/Hyprland-Dots> · ml4w dotfiles: <https://github.com/mylinuxforwork/dotfiles>
 - Hyprland layer-rule blur for launchers: <https://github.com/hyprwm/Hyprland/issues/8408>
+
+**Theme corpus read for the techniques catalog** (each theme file read directly):
+- adi1090x/rofi — `files/launchers/type-1/style-1.rasi` (pill list), `type-3/style-3.rasi` (icon grid), `files/colors/*.rasi` (shared palette): <https://github.com/adi1090x/rofi>
+- catppuccin/rofi — `catppuccin-default.rasi` layout + `themes/catppuccin-mocha.rasi` (26-name palette, `em` icon sizing): <https://github.com/catppuccin/rofi>
+- lr-tech/rofi-themes-collection — `spotlight-*`, `rounded-template.rasi` + variants, `windows11-*`: <https://github.com/lr-tech/rofi-themes-collection>
+- HyDE-Project/HyDE — `Configs/.config/rofi/theme.rasi` (generated palette) + `Configs/.local/share/hyde/rofi/themes/style_1.rasi` (wallpaper sidebar): <https://github.com/HyDE-Project/HyDE>
+- JaKooLit/Hyprland-Dots — `config/rofi/themes/KooL_style-*.rasi` (`white/NN%` algebra, fullscreen `%`-icon grid): <https://github.com/JaKooLit/Hyprland-Dots>
+- quantumfate/wofi (`src/mocha/style.css`, outline-ring selection) and alxndr13/wofi-catppuccin (`style.css`, zebra rows + focus glow): <https://github.com/quantumfate/wofi> · <https://github.com/alxndr13/wofi-catppuccin>
+- catppuccin/fuzzel, catppuccin/tofi, philj56/tofi `themes/*` (fullscreen/dos two-ring), and real `fuzzel.ini`s from vaelixd/niri-dotfiles, caelestia-dots, chikobara/dotfiles (`include=` colors split, `layer=overlay`).

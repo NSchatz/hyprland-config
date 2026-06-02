@@ -109,6 +109,37 @@ Concrete value bands seen in the wild: **radius 8-12**, **border 2 px accent** (
 from: `catppuccin/mako`, `catppuccin/dunst`, `catppuccin/swaync`, `rose-pine/swaync`, plus the
 notification configs inside HyDE, JaKooLit's dotfiles, and ml4w.
 
+## Battle-tested techniques (from real notification configs)
+
+Concrete, attributed moves harvested from real `config`/`dunstrc`/`style.css` files. Quoted close to
+verbatim — swap literal hexes for the rice keys. Grouped by daemon.
+
+**mako.**
+- *Do-Not-Disturb as a mode section* (omarchy themes): `[mode=do-not-disturb] invisible=true` hides everything when DND is toggled via `makoctl mode -t do-not-disturb` — then **whitelist** essential alerts back in with compound criteria: `[mode=do-not-disturb app-name=notify-send] invisible=false`. (mako's analogue of dunst's pause.)
+- *Mute a noisy app by name* (omarchy): `[app-name=Spotify] invisible=1` — drop a single app's toasts without touching the rest.
+- *Progress fill over a muted base* (catppuccin/mako): `progress-color=over #{surface}` — the `over` keyword layers the volume/brightness fill **over** a surface tone instead of replacing the card background.
+- *Per-urgency accent on one line* (catppuccin/mako): keep the base palette and override only `[urgency=high] border-color=#{peach}` — the cheapest priority cue.
+- *Margin key moved.* Newer mako uses `outer-margin` (gap from the screen edge) while older mako used `margin`; emit `outer-margin` on current mako and fall back if `makoctl reload` complains.
+
+**dunst.**
+- *Canonical critical pattern* (every dunstrc): `[urgency_critical] { frame_color = "#…red…"; timeout = 0 }` — red frame, never auto-dismiss. The one rule to always ship.
+- *Separator follows the frame* (upstream, hyprdots): `separator_color = frame` reuses the frame color; `separator_color = auto` lets dunst pick a contrasting tone automatically.
+- *Rounded translucent card with rounded icons* (hyprdots): `corner_radius = 10` + `frame_width = 5` + `progress_bar_corner_radius = 4` + **`icon_corner_radius = 10`** (rounds the app icon independently); per-urgency backgrounds carry 8-digit-hex alpha — `background = "#3A4A6B80"` (~50%) with a near-invisible frame `"#3A4A6B03"` — for a tinted glass card.
+- *Inverted critical for max contrast* (hyprdots): critical uses a **light** background (`#f5e0dc`) with dark foreground + `timeout = 0`, so an emergency reads instantly against the dark normal toasts.
+- *Progress-bar block* (upstream): `progress_bar = true` + `progress_bar_height`, `progress_bar_min_width`/`max_width`, `progress_bar_frame_width` — the OSD bar for volume/brightness senders.
+- *Icon-theme fallback chain* (drewgrif): `icon_path = /usr/share/icons/Papirus/96x96/devices/:…/48x48/status/:…/96x96/apps/` — colon-chained dirs so dunst resolves an icon across multiple Papirus subfolders.
+- *Modern geometry, not the legacy string.* Old configs use `geometry = "700x15-0+80"`; current dunst splits this into `width` / `height` / `origin` / `offset = (x, y)`. Emit the split form (the recipe below already does).
+
+**swaync (GTK CSS + config.json).**
+- *Variable-override is the theming primitive* (upstream): the default theme is built on CSS custom properties — `--cc-bg`, `--noti-bg`, `--text-color`, `--border-radius` (in `pre-gtk4-variables.scss`). Modern swaync runs on GTK4, where `var(--cc-bg)` custom properties **are** supported, so the cleanest reskin is to redefine those vars rather than rewrite selectors. (Catppuccin instead swaps SCSS `$base/$surface0`; xZepyx uses GTK `@theme_bg/@accent_color` named colors — pick one layer.)
+- *The widget stack is data, not CSS* (upstream, HyDE): the control-center layout lives in `config.json`'s `"widgets"` array — e.g. `["title","dnd","notifications","mpris","backlight","volume","buttons-grid"]` — with per-widget settings under `"widget-config"`. Reorder the panel by editing the array.
+- *buttons-grid = real quick toggles* (HyDE, xZepyx): wire actual commands in `widget-config` (network editor, bluetooth, hyprsunset, lock, power) and style the active state — `.widget-buttons-grid flowboxchild > button.toggle:checked { background-color: @accent; color: white; }`, large/circular radius for tappable pills.
+- *MPRIS media card* (upstream, catppuccin): a blurred album-art backdrop — `.mpris-background { filter: blur(10px); }` with a `.mpris-overlay` tint over it — or a small square `.widget-mpris-album-art { -gtk-icon-size: 100px; border-radius: …; }`. The signature swaync media look.
+- *Real slider selector is `scale trough` / `scale trough progress`* (xZepyx, catppuccin): the accent-filled volume/backlight bar is `scale trough progress { background-color: @accent; }` — not `progressbar`.
+- *Hairline edges via inset shadow* (catppuccin): `box-shadow: inset 0 0 0 1px $surface1` gives a crisp 1px border on cards/buttons without a `border`.
+- *Frosted control-center* (upstream default `--cc-bg: rgba(46,46,46,0.7)`): ship a translucent control-center background + a Hyprland **block-form** `layerrule` blur on the `swaync-control-center` namespace (and `swaync-notification-window` for the toasts). Round close button is universal: `border-radius: 100%; min-width: 24px; min-height: 24px`.
+- *Sensible config.json defaults* (upstream, HyDE): `positionX: right`, `positionY: top`, `timeout: 10` / `timeout-low: 5` / `timeout-critical: 0`, `control-center-width: 400–500`.
+
 ## Tasteful default recipe
 
 Palette keys (hex, **no** leading `#`): `bg fg surface muted accent red green yellow font_ui
@@ -289,7 +320,10 @@ Catppuccin Mocha: `@define-color bg #1e1e2e; @define-color surface #313244; @def
 - **Cap icon size.** An uncapped `max-icon-size`/`max_icon_size` lets a high-res app icon blow the
   card out of proportion — `48` is a safe ceiling.
 - **swaync CSS ≠ web CSS.** It's the GTK dialect: use `alpha(@color, 0.9)` not `rgba()` with a
-  named color, `@define-color`/`@name` not `var(--x)`, and only GTK-supported properties.
+  named color, and only GTK-supported properties. Both color systems work — our recipe uses
+  `@define-color`/`@name` (universally safe), while swaync's own upstream default theme uses GTK4
+  CSS custom properties (`var(--cc-bg)`); on a GTK4 swaync you can override those vars directly, but
+  `@define-color` is the portable choice for a config you write whole.
 
 ## Sources
 
@@ -305,3 +339,8 @@ Catppuccin Mocha: `@define-color bg #1e1e2e; @define-color surface #313244; @def
 - Catppuccin swaync — <https://github.com/catppuccin/swaync>
 - Rosé Pine swaync — <https://github.com/rose-pine/swaync>
 - HyDE / JaKooLit / ml4w dotfiles (notification configs) — <https://github.com/HyDE-Project/HyDE>, <https://github.com/JaKooLit/Hyprland-Dots>, <https://github.com/mylinuxforwork/dotfiles>
+
+**Config corpus read for the techniques catalog:**
+- mako: catppuccin/mako (`themes/catppuccin-mocha/*` per-accent overlays, `progress-color over`) — <https://github.com/catppuccin/mako>; omarchy theme `mako.ini` (DND mode + app-name mute + `outer-margin`) — e.g. <https://github.com/P0LoYT/omarchy-gruvbox-dark-soft>.
+- dunst: upstream sample `dunstrc` (canonical keys, critical pattern) — <https://github.com/dunst-project/dunst/blob/master/dunstrc>; prasanthrangan/hyprdots `Configs/.config/dunst/dunstrc` (rounded translucent card, `icon_corner_radius`, inverted critical); drewgrif/dotfiles `dunstrc` (`icon_path` chain, `corner_radius 15`).
+- swaync: ErikReider/SwayNotificationCenter `data/style/style.scss` + `pre-gtk4-variables.scss` + `data/style/widgets/*.scss` + `src/config.json.in` (canonical selectors, `--cc-bg` vars, widget stack) — <https://github.com/ErikReider/SwayNotificationCenter>; catppuccin/swaync `src/_theme.scss` (palette-var swap, `inset` hairlines, `scale trough progress`); HyDE-Project/HyDE `Configs/.config/swaync/config.json` (functional widget stack); xZepyx/hyprzepyx swaync `style.css` + `config.json` (semantic `@color` tokens, pill toggles).
