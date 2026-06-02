@@ -98,6 +98,32 @@ Big dotfile projects ship all of this preconfigured: **HyDE** sets a default Kva
 and **ml4w** apply default GTK/icon/cursor via `gsettings` and route Qt through qt5ct/qt6ct +
 Kvantum.
 
+## Battle-tested techniques (from real rices)
+
+Concrete, attributed moves harvested from real dotfiles and the theme installers. Grouped by layer.
+
+**libadwaita / GTK4.**
+- *Symlink a theme's `gtk-4.0/` into `~/.config` — the universal libadwaita recolor* (catppuccin/gtk, vinceliuice): when you want a full theme (not just a `@define-color` override), `ln -sf <theme>/gtk-4.0/{gtk.css,gtk-dark.css,assets} ~/.config/gtk-4.0/`. Ship **both** `gtk.css` and `gtk-dark.css` so `color-scheme` light/dark switching works. (Caveat: the symlink method breaks *live* theme-switching — you relog or restart apps. The plugin's own per-palette `gtk-4.0/gtk.css` `@define-color` route avoids this.)
+- *vinceliuice installers automate it* (Graphite, Colloid): `./install.sh -l` (`--libadwaita`) does exactly that symlink. Pick the accent at install time with `-t <color>`, match Hyprland's rounding with `--round <2–16px>`, and use `--tweaks` for variants — Colloid's `--tweaks` even carry **named palettes** (`catppuccin|gruvbox|nord|everforest|dracula`), and `-l`'s default ColorScheme follows the system light/dark switch.
+- *Flatpaks need extra grants* (catppuccin/gtk): `flatpak override --filesystem=$HOME/.local/share/themes` + `--env=GTK_THEME=<name>` to reach sandboxed apps (they honor `color-scheme` via the portal regardless).
+
+**GTK settings under Wayland.**
+- *Set gsettings at startup, every key* (JaKooLit `initial-boot.sh`): there's no XSettings daemon on wlroots, so push the full quartet from an `exec-once` — `gsettings set org.gnome.desktop.interface {color-scheme,gtk-theme,icon-theme,cursor-theme}` + `cursor-size`. A Dark/Light toggle just rewrites `color-scheme` + `gtk-theme` and caches the mode in a flag file.
+- *Let `nwg-look` write both layers* (ml4w): nwg-look saves **gsettings** directly (the live channel) and *exports* `~/.config/gtk-3.0/settings.ini` (the legacy fallback) in one Apply — including `gtk-application-prefer-dark-theme=1`, the settings.ini mirror of `color-scheme prefer-dark`. ml4w wraps this in a "Refresh GTK" action to re-push after a theme change.
+
+**Icons.**
+- *Re-tint Papirus folders to the accent* (papirus-folders): `papirus-folders -C <accent> --theme Papirus-Dark` (31 colors incl. `nordic`, `cat-*`); run `papirus-folders -Ru` to **restore the accent after a package update** wipes it — a common "my folders went blue again" fix. The matugen/wallust recolor hook lives here.
+- *Tela-circle bakes the accent at install* — `./install.sh <color>` then select `Tela-circle-dark` via `icon-theme`. Keep the qt5ct/qt6ct `icon_theme` **identical** to the GTK `icon-theme` for cross-toolkit parity (hyprdots ships `Tela-circle-dracula` in all three).
+
+**Qt.**
+- *One env.conf as the single toolkit source of truth* (Matt-FTW): GTK theme, both cursor systems, and Qt forced to Kvantum, all Catppuccin-Macchiato, in one file — `env = QT_STYLE_OVERRIDE,kvantum` forces Kvantum regardless of qt*ct, and `XCURSOR_*` + `HYPRCURSOR_*` are set to the **same** name+size.
+- *Install both qt5ct and qt6ct* (JaKooLit, hyprdots): legacy Qt5 and modern Qt6 apps each need their platform theme; hyprdots sets `style=kvantum` + identical `icon_theme`/`[Fonts]` in **both** `qt5ct.conf` and `qt6ct.conf`, with `color_scheme_path` pointing at a generated `colors.conf`.
+- *The two Qt routes* — **Kvantum** (`style=kvantum` in qt*ct, or `QT_STYLE_OVERRIDE=kvantum`; theme set with `kvantummanager --set <theme>`, which writes `theme=` into `~/.config/Kvantum/kvantum.kvconfig`; folder name must equal the `.kvconfig`/`.svg` name or it won't load) vs **KDE-native** (`QT_QPA_PLATFORMTHEME=kde` + a Kvantum/Breeze theme — end-4; or ml4w's `style=Breeze` + `breeze-dark` icons for a stock-KDE look without Kvantum).
+- *QtQuick + XWayland scaling env* (JaKooLit): `env = QT_QUICK_CONTROLS_STYLE,org.hyprland.style` for native QtQuick controls, and `GDK_SCALE,1` / `QT_SCALE_FACTOR,1` to stop XWayland apps double-scaling.
+
+**Cursor.**
+- *Set both cursor systems + push at runtime* (end-4, Matt-FTW): `XCURSOR_THEME`/`XCURSOR_SIZE` (XWayland/GTK fallback) **and** `HYPRCURSOR_THEME`/`HYPRCURSOR_SIZE` (native) to the same theme+size, plus `hyprctl setcursor <theme> <size>` + `gsettings … cursor-theme` at runtime to cover the running session and GTK. Bibata-Modern-Ice/Classic and catppuccin-cursors are the common picks.
+
 ## Tasteful default recipe
 
 Worked example: **Catppuccin Mocha** (bg `1e1e2e`, fg `cdd6f4`, surface `313244`, accent `cba6f7`).
@@ -213,3 +239,12 @@ same for legacy Qt5 apps.
 - ArchWiki — Uniform look for Qt and GTK applications: <https://wiki.archlinux.org/title/Uniform_look_for_Qt_and_GTK_applications>
 - HyDE application theming: <https://deepwiki.com/JaKooLit/Hyprland-Dots/4.4-application-theming> · hyprqt6engine: <https://wiki.hypr.land/Hypr-Ecosystem/hyprqt6engine/>
 - Flatpak desktop integration / theme access: <https://docs.flatpak.org/en/latest/desktop-integration.html>
+
+**Config corpus read for the techniques catalog:**
+- catppuccin/gtk `docs/USAGE.md` (libadwaita symlink + Flatpak override) and catppuccin/Kvantum README (`kvantummanager --set`, folder==name rule): <https://github.com/catppuccin/gtk> · <https://github.com/catppuccin/Kvantum>
+- vinceliuice Graphite-/Colloid-gtk-theme `install.sh` (`-l/--libadwaita`, `-t` accent, `--round`, `--tweaks` named palettes): <https://github.com/vinceliuice/Graphite-gtk-theme> · <https://github.com/vinceliuice/Colloid-gtk-theme>
+- JaKooLit/Hyprland-Dots `initial-boot.sh` + `DarkLight.sh` + `configs/ENVariables.conf` (gsettings quartet, dual qt5ct/qt6ct, QtQuick + scale env): <https://github.com/JaKooLit/Hyprland-Dots>
+- prasanthrangan/hyprdots `Configs/.config/qt5ct,qt6ct/*.conf` (style=kvantum + Tela-circle + Cantarell/Nerd-mono fonts): <https://github.com/prasanthrangan/hyprdots>
+- Matt-FTW/dotfiles `.config/hypr/configs/env.conf` (single env source of truth, QT_STYLE_OVERRIDE=kvantum, matched XCURSOR/HYPRCURSOR): <https://github.com/Matt-FTW/dotfiles>
+- end-4/dots-hyprland (KDE platform theme route, in-repo Kvantum themes, runtime `hyprctl setcursor`) and mylinuxforwork/dotfiles (nwg-look workflow, Breeze qt6ct): <https://github.com/end-4/dots-hyprland> · <https://github.com/mylinuxforwork/dotfiles>
+- papirus-folders (`-C <accent>`, `-Ru` after update) and vinceliuice Tela-circle-icon-theme: <https://github.com/PapirusDevelopmentTeam/papirus-folders> · <https://github.com/vinceliuice/Tela-circle-icon-theme>

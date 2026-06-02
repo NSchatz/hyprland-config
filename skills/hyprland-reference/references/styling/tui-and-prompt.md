@@ -80,6 +80,31 @@ with the wallpaper: **HyDE** (Hyprland, 70+ themes, retheming starship/fastfetch
 (wallpaper-driven palette across starship + fastfetch + mako), and **caelestia** (fish + starship +
 fastfetch). The plugin's own rice engine plays the same role — palette keys feed every file below.
 
+## Battle-tested techniques (from real configs)
+
+Concrete, attributed moves harvested from the first-party theme repos and real rice configs.
+
+**btop.**
+- *One accent per box, 3-shade gradient per metric* (catppuccin/btop): `cpu_box`/`mem_box`/`net_box`/`proc_box` each take a distinct palette accent so the four panels read as separate; every graph is a `*_start`/`*_mid`/`*_end` triple — arrange them ordered (cool→warm for temp `green→yellow→red`, teal→lavender for CPU). `hi_fg` and `selected_fg` share the primary accent for keybind/selection coherence.
+- *Transparent vs solid is one key* (JaKooLit `theme_background = False` vs omarchy `theme_background = true`): `False` (plus `main_bg=""` in the theme) floats btop over the terminal blur; `true` gives an opaque panel. Both are valid — pick per whether btop should blend into glass or stand on a surface.
+- *`color_theme = "current"` sentinel* (omarchy): a fixed theme name that the rice's theme-switcher overwrites/symlinks, so one `btop.conf` works across every theme. Pair with `graph_symbol = "braille"` + `rounded_corners = True` to match rounded Hyprland windows, and `presets` to Tab-cycle layouts.
+
+**cava.**
+- *8-stop cool→warm gradient* (catppuccin/cava): map `gradient_color_1..8` low→high with cool hues at the base and red/pink at the peaks (`teal → … → red`) so loud spikes glow hot. Set `background` to the terminal bg or leave it for transparency over blur.
+- *Denser, smoother spectrum* (Matt-FTW): `[general] framerate = 75` + `bar_width = 3` for a high-FPS thin-bar look — most rices touch only `[color]`, but these two `[general]` keys noticeably sharpen it.
+
+**fastfetch.**
+- *Logo, three tiers* — static PNG path `"source": "logo.png"` (Matt-FTW, simplest), dynamic command substitution `"source": "\"$(hyde-shell fastfetch logo)\""` (HyDE, per-distro), or omit for the built-in ASCII distro logo. `"height": 18` is the de-facto size; force `"type": "kitty"` when auto-detection fails. Image logos need a kitty-graphics-capable terminal (kitty/ghostty/wezterm/Konsole).
+- *Category grouping via `keyColor` + tree glyphs* (JaKooLit): give each logical group one key color (distro=yellow, DE/WM=blue, system=green, audio=magenta) and fake a collapsible tree with Nerd-Font box-drawing in the `key` strings (`│ ├`, `│ └`); `"break"` rows separate groups.
+- *ASCII box framing + format-index trimming* (HyDE): wrap a module group in `type: custom` rows drawing `┌──────┐`/`└──────┘`, and trim verbose modules with `format` index strings — `os {2}`, `cpu {1} @ {7}`, and a second `gpu {3}` row to surface the **GPU driver** on its own line. A `command` module (`hyprctl splash`) injects a dynamic header; the `colors` module footer is `symbol: circle` (HyDE) or `symbol: block` (Matt-FTW).
+
+**starship.**
+- *Named palette + `palette =` switch* (catppuccin/starship): define `[palettes.catppuccin_mocha]` with named colors and style every module by **name** (`style = "bold mauve"`), so one `palette =` line reskins the whole prompt across flavors. Nest style markup to color icon and arrow independently — `success_symbol = "[[󰄛](green) ❯](peach)"`.
+- *Powerline segment mechanics* (Gruvbox Rainbow / Pastel Powerline presets): a segment is `format = '[ $content ](fg:X bg:Y)'`; between two segments a separator `[](fg:<prev_bg> bg:<next_bg>)` color-bleeds the arrow; the whole bar is one `format = """…"""` with each line ending `\`, and `$line_break$character` drops the input arrow to its own line.
+- *`right_format` for the language firehose* (HyDE): push 50+ language/cloud modules to `right_format` so they never shove the cursor; keep the left prompt to dir + git + character. HyDE also ships a separate `powerline.toml` users opt into, and customises git glyphs — `ahead = '⇡${count}'`, `behind = '⇣${count}'`, `diverged = '⇕⇡${ahead_count}⇣${behind_count}'`.
+- *Transient prompt for clean scrollback* — `enable_transience` (fish: a `starship_transient_prompt_func` returning `starship module character`) collapses past prompts to a bare symbol. Pair with `add_newline = false` for density. The **Nerd Font Symbols** preset is a composable glyph-only layer (drop-in `symbol`/`os.symbols`); `[directory.substitutions]` swaps folder names for icons.
+- *powerlevel10k is the zsh-only alternative* — its headline is **Instant Prompt** (renders before plugins load, killing zsh startup lag), configured by the `p10k configure` wizard. starship wins for theming bash/fish/zsh uniformly from one TOML; p10k wins on pure-zsh startup speed.
+
 ## Tasteful default recipe
 
 Palette-driven. Replace `{{key}}` with your rice palette
@@ -272,3 +297,9 @@ error_symbol = "[❯](bold red)"
 - fastfetch — [Configuration wiki](https://github.com/fastfetch-cli/fastfetch/wiki/Configuration), [Logo options wiki](https://github.com/fastfetch-cli/fastfetch/wiki/Logo-options), [fastfetch(1) man page](https://man.archlinux.org/man/extra/fastfetch/fastfetch.1.en)
 - starship — [Catppuccin Powerline preset](https://starship.rs/presets/catppuccin-powerline), [Gruvbox Rainbow preset](https://starship.rs/presets/gruvbox-rainbow), [Presets index](https://starship.rs/presets/), [catppuccin/starship](https://github.com/catppuccin/starship)
 - distro dotfiles — [HyDE](https://github.com/HyDE-Project/HyDE), [ml4w-dotfiles](https://gitlab.com/xeroxero8x/ml4w-dotfiles), [caelestia-dots/fish](https://github.com/caelestia-dots/fish), [It's FOSS: best Hyprland dotfiles](https://itsfoss.com/best-hyprland-dotfiles/)
+
+**Config corpus read for the techniques catalog:**
+- catppuccin/btop `themes/catppuccin_mocha.theme` (per-box accents, gradient triples) and real `btop.conf`s — JaKooLit `config/btop/btop.conf` (`theme_background=False`), basecamp/omarchy `config/btop/btop.conf` (`color_theme="current"`, `vim_keys`).
+- catppuccin/cava `themes/mocha.cava` (8-stop gradient) and Matt-FTW `.config/cava/config` (`framerate=75`, `bar_width=3`).
+- fastfetch `config.jsonc` — JaKooLit (tree-glyph `keyColor` grouping), HyDE-Project/HyDE (`$(hyde-shell fastfetch logo)` dynamic logo, ASCII box framing, GPU-driver row), Matt-FTW (PNG logo, block colors footer).
+- starship — catppuccin/starship (`themes/mocha.toml` named palette + nested style markup), the official Gruvbox Rainbow / Pastel Powerline / Nerd Font Symbols presets (`starship.rs/presets`), HyDE `Configs/.config/starship/{starship,powerline}.toml` (`right_format`, custom git_status glyphs), `starship.rs/advanced-config` (transient prompt), and romkatv/powerlevel10k (instant prompt).
