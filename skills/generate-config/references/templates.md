@@ -70,7 +70,7 @@ env = QT_QPA_PLATFORMTHEME,qt6ct
 {{#if firefox_wayland}}
 env = MOZ_ENABLE_WAYLAND,1
 {{/if}}
-{{#if nvidia}}
+{{#if nvidia_proprietary}}
 env = LIBVA_DRIVER_NAME,nvidia
 env = __GLX_VENDOR_LIBRARY_NAME,nvidia
 env = NVD_BACKEND,direct
@@ -79,6 +79,15 @@ env = ELECTRON_OZONE_PLATFORM_HINT,auto
 ```
 
 (The `{{#if}}` blocks are authoring guidance — emit only the chosen lines, no template markers.)
+
+> **NVIDIA env is gated on the *active driver*, not the card.** `detect-version.sh` prints
+> `GPU_DRIVER=` and `NVIDIA_PROPRIETARY=`. Emit the four NVIDIA lines **only** when
+> `NVIDIA_PROPRIETARY=1` (the proprietary `nvidia` kmod is loaded). An NVIDIA GPU running the open
+> **`nouveau`** driver (`GPU_DRIVER=nouveau`, no `nvidia-smi`) must **not** get them —
+> `LIBVA_DRIVER_NAME=nvidia` and `__GLX_VENDOR_LIBRARY_NAME=nvidia` break GLX/VA-API under nouveau
+> (mesa autodetects the right driver). For nouveau/AMD/Intel, the only generically-safe line is
+> `env = ELECTRON_OZONE_PLATFORM_HINT,auto` (harmless everywhere); leave the rest out. Re-add the
+> proprietary block only if the user later switches to the `nvidia` driver.
 
 ---
 

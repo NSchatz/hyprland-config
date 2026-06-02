@@ -88,3 +88,33 @@ have_pkg nm_applet      nm-applet               network-manager-applet
 have_pkg blueman        blueman-applet          blueman
 have_pkg qt6ct          qt6ct
 have_pkg nwg_look       nwg-look
+
+# --- Active GPU driver (decides whether the proprietary NVIDIA env block is appropriate) ---
+# An NVIDIA *card* does NOT imply the proprietary driver. Many systems run the open `nouveau`
+# driver, under which `LIBVA_DRIVER_NAME=nvidia` / `__GLX_VENDOR_LIBRARY_NAME=nvidia` /
+# `NVD_BACKEND=direct` BREAK GLX and VA-API. So the generate-config interview must key the NVIDIA
+# env block on the *loaded driver*, not on lspci's vendor string. Emit:
+#   NVIDIA_PROPRIETARY=1  -> only when the proprietary `nvidia` kmod is actually loaded
+#   GPU_DRIVER=<name>     -> nvidia | nouveau | amdgpu | radeon | i915 | unknown
+have_mod() { lsmod 2>/dev/null | grep -q "^$1[[:space:]]"; }
+gpu_bound=""   # kernel driver bound to the first display controller, per lspci
+if command -v lspci >/dev/null 2>&1; then
+    gpu_bound="$(lspci -k 2>/dev/null | awk '
+        /VGA compatible controller|3D controller|Display controller/{f=1}
+        f && /Kernel driver in use:/{print $NF; exit}')"
+    vga="$(lspci 2>/dev/null | grep -iE 'vga compatible controller|3d controller' \
+            | head -n1 | sed 's/^[0-9a-f:.]* //')"
+    [ -n "$vga" ] && echo "GPU_DEVICE=${vga}"
+fi
+if have_mod nvidia || command -v nvidia-smi >/dev/null 2>&1; then
+    echo "GPU_DRIVER=nvidia"
+    echo "NVIDIA_PROPRIETARY=1"
+elif have_mod nouveau || [ "$gpu_bound" = "nouveau" ]; then
+    echo "GPU_DRIVER=nouveau"
+    echo "NVIDIA_PROPRIETARY=0"   # NVIDIA card but OPEN driver — do NOT set proprietary env
+elif [ -n "$gpu_bound" ]; then
+    echo "GPU_DRIVER=${gpu_bound}"   # amdgpu / radeon / i915 / etc.
+    echo "NVIDIA_PROPRIETARY=0"
+else
+    echo "GPU_DRIVER=unknown"
+fi

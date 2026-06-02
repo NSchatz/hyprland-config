@@ -188,10 +188,16 @@ the env. Add the env var and note the portal packages in the summary if they're 
 - Qt theming: `QT_QPA_PLATFORMTHEME,qt6ct` (default on if qt6ct present)
 - Session/portals: `XDG_CURRENT_DESKTOP,Hyprland` (default on)
 - NVIDIA set (`LIBVA_DRIVER_NAME,nvidia`, `__GLX_VENDOR_LIBRARY_NAME,nvidia`,
-  `NVD_BACKEND,direct`, `ELECTRON_OZONE_PLATFORM_HINT,auto`) **(default off — ask if NVIDIA GPU)**
+  `NVD_BACKEND,direct`, `ELECTRON_OZONE_PLATFORM_HINT,auto`) **(default off — only for the
+  proprietary `nvidia` driver)**
 - Firefox Wayland: `MOZ_ENABLE_WAYLAND,1` **(default on if browser is firefox)**
 
-Ask whether the GPU is NVIDIA when unsure — it changes both env vars and cursor settings.
+Gate the NVIDIA env block on the **active driver**, not the card. `detect-version.sh` prints
+`GPU_DRIVER=` and `NVIDIA_PROPRIETARY=`: only emit the four NVIDIA lines when `NVIDIA_PROPRIETARY=1`
+(proprietary `nvidia` kmod loaded). An NVIDIA card on the open **`nouveau`** driver
+(`GPU_DRIVER=nouveau`) must **not** get them — `LIBVA_DRIVER_NAME=nvidia` /
+`__GLX_VENDOR_LIBRARY_NAME=nvidia` break GLX/VA-API there. `ELECTRON_OZONE_PLATFORM_HINT,auto` is
+safe on any GPU. Don't ask "is it NVIDIA?" — read the driver and confirm the result with the user.
 
 ## Area E — Companion configs (generated alongside)
 

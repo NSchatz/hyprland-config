@@ -110,6 +110,52 @@ Pair with the `layerrule … blur = true` block (above) for the frosted-glass ef
 - **Catppuccin** (`catppuccin/waybar`): drop `mocha.css` next to `style.css`, `@import "mocha.css";` at top, reference `@text`/`@base`/`@mauve` etc., and use `alpha()`/`shade()` for translucency.
 - **end-4** (`end-4/dots-hyprland`): *not Waybar* — it uses a custom AGS/Quickshell shell. Great for visual inspiration, but none of its styling transfers to a `style.css`.
 
+## Battle-tested techniques (harvested from ~30 community configs)
+
+A catalog of concrete, reusable moves pulled from the dotfiles linked off the [Waybar Examples wiki](https://github.com/Alexays/Waybar/wiki/Examples). Each is attributed to a config that demonstrates it (most appear in several) and quoted close to verbatim — drop them in and swap literal colors for the rice palette vars (`@accent`, `@bg`, …). Grouped by what they buy you.
+
+**Shape / structure.**
+- *Capsule formula — full-pill bar* (zen0x00): a single floating island whose radius is exactly half the height. `window#waybar { background: alpha(@bg,0.22); border:1px solid rgba(255,255,255,0.08); border-radius: 21px; /* = height(42)/2 */ box-shadow: 0 8px 32px rgba(0,0,0,0.45), 0 2px 8px rgba(0,0,0,0.25); }`
+- *Foolproof pills via oversized radius* (saibhargav): `border-radius: 7rem` pills any element regardless of height — no height/2 math. Pair with a transparent bar + one `border: 2px solid @accent`.
+- *Style the three wrappers, not every module* (Lynndroid21, HyDE): put the background/radius/shadow on `.modules-left/.modules-center/.modules-right` so each group is one island; modules inside stay transparent. The cheapest path to the floating-islands look.
+- *Segmented capsule from independent modules* (Prateek7071, Harsh-bin, soaddevgit): set a row of modules to `border-radius: 0`, then round only the **end caps** — first `border-radius: 6px 0 0 6px`, last `0 6px 6px 0` — fusing N differently-colored modules into one continuous pill.
+- *Section-pill via asymmetric radius* (ashish-kus): on a transparent bar round only the bar's inner corners — `.modules-right { border-radius: 15px 0 0 15px }`, `.modules-left { border-radius: 0 15px 15px 0 }`.
+- *Outer-frame border ring without a `border`* (mechabar): color `#waybar` with the outline color, then `#waybar > box { margin: 4px; background-color: @bg; }` — the 4px reveal becomes a crisp ring. Often paired with `* { all: initial; }` to wipe inherited GTK theme.
+
+**Workspaces & active state.**
+- *Tinted-accent buttons (the modern default)* (zen0x00, Prateek7071): active = accent text + a faint accent fill + a stronger accent border, all from one hue — calmer than a solid block. `#workspaces button.active { color:@accent; background: alpha(@accent,0.14); border:1px solid alpha(@accent,0.45); }` Reuse the `0.14`-fill / `0.45`-border ratio for `.urgent` (red) and `:hover` (surface).
+- *Inset ring as the active marker* (Prateek7071): `box-shadow: inset 0 0 0 1px alpha(@accent,0.2)` + `background: alpha(@accent,0.1)` — a 1px internal border with zero layout shift.
+- *Underline-only focus* (HANCORE, manish12ys, Robinhuett, Win10-style): `border-bottom: 2px solid transparent` → accent on `.active`. Robinhuett balances it with a matching transparent **top** border so the glyph never shifts. Keeps a busy bar calm.
+- *Circular dot* (cxOrz): `button.active { min-width:8px; border-radius:50%; background:@accent; }`.
+- *Opacity for state* (Pipshag, saatvik333): inactive `opacity: 0.3–0.5`, active `opacity: 1` — the cheapest possible indicator.
+
+**Color & accent.**
+- *GTK reset before styling* (manish12ys): start `#workspaces button { all: unset; }` (or at minimum `background:transparent; box-shadow:none; border:none;`) to defeat the inherited GTK theme — otherwise button styles silently don't apply. Re-set font/color after `all: unset`.
+- *Per-module hue + matching glow on hover* (manish12ys, benny-e): `#network { color:@accent2; }` then `#network:hover { background: alpha(@accent2,0.12); text-shadow: 0 0 8px alpha(@accent2,0.8); }`.
+- *`currentColor` underline* (benny-e): one rule `border-bottom: 1px solid currentColor` makes each module's underline auto-match its own text accent — define the hue once.
+- *Tonal hierarchy from one accent via GTK color functions* (gdots): `alpha()`/`shade()`/`mix()` plus `lighter()`/`darker()` — `alpha(@bg,0.7)` bar, `alpha(darker(@accent),0.3)` inner pill, `lighter(@accent)` highlight. One variable drives the whole bar.
+- *`@import` palette + `@define-color` aliasing* (HANCORE): import the theme's color file, alias to semantic `@bg/@fg/@accent`, then use `alpha(@fg,0.2)` for borders/separators/empty states — keeps the sheet palette-swappable. This is exactly how the rice engine's `colors.css` is meant to be consumed.
+
+**Motion & state animation.**
+- *Now-playing glow* (HANCORE): `#mpris.playing { animation: glow 2s ease-in-out infinite alternate; }` + `@keyframes glow { from { color:@fg; } to { color:@accent; } }`.
+- *Two-stage blink that reads as a pulse, not a strobe* (Pipshag): `@keyframes blink-critical { 70% { color:@fg; } to { color:@fg; background:@red; } }` — holding the base color until 70% makes the flash deliberate; drive it from `#battery.critical`.
+- *Smooth opacity breathe* (benny-e): `@keyframes pulse {0%{opacity:1} 50%{opacity:0.35} 100%{opacity:1}}` at `2.5s infinite` — gentler than a hard blink for `.urgent`.
+- *Whole-bar `.empty` morph* (Sudhboi): with `* { transition: 0.5s ease-out; }`, animate the bar's `background-color` + `border-radius` (e.g. 5px→20px) and `#window { opacity:0 }` on `window#waybar.empty` — the bar visibly softens when no window is focused.
+- *Collapse-to-zero reveal* (Win10-style): `#temperature { font-size:0; color:transparent; transition: all .25s; }` then `#temperature.critical { font-size:initial; color:@red; }` — a module that only appears when its state fires.
+- *Shared easing constant*: apply one `cubic-bezier(0.165, 0.84, 0.44, 1)` to every transition for a unified motion feel (Win10-style, macOS-sequoia).
+
+**Depth & tooltip.**
+- *Elevation shadows* (Prateek7071, zen0x00): `box-shadow: 0 1px 3px rgba(0,0,0,0.1)` on cards, `0 8px 32px rgba(0,0,0,0.45)` on a floating island, `0 4px 12px rgba(0,0,0,0.2)` on tooltips.
+- *Frosted tooltip* (manish12ys, Prateek7071): dark bg, 1px accent-alpha border, `border-radius: 8px`, drop + inset-hairline shadow; style `tooltip label strong { color:@accent; }`.
+- *Tray icon effects* (macOS-sequoia, Catppuccin): `#tray > .passive { -gtk-icon-effect: dim; }`, `#tray > .needs-attention { -gtk-icon-effect: highlight; }`.
+
+**Interaction & density.**
+- *Hover-reveal drawer = icon + slider in a group* (saatvik333, gdots, Sudhboi): a `group/audio` whose first child is `pulseaudio` and second is `pulseaudio/slider`; hovering the icon slides out a real GTK slider. Style the parts: `#pulseaudio-slider trough { min-width:8px; border-radius:8px; background: alpha(@bg,0.6); }` · `#pulseaudio-slider highlight { background:@accent; }` · `#pulseaudio-slider slider { background:transparent; box-shadow:none; }`.
+- *Nested drawers with cascading durations* (Sudhboi): a `group/stats` containing `group/audio` + `group/brightness`, outer `transition-duration: 750`, inner `500`, for a staged reveal.
+- *`custom/spacerN` shim modules* (Lynndroid21, benny-e): `{"format":"  ","tooltip":false}` for precise inter-module gaps when uniform `spacing` isn't enough.
+- *`reload_style_on_change: true`* (gdots, elifouts): a top-level config flag that hot-reloads CSS while you iterate — no `SIGUSR2` needed.
+- *Per-bar CSS via the bar `name`* (Lynndroid21): set `"name":"left"` and target `.left#module` to style multiple bars from one stylesheet.
+
 ## Tasteful default recipe
 
 A floating-island bar: workspaces left, clock center, system tray + network + volume + battery right. Palette-driven using the plugin's rice keys (hex without `#`). The rice engine renders a `colors.css` for Waybar, so `@import` it and reference the variables.
@@ -261,6 +307,68 @@ layerrule {
 }
 ```
 
+## System & ecosystem module recipes
+
+Concrete JSONC for the modules a desktop status cluster usually wants beyond the basics above. Match the `format` glyphs to an installed Nerd Font. On a **desktop** drop `battery`/`backlight` and lean on `cpu`/`memory`/`temperature`; on a **laptop** do the reverse.
+
+**CPU / memory / temperature.** The gotcha is the temperature sensor path. `"thermal-zone": N` works but the zone *number can change across boots*; the stable route on Intel is the `coretemp` hwmon **directory** plus the package-temp input. Find it once with `for h in /sys/class/hwmon/hwmon*; do echo "$h $(cat "$h/name")"; done` and `cat /sys/devices/platform/coretemp.0/hwmon/hwmon*/temp1_label` (look for `Package id 0`). On AMD the sensor is `k10temp` (`Tctl`).
+```jsonc
+"cpu":    { "interval": 2, "format": "  {usage}%",
+            "on-click": "kitty -e sh -lc 'command -v btop >/dev/null && btop || top'" },
+"memory": { "interval": 5, "format": "  {percentage}%",
+            "tooltip-format": "RAM  {used:0.1f} / {total:0.1f} GiB" },
+"temperature": {
+    "hwmon-path-abs": "/sys/devices/platform/coretemp.0/hwmon",  // parent dir; waybar finds hwmonN
+    "input-filename": "temp1_input",                              // "Package id 0" on Intel
+    "critical-threshold": 85,
+    "format": "{icon}  {temperatureC}°C",
+    "format-icons": ["", "", ""]
+}
+```
+Give cpu/memory/clock a `min-width` in CSS so the bar doesn't reflow every second.
+
+**Now-playing (`mpris`, built-in).** Waybar's own MPRIS module — no script needed (the build must include `-Dmpris=enabled`, which Arch's package does; verify by running waybar and watching for a module-load error). It auto-hides when no player is running, so it's safe to leave in `modules-center` next to the clock:
+```jsonc
+"mpris": {
+    "format": "{player_icon}  {title}",
+    "format-paused": "{status_icon}  <i>{title}</i>",
+    "player-icons": { "default": "▶", "spotify": "", "firefox": "󰈹", "mpv": "" },
+    "status-icons": { "playing": "", "paused": "" },
+    "max-length": 45,
+    "on-click": "playerctl play-pause",
+    "on-scroll-up": "playerctl next", "on-scroll-down": "playerctl previous"
+}
+```
+
+**Idle inhibitor (built-in).** A click-toggle that suppresses hypridle (presentations, long videos): `"idle_inhibitor": { "format": "{icon}", "format-icons": { "activated": "", "deactivated": "" } }`. Style `#idle_inhibitor.activated { color: @accent; }`.
+
+**Notification toggle (swaync).** A bell with an unread badge that opens the control center — mirrors the swaync daemon generate-config autostarts:
+```jsonc
+"custom/notification": {
+    "return-type": "json", "exec-if": "which swaync-client", "exec": "swaync-client -swb",
+    "on-click": "swaync-client -t -sw", "on-click-right": "swaync-client -d -sw",
+    "format": "{icon}", "tooltip": true, "escape": true,
+    "format-icons": {
+        "notification": "<span foreground='#f38ba8'><sup></sup></span>", "none": "",
+        "dnd-notification": "<span foreground='#f38ba8'><sup></sup></span>", "dnd-none": "",
+        "inhibited-notification": "<span foreground='#f38ba8'><sup></sup></span>", "inhibited-none": "",
+        "dnd-inhibited-notification": "", "dnd-inhibited-none": ""
+    }
+}
+```
+(For dunst instead, drive a `custom/dunst` toggle off `dunstctl`.)
+
+**Collapsible group (`group/drawer`).** Hide a cluster behind one leader icon that expands on hover — space-saving on a narrow bar (on a wide ultrawide, showing the stats inline is usually better):
+```jsonc
+"modules-right": ["group/stats", "..."],
+"group/stats": {
+    "orientation": "horizontal",
+    "drawer": { "transition-duration": 350, "children-class": "stat", "transition-left-to-right": false },
+    "modules": ["custom/stats-icon", "cpu", "memory", "temperature"]
+}
+```
+The first listed module is the always-visible leader; the rest reveal on hover (or set `"click-to-reveal": true`). Default `children-class` is `drawer-child`. The same pattern wraps a `pulseaudio` + `pulseaudio/slider` pair into a hover-out volume slider (see the techniques catalog above).
+
 ## Pitfalls
 
 - **Tofu boxes (▯) instead of icons** — `font-family` isn't a Nerd Font, or the Nerd Font isn't installed. Always list a Nerd Font first (and `"Symbols Nerd Font"` as a fallback for raw glyphs).
@@ -284,3 +392,13 @@ layerrule {
 - Catppuccin Waybar port (`@import`, `@define-color`, alpha/shade): https://github.com/catppuccin/waybar and `themes/mocha.css`
 - Hyprland blur-on-waybar quirk: https://github.com/hyprwm/Hyprland/issues/6130
 - Hyprland layer rules reference: https://deepwiki.com/hyprwm/hyprland-wiki/3.4-layer-rules
+- Waybar `group`/drawer module (collapsible clusters, sliders): https://github.com/Alexays/Waybar/wiki/Module:-Group
+- Waybar Examples gallery (index of the configs below): https://github.com/Alexays/Waybar/wiki/Examples
+
+**Community config corpus** — the "Battle-tested techniques" section above was harvested from these (each `style.css` + `config.jsonc` read directly). Grouped by what they best demonstrate:
+
+- *Modern floating glass island*: zen0x00 (`zen0x00/dotfiles` → `themes/waybar`), saibhargav (`gitlab.com/saibhargav/arch-hyprland-custom0`, `border-radius: 7rem` pills), Lynndroid21 (`Lynndroid21/Niri21`, wrapper-styled islands + per-bar `name`).
+- *Catppuccin / per-module hue + glow*: mechabar (`sejjy/mechabar`), soaddevgit (`soaddevgit/WaybarTheme`), HANCORE (`HANCORE-linux/waybar-themes`, `@import` palette + `.empty` collapse + mpris glow), manish12ys (`manish12ys/waybar`, `all: unset` reset + glow + frosted tooltip).
+- *Drawer groups + GTK sliders*: saatvik333 (`saatvik333/niri-dotfiles`), Sudhboi (`Sudhboi/niri-rice-dotfiles`, nested drawers + `.empty` morph), gdots (`niksingh710/gdots`), Harsh-bin (`Harsh-bin/waybar-config`).
+- *Material / elevation / segmented pills*: Prateek7071 (`Prateek7071/dotfiles`, inset-ring active + elevation shadows + segmented pill), kamlendras (`kamlendras/waybar-macos-sequoia`), TheFrankyDoll (`TheFrankyDoll/win10-style-waybar`, collapse-to-zero reveal), Pipshag (`Pipshag/dotfiles_nord`, two-stage blink), benny-e (`benny-e/waybar-config`, `currentColor` underline + spacer modules).
+- *Minimal / capsule sections*: ashish-kus (`ashish-kus/waybar-minimal`), elifouts (`elifouts/Dotfiles`), rocketmike12 (`rocketmike12/.dotfiles`, per-module capsule), Robinhuett (`Robinhuett/dotfiles`, balanced-underline focus), cxOrz (`cxOrz/dotfiles-hyprland`, ChromeOS-shelf dock + dot workspaces).
