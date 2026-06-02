@@ -111,10 +111,25 @@ Summarize: source + scheme, surfaces themed, files written, backup paths, and th
 results. Note any surface skipped (app not installed) and any package the user would install for
 more (e.g. a matching GTK theme, or `matugen`/`wallust` for generated palettes).
 
-## Re-theming later
+## Rice engine (preferred: reproducible, re-applyable)
 
-Because colors live in separate per-app files, switching schemes = re-resolve the palette,
-rewrite those files, and re-run `apply-theme.sh`. The wiring (`source`/`@import`/`include`) stays.
+For a real rice, drive the **engine** instead of writing each file ad hoc — it makes the theme
+reproducible and re-applyable with one command, and version-controllable. Read
+`references/engine.md`. Flow:
+
+1. Scaffold/refresh the engine: `bash "${CLAUDE_PLUGIN_ROOT}/skills/theme-config/scripts/rice-init.sh"`
+   (creates `~/.config/hypr-rice/` with `palette.conf`, `templates/`, `templates.list`, the
+   `render-templates.sh` engine, and the `rice` CLI). Idempotent.
+2. Resolve the chosen palette and **write it to `~/.config/hypr-rice/palette.conf`** (the source of
+   truth — `KEY=hex`, plus `scheme`/`wallpaper`/`font_ui`/`font_mono`). For wallpaper-generated,
+   produce the palette with matugen/wallust first (see `engine.md`).
+3. Ensure each app reads its colors file (one-time wiring: `source=`/`@import`/`include`).
+4. Apply: `bash ~/.config/hypr-rice/rice apply` (renders every template + reloads running apps).
+   Then `verify-config.sh` for the Hyprland part.
+
+Re-theming later is just: rewrite `palette.conf` → `rice apply`. Adding an app is: drop a
+`<name>.tmpl` in `templates/` + a manifest line. The `apply-theme.sh` path and per-app
+`templates.md` remain valid for one-off, non-engine theming.
 
 ## Safety rules
 
@@ -129,6 +144,11 @@ rewrite those files, and re-run `apply-theme.sh`. The wiring (`source`/`@import`
 - **`references/palettes.md`** — named schemes mapped to the contract + matching GTK/cursor/icons.
 - **`references/fonts.md`** — font roles, the catalog to present, detection, and how to apply a
   UI font + monospace/Nerd font across surfaces.
+- **`references/engine.md`** — the rice engine: `palette.conf` source of truth, the render
+  manifest, the `rice` CLI, matugen/wallust integration, adding apps, and reproducibility.
+- **`scripts/rice-init.sh`** — scaffold/refresh the engine into `~/.config/hypr-rice/`.
+- **`scripts/render-templates.sh`** — the render engine (also installed for the `rice` CLI).
+- **`templates/*.tmpl`** — the color templates the engine renders.
 - **`references/templates.md`** — per-app color templates.
 - **`scripts/detect-theme-tools.sh`** — tooling + current-appearance probe.
 - **`scripts/apply-theme.sh`** — reload running apps (+ live cursor).

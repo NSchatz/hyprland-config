@@ -1,0 +1,38 @@
+#!/usr/bin/env bash
+# hypr-rice — self-contained desktop theme engine CLI.
+# Installed by the hyprland-config Claude Code plugin into ~/.config/hypr-rice/.
+# Keeps working without the plugin. Run `rice help`.
+set -uo pipefail
+RICE_DIR="${RICE_DIR:-$HOME/.config/hypr-rice}"
+
+cmd="${1:-help}"; shift 2>/dev/null || true
+
+case "$cmd" in
+    apply)
+        # Render every template from palette.conf and reload apps.
+        bash "$RICE_DIR/render-templates.sh" "$@"
+        # Apply recorded GTK/cursor/font settings, if present.
+        if [ -f "$RICE_DIR/apply-extra.sh" ]; then bash "$RICE_DIR/apply-extra.sh" || true; fi
+        ;;
+    palette)
+        cat "$RICE_DIR/palette.conf" 2>/dev/null || echo "no palette yet ($RICE_DIR/palette.conf)";;
+    templates|list)
+        cat "$RICE_DIR/templates.list" 2>/dev/null || echo "no manifest yet";;
+    edit)
+        "${EDITOR:-nano}" "$RICE_DIR/palette.conf";;
+    help|-h|--help)
+        cat <<EOF
+hypr-rice — desktop theme engine ($RICE_DIR)
+
+  rice apply              render all templates from palette.conf and reload apps
+  rice apply --no-reload  render only (no app reloads)
+  rice palette            print the current palette
+  rice templates          print the template manifest (name -> output -> reload)
+  rice edit               edit palette.conf in \$EDITOR
+
+Add an app: drop a <name>.tmpl in templates/ (use {{accent}}, {{bg}}, {{color0}}…)
+and add a TAB-separated line to templates.list, then \`rice apply\`.
+EOF
+        ;;
+    *) echo "unknown command: $cmd  (try: rice help)" >&2; exit 1;;
+esac
