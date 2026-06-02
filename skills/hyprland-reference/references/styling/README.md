@@ -32,8 +32,8 @@ Catppuccin Mocha example.
 
 ## Who reads this
 
-- **`rice`** — for tasteful structural + palette defaults when building from scratch.
-- **`rice`** — for how to color each surface (the recipes assume its rice palette).
+- **`rice`** — for tasteful structural + palette defaults when building from scratch, and for how to
+  color each surface (the recipes assume its rice palette contract).
 - **`desktop-shell`** — for the *layout/structure* of the bar, launcher, and notifications.
 
 These are design references, not syntax authorities — for the exact, current option names defer to

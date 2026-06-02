@@ -28,8 +28,10 @@ generated `colors.conf`/`colors.css` etc. so re-theming = regenerate + reload.
 
 ### Named schemes (`palettes.md`)
 
-Ship a small catalog: Catppuccin (Mocha/Latte), Gruvbox, Nord, Tokyo Night, Rosé Pine. Each maps
-directly to the contract. Apply the same palette to every surface for a coherent look.
+Ship a catalog (see `palettes.md`): Catppuccin (Mocha/Frappé/Macchiato/Latte), Gruvbox, Nord, Tokyo
+Night, Rosé Pine, Dracula, Everforest, Kanagawa, Solarized — 12 ready preset profiles, each with 6–8
+accent variants (`accents.tsv`). Each maps directly to the contract; apply the same palette to every
+surface for a coherent look.
 
 ### Wallpaper-generated
 
