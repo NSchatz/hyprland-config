@@ -33,6 +33,10 @@ up, into `~/.config/hypr`.
 - **Themes the whole desktop from one palette**: named scheme, wallpaper-generated
   (matugen/wallust), or manual hex — rendered into Hyprland, hyprlock, waybar, notifications,
   launcher, terminal, and GTK/Qt/cursor/icons, then hot-reloaded.
+- **Is a real rice engine**: scaffolds a self-contained `~/.config/hypr-rice/` (one `palette.conf`
+  source of truth + per-app templates + a `rice` CLI) that re-themes everything with one command,
+  keeps working **without** the plugin, supports **wallpaper-driven** theming, **named profiles**
+  with a **user-override cascade**, and **version control** of the whole rice in git.
 - **Configures the terminal and desktop shell**: bash/zsh/fish setup (prompt, aliases, env) and
   the bar/launcher/notification functional configs — each backed up and tested after every change.
 - **Validates** the result with a dedicated agent that checks syntax, deprecations, and
@@ -45,9 +49,12 @@ up, into `~/.config/hypr`.
 |-------|-----------------------------|----------------------------------------------------------------|
 | Skill | `generate-config`           | User-invoked. Runs the interview, writes the config, and live-tests it. |
 | Skill | `edit-config`               | User-invoked. Reads an existing config and makes changes, **testing after every change** with auto-rollback. |
-| Skill | `theme-config`              | User-invoked. Applies one palette (named / wallpaper-generated / manual) across **every surface** — Hyprland, hyprlock, waybar, notifications, launcher, terminal, GTK/Qt/cursor/icons — and **presents font choices** (UI + monospace/Nerd). |
+| Skill | `theme-config`              | User-invoked. Applies one palette (named / wallpaper-generated / manual) across **every surface** — Hyprland, hyprlock, waybar, notifications, launcher, terminal, GTK/Qt/cursor/icons — **presents font choices**, and drives the **rice engine** (a self-contained `~/.config/hypr-rice/` with `palette.conf` + templates + a `rice` CLI). |
+| Skill | `wallpaper`                 | User-invoked. Sets the wallpaper (swww/hyprpaper) and **dynamically themes** the desktop from it (matugen/wallust/pywal), with cycling. |
+| Skill | `theme-profiles`            | User-invoked. Save/list/switch named "rices" (5 presets shipped) with a **user-override layer** that survives re-theming. |
 | Skill | `shell-config`              | User-invoked. Configures the terminal shell (bash/zsh/fish): prompt, aliases, env, history, a startup **fetch** (fastfetch default / neofetch), and modern-CLI integration — syntax-checked after every change. |
 | Skill | `desktop-shell`             | User-invoked. Functional configs for the bar (waybar), launcher (wofi/rofi), and notifications (mako/dunst). |
+| Skill | `dotfiles`                  | User-invoked. Version-controls the configs in git (bare-repo / stow / chezmoi) and commits after each verified change. |
 | Skill | `hyprland-reference`        | Auto-triggered. Hyprland config syntax, ecosystem, and **testing** knowledge. |
 | Agent | `hyprland-config-validator` | Static validation (plus an optional live load-test) of a generated/edited config. |
 
@@ -111,6 +118,30 @@ executed). `desktop-shell` writes the **functional** configs for waybar / launch
 monospace/Nerd font (needed for bar/fetch/prompt glyphs) — and applies them across GTK, kitty, and
 waybar.
 
+### The rice engine, wallpaper, profiles
+
+```
+/hyprland-config:wallpaper      ~/Pictures/wall.png and theme from it
+/hyprland-config:theme-profiles switch to nord
+/hyprland-config:theme-profiles save my current look as midnight
+/hyprland-config:dotfiles       set up a bare repo and push to github
+```
+
+`theme-config` scaffolds a self-contained engine into `~/.config/hypr-rice/` — one `palette.conf`
++ per-app templates + a `rice` CLI. After setup it keeps working **without Claude**:
+
+```bash
+rice apply               # re-render every app from palette.conf and reload
+rice wallpaper PIC.png   # set wallpaper, regenerate palette from it, re-theme everything
+rice random ~/Pictures   # random wallpaper + re-theme (bind it to a key or a timer)
+rice theme nord          # switch to a saved profile (5 ship: catppuccin-mocha, gruvbox, nord, …)
+rice save midnight       # snapshot the current palette as a profile
+```
+
+Personal pins go in `~/.config/hypr-rice/palette.user.conf` (`KEY=hex`) — they win over any
+theme/wallpaper change, so tweaks survive re-theming. Version-control the whole rice with
+`dotfiles` so every change is committed (and pushed).
+
 You can also just **ask Hyprland config questions** ("how do I set fractional scaling in
 Hyprland?", "is `drop_shadow` still valid?", "what should I use for a status bar / clipboard
 manager?") — the `hyprland-reference` skill answers from versioned reference material, including
@@ -164,32 +195,37 @@ hyprland-config/
 ├── agents/
 │   └── hyprland-config-validator.md
 ├── scripts/                         # shared across skills
-│   └── backup-path.sh               # timestamped backup of arbitrary paths
+│   ├── backup-path.sh               # timestamped backup of arbitrary paths
+│   └── dotfiles.sh                  # git versioning: bare / stow / chezmoi
 ├── skills/
-│   ├── generate-config/
-│   │   ├── SKILL.md
-│   │   ├── references/   (interview.md, templates.md)
-│   │   ├── scripts/      (detect-version, install-config, verify-config,
-│   │   │                  safe-apply, backup-config)
-│   │   └── examples/     (sample-config/)
-│   ├── edit-config/
-│   │   └── SKILL.md      (read + change existing config, test after every change)
+│   ├── generate-config/   (interview → modular config, install + live-test + rollback)
+│   ├── edit-config/       (read + change existing config, test after every change)
 │   ├── theme-config/
-│   │   ├── SKILL.md
-│   │   ├── references/   (theming, palettes, templates, fonts)
-│   │   └── scripts/      (detect-theme-tools, apply-theme)
-│   ├── shell-config/
-│   │   ├── SKILL.md
-│   │   ├── references/   (shells)
-│   │   └── scripts/      (verify-shell)
-│   ├── desktop-shell/
-│   │   ├── SKILL.md
-│   │   └── references/   (components)
-│   └── hyprland-reference/
-│       ├── SKILL.md
-│       └── references/   (config-syntax, sections, keybindings, window-rules,
-│                          deprecations, ecosystem, testing)
+│   │   ├── references/   (theming, palettes, templates, fonts, engine, apps, login)
+│   │   ├── scripts/      (detect-theme-tools, apply-theme, rice-init, render-templates,
+│   │   │                  set-wallpaper, palette-from-wallpaper)
+│   │   ├── templates/    (*.tmpl color templates rendered by the engine)
+│   │   └── assets/       (rice CLI, profiles/*.conf presets)
+│   ├── wallpaper/         (set wallpaper + dynamic theming + cycling)
+│   ├── theme-profiles/    (save/switch named rices + user-override cascade)
+│   ├── shell-config/      (bash/zsh/fish: prompt, aliases, fetch; parse-checked)
+│   ├── desktop-shell/     (waybar / launcher / notification functional configs)
+│   ├── dotfiles/          (git version control of the configs)
+│   └── hyprland-reference/  (auto-triggered: syntax, ecosystem, testing knowledge)
 └── README.md
+```
+
+The **rice engine** the plugin scaffolds (lives in your home, version-controlled by you):
+
+```
+~/.config/hypr-rice/
+├── palette.conf        # source of truth (KEY=hex + scheme/wallpaper/fonts)
+├── palette.user.conf   # your overrides — win over everything (optional)
+├── templates/          # <app>.tmpl files
+├── templates.list      # render manifest
+├── profiles/           # saved + preset rices (*.conf)
+├── render-templates.sh # the engine
+└── rice                # the CLI
 ```
 
 ## License
