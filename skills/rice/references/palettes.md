@@ -1,7 +1,9 @@
 # Named Palettes
 
 Each scheme is mapped to the palette contract from `theming.md`. Hex is `RRGGBB` (add `#`/`rgba`
-per app). Pick one accent (the listed `accent` is a sensible default — let the user override).
+per app). Pick one accent (the listed `accent` is a sensible default — let the user override). Each
+scheme also ships **6–8 curated accent variants** in `../assets/accents.tsv`; list them with
+`rice accents <scheme>` and swap with `rice accent <name|hex>` (`--pin` to keep it across re-themes).
 For terminal `color0..15`, Catppuccin Mocha's full mapping is given as the reference pattern;
 for others, map `color1..6` = `red green yellow blue magenta cyan`, `color0`=bg-ish, `color7/15`=fg-ish,
 `color8` = `muted`, and bright `9..14` ≈ the same hues.

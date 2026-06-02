@@ -125,9 +125,13 @@ Nerd Font (mono) + an installed UI font, and say what you chose.
   ANSI is approximate, wallust/pywal give a true 16-color scheme.
 - **Manual hex** → ask at least `bg`, `fg`, `accent`; derive the rest or collect all 16.
 
-**D2. Accent** (let the user override) — each scheme has a sensible default `accent`/`accent2`; offer
-to keep it or pick another hue from the scheme (Catppuccin mauve → blue/green/peach) or a custom hex.
-The accent drives borders, focus rings, and bar highlights — the highest-leverage single choice.
+**D2. Accent** (let the user override) — each scheme has a sensible default `accent`/`accent2`. The
+curated in-palette options per scheme live in `accents.tsv`: list them with `rice accents <scheme>`
+(6–8 variants each — e.g. Catppuccin mauve/blue/teal/green/peach/pink/red; Gruvbox
+yellow/orange/green/aqua/blue/purple/red) and present them via `AskUserQuestion`. Apply the pick with
+`rice accent <name|hex>` (sets `accent=` in `palette.conf` + re-renders), or `--pin` it into
+`palette.user.conf` so it survives later theme/wallpaper changes; a custom hex works too. The accent
+drives borders, focus rings, and bar highlights — the highest-leverage single choice.
 
 **D3. Light vs dark** (only when ambiguous) — most schemes are dark; if the user picked one with a
 light variant (Catppuccin Latte), confirm. For light, set GTK `color-scheme = prefer-light`.

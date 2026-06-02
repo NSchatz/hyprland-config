@@ -135,6 +135,8 @@ rice wallpaper PIC.png   # set wallpaper, regenerate palette from it, re-theme e
 rice random ~/Pictures   # random wallpaper + re-theme (bind it to a key or a timer)
 rice wallpapers nord     # list curated, theme-matched wallpapers you can download
 rice get-wallpaper nord 2 --set   # curl a matching wallpaper and set it (keeps the palette)
+rice accents             # list the current scheme's accent variants (6-8 per scheme)
+rice accent peach --pin  # swap the accent (in-palette name or hex); --pin survives re-theming
 rice theme nord          # switch to a saved profile (12 ship: catppuccin-{mocha,frappe,macchiato,latte}, gruvbox, nord, tokyo-night, rose-pine, dracula, everforest, kanagawa, solarized-dark)
 rice save midnight       # snapshot the current palette as a profile
 ```

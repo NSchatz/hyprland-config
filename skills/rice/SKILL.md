@@ -269,7 +269,9 @@ Set the wallpaper and optionally re-theme the whole desktop from it — the cano
 - **`templates/*.tmpl`** — the color templates the engine renders.
 - **`assets/profiles/*.conf`** — the five shipped preset rices; **`assets/rice`** — the CLI
   (incl. `rice wallpapers [scheme]` to list and `rice get-wallpaper <scheme> <n|name> [--set]` to
-  curl-download a matching wallpaper). **`assets/wallpapers.tsv`** — the curated, theme-tagged,
-  curl-downloadable wallpaper catalog (verified raw URLs; `scheme<TAB>name<TAB>url`).
+  curl-download a matching wallpaper; `rice accents [scheme]` to list per-scheme accent variants and
+  `rice accent <name|hex> [--pin]` to swap the accent). **`assets/wallpapers.tsv`** — the curated,
+  theme-tagged, curl-downloadable wallpaper catalog (verified raw URLs; `scheme<TAB>name<TAB>url`).
+  **`assets/accents.tsv`** — per-scheme accent variants (`scheme<TAB>name<TAB>hex`, 6–8 each).
 - **`examples/sample-config/`** — a complete reference output (a generated modular config set).
 - **`${CLAUDE_PLUGIN_ROOT}/scripts/backup-path.sh`** — timestamped backup of arbitrary paths.

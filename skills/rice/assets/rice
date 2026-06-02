@@ -88,6 +88,44 @@ case "$cmd" in
             bash "$RICE_DIR/set-wallpaper.sh" "$out" && echo "SET=ok"
         fi
         ;;
+    accents)
+        # List the accent variants for a scheme (default: the current palette's scheme).
+        acc="$RICE_DIR/accents.tsv"
+        [ -f "$acc" ] || { echo "no accent catalog ($acc)" >&2; exit 1; }
+        want="${1:-$(sed -n 's/^scheme=//p' "$RICE_DIR/palette.conf" 2>/dev/null | head -1)}"
+        cur="$(sed -n 's/^accent=//p' "$RICE_DIR/palette.conf" 2>/dev/null | head -1)"
+        awk -F'\t' -v want="$want" -v cur="$cur" '
+            function m(s,w){ return (w=="" || s==w || index(s,w"-")==1 || index(w,s"-")==1) }
+            /^[[:space:]]*#/ || NF<3 { next }
+            m($1,want) { n++; printf "  %2d) %-10s #%s%s\n", n, $2, $3, (tolower($3)==tolower(cur)?"  (current)":"") }' "$acc"
+        echo
+        echo "Set one with:  rice accent <name|hex> [--pin]"
+        ;;
+    accent)
+        # Set the accent for the current scheme by variant name or raw hex. --pin writes it to
+        # palette.user.conf (survives every theme/wallpaper change); default writes palette.conf.
+        sel="${1:-}"; [ -n "$sel" ] || { echo "usage: rice accent <name|hex> [--pin]  (see: rice accents)" >&2; exit 1; }
+        shift 2>/dev/null || true
+        pin=0; [ "${1:-}" = "--pin" ] && pin=1
+        acc="$RICE_DIR/accents.tsv"
+        scheme="$(sed -n 's/^scheme=//p' "$RICE_DIR/palette.conf" 2>/dev/null | head -1)"
+        hex=""
+        if printf '%s' "$sel" | grep -qiE '^[0-9a-f]{6}$'; then
+            hex="$(printf '%s' "$sel" | tr 'A-F' 'a-f')"
+        elif [ -f "$acc" ]; then
+            hex="$(awk -F'\t' -v want="$scheme" -v name="$sel" '
+                function m(s,w){ return (s==w || index(s,w"-")==1 || index(w,s"-")==1) }
+                /^[[:space:]]*#/ || NF<3 { next }
+                m($1,want) && $2==name { print $3; exit }' "$acc")"
+        fi
+        [ -n "$hex" ] || { echo "no accent '$sel' for scheme '$scheme' (see: rice accents)" >&2; exit 1; }
+        if [ "$pin" -eq 1 ]; then target="$RICE_DIR/palette.user.conf"; else target="$RICE_DIR/palette.conf"; fi
+        touch "$target"
+        if grep -q '^accent=' "$target"; then sed -i "s|^accent=.*|accent=$hex|" "$target"
+        else printf 'accent=%s\n' "$hex" >> "$target"; fi
+        if [ "$pin" -eq 1 ]; then echo "ACCENT=$hex (pinned in palette.user.conf)"; else echo "ACCENT=$hex"; fi
+        bash "$RICE_DIR/render-templates.sh"
+        ;;
     save)
         # Snapshot the current palette as a named profile.
         name="${1:-}"; [ -n "$name" ] || { echo "usage: rice save <name>" >&2; exit 1; }
@@ -126,6 +164,8 @@ hypr-rice — desktop theme engine ($RICE_DIR)
   rice wallpapers [scheme]          list curated downloadable wallpapers (filter by scheme)
   rice get-wallpaper <scheme> <n|name> [--set] [--dir DIR]
                           curl-download a catalog wallpaper; --set applies it (keeps the palette)
+  rice accents [scheme]   list the accent variants for a scheme (default: current)
+  rice accent <name|hex> [--pin]    set the accent (in-palette name or raw hex); --pin = survive re-theme
   rice theme <name>       load a saved profile (palette + wallpaper) and re-theme
   rice save <name>        snapshot the current palette as a profile
   rice themes             list saved profiles
