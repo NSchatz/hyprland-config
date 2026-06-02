@@ -26,11 +26,20 @@ manifest="${2:-$RICE_DIR/templates.list}"
 
 # Load palette into an associative array (skip comments/blank lines).
 declare -A P
-while IFS='=' read -r k v; do
-    case "$k" in ''|\#*) continue ;; esac
-    k="${k//[[:space:]]/}"
-    P["$k"]="$v"
-done < "$palette"
+load_kv() {
+    local f="$1" k v
+    while IFS='=' read -r k v; do
+        case "$k" in ''|\#*) continue ;; esac
+        k="${k//[[:space:]]/}"
+        P["$k"]="$v"
+    done < "$f"
+}
+load_kv "$palette"
+
+# User-override layer (cascade: generated -> user). Keys in palette.user.conf win, so personal
+# tweaks survive every re-theme. Edit ~/.config/hypr-rice/palette.user.conf to pin colors.
+user_override="$RICE_DIR/palette.user.conf"
+[ -f "$user_override" ] && load_kv "$user_override"
 
 render_one() {
     local tmpl="$1" out="$2" content k

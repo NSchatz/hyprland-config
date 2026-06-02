@@ -30,6 +30,26 @@ case "$cmd" in
         [ -n "$img" ] || { echo "no images found in $dir" >&2; exit 1; }
         exec "$0" wallpaper "$img"
         ;;
+    save)
+        # Snapshot the current palette as a named profile.
+        name="${1:-}"; [ -n "$name" ] || { echo "usage: rice save <name>" >&2; exit 1; }
+        mkdir -p "$RICE_DIR/profiles"
+        cp "$RICE_DIR/palette.conf" "$RICE_DIR/profiles/$name.conf"
+        echo "SAVED profile '$name'";;
+    theme|load)
+        # Load a saved profile's palette, set its wallpaper if recorded, and re-theme.
+        name="${1:-}"; [ -n "$name" ] || { echo "usage: rice theme <name>  (see: rice themes)" >&2; exit 1; }
+        src="$RICE_DIR/profiles/$name.conf"
+        [ -f "$src" ] || { echo "no profile '$name' (see: rice themes)" >&2; exit 1; }
+        cp "$src" "$RICE_DIR/palette.conf"
+        wp="$(sed -n 's/^wallpaper=//p' "$RICE_DIR/palette.conf" | head -1)"; wp="${wp/#\~/$HOME}"
+        [ -n "$wp" ] && [ -f "$wp" ] && bash "$RICE_DIR/set-wallpaper.sh" "$wp" >/dev/null 2>&1
+        bash "$RICE_DIR/render-templates.sh"
+        echo "APPLIED profile '$name'";;
+    themes|list-themes)
+        if ls "$RICE_DIR/profiles"/*.conf >/dev/null 2>&1; then
+            for p in "$RICE_DIR/profiles"/*.conf; do basename "$p" .conf; done
+        else echo "(no profiles yet — save one with: rice save <name>)"; fi;;
     palette)
         cat "$RICE_DIR/palette.conf" 2>/dev/null || echo "no palette yet ($RICE_DIR/palette.conf)";;
     templates|list)
@@ -45,9 +65,15 @@ hypr-rice — desktop theme engine ($RICE_DIR)
   rice wallpaper <img>    set wallpaper, regenerate palette from it, and re-theme
   rice wallpaper <img> --no-theme   set wallpaper only
   rice random [dir]       random wallpaper from dir (default ~/Pictures/wallpapers) + re-theme
+  rice theme <name>       load a saved profile (palette + wallpaper) and re-theme
+  rice save <name>        snapshot the current palette as a profile
+  rice themes             list saved profiles
   rice palette            print the current palette
   rice templates          print the template manifest (name -> output -> reload)
   rice edit               edit palette.conf in \$EDITOR
+
+Personal overrides: put KEY=hex lines in palette.user.conf — they win over every
+theme/wallpaper change (cascade: generated -> user), so your tweaks always survive.
 
 Add an app: drop a <name>.tmpl in templates/ (use {{accent}}, {{bg}}, {{color0}}…)
 and add a TAB-separated line to templates.list, then \`rice apply\`.

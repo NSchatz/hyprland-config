@@ -17,6 +17,15 @@ force=0; [ "${1:-}" = "--force" ] && force=1
 
 mkdir -p "$RICE_DIR/templates" "$RICE_DIR/profiles"
 
+# Install shipped preset profiles (Catppuccin/Gruvbox/Nord/Tokyo Night/Rosé Pine).
+# Don't clobber a profile of the same name the user may have customized (unless --force).
+if [ -d "$SRC/assets/profiles" ]; then
+    for p in "$SRC"/assets/profiles/*.conf; do
+        base="$(basename "$p")"; dest="$RICE_DIR/profiles/$base"
+        if [ ! -e "$dest" ] || [ "$force" -eq 1 ]; then cp "$p" "$dest"; fi
+    done
+fi
+
 # Copy templates (preserve user edits unless --force).
 for t in "$SRC"/templates/*.tmpl; do
     base="$(basename "$t")"; dest="$RICE_DIR/templates/$base"
