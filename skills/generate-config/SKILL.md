@@ -3,7 +3,7 @@ name: generate-config
 description: This skill should be used when the user runs "/hyprland-config:generate-config" or asks to "generate a hyprland config", "create my hyprland.conf", "set up Hyprland from scratch", "make me a new Hyprland config", or "build a hyprland config". Runs an interactive interview, generates a modular Hyprland config matching the installed version, backs up any existing config, writes it to ~/.config/hypr, and validates the result.
 argument-hint: "[optional notes, e.g. 'dual monitor, vim keybinds']"
 allowed-tools: AskUserQuestion, Bash, Read, Write, Glob, Agent
-version: 0.1.0
+version: 0.2.0
 ---
 
 # Generate Hyprland Config
@@ -50,15 +50,24 @@ install anything.
 
 ### 2. Run the interview
 
-Gather preferences with the `AskUserQuestion` tool, grouped into the four topic areas. Use the
+Gather preferences with the `AskUserQuestion` tool, grouped into the five topic areas. Use the
 question bank and recommended defaults in **`references/interview.md`**. Guidance:
 
 - Ask in batches (one `AskUserQuestion` call per topic area, multiple questions per call).
 - Offer sensible defaults as the first option so a user can move fast.
 - Skip questions already answered by `$ARGUMENTS` or by an existing config (read it first if
   present — see step 3).
-- The four areas: **(a) Monitors & input**, **(b) Keybinds & apps**, **(c) Look & feel**,
-  **(d) Autostart & env**.
+- The five areas: **(a) Monitors & input**, **(b) Keybinds & apps**, **(c) Look & feel**,
+  **(c-theme) Palette & fonts**, **(d) Autostart & env**.
+
+**Area C-theme (palette & fonts) is what makes the result look coherent** instead of a stock-gray
+box with a random border. It is the *same* question bank `theme-config` uses — read the shared
+**`skills/theme-config/references/interview.md`** (palette source, accent, UI font, monospace/Nerd
+font). Run `theme-config/scripts/detect-theme-tools.sh` first so the font/generator options match
+what's installed. These answers feed the rice engine in step 4, so they must be gathered in the
+interview, not improvised at generation time. Don't pick a scheme or fonts silently — present them
+(if the user says "good defaults", use Catppuccin Mocha + an installed Nerd Font + an installed UI
+font and say what you chose).
 
 ### 3. Read any existing config (context only)
 
@@ -75,6 +84,7 @@ in `~/.config/hypr`. Use the templates in **`references/templates.md`** as the s
 |-------------------|-----------------------------------------------------------------|
 | `hyprland.conf`   | Variables (`$mod`, apps) + `source=` lines for the files below  |
 | `env.conf`        | `env=` lines (sourced first, before anything that needs them)   |
+| `colors.conf`     | Palette vars (`$accent` …) — rendered by the rice engine (4b)   |
 | `monitors.conf`   | `monitor=` lines                                                |
 | `input.conf`      | `input {}` block                                                |
 | `looknfeel.conf`  | `general {}`, `decoration {}`, `animations {}`, layout block    |
@@ -95,6 +105,41 @@ Write each file with the `Write` tool into the staging dir. Keep the syntax matc
 detected version. Add brief `#` comments grouping sections. Wire ecosystem keybinds (screenshot,
 lock, color picker, logout, clipboard history) into `binds.conf` per `references/templates.md`,
 using the tool the user picked.
+
+`hyprland.conf` must `source = ~/.config/hypr/colors.conf` (early — see `templates.md`), and
+`looknfeel.conf`'s `col.active_border` defaults to `$accent $accent2 45deg`. Those variables come
+from the rice engine in step 4b, not from a hand-written color — so the look stays in sync with a
+later re-theme.
+
+### 4b. Establish the palette via the shared rice engine
+
+The colors and fonts gathered in **Area C-theme** are owned by the **rice engine**
+(`~/.config/hypr-rice/`), the same source of truth `theme-config` uses. Wiring it here is what
+makes a generated config come out coherently themed and keeps a later
+`/hyprland-config:theme-config` perfectly consistent (it just rewrites the same `palette.conf`).
+Read `theme-config/references/engine.md` for the contract. Do this:
+
+1. **Scaffold the engine** (idempotent — never clobbers an existing palette):
+   ```bash
+   bash "${CLAUDE_PLUGIN_ROOT}/skills/theme-config/scripts/rice-init.sh"
+   ```
+2. **Write `~/.config/hypr-rice/palette.conf`** from the Area C-theme answers — resolve the chosen
+   named scheme (`theme-config/references/palettes.md`), wallpaper-generated palette
+   (`palette-from-wallpaper.sh`), or manual hex into the contract keys, and set `scheme`,
+   `wallpaper`, `font_ui`, `font_mono`. This file is the source of truth; overwrite the seeded
+   default with the user's actual choice.
+3. **Render `colors.conf` into the staging dir** so it installs and backs up with the rest. Render
+   the Hyprland color template against the palette and write the result to
+   `<staging>/colors.conf` (the engine's `hyprland.tmpl` → `$accent`/`$accent2`/`$bg`/`$fg`/
+   `$surface`/`$muted`). Fill the `{{accent_hex}}`/`{{surface_hex}}`/`{{fg_hex}}`/`{{font_ui_family}}`
+   placeholders in any companion configs (e.g. `hyprlock.conf`) from the same palette.
+4. After install (step 5), run `rice apply` so any *already-present* app configs (kitty, waybar if
+   the user already had them) also pick up the palette: `bash ~/.config/hypr-rice/rice apply`.
+
+On a fresh setup the only wired app is Hyprland itself; the bar/terminal/GTK get themed from this
+same `palette.conf` as those configs come to exist (the `desktop-shell` skill folds colors in, and
+a later `theme-config`/`rice apply` renders them). Mention this in the final summary so the user
+knows the palette is already set for everything downstream.
 
 ### 5. Back up and install
 
@@ -136,6 +181,12 @@ Summarize: version targeted, files written, backup location, validator verdict, 
 `SAFE_APPLY`/`VERIFY` result. If `ok`, the config **settings** are live (reload ran). Tell the user how
 to restore the backup (`rm -rf ~/.config/hypr && cp -a ~/.config/hypr.bak.<timestamp> ~/.config/hypr && hyprctl reload`).
 
+Also report the **theme**: which palette/scheme and fonts were chosen, and that they now live in
+`~/.config/hypr-rice/palette.conf` as the single source of truth. Tell the user re-theming is one
+command (`/hyprland-config:theme-config`, or `rice apply` after editing `palette.conf`) and that
+any bar/launcher/terminal they add later (e.g. via `/hyprland-config:desktop-shell`) will pick up
+this same palette automatically — so colors stay coherent without re-generating.
+
 **Important — `hyprctl reload` does NOT run `exec-once`.** A reload re-reads settings (monitors,
 binds, look-and-feel, window rules) but **does not start the `autostart.conf` programs** — the
 bar, wallpaper daemon, notification daemon, polkit agent, trays, etc. only launch on a fresh
@@ -175,7 +226,16 @@ right form per `hyprland-reference/references/deprecations.md`:
 
 ## Additional resources
 
-- **`references/interview.md`** — full question bank, options, and recommended defaults per area.
+- **`references/interview.md`** — full question bank, options, and recommended defaults per area
+  (Areas A–D structural; Area C-theme defers to the shared theme bank below).
+- **`skills/theme-config/references/interview.md`** — the shared **palette & font** question bank
+  (Area C-theme). Same one `theme-config` uses, so the two never drift.
+- **`skills/theme-config/references/engine.md`** — the rice engine wired up in step 4b
+  (`palette.conf` source of truth, `colors.conf` render, the `rice` CLI).
+- **`skills/theme-config/references/palettes.md`** — named schemes → palette contract hex.
+- **`skills/theme-config/scripts/rice-init.sh`** — scaffolds `~/.config/hypr-rice/` (step 4b).
+- **`skills/theme-config/scripts/detect-theme-tools.sh`** — probes installed fonts/generators for
+  the Area C-theme options.
 - **`references/templates.md`** — annotated templates for every generated file.
 - **`scripts/detect-version.sh`** — prints the installed Hyprland version and probes installed
   ecosystem packages.

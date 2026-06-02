@@ -3,7 +3,7 @@ name: theme-config
 description: This skill should be used when the user runs "/hyprland-config:theme-config" or asks to theme, recolor, restyle, or set the fonts of their Hyprland desktop — e.g. "theme my desktop", "apply Catppuccin/Gruvbox/Nord/Tokyo Night to everything", "change my color scheme", "make my colors match my wallpaper", "set up matugen/wallust", "theme my waybar/kitty/gtk", "change my accent color", or "change/choose my font". Resolves one palette (named scheme, wallpaper-generated, or manual hex), presents font choices (UI + monospace/Nerd), and applies them consistently across Hyprland, hyprlock, waybar, notifications, launcher, terminal, and GTK/Qt/cursor/icons/fonts — backing up and reloading each app.
 argument-hint: "[scheme or request, e.g. 'catppuccin mocha' or 'match my wallpaper']"
 allowed-tools: AskUserQuestion, Bash, Read, Write, Edit, Glob, Grep
-version: 0.1.0
+version: 0.2.0
 ---
 
 # Theme Hyprland Desktop
@@ -31,7 +31,9 @@ which surfaces exist to theme, and (b) read the starting state.
 
 ### 2. Choose the palette source (always ask)
 
-Ask the user (don't assume a default scheme):
+Ask the palette questions from the **shared theme interview** in **`references/interview.md`** (T1
+source → scheme/wallpaper/manual, T2 accent, T3 light/dark). This is the same bank `generate-config`
+uses, so a freshly generated config and a re-theme stay consistent. In short:
 
 - **Named scheme** → pick from `palettes.md` (Catppuccin Mocha/Latte, Gruvbox, Nord, Tokyo Night,
   Rosé Pine). Resolve straight to the palette contract.
@@ -51,7 +53,8 @@ fonts. Skip surfaces whose app isn't present (note them).
 
 ### 3b. Present font choices (always ask)
 
-Fonts are a presented choice — don't pick silently. Read `references/fonts.md`. Using the
+Fonts are a presented choice — don't pick silently. Ask T4 (UI/sans) and T5 (monospace/Nerd) from
+the shared **`references/interview.md`**, backed by the detail in `references/fonts.md`. Using the
 `HAVE_NERD_FONT` / `FONT_MONO=` / `FONT_SANS=` / `CURRENT_*FONT*` lines from step 1, present the
 user with options for:
 
@@ -140,6 +143,8 @@ Re-theming later is just: rewrite `palette.conf` → `rice apply`. Adding an app
 
 ## Resources
 
+- **`references/interview.md`** — the shared **palette & font** question bank (T1–T5), used by
+  both this skill and `generate-config` so the two never drift.
 - **`references/theming.md`** — architecture, palette contract, per-surface mechanics, reloads.
 - **`references/palettes.md`** — named schemes mapped to the contract + matching GTK/cursor/icons.
 - **`references/fonts.md`** — font roles, the catalog to present, detection, and how to apply a

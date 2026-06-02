@@ -47,7 +47,7 @@ up, into `~/.config/hypr`.
 
 | Type  | Name                        | Purpose                                                        |
 |-------|-----------------------------|----------------------------------------------------------------|
-| Skill | `generate-config`           | User-invoked. Runs the interview, writes the config, and live-tests it. |
+| Skill | `generate-config`           | User-invoked. Runs the interview (incl. **palette & fonts**), writes the config, **establishes the theme via the shared rice engine** (so a fresh config comes out coherently styled, not stock-gray), and live-tests it. |
 | Skill | `edit-config`               | User-invoked. Reads an existing config and makes changes, **testing after every change** with auto-rollback. |
 | Skill | `theme-config`              | User-invoked. Applies one palette (named / wallpaper-generated / manual) across **every surface** — Hyprland, hyprlock, waybar, notifications, launcher, terminal, GTK/Qt/cursor/icons — **presents font choices**, and drives the **rice engine** (a self-contained `~/.config/hypr-rice/` with `palette.conf` + templates + a `rice` CLI). |
 | Skill | `wallpaper`                 | User-invoked. Sets the wallpaper (swww/hyprpaper) and **dynamically themes** the desktop from it (matugen/wallust/pywal), with cycling. |

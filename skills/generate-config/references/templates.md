@@ -24,8 +24,10 @@ $menu        = {{launcher}}
 $browser     = {{browser}}
 $fileManager = {{filemanager_or_omit}}
 
-# Sourced modules (order matters: env first)
+# Sourced modules (order matters: env first, then colors so $accent/$bg are defined
+# before looknfeel uses them)
 source = ~/.config/hypr/env.conf
+source = ~/.config/hypr/colors.conf
 source = ~/.config/hypr/monitors.conf
 source = ~/.config/hypr/input.conf
 source = ~/.config/hypr/looknfeel.conf
@@ -36,6 +38,13 @@ source = ~/.config/hypr/autostart.conf
 
 Use `$mainMod` (the official default's variable name), defaulting to `SUPER`. Omit
 `$fileManager`/`$browser` variables if the user didn't pick those apps.
+
+**`colors.conf` is not written by hand** — it is rendered by the rice engine from the chosen
+palette (`~/.config/hypr-rice/palette.conf`), and defines `$accent $accent2 $bg $fg $surface
+$muted` as Hyprland variables. It is sourced early so `looknfeel.conf` can use `$accent`/`$accent2`
+for the border. Re-theming later (`/hyprland-config:theme-config`) just rewrites `colors.conf` from
+the same palette — the rest of `hyprland.conf` never changes. See the SKILL's step 4 for how it's
+scaffolded and rendered during generation.
 
 ---
 
@@ -133,8 +142,10 @@ general {
     gaps_in = {{gaps_in}}
     gaps_out = {{gaps_out}}
     border_size = {{border_size}}
-    col.active_border = {{border_gradient}}
-    col.inactive_border = rgba(595959aa)
+    # Palette-derived (default): $accent/$accent2 come from colors.conf, sourced above.
+    # If the user chose a custom gradient in C6, substitute it here instead.
+    col.active_border = $accent $accent2 45deg
+    col.inactive_border = $surface
     layout = {{layout}}
     resize_on_border = true
     allow_tearing = false
@@ -441,9 +452,9 @@ input-field {
     size = 250, 50
     outline_thickness = 2
     dots_center = true
-    outer_color = {{border_solid_or_rgb(33ccff)}}
-    inner_color = rgb(1a1a1a)
-    font_color = rgb(200, 200, 200)
+    outer_color = rgb({{accent_hex}})    # the palette accent (literal — hyprlock is a separate daemon, can't read $accent)
+    inner_color = rgb({{surface_hex}})
+    font_color = rgb({{fg_hex}})
     placeholder_text = <i>Password...</i>
     fade_on_empty = true
     position = 0, -40
@@ -455,7 +466,7 @@ label {
     monitor =
     text = $TIME
     font_size = 64
-    font_family = Noto Sans
+    font_family = {{font_ui_family}}   # the UI font chosen in Area C-theme (no size suffix here)
     position = 0, 80
     halign = center
     valign = center

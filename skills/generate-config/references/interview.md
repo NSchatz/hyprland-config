@@ -103,12 +103,34 @@ Also wire **ecosystem binds** for whatever companion tools are chosen in Area D/
 - On, snappy/fast
 - Off
 
-**C6. Border color theme** → default a cyan→green gradient
-(`rgba(33ccffee) rgba(00ff99ee) 45deg`); offer: purple, mono/gray, "match my answer" free text.
+**C6. Border color**
+- From my theme palette **(default)** → `col.active_border = $accent $accent2 45deg` (the
+  `$accent`/`$accent2` vars come from `colors.conf`, rendered by the rice engine from the palette
+  chosen in Area C-theme). This keeps the border in sync with the rest of the desktop and with any
+  later re-theme — no hardcoded color to drift.
+- Custom gradient → free text, e.g. `rgba(33ccffee) rgba(00ff99ee) 45deg`. Use only if the user
+  wants a border color independent of the palette.
 
 **C7. Layout**
 - Dwindle (BSP-like) **(default)**
 - Master/stack
+
+---
+
+## Area C-theme — Palette & fonts (the colors of the whole desktop)
+
+This is the part that makes the generated config look *coherent* rather than a stock gray box with
+a random border. Ask the **shared theme interview** in
+**`skills/theme-config/references/interview.md`** (palette source → scheme/wallpaper/manual,
+accent, UI font, monospace/Nerd font). It is the same bank `theme-config` uses, so a config
+generated here and a later `/hyprland-config:theme-config` run stay perfectly consistent.
+
+Run `theme-config/scripts/detect-theme-tools.sh` first so the font/generator options reflect
+what's installed. Resolve the answers into the rice engine's `palette.conf` (see step 4 of the
+SKILL and `theme-config/references/engine.md`) — that's what renders `colors.conf` (the `$accent`
+etc. used by C6) and themes any companion apps. Don't silently pick a scheme or fonts; present
+them. If the user says "just pick good defaults", use Catppuccin Mocha + an installed Nerd Font for
+mono and Inter (or any installed UI font) for sans, and tell them what you picked.
 
 ---
 
