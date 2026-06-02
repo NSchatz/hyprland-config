@@ -96,16 +96,37 @@ Useful rule keywords: `float`, `tile`, `fullscreen`, `maximize`, `size W H`, `mo
 
 ## layerrule
 
-Rules for layer-shell surfaces (bars, launchers, notification daemons). Match on namespace:
+Rules for layer-shell surfaces (bars, launchers, notification daemons). Match on namespace.
+
+**0.54+ block form** (current). Like `windowrule`, `layerrule` moved to the unified block form
+with `name` as the required key — and on 0.54.3 the old single-line form is **rejected** (a hard
+break, not back-compat; see `deprecations.md`):
+
+```ini
+layerrule {
+    name = blur-waybar
+    match:namespace = waybar
+    blur = true
+}
+layerrule {
+    name = blur-rofi
+    match:namespace = rofi
+    blur = true
+}
+```
+
+Verified 0.54.3 fields: `blur = true`, `no_anim = true`, `ignore_alpha = <0-1>`, `xray = true`,
+`animation = <style>`. (There is no `ignore_zero` field — use `ignore_alpha`.)
+
+**Older targets** use the single-line form instead:
 
 ```ini
 layerrule = blur, waybar
 layerrule = ignorezero, waybar
-layerrule = blur, rofi
 layerrule = noanim, hyprpaper
 ```
 
-Find namespaces with `hyprctl layers`.
+Find namespaces with `hyprctl layers`. Never mix the two forms for one rule — pick by version.
 
 ## workspace rules
 

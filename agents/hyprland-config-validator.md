@@ -64,6 +64,13 @@ is available, assume the latest stable syntax and say so in the report.
    (→ `cursor {}`), `general:sensitivity` (→ `input:sensitivity`), `windowrulev2` (→ unified
    `windowrule` on recent versions), `gestures { workspace_swipe }` on versions using the
    `gesture =` API.
+   - **Single-line `layerrule = <rule>, <ns>` on 0.54+ → flag as ERROR, not just a warning.**
+     Unlike `windowrule` (which kept back-compat), `layerrule` moved to the unified block form as a
+     *hard break*: on 0.54.3 a line like `layerrule = blur, waybar` is rejected with
+     `invalid field blur: missing a value` and **fails the entire reload**. Require the block form
+     (`layerrule { name = …; match:namespace = <ns>; blur = true }`). Verified block fields:
+     `blur`, `no_anim`, `ignore_alpha`, `xray`, `animation` (no `ignore_zero`). See the layerrule
+     sections of `deprecations.md` / `window-rules.md`.
 5. **Conflict & sanity checks.**
    - **Duplicate keybinds:** same `MODS, KEY` bound twice (later wins silently) — report both
      lines.

@@ -359,15 +359,30 @@ windowrule {
     idle_inhibit = fullscreen
 }
 
-# Layer blur for the bar/launcher (match chosen tools)
-{{#if waybar}}layerrule = blur, waybar{{/if}}
-{{#if launcher_is_layer}}layerrule = blur, {{launcher_namespace}}{{/if}}
+# Layer blur for the bar/launcher (0.54 block form — match chosen tools)
+{{#if waybar}}
+layerrule {
+    name = blur-waybar
+    match:namespace = waybar
+    blur = true
+}
+{{/if}}
+{{#if launcher_is_layer}}
+layerrule {
+    name = blur-{{launcher_namespace}}
+    match:namespace = {{launcher_namespace}}
+    blur = true
+}
+{{/if}}
 ```
 
-**Older targets (pre-0.53):** emit the single-line form instead —
-`windowrule = float, class:^(pavucontrol)$` (and `windowrulev2` before the v2 merge). Detect the
-version and pick the matching form; never mix the two for the same rule. See
-`hyprland-reference/references/window-rules.md`.
+**`layerrule` is version-sensitive — do not emit `layerrule = blur, waybar` on 0.54.** That
+single-line form is *rejected* on 0.54.3 (`invalid field blur: missing a value`) and fails the
+whole reload; use the block form above. On **older targets (pre-0.53)** emit the single-line forms
+instead — both `windowrule = float, class:^(pavucontrol)$` (and `windowrulev2` before the v2
+merge) **and** `layerrule = blur, waybar`. Detect the version and pick the matching form; never mix
+the two forms for one rule. See `hyprland-reference/references/window-rules.md` and
+`deprecations.md`.
 
 ---
 

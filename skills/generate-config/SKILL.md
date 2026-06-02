@@ -133,8 +133,22 @@ its own — see `hyprland-reference/references/testing.md`.)
 ### 6. Report and next steps
 
 Summarize: version targeted, files written, backup location, validator verdict, and the live
-`SAFE_APPLY`/`VERIFY` result. If `ok`, the config is already live (reload ran). Tell the user how
+`SAFE_APPLY`/`VERIFY` result. If `ok`, the config **settings** are live (reload ran). Tell the user how
 to restore the backup (`rm -rf ~/.config/hypr && cp -a ~/.config/hypr.bak.<timestamp> ~/.config/hypr && hyprctl reload`).
+
+**Important — `hyprctl reload` does NOT run `exec-once`.** A reload re-reads settings (monitors,
+binds, look-and-feel, window rules) but **does not start the `autostart.conf` programs** — the
+bar, wallpaper daemon, notification daemon, polkit agent, trays, etc. only launch on a fresh
+Hyprland start (next login). So after a `SAFE_APPLY=ok` the user will see the new look/behavior but
+**no bar and no wallpaper this session**, which reads as "nothing happened / broken." Always either:
+
+- **Offer to start the autostart programs now**, e.g. for each chosen tool
+  `hyprctl dispatch exec <cmd>` (waybar, hypridle, the wallpaper daemon, etc.) — mirror the
+  `exec-once` lines in `autostart.conf`. Skip the wallpaper daemon if its image path is a missing
+  placeholder (`hyprpaper` with no `wall.png` shows nothing); point the user at the wallpaper skill.
+- **Or tell them explicitly** that the bar/daemons appear on next login and how to trigger them now.
+
+Note in the summary that any `exec-once` daemon not already running won't be visible until then.
 
 ## Version-sensitive forms (match the detected version)
 

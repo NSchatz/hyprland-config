@@ -77,6 +77,39 @@ and is what the shipped 0.54 default uses. Single-line forms still parse (compat
 block form on 0.53+. JaKooLit's dotfiles literally ship `WindowRules-pre-53.conf` vs
 `WindowRules-config-v3.conf` to handle the break. See `window-rules.md`.
 
+## Layer rules
+
+| Older form                  | Modern (0.54+)                                                   |
+|-----------------------------|-----------------------------------------------------------------|
+| `layerrule = blur, waybar`  | `layerrule { name = …; match:namespace = waybar; blur = true }` block form |
+
+`layerrule` moved to the same unified **block form** as `windowrule`, with `name` as the required
+key. **Unlike `windowrule`, this is a hard break** — on 0.54.3 the single-line
+`layerrule = blur, waybar` is *rejected* at parse time with:
+
+```
+Config error: invalid field blur: missing a value
+... special category's first value must be the key. Key for <layerrule> is <name>
+```
+
+So a single bad `layerrule =` line fails the whole reload (and rolls back under `safe-apply.sh`).
+Emit the block form on 0.54+:
+
+```ini
+layerrule {
+    name = blur-waybar
+    match:namespace = waybar
+    blur = true
+}
+```
+
+Properties map from the old single-line keyword: `blur, ns` → `blur = true`,
+`noanim, ns` → `no_anim = true` (underscore). Other verified 0.54.3 fields: `ignore_alpha = <0-1>`,
+`xray = true`, `animation = <style>`. Note there is **no** `ignore_zero`/`ignorezero` field in the
+block form (use `ignore_alpha`). Match the surface with `match:namespace = <ns>` (find namespaces
+via `hyprctl layers`). All field names above verified on 0.54.3 via `hyprctl keyword source`. On
+older targets that reject the block form, keep the single-line form.
+
 ## Dispatchers / binds
 
 | Older form                          | Modern                          |
