@@ -62,6 +62,7 @@ note on which behavior to expect.
 | Deprecated                          | Modern                          |
 |-------------------------------------|---------------------------------|
 | `misc:no_vfr = false`               | `misc:vfr = true` (inverted)    |
+| `misc:vfr` (≤0.54)                  | `debug:vfr` (moved in **0.55** — now a debug variable) |
 | `misc:render_ahead_of_time`         | removed                         |
 | `misc:layers_hog_keyboard_focus`    | renamed/relocated; verify       |
 
@@ -115,6 +116,37 @@ older targets that reject the block form, keep the single-line form.
 | Older form                          | Modern                          |
 |-------------------------------------|---------------------------------|
 | `bind = $m, J, togglesplit`         | `bind = $m, J, layoutmsg, togglesplit` (split toggle is a layout message) |
+
+## Removed / moved in 0.55 (latest stable)
+
+Hyprland 0.55 (latest stable upstream; this machine runs 0.54.3) dropped or relocated several
+options. Flag these when auditing a config that targets 0.55+:
+
+| Old (≤0.54)                       | 0.55+                                                        |
+|-----------------------------------|-------------------------------------------------------------|
+| `misc:vfr`                        | `debug:vfr` (reclassified as a debug variable)              |
+| `dwindle:pseudotile`              | **removed** (was non-functional; the `pseudo` dispatcher/`windowrule = pseudo` still work) |
+| `decoration:shadow:ignore_window` | **removed** — that behavior is now always on (shadows skip the window's own area) |
+| `render:cm_fs_passthrough`        | **removed** — automatic when `render:cm_auto_hdr` is set    |
+
+These are hard removals: leaving the old key in a config on 0.55 is a parse error. On ≤0.54 keep
+them. Branch on `hyprctl version`.
+
+### 0.55 also *adds* (not deprecations, but worth knowing when on 0.55+)
+
+- **Lua configs are now the default config language** (`~/.config/hypr/hyprland.lua`). hyprlang
+  `.conf` configs "remain functional for several releases," so emitting `.conf` is still correct —
+  but the wiki has fully switched to Lua. See the Lua notes in `config-syntax.md` / `keybindings.md`.
+- **User-defined layouts** — a Layout API to define custom layouts in-config, per-workspace /
+  per-monitor / globally (`layout = <name>`).
+- **Spring animations** — a spring-based curve in addition to bezier (`animation = …, …, …, spring`).
+- **Glow** decoration effect for windows (`decoration { … }`).
+- Per-output **ICC profiles** via `icc = "<path>"` on a `monitor`/output; FP16 + improved color
+  pipeline on by default.
+- New window rule `confine_pointer`; scrolling-layout rules/messages (`scrolling_width`,
+  `expel`/`consume`/`consume_or_expel`, `rotatesplit`); binds flag `auto_consuming`; input
+  **device tags** for device-specific binds.
+- Dispatcher `moveintoorcreategroup`; `groupbar:middle_click_close`.
 
 ## New options to know (not deprecations, but recent additions)
 

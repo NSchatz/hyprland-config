@@ -94,6 +94,10 @@ Useful rule keywords: `float`, `tile`, `fullscreen`, `maximize`, `size W H`, `mo
 `norounding`, `nofocus`, `noinitialfocus`, `idleinhibit`, `immediate`, `suppressevent`,
 `stayfocused`, `dimaround`, `bordercolor`, `animation`, `tag`.
 
+**New in 0.55:** `confine_pointer` (trap the cursor inside the window) and `scrolling_width`
+(column width for the scrolling layout). Only emit these when the target is 0.55+. See
+`deprecations.md` for the full 0.55 delta.
+
 ## layerrule
 
 Rules for layer-shell surfaces (bars, launchers, notification daemons). Match on namespace.

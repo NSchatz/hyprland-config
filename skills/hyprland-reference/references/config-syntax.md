@@ -89,7 +89,10 @@ updates don't clobber edits:
 Source a `colors.conf`/`theme.conf` (the rice palette as `$variables`) **last** so the rest of the
 config can reference `$accent` etc.; a theme switcher rewrites that one file + `hyprctl reload`. (The
 newest rices — omarchy, ml4w, upstream's default — wrap all this in a **Lua** config with
-`require(...)` instead of `source =`; the `.conf` form remains fully valid on 0.54.3.)
+`require(...)` instead of `source =`. As of **0.55, Lua is the default config language** and the
+wiki has switched to it, but hyprlang `.conf` "remains functional for several releases" — so
+emitting `.conf` is still correct and is what this engine does; the `.conf` form remains fully
+valid on 0.54.3 and 0.55.)
 
 ## exec, exec-once, env
 

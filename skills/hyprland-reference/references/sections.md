@@ -173,6 +173,10 @@ Speed is in deciseconds (1 = 100ms). Animatable targets include `global`, `windo
 `windowsIn`, `windowsOut`, `windowsMove`, `border`, `borderangle`, `fade`, `workspaces`,
 `specialWorkspace`, `layers`.
 
+**0.55+** adds **spring** animations alongside bezier curves — physics-based motion you tune by
+mass/damping/stiffness rather than control points. Only use the spring form when the target is
+0.55+; emit bezier curves for ≤0.54. See `deprecations.md`.
+
 ---
 
 ## dwindle / master
@@ -256,7 +260,8 @@ misc {
     force_default_wallpaper = -1   # 0 disables the anime mascot wallpaper
     disable_hyprland_logo = false
     disable_splash_rendering = false
-    vfr = true                     # variable frame rate (was: no_vfr inverse)
+    vfr = true                     # variable frame rate (was: no_vfr inverse).
+                                   # MOVED in 0.55 → `debug:vfr` (see below). Keep here on ≤0.54.
     vrr = 0                        # 0 off, 1 on, 2 fullscreen-only
     mouse_move_enables_dpms = true
     key_press_enables_dpms = true
@@ -273,6 +278,11 @@ focus under a fullscreen one), `enable_swallow` + `swallow_regex` (terminal wind
 `force_default_wallpaper = -1` (`-1` random anime mascot, `0` none). Related toggles live in their
 own categories: `binds { hide_special_on_workspace_change, movefocus_cycles_fullscreen }` and
 `cursor { warp_on_change_workspace, hide_on_key_press }` (all verified present on 0.54.3).
+
+**0.55 change:** `misc:vfr` was **moved to `debug:vfr`** (reclassified as a debug variable, "not
+for production"). On 0.55+ set `debug { vfr = true }`; on ≤0.54 keep `misc:vfr`. Detect with
+`hyprctl version` and branch. Also removed in 0.55: `dwindle:pseudotile` (was non-functional) and
+`render:cm_fs_passthrough` (now automatic under `render:cm_auto_hdr`). See `deprecations.md`.
 
 ---
 
