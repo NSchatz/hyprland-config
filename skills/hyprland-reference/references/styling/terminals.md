@@ -73,6 +73,31 @@ cleanly. ghostty has `background-blur`. alacritty/foot/wezterm rely on the compo
 - **Nerd Fonts.** JetBrainsMono Nerd Font is the de-facto default in HyDE and most Hyprland
   dotfiles; FiraCode and CaskaydiaCove are the usual alternates.
 
+## Battle-tested techniques (from real terminal configs)
+
+Concrete, attributed moves harvested from real configs and the first-party theme repos. Grouped by
+what they buy you.
+
+**Theme indirection — the maintainability idiom (differs per terminal).**
+- *kitty: an `include` chain* (HyDE): `kitty.conf` → `include hyde.conf` → `include theme.conf` (generated). The user file holds layout, a middle file holds font/padding, and the theming engine only ever rewrites the leaf `theme.conf`. This is exactly the plugin's `include colors.conf` pattern, one layer deeper.
+- *ghostty: `theme = name` with built-in light/dark auto-switch* — `theme = light:catppuccin-latte,dark:catppuccin-mocha` flips with the system appearance from one key; list with `ghostty +list-themes`. Override individual slots without redefining the palette via `palette = 5=#BB78D9`.
+- *foot: dual `[colors-dark]` / `[colors-light]` in one file* (catppuccin/foot) so foot follows the system preference with zero swapping.
+- *alacritty: `[general] import`* a standalone `.toml` color file (catppuccin/alacritty, alacritty-theme) — swap one import to re-theme; light/dark = swap the imported file (lukpank keeps font/env in the base, colors in `dark.toml`).
+- *wezterm: built-in `color_scheme` by name, no file* — `color_scheme = "Catppuccin Mocha"`; fork one with `wezterm.color.get_builtin_schemes()["Catppuccin Mocha"]`, tweak `background`/`tab_bar`, register under `color_schemes` (the OLED true-black trick), or layer a single `config.colors = { background = … }` override on top of the named scheme.
+
+**Transparency that actually shows (the gotchas).**
+- *alacritty needs `transparent_background_colors = true`* (eulersson) — without it, `[window] opacity` is ignored because cells paint the theme's solid background. Pair `opacity = 0.75` + `decorations = "transparent"` (transparent titlebar) with Hyprland blur. Note `[window] blur` is **macOS-only** — on Wayland the blur comes from the compositor.
+- *wezterm splits `window_background_opacity` from `text_background_opacity`* — keep text opaque (`1.0`) over a translucent background so glyphs stay crisp.
+- *HyDE leaves kitty `background_opacity` commented* and drives transparency from a Hyprland `windowrule = opacity` instead — one place controls every window's translucency, terminal included. JaKooLit instead sets `background_opacity 0.9` + `dynamic_background_opacity 1` (so it can be changed at runtime) + `cursor_trail 1`.
+
+**Per-terminal details worth knowing.**
+- *foot cursor is a two-token `cursor = <bg> <fg>`* (catppuccin/foot, taylor85345) — background then text color on one line; and `dpi-aware = no` honors the literal font `size=` instead of scaling on a fractional-scaled Hyprland output. `pad = 4x4` is `<x>x<y>` pixels.
+- *ghostty cursor invert* — `cursor-color = cell-foreground` (or `cell-background`) makes the cursor invert against whatever cell it sits over, instead of a fixed hue. `cursor-style = block` + `cursor-style-blink = false` for a steady block.
+- *wezterm borderless on a tiling WM* — `window_decorations = "RESIZE"` drops the OS titlebar but keeps resize borders; `hide_tab_bar_if_only_one_tab = true` hides the strip until you open a second tab; guard the config with `wezterm.config_builder()` for clearer errors. `window_padding` is per-side and accepts `"1cell"` as well as px.
+- *alacritty bold-color discipline* — `draw_bold_text_with_bright_colors = false` (lukpank) keeps bold text its normal hue instead of jumping to the bright palette (avoids washed-out bold).
+- *Catppuccin's normal/bright share the 6 hues* — only the grays differ (`color0`/`color8` = surface1/surface2, `color7`/`color15` = subtext1/subtext0). So when hand-mapping a palette, the bright row mostly copies normal; spend your effort on the two gray pairs (the `color0`/`color8` contrast warning above).
+- *Palette coherence across tools* (eulersson): import the terminal theme straight from your Neovim colorscheme's `extras/` dir (e.g. `tokyonight.nvim/extras/alacritty/…`) so editor and terminal can never drift.
+
 ## Tasteful default recipe
 
 This plugin's rice **renders kitty's `colors.conf`** from the palette, so kitty is primary. Keep
@@ -244,3 +269,11 @@ palette = 8=#585b70
 - Catppuccin palette: <https://catppuccin.com/palette/>
 - HyDE Project dotfiles: <https://github.com/HyDE-Project/HyDE>
 - JaKooLit Hyprland-Dots: <https://github.com/JaKooLit/Hyprland-Dots>
+
+**Config corpus read for the techniques catalog:**
+- catppuccin/kitty, catppuccin/foot (dual light/dark `.ini`), catppuccin/alacritty (`.toml`), catppuccin/wezterm (built-in `color_scheme`): the canonical 16-color ports.
+- alacritty/alacritty-theme — canonical TOML table layout + themes dir import idiom: <https://github.com/alacritty/alacritty-theme>
+- HyDE-Project/HyDE `Configs/.config/kitty/{kitty.conf,hyde.conf}` — 3-file include chain, `window_padding_width 25`, powerline slanted tabs, opacity-via-compositor.
+- JaKooLit/Hyprland-Dots `config/kitty/kitty.conf` — `dynamic_background_opacity`, `cursor_trail`.
+- eulersson/dotfiles (alacritty `transparent_background_colors` + `decorations="transparent"`, neovim-extras theme import), lukpank/dotfiles (split config, `draw_bold_text_with_bright_colors=false`), taylor85345/hyprland-dotfiles (`foot.ini` `alpha`/`dpi-aware`/two-token cursor).
+- ghostty.org config reference (`theme = light:,dark:`, `palette = N=#hex`, `cell-foreground` cursor) and real configs (exosyphon, ricoberger); wezterm configs (luv2code, lovelindhoni — `window_decorations="RESIZE"`, `hide_tab_bar_if_only_one_tab`).

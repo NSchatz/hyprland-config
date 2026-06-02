@@ -8,9 +8,12 @@ coloring the input field with your scheme's accent.
 ## What you're styling
 
 Config lives at `~/.config/hypr/hyprlock.conf`. It is read by the **hyprlock daemon**, not by
-Hyprland — it does *not* go through `source = …` and it **cannot read Hyprland `$variables`** from
-your `colors.conf`/`palette.conf`. Every color must be a literal (`rgb(cba6f7)` / `rgba(…)`); the
-only `$vars` you get are ones you define *inside* `hyprlock.conf` itself.
+Hyprland, so it **cannot read Hyprland's runtime `$variables`** from your `colors.conf`/`palette.conf`
+(those are evaluated by the compositor, not hyprlock). Every color must be a literal (`rgb(cba6f7)` /
+`rgba(…)`) or a `$var` you define *inside* hyprlock's own config. hyprlock **does** have its own
+`source = <file>` directive, though — the standard theming idiom is to `source` a small color file
+that defines `$accent`/`$base`/… as literals (this is exactly how the Catppuccin port and omarchy
+theme it; see the techniques below).
 
 Widgets (each is a repeatable block):
 
@@ -89,6 +92,43 @@ coloring with a palette: it defines color `$vars` in a sourced `mocha.conf` and 
 `outer_color = $accent`, `inner_color = $surface0`, `check_color = $accent`, `fail_color = $red`,
 input `size = 300, 60`, clock `font_size = 90`, plus a `border_color = $accent` avatar. (Those `$`
 vars work because they're defined *inside* hyprlock's own config, not pulled from Hyprland.)
+
+## Battle-tested techniques (from real lock screens)
+
+Concrete, attributed moves harvested from real `hyprlock.conf` files. Quoted close to verbatim —
+fill literal hexes from the rice palette. Grouped by what they buy you.
+
+**Theming & structure.**
+- *Source a color-var file* (catppuccin/hyprlock, basecamp/omarchy, Matt-FTW): `source = ~/.config/hypr/mocha.conf` then `$accent = $mauve` — re-theming the whole lock is one swapped file, never a layout edit. omarchy goes further: a `hyprlock.conf.tpl` renders `$inner_color = rgba({{ background_rgb }}, 0.8)` etc. per palette at theme-build time.
+- *`source`-swappable layout packs* (mahaveergurjar/Hyprlock-Dots): an entry `hyprlock.conf` that just `source`s one of N `layouts/layoutN.conf` — switch the entire lock-screen design by editing one line.
+- *`zindex` layering over a `shape{}` panel* (mahaveergurjar): draw a `shape { rounding = 10; zindex = 1 }` card, then put labels/widgets at higher `zindex` on top — backgrounds for battery/weather HUD widgets.
+
+**Background depth.**
+- *The frosted-depth stack* (JaKooLit, Matt-FTW): `blur_passes = 2–3` + `contrast ≈ 1.3` + `brightness ≈ 0.7–0.8` + `vibrancy ≈ 0.21` + `noise = 0.0117` — the near-universal recipe for a rich film-grain frost that makes the clock/pill pop.
+- *Bake the blur offline* (ml4w): render a `blurred_wallpaper.png` to a cache dir and set `blur_passes = 0` — hyprlock just draws the pre-blurred image, saving GPU at unlock time. (vs. the runtime `path = screenshot` + `blur_passes` school.)
+
+**Input-field state & feedback.**
+- *Gradient state colors* (hyprwm upstream): `outer_color`/`check_color`/`fail_color` accept two-stop gradients — `outer_color = rgba(33ccffee) rgba(00ff99ee) 45deg`, `fail_color = rgba(ff6633ee) rgba(ff0066ee) 40deg` — so the ring shifts hue as you type / on failure.
+- *Attempt counter + smooth fail flash* (HyDE, ml4w, Matt-FTW, catppuccin): `fail_text = <i>$FAIL <b>($ATTEMPTS)</b></i>` shows the PAM message and try count; `fail_transition = 300` animates the red flash over 300 ms. Add `capslock_color`/`numlock_color` for lock-key indicators.
+- *`rounding = -1` for a perfect pill/circle* (Matt-FTW, ml4w) — negative rounding means "fully round" on both `input-field` and `image{}`.
+- *Dismiss-friendliness* (omarchy, mahaveergurjar): `general { grace = 1 }` gives a brief no-password window to dismiss, and `ignore_empty_input = true` so pressing Enter on an empty field isn't counted as a failed attempt.
+
+**Live labels (`cmd[update:N]`).**
+- *Tiered refresh rates* (JaKooLit): poll cheap labels fast and expensive ones slowly — clock `cmd[update:1000]`, uptime `60000`, weather `3600000`, date `43200000` (12 h). Don't run a weather script every second.
+- *Time-of-day greeting* (HyDE): a `$fn_greet` var with `awk` prints "Good Morning/Afternoon/Evening, $USER", rendered via `text = cmd[update:60000] $fn_greet`.
+- *Pango markup needs `##` to escape `#`* (JaKooLit): inside a label/placeholder span, write `<span foreground="##ffffff99">` — a single `#` is consumed by hyprlock's parser. Nest spans for mixed-color text (catppuccin's "Logged in as $USER").
+- *Split-stack clock* (mahaveergurjar): separate `HH` and `MM` labels in a heavy display font (e.g. AlfaSlabOne) stacked vertically, instead of one `$TIME` line.
+- *`text_trim = true`* strips trailing whitespace from `cmd` output so script labels align cleanly.
+
+**Interactive & rich widgets.**
+- *Clickable media controls* (HyDE): `label { text = cmd[update:1000] …playerctl status…; onclick = playerctl -p $player play-pause }` with Nerd-Font glyphs (`󰒮 ⏸ ▶ 󰒭`) — a working transport on the lock screen. After an action, `pkill -u $USER -SIGUSR2 hyprlock` force-refreshes the labels immediately instead of waiting for the next `update` tick.
+- *MPRIS album art as `image{}`* (HyDE): `image { path = $MPRIS_IMAGE; reload_time = 0 }` shows the now-playing cover.
+- *Avatar conventions* (catppuccin, ml4w, Matt-FTW): `image { path = $HOME/.face; rounding = -1; border_color = $accent }` for a circular avatar, or ml4w's square-wallpaper tile — `size = 280; rounding = 40; border_color = $primary $on_primary 90deg` (gradient frame).
+- *Drop shadows for legibility* (ml4w, Matt-FTW, mahaveergurjar): `shadow_passes`, `shadow_size`, `shadow_color`, `shadow_boost` on labels/input/image so text stays readable over a busy wallpaper — `shadow_passes = 2; shadow_size = 10` is a sane start.
+- *Keyboard-layout indicator* (upstream): `label { text = $LAYOUT; onclick = hyprctl switchxkblayout all next }` — a clickable layout switcher.
+
+**Monitor independence.**
+- *Percentage offsets* (HyDE): `position = 0, 4.5%` / `-16%` makes a layout scale across monitor sizes; pin a widget to the primary with a sourced `$main` (`monitor = $main`).
 
 ## Tasteful default recipe
 
@@ -259,3 +299,13 @@ image {
 - Catppuccin hyprlock port: <https://github.com/catppuccin/hyprlock/blob/main/hyprlock.conf>
 - HyprFlux hyprlock examples: <https://www.hyprflux.dev/features/hyprlock.html>
 - Arch Wiki — Hyprlock: <https://wiki.archlinux.org/title/Hyprlock>
+
+**Config corpus read for the techniques catalog** (each `hyprlock.conf` read directly):
+- hyprwm/hyprlock `assets/example.conf` — canonical key list + gradient state colors + `$LAYOUT` switcher: <https://github.com/hyprwm/hyprlock>
+- catppuccin/hyprlock `hyprlock.conf` — `source = mocha.conf` palette vars, `.face` avatar, `$FPRINTPROMPT`: <https://github.com/catppuccin/hyprlock>
+- HyDE-Project/HyDE `Configs/.config/hypr/hyprlock/*.conf` — clickable playerctl media controls, `$fn_greet` time-of-day greeting, `pkill -SIGUSR2` refresh, MPRIS album art: <https://github.com/HyDE-Project/HyDE>
+- JaKooLit/Hyprland-Dots `config/hypr/hyprlock.conf` — tiered `cmd[update:N]` rates, full frosted-depth background stack, `##` Pango escaping, corner info HUD: <https://github.com/JaKooLit/Hyprland-Dots>
+- mylinuxforwork/dotfiles `dotfiles/.config/hypr/hyprlock.conf` — pre-baked blurred/square wallpaper assets, drop-shadows, matugen Material-You vars: <https://github.com/mylinuxforwork/dotfiles>
+- Matt-FTW/dotfiles `.config/hypr/hyprlock.conf` — `rounding = -1` circle avatar, `fail_transition`, now-playing script label: <https://github.com/Matt-FTW/dotfiles>
+- basecamp/omarchy `config/hypr/hyprlock.conf` + `default/themed/hyprlock.conf.tpl` — templated color source, `ignore_empty_input`, oversized single pill: <https://github.com/basecamp/omarchy>
+- mahaveergurjar/Hyprlock-Dots — `source`-swappable layout packs, `zindex` over `shape{}` panels, split-stack clock: <https://github.com/mahaveergurjar/Hyprlock-Dots>
