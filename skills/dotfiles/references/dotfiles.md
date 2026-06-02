@@ -46,15 +46,22 @@ git --git-dir=~/.dotfiles --work-tree=$HOME config status.showUntrackedFiles no
 ## Stow — how it works
 
 Files live in `~/dotfiles/<package>/<relative-path>`; `stow <package>` symlinks them into `$HOME`.
-E.g. `~/dotfiles/hypr/.config/hypr/hyprland.conf` → `stow -d ~/dotfiles -t ~ hypr`. Migrating away
-requires un-stowing (the symlinks must be replaced with real files).
+E.g. `~/dotfiles/hypr/.config/hypr/hyprland.conf` → `stow -d ~/dotfiles -t ~ hypr`. One package per
+app (`hypr/`, `waybar/`, `kitty/`) is the common layout (Matt-FTW/JaKooLit style). Un-stow with
+`stow -D <package>`; a `.stow-local-ignore` file in a package excludes paths from linking (e.g.
+`README.*`, `.git`). Migrating away requires un-stowing (the symlinks must be replaced with real
+files).
 
 ## chezmoi — how it works
 
 `chezmoi add <path>` copies a file into the source repo (optionally templated); `chezmoi apply`
-renders it to the target. `chezmoi git -- <git args>` runs git in the source repo. Strong for
-per-host differences and secrets (age/gpg). Files in the target are real files, so you can stop
-using chezmoi anytime.
+renders it to the target. `chezmoi git -- <git args>` (or `chezmoi cd`) runs git in the source repo;
+`chezmoi diff` previews, `chezmoi update` = git pull + apply. Strong for per-host differences and
+secrets (age/gpg). **One-line new-machine bootstrap:** `chezmoi init --apply <github-user>` (clones
++ renders + applies in one shot). `*.tmpl` source files render with Go templates from `[data]` in
+`~/.config/chezmoi/chezmoi.toml` (`{{ .var }}`). Files in the target are real files, so you can stop
+using chezmoi anytime. (**yadm** is a thinner bare-repo wrapper with the same in-place model plus
+templating/encryption: `yadm clone <url>`, `yadm add`, `yadm push`.)
 
 ## What to track
 
@@ -75,6 +82,10 @@ Recommended (the plugin's `add-defaults` adds those that exist):
 - Backups created by the plugin (`*.bak.*`) and caches don't belong in the repo. Add a
   `.gitignore` (in the work-tree root for stow/chezmoi; for bare, use `~/.gitignore` referenced via
   `core.excludesFile`, or just don't `add` them).
+- **Don't commit machine-generated theme outputs** — the wallust/matugen-rendered `colors-*.css`,
+  `~/.cache/wal/`, `fish_variables`, and `*_history`. They're regenerated on `rice apply` /
+  wallpaper change, so tracking them just creates churn. Track the *templates* and `palette.conf`,
+  not the rendered files. Large binaries (wallpapers) are better in a separate repo or git-lfs.
 - Pushing publishes the configs — confirm visibility (public/private) before adding a remote.
 
 ## Commit-after-every-change

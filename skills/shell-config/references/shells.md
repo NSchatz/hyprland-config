@@ -110,6 +110,19 @@ Glyphs/logo render best with a **Nerd Font** terminal font (see the theme-config
 fastfetch can also show an image logo on terminals that support it. Don't install the fetch tool —
 suggest the package.
 
+## Battle-tested setups (from real dotfiles)
+
+Concrete, attributed idioms from real rices. All guard-friendly.
+
+- *bat as the man pager + eza aliases* (omarchy): `export MANPAGER="sh -c 'col -bx | bat -l man -p'"`
+  and `export BAT_THEME=ansi` (so it follows the terminal palette); `alias ls='eza -lh --group-directories-first --icons=auto'`, `alias lt='eza --tree --level=2 --icons --git'`. High-value, low-cost.
+- *Replace `cd` with zoxide* (omarchy): `eval "$(zoxide init bash --cmd cd)"` makes `cd`→`z` and `cdi`→`zi` outright. On **zsh, init zoxide _after_ `compinit`** or completions break.
+- *fzf with fd + default command* : `export FZF_DEFAULT_COMMAND='fd --type f --strip-cwd-prefix'` + `export FZF_CTRL_T_COMMAND="$FZF_DEFAULT_COMMAND"`. The tool-agnostic init is `eval "$(fzf --bash)"` / `source <(fzf --zsh)` / `fzf --fish | source`; older fzf sources `/usr/share/fzf/{completion,key-bindings}.<shell>`.
+- *zsh plugin trio via zinit* (HyDE): `zinit light zsh-users/zsh-autosuggestions` + `zinit light zdharma-continuum/fast-syntax-highlighting` (use fast-syntax-highlighting **or** plain zsh-syntax-highlighting, not both). HyDE also exports `STARSHIP_CONFIG`/`STARSHIP_CACHE` under `$XDG_*`. Beginner dotfiles lean on oh-my-zsh (`plugins=(git …)`).
+- *zsh history block*: `setopt SHARE_HISTORY HIST_IGNORE_DUPS HIST_IGNORE_SPACE INC_APPEND_HISTORY` with `HISTSIZE`/`SAVEHIST` both large.
+- *fish needs no plugin manager* for autosuggest/highlight (built in); use `conf.d/*.fish` for auto-sourced fragments, **fisher** only when you want plugins, `abbr -a gco 'git checkout'` (expands inline, editable) over `alias`, and `fish_add_path ~/.local/bin` (idempotent) instead of mangling `$PATH`. caelestia/Matt-FTW put `starship init fish | source` inside `if status is-interactive`.
+- *atuin on bash needs a preexec shim* — `atuin init bash` requires **ble.sh** or **bash-preexec** loaded first; on zsh/fish it's standalone.
+
 ## Theme integration
 
 - The terminal's colors come from the terminal emulator (kitty/alacritty/foot), which the
