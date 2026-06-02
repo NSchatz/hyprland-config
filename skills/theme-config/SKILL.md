@@ -146,6 +146,11 @@ Re-theming later is just: rewrite `palette.conf` → `rice apply`. Adding an app
   UI font + monospace/Nerd font across surfaces.
 - **`references/engine.md`** — the rice engine: `palette.conf` source of truth, the render
   manifest, the `rice` CLI, matugen/wallust integration, adding apps, and reproducibility.
+- **`references/apps.md`** — shipped long-tail templates (btop, cava, starship, swaync, wlogout,
+  fuzzel, …), how to wire each, and reaching matugen's 40+ app library (spicetify, discord,
+  firefox, …).
+- **`references/login.md`** — login/display-manager theming (greetd/tuigreet/ReGreet, SDDM) and
+  boot (Plymouth/GRUB) — root-side, presented as `sudo` commands.
 - **`scripts/rice-init.sh`** — scaffold/refresh the engine into `~/.config/hypr-rice/`.
 - **`scripts/render-templates.sh`** — the render engine (also installed for the `rice` CLI).
 - **`templates/*.tmpl`** — the color templates the engine renders.
