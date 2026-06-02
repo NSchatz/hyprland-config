@@ -37,6 +37,7 @@ cp "$SRC/scripts/render-templates.sh"      "$RICE_DIR/render-templates.sh"
 cp "$SRC/scripts/set-wallpaper.sh"         "$RICE_DIR/set-wallpaper.sh"
 cp "$SRC/scripts/palette-from-wallpaper.sh" "$RICE_DIR/palette-from-wallpaper.sh"
 cp "$SRC/assets/rice"                      "$RICE_DIR/rice"
+cp "$SRC/assets/wallpapers.tsv"            "$RICE_DIR/wallpapers.tsv"   # curated theme wallpaper catalog
 chmod +x "$RICE_DIR"/render-templates.sh "$RICE_DIR"/set-wallpaper.sh "$RICE_DIR"/palette-from-wallpaper.sh "$RICE_DIR"/rice
 
 # Default manifest (only the cleanly include-able apps; others added by their skills).

@@ -12,6 +12,40 @@
 `set-wallpaper.sh` picks the first available in the order swww → hyprpaper → swaybg and persists
 `hyprpaper.conf` when hyprpaper is used.
 
+## Curated theme wallpapers (curl-downloadable)
+
+The engine ships a **theme-tagged wallpaper catalog** so a user can pick a wallpaper that matches the
+scheme they chose, without hunting for one. It lives at `assets/wallpapers.tsv` in the plugin and is
+copied into `~/.config/hypr-rice/wallpapers.tsv` by `rice-init.sh`. Format is
+`scheme<TAB>name<TAB>url`, where every `url` is a **direct `raw.githubusercontent.com` blob** that
+`curl -L` downloads. Entries are tagged by scheme key (`catppuccin-mocha`, `catppuccin-latte`,
+`rose-pine`, `gruvbox`, `nord`, `tokyo-night`) plus an `any` group of theme-agnostic dark wallpapers
+offered alongside every dark scheme. All links are verified live when shipped.
+
+Two `rice` CLI commands drive it (so it works standalone, without the plugin):
+
+```bash
+rice wallpapers                 # list the whole catalog, grouped by scheme
+rice wallpapers nord            # list just Nord + the `any` set, numbered continuously
+rice get-wallpaper nord 2 --set # download entry #2 to ~/Pictures/wallpapers/ and apply it
+rice get-wallpaper nord arctic  # select by name substring instead of number
+```
+
+`get-wallpaper` saves to `~/Pictures/wallpapers/<scheme>-<name>.<ext>` (override with `--dir`). With
+`--set` it applies the wallpaper and records its path in `palette.conf` **but keeps the current
+palette** (no `palette-from-wallpaper` re-theme) — correct for "I picked Nord *and* a Nord wallpaper."
+Drop `--set` to just download. In the interview this is **Area D6**: after the user picks a named
+scheme, list `rice wallpapers <scheme>`, present the names via `AskUserQuestion`, then
+`get-wallpaper … --set`. (For a *wallpaper-generated* palette the user already has an image; for a
+*manual* palette, offer the `any` set.)
+
+**Sources & licensing** (community wallpaper repos — the same ecosystem the styling research drew
+from): zhichaoh/catppuccin-wallpapers (MIT), rose-pine/wallpapers (CC0), AngelJumbo/gruvbox-wallpapers
+(community), linuxdotexe/nordic-wallpapers (MIT), tokyo-night/wallpapers (MIT), JaKooLit/Wallpaper-Bank
+and dharmx/walls (community — personal use, attribution unclear). Tell the user where a wallpaper came
+from when relevant. To extend the catalog, add a `scheme<TAB>name<TAB>url` line (verify the raw URL
+resolves first); `rice-init.sh --force` re-copies the plugin's copy over the engine's.
+
 ## Dynamic theming (wallpaper → palette → everything)
 
 `rice wallpaper <img>` runs: set wallpaper → `palette-from-wallpaper.sh` (regenerate

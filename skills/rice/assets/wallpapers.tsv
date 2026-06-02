@@ -1,0 +1,48 @@
+# Curated, theme-tagged wallpaper catalog — used by `rice wallpapers` / `rice get-wallpaper`.
+# Format:  scheme <TAB> name <TAB> url      (lines starting with # and blank lines are ignored)
+# Every URL is a direct raw.githubusercontent.com blob, downloadable with `curl -L`.
+# All links verified live when shipped. `scheme` matches palette.conf's scheme key; `any` entries
+# are theme-agnostic dark wallpapers offered alongside every dark scheme.
+# Sources/licenses: zhichaoh/catppuccin-wallpapers (MIT) · rose-pine/wallpapers (CC0) ·
+# AngelJumbo/gruvbox-wallpapers (community) · linuxdotexe/nordic-wallpapers (MIT) ·
+# tokyo-night/wallpapers (MIT) · JaKooLit/Wallpaper-Bank, dharmx/walls (community — personal use).
+#
+catppuccin-mocha	clear-night	https://raw.githubusercontent.com/zhichaoh/catppuccin-wallpapers/main/landscapes/Clearnight.jpg
+catppuccin-mocha	rainy-night	https://raw.githubusercontent.com/zhichaoh/catppuccin-wallpapers/main/landscapes/Rainnight.jpg
+catppuccin-mocha	evening-sky	https://raw.githubusercontent.com/zhichaoh/catppuccin-wallpapers/main/landscapes/evening-sky.png
+catppuccin-mocha	salty-mountains	https://raw.githubusercontent.com/zhichaoh/catppuccin-wallpapers/main/landscapes/salty_mountains.png
+catppuccin-mocha	shaded-landscape	https://raw.githubusercontent.com/zhichaoh/catppuccin-wallpapers/main/landscapes/shaded_landscape.png
+catppuccin-mocha	tropic-island-night	https://raw.githubusercontent.com/zhichaoh/catppuccin-wallpapers/main/landscapes/tropic_island_night.jpg
+catppuccin-latte	clear-day	https://raw.githubusercontent.com/zhichaoh/catppuccin-wallpapers/main/landscapes/Clearday.jpg
+catppuccin-latte	cloudy-day	https://raw.githubusercontent.com/zhichaoh/catppuccin-wallpapers/main/landscapes/Cloudsday.jpg
+catppuccin-latte	tropic-island-day	https://raw.githubusercontent.com/zhichaoh/catppuccin-wallpapers/main/landscapes/tropic_island_day.jpg
+rose-pine	obliquas-dark	https://raw.githubusercontent.com/rose-pine/wallpapers/main/illustration/obliquas-dark.jpg
+rose-pine	nature-illustration	https://raw.githubusercontent.com/rose-pine/wallpapers/main/illustration/something-beautiful-in-nature.jpg
+rose-pine	photo-bay	https://raw.githubusercontent.com/rose-pine/wallpapers/main/photography/kainoa-kanter/bay.jpg
+rose-pine	photo-clouds	https://raw.githubusercontent.com/rose-pine/wallpapers/main/photography/kainoa-kanter/clouds.jpg
+rose-pine	photo-field	https://raw.githubusercontent.com/rose-pine/wallpapers/main/photography/kainoa-kanter/field.jpg
+rose-pine	photo-roses	https://raw.githubusercontent.com/rose-pine/wallpapers/main/photography/kainoa-kanter/roses.jpg
+gruvbox	white-mountain	https://raw.githubusercontent.com/AngelJumbo/gruvbox-wallpapers/main/wallpapers/photography/White-Mountain.jpg
+gruvbox	bridge	https://raw.githubusercontent.com/AngelJumbo/gruvbox-wallpapers/main/wallpapers/photography/bridge.jpg
+gruvbox	cabin	https://raw.githubusercontent.com/AngelJumbo/gruvbox-wallpapers/main/wallpapers/photography/cabin.png
+gruvbox	great-wave-of-kanagawa	https://raw.githubusercontent.com/AngelJumbo/gruvbox-wallpapers/main/wallpapers/minimalistic/great-wave-of-kanagawa-gruvbox.png
+gruvbox	dark-bench	https://raw.githubusercontent.com/AngelJumbo/gruvbox-wallpapers/main/wallpapers/minimalistic/dark-bench.png
+gruvbox	abstract-maze	https://raw.githubusercontent.com/AngelJumbo/gruvbox-wallpapers/main/wallpapers/minimalistic/gruv-abstract-maze.png
+nord	abstract-nord	https://raw.githubusercontent.com/linuxdotexe/nordic-wallpapers/master/wallpapers/Abstract-Nord.png
+nord	arctic-landscape	https://raw.githubusercontent.com/linuxdotexe/nordic-wallpapers/master/wallpapers/arctic-landscape.png
+nord	minimal-nord	https://raw.githubusercontent.com/linuxdotexe/nordic-wallpapers/master/wallpapers/Minimal-Nord.png
+nord	container-ship	https://raw.githubusercontent.com/linuxdotexe/nordic-wallpapers/master/wallpapers/container_ship.png
+nord	earth-in-space	https://raw.githubusercontent.com/linuxdotexe/nordic-wallpapers/master/wallpapers/earth-in-space.png
+nord	bird-nord	https://raw.githubusercontent.com/linuxdotexe/nordic-wallpapers/master/wallpapers/BirdNord.png
+tokyo-night	cafe-at-night	https://raw.githubusercontent.com/tokyo-night/wallpapers/main/misc/cityscape/cafe-at-night_00_3840x2160.png
+tokyo-night	neon-sign	https://raw.githubusercontent.com/tokyo-night/wallpapers/main/misc/cityscape/neon-sign_00_1920x1080.jpg
+tokyo-night	night-abstract	https://raw.githubusercontent.com/tokyo-night/wallpapers/main/night/abstract/lockscreen_00_3840x2160.png
+tokyo-night	storm-abstract	https://raw.githubusercontent.com/tokyo-night/wallpapers/main/storm/abstract/lockscreen_00_3840x2160.png
+tokyo-night	night-stripes	https://raw.githubusercontent.com/tokyo-night/wallpapers/main/night/minimal/stripes_00_3840x2160.png
+tokyo-night	night-gnome	https://raw.githubusercontent.com/tokyo-night/wallpapers/main/night/minimal/gnome_00_3840x2160.png
+any	neon-rainy-city	https://raw.githubusercontent.com/JaKooLit/Wallpaper-Bank/main/wallpapers/City-Rainy-Night.png
+any	anime-city-night	https://raw.githubusercontent.com/JaKooLit/Wallpaper-Bank/main/wallpapers/Anime-City-Night.png
+any	city-night	https://raw.githubusercontent.com/JaKooLit/Wallpaper-Bank/main/wallpapers/City-Night.png
+any	outrun-sports-car	https://raw.githubusercontent.com/dharmx/walls/main/outrun/a_sports_car_with_neon_lights.png
+any	outrun-gas-station	https://raw.githubusercontent.com/dharmx/walls/main/outrun/a_gas_station_with_purple_lights.jpg
+any	minimal-mountains-stars	https://raw.githubusercontent.com/dharmx/walls/main/minimal/a_landscape_with_mountains_and_stars.png

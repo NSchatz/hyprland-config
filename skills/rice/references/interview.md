@@ -143,6 +143,14 @@ package and warn glyph-heavy bars/prompts show boxes until one is installed. Com
 *Inter/Noto Sans + JetBrainsMono NF* (safe), *Space Grotesk + JetBrains Mono NF* (modern),
 *Rubik/Readex Pro + Maple Mono NF* (cozy). Record as `font_mono = <Family> <size>`.
 
+**D6. Matching wallpaper** (offer after the scheme is chosen — skip if the source was already
+"match my wallpaper"). The engine ships a curated, theme-tagged catalog of curl-downloadable
+wallpapers (`rice wallpapers <scheme>` lists the ones matching the chosen scheme, plus a few
+theme-agnostic `any` ones). Present the names with `AskUserQuestion`, then download + set the pick:
+`rice get-wallpaper <scheme> <number|name> --set` (downloads to `~/Pictures/wallpapers/` and sets it
+**without** re-theming, so the named-scheme palette is kept). For a manual palette, offer the `any`
+set. Offering one is optional — a desktop with no wallpaper looks unfinished, so it's worth asking.
+
 ### Mapping answers → `palette.conf`
 
 Write resolved values into `~/.config/hypr-rice/palette.conf` (the rice state / source of truth; hex

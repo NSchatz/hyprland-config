@@ -215,7 +215,12 @@ Set the wallpaper and optionally re-theme the whole desktop from it — the cano
 ("change wallpaper, the desktop follows"). Read `references/wallpaper.md`.
 
 1. Ensure the engine exists: `bash "${CLAUDE_PLUGIN_ROOT}/skills/rice/scripts/rice-init.sh"`.
-2. Resolve the image (ask if not given; common dir `~/Pictures/wallpapers`), then:
+2. Resolve the image. If the user has a file, use it (common dir `~/Pictures/wallpapers`). If they
+   don't — or want one that suits their scheme — offer the **curated theme catalog**:
+   `bash ~/.config/hypr-rice/rice wallpapers [scheme]` lists matching downloadable wallpapers (the
+   chosen scheme's set + a few theme-agnostic `any` ones); present them with `AskUserQuestion`, then
+   `bash ~/.config/hypr-rice/rice get-wallpaper <scheme> <number|name> --set` curl-downloads the pick
+   to `~/Pictures/wallpapers/` and applies it (keeping the current palette — no re-theme). Then:
    - **Wallpaper only:** `bash ~/.config/hypr-rice/rice wallpaper '<image>' --no-theme`
    - **Wallpaper + dynamic theme:** `bash ~/.config/hypr-rice/rice wallpaper '<image>'` — sets it,
      regenerates `palette.conf` from it (matugen/wallust/pywal), renders every template, reloads apps.
@@ -261,6 +266,9 @@ Set the wallpaper and optionally re-theme the whole desktop from it — the cano
   `apply-theme.sh`, `set-wallpaper.sh`, `palette-from-wallpaper.sh`, `safe-apply.sh`,
   `install-config.sh`, `verify-config.sh`, `backup-config.sh`, `reset-config.sh`.
 - **`templates/*.tmpl`** — the color templates the engine renders.
-- **`assets/profiles/*.conf`** — the five shipped preset rices; **`assets/rice`** — the CLI.
+- **`assets/profiles/*.conf`** — the five shipped preset rices; **`assets/rice`** — the CLI
+  (incl. `rice wallpapers [scheme]` to list and `rice get-wallpaper <scheme> <n|name> [--set]` to
+  curl-download a matching wallpaper). **`assets/wallpapers.tsv`** — the curated, theme-tagged,
+  curl-downloadable wallpaper catalog (verified raw URLs; `scheme<TAB>name<TAB>url`).
 - **`examples/sample-config/`** — a complete reference output (a generated modular config set).
 - **`${CLAUDE_PLUGIN_ROOT}/scripts/backup-path.sh`** — timestamped backup of arbitrary paths.

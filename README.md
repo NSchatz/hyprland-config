@@ -133,6 +133,8 @@ waybar.
 rice apply               # re-render every app from palette.conf and reload
 rice wallpaper PIC.png   # set wallpaper, regenerate palette from it, re-theme everything
 rice random ~/Pictures   # random wallpaper + re-theme (bind it to a key or a timer)
+rice wallpapers nord     # list curated, theme-matched wallpapers you can download
+rice get-wallpaper nord 2 --set   # curl a matching wallpaper and set it (keeps the palette)
 rice theme nord          # switch to a saved profile (5 ship: catppuccin-mocha, gruvbox, nord, …)
 rice save midnight       # snapshot the current palette as a profile
 ```
@@ -220,7 +222,7 @@ hyprland-config/
 │   │   │                  apply-theme, set-wallpaper, palette-from-wallpaper, safe-apply,
 │   │   │                  install-config, verify-config, backup-config, reset-config)
 │   │   ├── templates/    (*.tmpl color templates rendered by the engine)
-│   │   ├── assets/       (rice CLI, profiles/*.conf presets)
+│   │   ├── assets/       (rice CLI, profiles/*.conf presets, wallpapers.tsv catalog)
 │   │   └── examples/     (a complete generated modular config)
 │   ├── edit-config/       (read + change existing config, test after every change)
 │   ├── shell-config/      (bash/zsh/fish: prompt, aliases, fetch; parse-checked)

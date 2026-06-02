@@ -30,6 +30,64 @@ case "$cmd" in
         [ -n "$img" ] || { echo "no images found in $dir" >&2; exit 1; }
         exec "$0" wallpaper "$img"
         ;;
+    wallpapers)
+        # List curated, theme-tagged downloadable wallpapers. Optional <scheme> filters to that
+        # scheme plus the theme-agnostic `any` set; no arg lists everything grouped by scheme.
+        cat="$RICE_DIR/wallpapers.tsv"
+        [ -f "$cat" ] || { echo "no wallpaper catalog ($cat)" >&2; exit 1; }
+        want="${1:-}"
+        # Prefix-tolerant scheme match: `gruvbox` matches `gruvbox-dark`, `catppuccin` matches both
+        # flavors, exact keys match exactly. `any` is always included.
+        awk -F'\t' -v want="$want" '
+            function m(s,w){ return (w=="" || s==w || index(s,w"-")==1 || index(w,s"-")==1) }
+            /^[[:space:]]*#/ || NF<3 { next }
+            (m($1,want) || $1=="any") {
+                if ($1!=last) { printf "\n[%s]\n", $1; last=$1 }
+                n++; printf "  %2d) %-26s %s\n", n, $2, $3
+            }' "$cat"
+        echo
+        echo "Download one with:  rice get-wallpaper <scheme> <number|name> [--set]"
+        ;;
+    get-wallpaper|wallpaper-get)
+        # Download a catalog wallpaper by scheme + selector (number within that scheme's list,
+        # counting its `any` entries too, or a name substring). --set also applies it (keeps the
+        # current palette — no re-theme). --dir overrides the destination.
+        scheme="${1:-}"; sel="${2:-}"
+        [ -n "$scheme" ] && [ -n "$sel" ] || { echo "usage: rice get-wallpaper <scheme> <number|name> [--set] [--dir DIR]" >&2; exit 1; }
+        shift 2 2>/dev/null || true
+        do_set=0; dir="$HOME/Pictures/wallpapers"
+        while [ $# -gt 0 ]; do case "$1" in --set) do_set=1;; --dir) shift; dir="${1:-$dir}";; esac; shift; done
+        cat="$RICE_DIR/wallpapers.tsv"
+        [ -f "$cat" ] || { echo "no wallpaper catalog ($cat)" >&2; exit 1; }
+        # Build the same scheme+any list `rice wallpapers <scheme>` shows, then resolve the selector.
+        mapfile -t rows < <(awk -F'\t' -v want="$scheme" '
+            function m(s,w){ return (s==w || index(s,w"-")==1 || index(w,s"-")==1) }
+            /^[[:space:]]*#/ || NF<3 { next }
+            (m($1,want) || $1=="any") { printf "%s\t%s\n", $2, $3 }' "$cat")
+        [ "${#rows[@]}" -gt 0 ] || { echo "no wallpapers for scheme '$scheme' (see: rice wallpapers)" >&2; exit 1; }
+        pick=""
+        if printf '%s' "$sel" | grep -qE '^[0-9]+$'; then
+            idx=$((sel)); [ "$idx" -ge 1 ] && [ "$idx" -le "${#rows[@]}" ] && pick="${rows[$((idx-1))]}"
+        fi
+        if [ -z "$pick" ]; then
+            for r in "${rows[@]}"; do case "${r%%$'\t'*}" in *"$sel"*) pick="$r"; break;; esac; done
+        fi
+        [ -n "$pick" ] || { echo "no match for '$sel' in scheme '$scheme' (see: rice wallpapers $scheme)" >&2; exit 1; }
+        name="${pick%%$'\t'*}"; url="${pick#*$'\t'}"
+        ext="${url##*.}"; case "$ext" in jpg|jpeg|png|webp) ;; *) ext="jpg";; esac
+        mkdir -p "$dir"; out="$dir/${scheme}-${name}.${ext}"
+        echo "Downloading $name → $out"
+        curl -fL --retry 2 --connect-timeout 20 -o "$out" "$url" || { echo "DOWNLOAD=failed ($url)" >&2; exit 1; }
+        echo "WALLPAPER=$out"
+        if [ "$do_set" -eq 1 ]; then
+            pal="$RICE_DIR/palette.conf"
+            if [ -f "$pal" ]; then
+                if grep -q '^wallpaper=' "$pal"; then sed -i "s|^wallpaper=.*|wallpaper=$out|" "$pal"
+                else printf 'wallpaper=%s\n' "$out" >> "$pal"; fi
+            fi
+            bash "$RICE_DIR/set-wallpaper.sh" "$out" && echo "SET=ok"
+        fi
+        ;;
     save)
         # Snapshot the current palette as a named profile.
         name="${1:-}"; [ -n "$name" ] || { echo "usage: rice save <name>" >&2; exit 1; }
@@ -65,6 +123,9 @@ hypr-rice — desktop theme engine ($RICE_DIR)
   rice wallpaper <img>    set wallpaper, regenerate palette from it, and re-theme
   rice wallpaper <img> --no-theme   set wallpaper only
   rice random [dir]       random wallpaper from dir (default ~/Pictures/wallpapers) + re-theme
+  rice wallpapers [scheme]          list curated downloadable wallpapers (filter by scheme)
+  rice get-wallpaper <scheme> <n|name> [--set] [--dir DIR]
+                          curl-download a catalog wallpaper; --set applies it (keeps the palette)
   rice theme <name>       load a saved profile (palette + wallpaper) and re-theme
   rice save <name>        snapshot the current palette as a profile
   rice themes             list saved profiles
