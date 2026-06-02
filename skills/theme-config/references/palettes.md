@@ -1,0 +1,73 @@
+# Named Palettes
+
+Each scheme is mapped to the palette contract from `theming.md`. Hex is `RRGGBB` (add `#`/`rgba`
+per app). Pick one accent (the listed `accent` is a sensible default — let the user override).
+For terminal `color0..15`, Catppuccin Mocha's full mapping is given as the reference pattern;
+for others, map `color1..6` = `red green yellow blue magenta cyan`, `color0`=bg-ish, `color7/15`=fg-ish,
+`color8` = `muted`, and bright `9..14` ≈ the same hues.
+
+## Catppuccin Mocha (dark)
+
+| Role | Hex | | Role | Hex |
+|---|---|---|---|---|
+| bg | 1e1e2e | | accent | cba6f7 (mauve) |
+| fg | cdd6f4 | | accent2 | 89b4fa (blue) |
+| surface | 313244 | | red | f38ba8 |
+| muted | 6c7086 | | green | a6e3a1 |
+| cursor | f5e0dc | | yellow | f9e2af |
+| | | | blue | 89b4fa |
+| | | | magenta | f5c2e7 |
+| | | | cyan | 94e2d5 |
+
+Terminal 16: `color0 45475a` `1 f38ba8` `2 a6e3a1` `3 f9e2af` `4 89b4fa` `5 f5c2e7` `6 94e2d5`
+`7 bac2de` `8 585b70` `9 f38ba8` `10 a6e3a1` `11 f9e2af` `12 89b4fa` `13 f5c2e7` `14 94e2d5`
+`15 a6adc8`.
+
+## Catppuccin Latte (light)
+
+bg `eff1f5` · fg `4c4f69` · surface `ccd0da` · muted `9ca0b0` · accent `8839ef` (mauve) ·
+accent2 `1e66f5` (blue) · red `d20f39` · green `40a02b` · yellow `df8e1d` · blue `1e66f5` ·
+magenta `ea76cb` · cyan `179299`. Set GTK `color-scheme` to `prefer-light`.
+
+## Gruvbox (dark, medium)
+
+bg `282828` · fg `ebdbb2` · surface `3c3836` · muted `928374` · accent `fabd2f` (yellow) ·
+accent2 `83a598` (blue) · red `cc241d` · green `98971a` · yellow `d79921` · blue `458588` ·
+magenta `b16286` · cyan `689d6a`. Bright: red `fb4934` green `b8bb26` yellow `fabd2f`
+blue `83a598` magenta `d3869b` cyan `8ec07c`.
+
+## Nord
+
+bg `2e3440` · fg `d8dee9` · surface `3b4252` · muted `4c566a` · accent `88c0d0` (frost) ·
+accent2 `5e81ac` · red `bf616a` · green `a3be8c` · yellow `ebcb8b` · blue `81a1c1` ·
+magenta `b48ead` · cyan `8fbcbb` · white `e5e9f0`.
+
+## Tokyo Night (Night)
+
+bg `1a1b26` · fg `c0caf5` · surface `24283b` · muted `565f89` · accent `7aa2f7` (blue) ·
+accent2 `bb9af7` (purple) · red `f7768e` · green `9ece6a` · yellow `e0af68` · blue `7aa2f7` ·
+magenta `bb9af7` · cyan `7dcfff`.
+
+## Rosé Pine
+
+bg `191724` · fg `e0def4` · surface `1f1d2e` · muted `6e6a86` · accent `c4a7e7` (iris) ·
+accent2 `31748f` (pine) · red `eb6f92` (love) · green `31748f` (pine) · yellow `f6c177` (gold) ·
+blue `9ccfd8` (foam) · magenta `c4a7e7` (iris) · cyan `9ccfd8` (foam) · rose `ebbcba`.
+
+---
+
+## Matching GTK / icon / cursor themes per scheme
+
+When theming GTK/Qt, prefer an installed theme that matches the scheme; otherwise just apply the
+gtk.css color overrides and keep the user's current theme. Common matches (install separately):
+
+| Scheme        | GTK theme (pkg)                     | Cursor / icons                          |
+|---------------|-------------------------------------|-----------------------------------------|
+| Catppuccin    | `catppuccin-gtk-theme-*` (AUR)      | catppuccin-cursors-*; Papirus(-Dark)    |
+| Gruvbox       | `gruvbox-gtk-theme` (AUR)           | Bibata; Papirus-Dark                    |
+| Nord          | `nordic-theme`/`arc` (AUR)          | Nordzy-cursors; Papirus-Dark            |
+| Tokyo Night   | `tokyonight-gtk-theme` (AUR)        | Bibata; Papirus-Dark                    |
+| Rosé Pine     | `rose-pine-gtk-theme` (AUR)         | rose-pine-cursor; Papirus               |
+
+If the matching theme isn't installed, do not install it — apply colors via `gtk.css` overrides
+and tell the user the package if they want the full theme.

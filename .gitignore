@@ -1,0 +1,10 @@
+# Authoring-environment state (which dev plugins are enabled while building) — not part of the plugin
+.claude/
+
+# Plugin-local settings
+.claude/*.local.md
+
+# Generation staging / test output
+/tmp/hypr-gen-*
+hypr-test/
+*.bak.*

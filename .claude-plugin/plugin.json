@@ -1,0 +1,11 @@
+{
+  "name": "hyprland-config",
+  "version": "0.1.0",
+  "description": "Generate, read, edit, theme, and live-test a Hyprland desktop. Builds a modular config from an interview, safely edits an existing one, themes every surface (Hyprland/waybar/notifications/launcher/terminal/GTK/Qt) from one palette, and configures the terminal and desktop shell — backing up and verifying after every change with automatic rollback.",
+  "author": {
+    "name": "Noah Schatz",
+    "email": "noah.lane.schatz@gmail.com"
+  },
+  "keywords": ["hyprland", "wayland", "config", "dotfiles", "linux", "window-manager", "theming", "ricing", "waybar", "shell", "fonts", "fastfetch"],
+  "license": "MIT"
+}
