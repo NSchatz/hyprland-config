@@ -74,6 +74,23 @@ source = ~/.config/hypr/binds.conf
 - Order matters: later definitions override earlier ones for the same key.
 - Variables defined in a sourced file are visible to files sourced afterward.
 
+**Modularization patterns (from real dotfiles).** The common split is one file per concern —
+`monitors.conf`, `input.conf`, `keybinds.conf`, `windowrules.conf`, `decorations.conf`,
+`animations.conf`, `env.conf`, `autostart.conf`, `colors.conf` — sourced from `hyprland.conf`
+(Matt-FTW is the clean flat example). Two **defaults-vs-user-override** idioms recur so package
+updates don't clobber edits:
+- *Paired sources* (JaKooLit): `source = $configs/X.conf` then `source = $UserConfigs/X.conf` for
+  each concern — the user file is sourced second so it wins. `$configs`/`$UserConfigs` are path
+  variables defined at the top.
+- *Marker-guarded thin file* (HyDE): a small `hyprland.conf` that `source`s a generated system
+  fallback first, then a handful of `source = ./file.conf` (relative) overrides + one
+  `userprefs.conf`; a `$HYDE_HYPRLAND=set` marker var tells the updater not to overwrite it.
+
+Source a `colors.conf`/`theme.conf` (the rice palette as `$variables`) **last** so the rest of the
+config can reference `$accent` etc.; a theme switcher rewrites that one file + `hyprctl reload`. (The
+newest rices — omarchy, ml4w, upstream's default — wrap all this in a **Lua** config with
+`require(...)` instead of `source =`; the `.conf` form remains fully valid on 0.54.3.)
+
 ## exec, exec-once, env
 
 ```ini
@@ -86,6 +103,25 @@ envd = HYPRCURSOR_SIZE,24       # env var also exported to systemd/dbus activati
 - `env` uses a **comma** between name and value, not `=`.
 - `env` lines must appear before the programs that need them; cleanest at the very top of the
   config (or in a sourced `env.conf` sourced first).
+- `execr` runs a command without Hyprland's shell-arg mangling; `exec` re-runs on every reload
+  (use it to re-apply something after a theme reload), `exec-once` only at startup.
+
+**Universal autostart block** (appears in nearly every rice's `exec-once`): a clipboard watcher —
+`exec-once = wl-paste --type text --watch cliphist store` **and** a second line for `--type image`;
+the systemd/portal env import — `exec-once = dbus-update-activation-environment --systemd WAYLAND_DISPLAY XDG_CURRENT_DESKTOP`
+(+ `systemctl --user import-environment …`); a polkit agent (`hyprpolkitagent` or
+`/usr/lib/polkit-gnome/polkit-gnome-authentication-agent-1`); exactly **one** notification daemon
+(swaync **or** mako/dunst — never two, they fight for the D-Bus name); `waybar`; `hypridle`; and a
+wallpaper daemon (`swww-daemon`, `swaybg`, or the swww fork `awww-daemon`).
+
+**Universal env block:** `XCURSOR_SIZE`/`HYPRCURSOR_SIZE` (+ `*_THEME`), the XDG trio
+`XDG_CURRENT_DESKTOP=Hyprland` / `XDG_SESSION_TYPE=wayland` / `XDG_SESSION_DESKTOP=Hyprland`
+(Matt-FTW uses `envd =` for these so they reach the systemd/dbus activation env),
+`QT_QPA_PLATFORM=wayland;xcb` + `QT_QPA_PLATFORMTHEME` (and `QT_STYLE_OVERRIDE=kvantum` if using
+Kvantum), `GDK_BACKEND=wayland,x11,*`, `MOZ_ENABLE_WAYLAND=1`, `ELECTRON_OZONE_PLATFORM_HINT=auto`.
+Ship the NVIDIA block (`LIBVA_DRIVER_NAME=nvidia`, `__GLX_VENDOR_LIBRARY_NAME=nvidia`,
+`GBM_BACKEND=nvidia-drm`, `NVD_BACKEND=direct`) **only** under the proprietary driver — under nouveau
+those break GLX/VA-API (see `generate-config`).
 
 ## Categories quick map
 

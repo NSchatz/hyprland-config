@@ -128,6 +128,40 @@ layerrule = noanim, hyprpaper
 
 Find namespaces with `hyprctl layers`. Never mix the two forms for one rule — pick by version.
 
+## Battle-tested rules (from real dotfiles)
+
+Concrete, attributed rules harvested from the big rices. Block form shown (the modern 0.53+/0.54
+recommendation); the equivalent terse single-line `match:` form and the deprecated property-first
+form are noted where they differ.
+
+- *The universal baseline* (shipped default, every rice): `suppress_event maximize, match:class .*` plus the XWayland drag-fix `no_focus` rule — `windowrule = no_focus, match:class ^$, match:title ^$, match:xwayland 1, match:float 1, match:fullscreen 0, match:pin 0`. Inherit both.
+- *Tag-based grouping* (JaKooLit): assign a class to a tag once — `windowrule = tag +browser, match:class ^([Ff]irefox|…)$` — then style the whole class with `tag:browser*` (opacity/float/etc.). Restyle a category by editing one line.
+- *Default-opacity opt-out tag* (omarchy): tag everything (`tag +default-opacity, match:class .*`), let specific apps opt **out** (`tag -default-opacity, match:tag pip`), then apply the opacity to the tag **last** (`opacity 0.97 0.9, match:tag default-opacity`) — global translucency with per-app exceptions.
+- *Picture-in-Picture, full recipe* (universal): match `^([Pp]icture[-\s]?[Ii]n[-\s]?[Pp]icture)(.*)$` → `float + pin + keep_aspect_ratio + size + move`, anchored top-right with arithmetic — `move = (monitor_w-window_w-40) (monitor_h*0.04)`.
+- *Screen-share indicator* (end-4): float + pin the Firefox/Chromium "is sharing" banner — `match:title .*is sharing (a window|your screen).*`.
+- *xwaylandvideobridge invisibility hack* (Matt-FTW): make the bridge window effectively invisible so screen-share works without it stealing focus — `opacity 0.0 override 0.0 override` + `no_anim` + `no_blur` + `no_initial_focus` + `max_size 1 1`, `match:class ^(.*xwaylandvideobridge.*)$`.
+- *Idle behaviour by app* : `idle_inhibit fullscreen` on browsers/players (videos don't trigger idle); `idle_inhibit always` + `immediate` (tearing) on game classes like `^(.*steam_app.*)$` (Matt-FTW).
+- *Factor app-class regex into `$variables`* (Matt-FTW): `$center-float = class:^(center-float)$|^(.*[Gg]alculator.*)$` then reference `$center-float` in the float/size/center rules — one place to maintain the dialog list.
+- *Per-component layer blur* (HyDE, Matt-FTW): blur each shell namespace with a tuned `ignore_alpha`, and optionally give each its own entry/exit animation. Common namespaces beyond `waybar`/`rofi`: `notifications`, `swaync-notification-window`, `swaync-control-center`, `gtk-layer-shell`, `logout_dialog`.
+  ```ini
+  layerrule {
+      name = blur-swaync
+      match:namespace = swaync-control-center
+      blur = true
+      ignore_alpha = 0.0
+      animation = slide
+  }
+  ```
+- *Smart gaps (zero gaps when a single window)* (shipped default): pair a workspace selector with `onworkspace:` window rules —
+  ```ini
+  workspace = w[tv1], gapsout:0, gapsin:0
+  windowrule = bordersize 0, match:floating 0, match:onworkspace w[tv1]
+  windowrule = rounding 0,   match:floating 0, match:onworkspace w[tv1]
+  ```
+  (`w[tv1]` = workspaces with exactly one tiled/visible window.)
+
+**Property renames to flag** (deprecated → 0.53+): `ignorezero`→`ignore_alpha`, `keepaspectratio`→`keep_aspect_ratio`, `noinitialfocus`→`no_initial_focus`, `nofocus`→`no_focus`, `suppressevent`→`suppress_event`, `idleinhibit`→`idle_inhibit`, `noblur`→`no_blur`, `noanim`→`no_anim`, `bordersize`→`border_size`; matchers `class:`/`title:`→`match:class`/`match:title`, `initialTitle:`→`match:initial_title`. Emerging: end-4/ml4w use the Lua API (`hl.window_rule{…}`, `hl.layer_rule{…}`, `hl.workspace_rule{…}`).
+
 ## workspace rules
 
 Per-workspace configuration via `workspace =`:

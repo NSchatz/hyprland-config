@@ -33,6 +33,15 @@ Extra trailing args (keyword form, repeatable):
 
 Find names/modes with `hyprctl monitors`.
 
+**Real-world idioms** (from dotfiles): the universal fallback is `monitor = , preferred, auto, auto`.
+JaKooLit ships "magic" resolution tokens — `monitor = , highrr, auto, 1` (highest refresh rate) and
+`monitor = , highres, auto, 1` (highest resolution) — for unknown hardware. For **fractional
+scaling**, pair the monitor `scale` with a matching `GDK_SCALE` env so XWayland/GTK apps don't
+double-scale (omarchy: `env = GDK_SCALE,2` alongside an HiDPI panel). Other real trailing args:
+`addreserved, TOP BOTTOM LEFT RIGHT` (reserve space, e.g. for a bar), and named-monitor `$variables`
+(`monitor = $main, 2560x1080@75, 0x0, 1`). Many rices keep `monitors.conf` separate and
+**nwg-displays**-generated so a GUI owns it.
+
 ---
 
 ## input
@@ -64,6 +73,16 @@ input {
 }
 ```
 
+**Real-world idioms** (from dotfiles): common `kb_options` recipes — `caps:swapescape` or
+`caps:escape` (Caps→Esc, the most popular), `compose:caps` (omarchy: Caps as Compose),
+`grp:win_space_toggle` / `grp:alt_shift_toggle` paired with a **multi-layout** `kb_layout = us, es`
+to cycle layouts. Sane baseline keys seen across HyDE/JaKooLit/omarchy: `accel_profile = flat`
+(disable mouse acceleration; supersedes the deprecated `force_no_accel = 1`),
+`numlock_by_default = true`, `repeat_rate = 50`, `repeat_delay = 300`. Full touchpad block:
+`natural_scroll`, `disable_while_typing`, `tap-to-click`, `clickfinger_behavior`,
+`middle_button_emulation`, `drag_lock`, `scroll_factor`. Disable a laptop touchpad via a
+`device { name = …; enabled = false }` block.
+
 ---
 
 ## general
@@ -79,8 +98,18 @@ general {
     resize_on_border = true
     allow_tearing = false       # enable per-window via window rule `immediate`
     no_focus_fallback = false
+
+    snap {                      # floating-window snapping (0.49+); off by default
+        enabled = true
+        window_gap = 10
+        monitor_gap = 10
+    }
 }
 ```
+
+**`layout = scrolling`** (Matt-FTW) is a niri-style scrolling layout but is **not** a core 0.54
+layout — it's provided by a plugin (e.g. hyprscroller). Core built-ins are `dwindle` and `master`;
+only emit `scrolling` when the plugin is installed.
 
 Note: cursor-related options that used to live here (`no_cursor_warps`,
 `cursor_inactive_timeout`) moved to the `cursor` category. `sensitivity` moved to `input`.
@@ -179,7 +208,15 @@ gesture = FINGERS, DIRECTION, ACTION [, args]
 gesture = 3, horizontal, workspace          # 3-finger swipe to change workspace
 gesture = 4, horizontal, move               # 4-finger swipe to move window
 gesture = 3, up, fullscreen
+gesture = 3, pinchin, float, tile           # pinch to toggle float/tile (HyDE)
+gesture = 4, up, dispatcher, exec, [zoom increase]   # arbitrary dispatcher (JaKooLit)
 ```
+
+**Swipe tuning** still lives in the `gestures {}` block as member vars even when you use the
+`gesture =` keyword (JaKooLit ships exactly this hybrid): `workspace_swipe_distance`,
+`workspace_swipe_invert`, `workspace_swipe_min_speed_to_force`, `workspace_swipe_cancel_ratio`,
+`workspace_swipe_create_new` (swipe past the last workspace to make a new one),
+`workspace_swipe_forever`.
 
 The older block form (deprecated on these versions):
 
@@ -228,6 +265,14 @@ misc {
     animate_manual_resizes = false
 }
 ```
+
+**Real-world keys** (verified on 0.54.3): `anr_missed_pings = 5` (how many missed pings before the
+"app not responding" dialog), `on_focus_under_fullscreen = 1` (behaviour when a window requests
+focus under a fullscreen one), `enable_swallow` + `swallow_regex` (terminal window-swallowing),
+`allow_session_lock_restore = true` (recover if the lock crashes), `animate_mouse_windowdragging`,
+`force_default_wallpaper = -1` (`-1` random anime mascot, `0` none). Related toggles live in their
+own categories: `binds { hide_special_on_workspace_change, movefocus_cycles_fullscreen }` and
+`cursor { warp_on_change_workspace, hide_on_key_press }` (all verified present on 0.54.3).
 
 ---
 

@@ -113,6 +113,20 @@ bind  = , escape, submap, reset
 submap = reset
 ```
 
+## Battle-tested techniques (from real dotfiles)
+
+Concrete, attributed idioms harvested from the big rices' keybind files. All valid on 0.54.3.
+
+- *Described binds feed a cheat-sheet* (HyDE, JaKooLit, omarchy): use `bindd = MODS, KEY, <description>, DISPATCHER, …` so every bind carries a human label that a help overlay / generated cheat-sheet can read. The `d` stacks with other flags — `bindeld`, `binddl`, `binddm`, `binddr` (described + repeat/locked/mouse/release in any order).
+- *`code:10`–`code:19` for the number row* (JaKooLit, omarchy): bind workspaces by **keycode** instead of the digit keysym so they keep working under non-US / multi-layout keyboards — `bind = $mod, code:10, workspace, 1`.
+- *App variables* (every rice): define `$term`/`$browser`/`$fileManager` (often pointed at a chooser script, e.g. `$term = $HOME/.config/.../terminal.sh`) and reference them in binds, so the user picks apps once. Upstream's `$menu = wofi --show drun` is the canonical example.
+- *Media/brightness on the lock screen* (universal): `bindl` for play/pause/next (works while locked) and `binde`/`bindel` for volume/brightness (repeat-on-hold). Route through an OSD client for on-screen feedback — `swayosd-client --output-volume raise` (Matt-FTW, omarchy) — and cap volume with `wpctl set-volume -l 1` so it can't over-amplify.
+- *Hardware switch binds* (omarchy): `bindl = , switch:on:Lid Switch, exec, …` fires on lid/dock events (locked so it always runs) — drive monitor on/off or lock from it.
+- *Push-to-talk via a press/release pair* (omarchy): `bindd = , F9, Start dictation, exec, … record start` + `binddr = , F9, Stop dictation, exec, … record stop` — `bindr` fires on release, so holding the key gates the action.
+- *Resize submap with arrows **and** HJKL* (Matt-FTW): the canonical modal-resize pattern uses `binde` (repeat) inside the submap for both arrow keys and vim keys, and `bind = , ESCAPE, submap, reset` to exit — the example below is the minimal version.
+- *Defaults + user-override split* (JaKooLit): ship the scheme in a vendor `Keybinds.conf` and let the user add/override (including `unbind = …`) in a separate `UserKeybinds.conf`, so updates never clobber custom binds.
+- *Emerging: the Lua bind API.* end-4, ml4w, and upstream's newest default express binds in Lua — `hl.bind("SUPER + Return", hl.dsp.exec_cmd(term), { locked = true, repeating = true, description = "…" })` — where the `bind` flag letters become an opts table (`locked`/`repeating`/`mouse`/`release`). The classic `bind*` `.conf` syntax above remains fully valid on 0.54.3; note Lua as the 0.5x direction.
+
 ## Dispatcher catalog (most used)
 
 | Dispatcher                | Purpose                                              |
