@@ -409,7 +409,7 @@ the two forms for one rule. See `hyprland-reference/references/window-rules.md` 
 
 # Wallpaper (pick the one chosen)
 {{#if hyprpaper}}exec-once = hyprpaper{{/if}}
-{{#if swww}}exec-once = swww-daemon{{/if}}
+{{#if swww}}exec-once = {{swww_daemon_bin}}{{/if}}
 
 # Bar + notifications
 {{#if bar}}exec-once = {{bar}}{{/if}}
@@ -428,6 +428,13 @@ the two forms for one rule. See `hyprland-reference/references/window-rules.md` 
 
 Emit only the chosen lines, without the template markers. Keep at most one polkit agent and one
 wallpaper daemon.
+
+`{{swww_daemon_bin}}` is the actual daemon binary reported by `detect-version.sh`
+(`SWWW_DAEMON_BIN=`): `swww-daemon` for upstream swww, or `awww-daemon` for the **awww** fork
+(it declares `provides=swww`, so package probes pass while the `swww-daemon` binary does not
+exist). Never hard-code `swww-daemon` — emit the detected binary, or the `exec-once` is a silent
+no-op and the user gets no wallpaper. Likewise the user sets images with `{{swww_client_bin}} img
+<path>` (`swww img` or `awww img`).
 
 ---
 

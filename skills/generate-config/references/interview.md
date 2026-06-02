@@ -155,7 +155,8 @@ but note they need installing. Never install anything.
 
 **D3. Wallpaper tool**
 - hyprpaper **(default, first-party)** → also generate a starter `hyprpaper.conf`
-- swww (animated) → `exec-once = swww-daemon`
+- swww (animated) → `exec-once = swww-daemon` (or `awww-daemon` if the `awww` fork is installed —
+  use the `SWWW_DAEMON_BIN` reported by `detect-version.sh`, never hard-code `swww-daemon`)
 - none
 
 **D4. Polkit authentication agent**

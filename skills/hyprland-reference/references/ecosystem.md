@@ -70,6 +70,7 @@ Many daemons start automatically via D-Bus activation; an explicit `exec-once` i
 |-------------|----------------------------------------------------------------------------|
 | `hyprpaper` | First-party; preloads images, low overhead. Config `hyprpaper.conf`.       |
 | `swww`      | Animated transitions; daemon + `swww img`. `exec-once = swww-daemon`.       |
+| `awww`      | Maintained **swww fork** (same upstream author). Declares `provides=swww` (so `pacman -Qq swww` matches) but ships `awww`/`awww-daemon` binaries — use `exec-once = awww-daemon` and `awww img <path>`, NOT `swww-daemon`. |
 | `swaybg`    | Minimal static background.                                                  |
 | `mpvpaper`  | Video wallpapers via mpv (AUR).                                             |
 

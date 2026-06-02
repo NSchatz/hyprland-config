@@ -63,7 +63,17 @@ have_pkg fuzzel         fuzzel
 have_pkg mako           mako
 have_pkg dunst          dunst
 have_pkg swaync         swaync
-have_pkg swww           swww-daemon             swww
+# Wallpaper daemon: upstream `swww`, or its maintained fork `awww` (declares
+# `provides=swww`, so `pacman -Qq swww` succeeds — but it ships `awww`/`awww-daemon`
+# binaries, NOT `swww`/`swww-daemon`). Detect the real binary so autostart emits a
+# command that actually exists, and report it via SWWW_DAEMON_BIN/SWWW_CLIENT_BIN.
+if command -v swww-daemon >/dev/null 2>&1; then
+    echo "HAVE_swww=1"; echo "SWWW_DAEMON_BIN=swww-daemon"; echo "SWWW_CLIENT_BIN=swww"
+elif command -v awww-daemon >/dev/null 2>&1; then
+    echo "HAVE_swww=1"; echo "SWWW_DAEMON_BIN=awww-daemon"; echo "SWWW_CLIENT_BIN=awww"
+else
+    echo "MISSING_swww=1"
+fi
 have_pkg grimblast      grimblast
 have_pkg grim           grim
 have_pkg slurp          slurp

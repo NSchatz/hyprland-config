@@ -13,10 +13,14 @@ case "$img" in "~"*) img="${HOME}${img#\~}";; esac
 
 run() { if [ "$dry" -eq 1 ]; then echo "DRY: $*"; else eval "$*"; fi; }
 
-if command -v swww >/dev/null 2>&1; then
-    if [ "$dry" -eq 0 ]; then swww query >/dev/null 2>&1 || { setsid swww-daemon >/dev/null 2>&1 & sleep 1; }; fi
-    run "swww img '$img' --transition-type any --transition-fps 60"
-    echo "SET_WALLPAPER=ok (swww)"
+# swww, or its maintained fork awww (ships awww/awww-daemon binaries instead).
+swww_bin=""; swww_daemon_bin=""
+if command -v swww >/dev/null 2>&1; then swww_bin="swww"; swww_daemon_bin="swww-daemon"
+elif command -v awww >/dev/null 2>&1; then swww_bin="awww"; swww_daemon_bin="awww-daemon"; fi
+if [ -n "$swww_bin" ]; then
+    if [ "$dry" -eq 0 ]; then "$swww_bin" query >/dev/null 2>&1 || { setsid "$swww_daemon_bin" >/dev/null 2>&1 & sleep 1; }; fi
+    run "$swww_bin img '$img' --transition-type any --transition-fps 60"
+    echo "SET_WALLPAPER=ok ($swww_bin)"
 elif command -v hyprpaper >/dev/null 2>&1; then
     if [ "$dry" -eq 0 ]; then
         hyprctl hyprpaper preload "$img" >/dev/null 2>&1 || true
