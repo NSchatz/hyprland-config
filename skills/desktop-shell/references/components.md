@@ -316,3 +316,7 @@ Nerd Font as the bar's `font-family`) live in the rice skill —
   (`@import "colors.css"` / `colors.rasi`). Generate functional config here; theme it there.
 - **Autostart**: `exec-once = waybar` / `mako` etc. live in the Hyprland config — the
   **rice** skill manages those. This skill writes the component's own config files.
+- **All-in-one builds**: a from-scratch `rice` run (Mode A) already generates these functional
+  configs itself, by reference to this file — so the user gets a working, themed shell in one pass.
+  This standalone skill is for **editing just the bar/launcher/notifications later** (add a module,
+  change position) without re-running the whole rice interview.

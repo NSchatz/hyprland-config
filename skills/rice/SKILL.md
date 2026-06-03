@@ -3,16 +3,21 @@ name: rice
 description: This skill should be used when the user runs "/hyprland-config:rice" or asks to build, theme, or restyle their Hyprland desktop — i.e. (1) GENERATE a config from scratch ("generate/create my hyprland.conf", "set up Hyprland from scratch", "make me a new config", "build a hyprland config"); (2) THEME/recolor/set fonts ("theme my desktop", "apply Catppuccin/Gruvbox/Nord/Tokyo Night/Dracula/Everforest/Kanagawa/Solarized/Rosé Pine", "change my color scheme/accent", "match my colors to my wallpaper", "set up matugen/wallust", "change my font"); (3) manage named theme PROFILES / "rices" ("save my theme as X", "switch to nord", "list my themes", "load my <name> rice", "pin my accent"); or (4) set/change/cycle the WALLPAPER ("set my wallpaper", "random wallpaper", "make my theme match my wallpaper"). It runs one interactive interview, generates a modular version-matched config, and drives a self-contained rice engine (~/.config/hypr-rice/ — one palette.conf + templates + a `rice` CLI + profiles + a user-override cascade) that themes Hyprland, hyprlock, waybar, notifications, launcher, terminal, GTK/Qt/cursor/icons/fonts and the wallpaper consistently — backing up, live-testing, and reloading after every change.
 argument-hint: "[what you want, e.g. 'set up from scratch', 'catppuccin mocha', 'switch to nord', 'wallpaper ~/x.png and theme from it']"
 allowed-tools: AskUserQuestion, Bash, Read, Write, Edit, Glob, Grep, Agent
-version: 0.3.0
+version: 0.4.0
 ---
 
 # Rice — Build & Theme the Hyprland Desktop
 
-One skill for the whole rice: **generate** a Hyprland config from scratch, **theme** every surface
-from one palette, manage named **profiles**, and set the **wallpaper** (with dynamic theming). They
-are one skill because they share one source of truth — the **rice engine** at `~/.config/hypr-rice/`
-(`palette.conf` → templates → every app's colors, driven by the `rice` CLI). Read
-`references/engine.md` for the engine contract before touching it.
+The **all-in-one** rice skill: **generate** a complete Hyprland desktop from scratch — compositor,
+terminal, status bar, launcher, notifications, lock screen — **theme** every surface from one palette,
+manage named **profiles**, and set the **wallpaper** (with dynamic theming). A from-scratch build emits
+not just the Hyprland config but the **functional** configs for the whole shell (waybar `config.jsonc` +
+`style.css`, launcher config, notification daemon config), so the user gets a working, themed desktop in
+one pass. They are one skill because they share one source of truth — the **rice engine** at
+`~/.config/hypr-rice/` (`palette.conf` → templates → every app's colors, driven by the `rice` CLI). Read
+`references/engine.md` for the engine contract before touching it. The functional shell-config recipes
+live in `../desktop-shell/references/components.md` (rice generates them by reference; the standalone
+**desktop-shell** skill remains for editing just the bar/launcher/notifications later).
 
 Treat `$ARGUMENTS` as the request (a scheme name, an image path, "set up from scratch", "switch to
 nord", freeform setup hints). Use it to pick the mode and pre-fill or skip interview questions.
@@ -30,7 +35,7 @@ all written around this skill's palette contract. For companion apps read `ecosy
 
 | The user wants… | Mode | What it does |
 |---|---|---|
-| a config built from scratch / "set up Hyprland" / "generate hyprland.conf" | **A — Generate** | full interview → modular config → install + live-test |
+| a config built from scratch / "set up Hyprland" / "generate hyprland.conf" | **A — Generate** | full interview → modular config + functional shell configs (bar/launcher/notifications) → install + live-test |
 | to theme / recolor / change scheme / set fonts / match wallpaper colors | **B — Theme** | one palette across every surface |
 | to save / list / switch a named rice, or pin a color | **C — Profiles** | the `rice` CLI + override cascade |
 | to set / change / cycle the wallpaper | **D — Wallpaper** | set wallpaper (+ optional dynamic theme) |
@@ -63,15 +68,19 @@ files), back up any existing config, install it, and live-test with auto-rollbac
 
 ### A1. Run the unified interview
 
-Gather preferences with `AskUserQuestion` using the bank in **`references/interview.md`** — walk every
-area and ask each of its sub-questions, sensible default first, skipping only what `$ARGUMENTS` or an
-existing config already answers. **`AskUserQuestion` accepts at most 4 questions per call**, so areas
-with more sub-questions than that **split across multiple consecutive calls** — do not drop or merge
-questions to fit. A from-scratch run should produce **roughly 9–12 calls** across the areas (not 3–4).
-The areas: **A** monitors & input · **B** keybinds & apps · **C** look & feel · **D** palette & fonts
-(this is what makes the result *coherent*, not a gray box — don't pick a scheme or fonts silently) ·
-**E** autostart & env · **F** companion configs. The same interview serves re-theming (Mode B uses
-only areas C/D) so the two never drift.
+Gather preferences with `AskUserQuestion` using the bank in **`references/interview.md`**, which is
+organized **one group per component**. Walk every group and ask each of its sub-questions, sensible
+default first, skipping only what `$ARGUMENTS` or an existing config already answers. **`AskUserQuestion`
+accepts at most 4 questions per call**, so groups with more sub-questions than that **split across
+multiple consecutive calls** — do not drop or merge questions to fit. A from-scratch run should produce
+**roughly 18–22 calls** (if you've asked only a handful, you've collapsed groups — go ask the rest). The
+groups: **1** monitors · **2** input · **3** keybinds · **4** default apps · **5** terminal · **6** status
+bar · **7** launcher · **8** notifications · **9** lock screen · **10** window look & feel · **11** palette
+· **12** fonts · **13** wallpaper · **14** autostart & env · **15** companion configs. Groups 5–9 ask
+**full functional depth** (e.g. bar modules & layout, launcher behavior, notification rules) so the
+generated shell configs are usable, not just colored — don't pick a scheme, bar, or fonts silently. The
+same interview serves re-theming (Mode B uses only groups 10–13: look & feel, palette, fonts, wallpaper)
+so the two never drift.
 
 ### A2. Read any existing config (context only)
 
@@ -91,21 +100,47 @@ together). Match syntax to the detected version; wire ecosystem keybinds per `co
 `col.active_border` defaults to `$accent $accent2 45deg` — those vars come from the engine in A4, so
 the look stays in sync with a later re-theme.
 
+### A3b. Generate the functional shell configs
+
+rice is all-in-one, so also stage the **functional** configs for the shell components chosen in
+interview groups 5–9, using **`../desktop-shell/references/components.md`** as the recipe source (same
+files the standalone desktop-shell skill writes). These live under their own `~/.config/<app>/` dirs
+(not in `~/.config/hypr/`), so stage them in a parallel tree, e.g. `/tmp/hypr-gen-<id>/_shell/<app>/`:
+
+- **Status bar** (group 6): `waybar/config.jsonc` (the chosen modules/position/height — **strict,
+  comment-free JSON**) + `waybar/style.css` (the archetype/transparency look, starting with
+  `@import "colors.css";`). Validate the JSON before install (`python3 -c "import json…"`); a malformed
+  `config.jsonc` makes the bar silently fail to appear.
+- **Launcher** (group 7): `wofi/config` + `wofi/style.css` (`@import "colors.css";`), or
+  `rofi/config.rasi` (+ a theme that `@import`s `colors.rasi`), or fuzzel/tofi `.ini` — per the chosen
+  tool/mode/layout.
+- **Notifications** (group 8): `mako/config` / `dunst/dunstrc` / `swaync/config.json`+`style.css` — per
+  the chosen daemon/position/timeout/behavior. Leave color keys to the engine (don't hardcode hex).
+- **Terminal** (group 5): the emulator's config (e.g. `kitty/kitty.conf`, `alacritty/alacritty.toml`,
+  `foot/foot.ini`) with opacity/padding/cursor/font-size from the interview, including its colors file
+  the engine themes (`include`/`source`).
+
+Keep module on-clicks aligned to installed tools (network → `nm-connection-editor`, audio →
+`pavucontrol`). Don't hardcode theme colors anywhere — every shell config reads the engine's colors
+file. These get backed up + installed alongside the Hyprland config in A5.
+
 ### A4. Establish the palette via the rice engine
 
-The colors/fonts from interview area D are owned by the **engine** (`~/.config/hypr-rice/`). Wiring
-it here is what makes the config come out themed and keeps a later re-theme consistent. Read
-`references/engine.md`. Then:
+The colors/fonts from interview groups 11–13 (palette, fonts, wallpaper) are owned by the **engine**
+(`~/.config/hypr-rice/`). Wiring it here is what makes the config come out themed and keeps a later
+re-theme consistent. Read `references/engine.md`. Then:
 
 1. Scaffold (idempotent — never clobbers an existing palette):
    `bash "${CLAUDE_PLUGIN_ROOT}/skills/rice/scripts/rice-init.sh"`
-2. Write `~/.config/hypr-rice/palette.conf` from the area-D answers — resolve a named scheme
+2. Write `~/.config/hypr-rice/palette.conf` from the group 11–13 answers — resolve a named scheme
    (`references/palettes.md`), a wallpaper palette (`scripts/palette-from-wallpaper.sh`), or manual
    hex into the contract keys + `scheme`/`wallpaper`/`font_ui`/`font_mono`. **Always populate
    `accent2`** (default it to `accent` on the manual path) — the border template references it.
 3. Fill `<staging>/colors.conf` so it installs with the rest (don't let the engine write to
    `~/.config/hypr` before A5): take `templates/hyprland.tmpl`, substitute its `{{accent}}` etc.
-   from `palette.conf`, and `Write` the result. Likewise fill any companion-config color placeholders.
+   from `palette.conf`, and `Write` the result. Likewise fill any companion-config color placeholders
+   **and the staged shell configs' colors files** (`_shell/<app>/colors.css`/`.rasi` etc.) by rendering
+   the matching `templates/*.tmpl` so the bar/launcher/notifications install already themed.
 4. **Only after a successful install** (A5 returns `ok`/`installed-untested`), run
    `bash ~/.config/hypr-rice/rice apply` so any already-present apps pick up the palette. **Skip it on
    `rolled-back`/`install-failed`** — it would re-render outside the safe-apply harness.
@@ -114,13 +149,22 @@ it here is what makes the config come out themed and keeps a later re-theme cons
 
 1. **Static validation:** invoke the **hyprland-config-validator** agent (Agent tool) on the staging
    dir with the detected version; fix any ERRORs and regenerate before installing.
-2. **Safe install:** `bash "${CLAUDE_PLUGIN_ROOT}/skills/rice/scripts/safe-apply.sh" /tmp/hypr-gen-<id>`
+2. **Validate the bar JSON:** for any staged `waybar/config.jsonc`, confirm it parses as strict JSON
+   (`python3 -c "import json,sys; json.load(open(sys.argv[1]))" <file>`) before installing — a broken
+   bar silently fails to appear.
+3. **Safe install (Hyprland):** `bash "${CLAUDE_PLUGIN_ROOT}/skills/rice/scripts/safe-apply.sh" /tmp/hypr-gen-<id>`
    — it timestamp-backs up the **entire** `~/.config/hypr`, installs, then `hyprctl reload` +
    `configerrors`, and **auto-rolls-back** if the new config fails. Read the final `SAFE_APPLY=` line:
    `ok` (installed + clean), `rolled-back` (errors shown; restored — fix + retry),
    `installed-untested` (no running Hyprland; test next login), `install-failed`/`errors-no-backup`
    (surface + stop). Relay the `BACKUP=` path. Respect a `HYPR_DIR` override. (`install-config.sh` /
    `verify-config.sh` exist for running a step alone — see `hyprland-reference/references/testing.md`.)
+4. **Install the shell configs:** only after `ok`/`installed-untested`, back up then install the staged
+   `_shell/<app>/` tree to `~/.config/<app>/`: first
+   `bash "${CLAUDE_PLUGIN_ROOT}/scripts/backup-path.sh" ~/.config/waybar ~/.config/wofi ~/.config/rofi ~/.config/mako ~/.config/dunst ~/.config/kitty …`
+   (only the dirs you're writing), then copy each staged dir into place. Reload running apps with
+   `bash "${CLAUDE_PLUGIN_ROOT}/skills/rice/scripts/apply-theme.sh"` (waybar `SIGUSR2`, mako/dunst
+   reload — only if running). Skip on `rolled-back`/`install-failed`.
 
 ### A6. Report (and start the daemons)
 
@@ -149,8 +193,9 @@ transparency, the archetypes — read the styling library (`design-principles.md
 
 ### B1. Choose the palette source & fonts (always ask)
 
-Run interview **areas C/D** from `references/interview.md` (palette source → scheme/wallpaper/manual,
-accent, light/dark; UI font; monospace/Nerd font). The named-scheme catalog is `references/palettes.md`;
+Run interview **groups 10–13** (look & feel, palette, fonts, wallpaper) from `references/interview.md`
+(palette source → scheme/wallpaper/manual, accent, light/dark; UI font; monospace/Nerd font). The
+named-scheme catalog is `references/palettes.md`;
 for the wallpaper source, `scripts/palette-from-wallpaper.sh` produces the palette when matugen/wallust
 is present. Resolve every answer into the **palette contract** (`theming.md`) as bare `RRGGBB`. Don't
 pick a scheme or fonts silently — present them.
@@ -253,9 +298,14 @@ Set the wallpaper and optionally re-theme the whole desktop from it — the cano
 
 ## Resources
 
-- **`references/interview.md`** — the one unified question bank (areas A–F; re-theming reuses C/D).
+- **`references/interview.md`** — the one unified question bank, one group per component (15 groups;
+  re-theming reuses groups 10–13). Groups 5–9 (terminal/bar/launcher/notifications/lock) ask full
+  functional depth.
 - **`references/config-templates.md`** — annotated templates for every generated Hyprland file
   (Mode A): `env`/`monitors`/`input`/`looknfeel`/`binds`/`windowrules`/`autostart` + companion configs.
+- **`../desktop-shell/references/components.md`** — the functional shell-config recipes rice generates
+  in A3b (waybar `config.jsonc`+`style.css`, wofi/rofi/fuzzel, mako/dunst/swaync). Same file the
+  standalone desktop-shell skill uses.
 - **`references/theming.md`** — theming architecture, palette contract, per-surface mechanics, reloads.
 - **`references/templates.md`** — per-app **color** templates the rendered colors files use.
 - **`references/palettes.md`** — named schemes → contract hex (+ matching GTK/cursor/icons).

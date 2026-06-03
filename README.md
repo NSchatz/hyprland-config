@@ -6,7 +6,10 @@ up, into `~/.config/hypr`.
 
 ## What it does
 
-- **Interviews you** about monitors & input, keybinds & apps, look & feel, and autostart & env.
+- **Interviews you** one component at a time — monitors, input, keybinds, default apps, terminal,
+  status bar, launcher, notifications, lock screen, look & feel, palette, fonts, wallpaper, autostart
+  & env — then generates the whole desktop (Hyprland config **plus** the functional bar/launcher/
+  notification configs), themed from one palette.
 - **Detects your installed Hyprland version** (`hyprctl version`) and emits matching syntax —
   no deprecated options from old tutorials. Conventions are grounded in the **shipped default
   config** and popular community dotfiles: the official keybind scheme (Q=terminal, C=close,
@@ -47,10 +50,10 @@ up, into `~/.config/hypr`.
 
 | Type  | Name                        | Purpose                                                        |
 |-------|-----------------------------|----------------------------------------------------------------|
-| Skill | `rice`                      | User-invoked. The whole rice in one skill: **generate** a config from scratch (interview incl. palette & fonts → modular config → install + live-test), **theme** every surface from one palette (named / wallpaper-generated / manual + font choices), manage named **profiles** (12 presets + a user-override cascade), and set/cycle the **wallpaper** with dynamic theming — all driven by a self-contained rice engine (`~/.config/hypr-rice/` with `palette.conf` + templates + a `rice` CLI). |
+| Skill | `rice`                      | User-invoked. The **all-in-one** rice: **generate** a whole desktop from scratch (per-component interview → modular Hyprland config **+ functional bar/launcher/notification/terminal configs** → install + live-test), **theme** every surface from one palette (named / wallpaper-generated / manual + font choices), manage named **profiles** (12 presets + a user-override cascade), and set/cycle the **wallpaper** with dynamic theming — all driven by a self-contained rice engine (`~/.config/hypr-rice/` with `palette.conf` + templates + a `rice` CLI). |
 | Skill | `edit-config`               | User-invoked. Reads an existing config and makes changes, **testing after every change** with auto-rollback. |
 | Skill | `shell-config`              | User-invoked. Configures the terminal shell (bash/zsh/fish): prompt, aliases, env, history, a startup **fetch** (fastfetch default / neofetch), and modern-CLI integration — syntax-checked after every change. |
-| Skill | `desktop-shell`             | User-invoked. Functional configs for the bar (waybar), launcher (wofi/rofi), and notifications (mako/dunst). |
+| Skill | `desktop-shell`             | User-invoked. Functional configs for the bar (waybar), launcher (wofi/rofi), and notifications (mako/dunst) — for editing these later; a from-scratch `rice` build already generates them. |
 | Skill | `dotfiles`                  | User-invoked. Version-controls the configs in git (bare-repo / stow / chezmoi) and commits after each verified change. |
 | Skill | `hyprland-reference`        | Auto-triggered. Hyprland config syntax, ecosystem, **testing**, and a **styling reference library** (per-package design guides + cross-cutting design principles, researched from the community). |
 | Command | `reset-config`            | User-invoked. Wipes `~/.config/hypr` to a minimal bare-bones `hyprland.conf` — full backup + live-test + auto-rollback. |
