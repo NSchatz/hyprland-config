@@ -5,7 +5,15 @@ from scratch (Mode A: ask all areas) or **re-theming** an existing desktop (Mode
 **C** and **D**). Wallpaper-only (Mode D) and profile (Mode C) flows ask nothing here beyond the
 image path / profile name. Keeping one bank means a fresh config and a later re-theme can never drift.
 
-Ask with `AskUserQuestion`, **batched by area** (one call per area, several questions per call).
+Ask with `AskUserQuestion`, **grouped by area**. The tool accepts **at most 4 questions per call**, so
+any area with more than four sub-questions **must be split across several consecutive calls** — never
+drop, merge, or silently skip a sub-question just to fit the cap. Walk every area in order and ask each
+of its sub-questions; an area only collapses to fewer questions when `$ARGUMENTS` or an existing config
+already answers some. Concretely, a from-scratch run (Mode A) should produce **roughly 9–12
+`AskUserQuestion` calls** across areas A–F (A≈1, B≈2, C≈2, D≈2 + the accent/wallpaper picks, E≈2, F≈1);
+a re-theme (Mode B, areas C+D only) should produce **about 4–5 calls**. If you find yourself asking only
+3–4 calls total for a from-scratch run, you have collapsed areas incorrectly — go back and ask the rest.
+
 Always present the recommended default — marked **(default)** — as the first option, so "just pick
 good defaults" can skip ahead. Skip anything already answered by `$ARGUMENTS` or discovered in an
 existing config. Run `detect-version.sh` + `detect-theme-tools.sh` first so options reflect what's

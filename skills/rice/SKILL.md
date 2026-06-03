@@ -63,12 +63,15 @@ files), back up any existing config, install it, and live-test with auto-rollbac
 
 ### A1. Run the unified interview
 
-Gather preferences with `AskUserQuestion` using the bank in **`references/interview.md`** — one call
-per area, several questions per call, sensible default first, skip anything answered by `$ARGUMENTS`
-or an existing config. The areas: **A** monitors & input · **B** keybinds & apps · **C** look & feel
-· **D** palette & fonts (this is what makes the result *coherent*, not a gray box — don't pick a
-scheme or fonts silently) · **E** autostart & env · **F** companion configs. The same interview
-serves re-theming (Mode B uses only areas C/D) so the two never drift.
+Gather preferences with `AskUserQuestion` using the bank in **`references/interview.md`** — walk every
+area and ask each of its sub-questions, sensible default first, skipping only what `$ARGUMENTS` or an
+existing config already answers. **`AskUserQuestion` accepts at most 4 questions per call**, so areas
+with more sub-questions than that **split across multiple consecutive calls** — do not drop or merge
+questions to fit. A from-scratch run should produce **roughly 9–12 calls** across the areas (not 3–4).
+The areas: **A** monitors & input · **B** keybinds & apps · **C** look & feel · **D** palette & fonts
+(this is what makes the result *coherent*, not a gray box — don't pick a scheme or fonts silently) ·
+**E** autostart & env · **F** companion configs. The same interview serves re-theming (Mode B uses
+only areas C/D) so the two never drift.
 
 ### A2. Read any existing config (context only)
 
