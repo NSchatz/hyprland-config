@@ -118,3 +118,12 @@ gtk.css color overrides and keep the user's current theme. Common matches (insta
 
 If the matching theme isn't installed, do not install it — apply colors via `gtk.css` overrides
 and tell the user the package if they want the full theme.
+
+**Caveat — murrine-dependent AUR themes.** Several of the full GTK themes above (e.g.
+`everforest-gtk-theme-git`, and other Fausto-Korpsvart themes) `depends=gtk-engine-murrine`, which
+on current Arch pulls in the AUR `gtk2` (GTK2 was dropped from the repos) — and that builds GTK2 from
+a giant source clone that often fails on HTTP/2, so `yay` rolls the whole thing back. murrine is
+GTK2-only; skip the package and **build the theme from SCSS with `sassc`** (`themes/build.sh` +
+`install.sh -d ~/.local/share/themes -c dark -t <accent> --libadwaita`), and copy the repo's
+`icons/` for matching folder colors. Full recipe + the GTK_THEME-env/cursor gotchas:
+`hyprland-reference/references/styling/gtk-qt.md`.

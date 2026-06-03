@@ -89,6 +89,18 @@ env = ELECTRON_OZONE_PLATFORM_HINT,auto
 > `env = ELECTRON_OZONE_PLATFORM_HINT,auto` (harmless everywhere); leave the rest out. Re-add the
 > proprietary block only if the user later switches to the `nvidia` driver.
 
+> **uwsm sessions: `env.conf` is NOT the authoritative env source.** If `detect-version.sh` reports
+> `UWSM_SESSION=1` / `UWSM_ENV=`, the session is launched by **uwsm**, which exports
+> `~/.config/uwsm/env` (+ `env-hyprland`) **before** the compositor starts — and those values
+> **override** hypr `env.conf` for app launches. uwsm env files commonly set `XCURSOR_THEME`,
+> `HYPRCURSOR_THEME`, the toolkit vars, **and `GTK_THEME=`** (which force-overrides the GTK theme on
+> every GTK app, regardless of gsettings/`settings.ini`). So when generating/changing env on a uwsm
+> system, write cursor/GTK/toolkit vars into `~/.config/uwsm/env` too (back it up first), not just
+> `env.conf` — otherwise GTK apps and the cursor keep the old theme. Live-propagate to the running
+> session with `hyprctl setenv VAR value` **and** `dbus-update-activation-environment --systemd
+> VAR=value` (pass explicit `VAR=value` pairs — passing bare names re-reads the *calling shell's*
+> stale values).
+
 ---
 
 ## monitors.conf
@@ -217,10 +229,26 @@ animations {
 }
 
 {{layout_block}}   # dwindle {} or master {} per choice
+
+# Cursor — emit this block when detect-version.sh reports CURSOR_NO_HARDWARE_RECOMMENDED=1
+# (GPU_DRIVER nouveau or nvidia). Their hardware-cursor planes blank/flicker when the screen is
+# idle (nothing repainting), so the cursor "disappears when it sits still" — software cursors fix it.
+{{#if cursor_no_hardware}}
+cursor {
+    no_hardware_cursors = true
+    inactive_timeout = 0          # never hide the cursor on inactivity
+}
+{{/if}}
 ```
 
 For a "snappy" preference, scale the speeds down (e.g. multiply by ~0.6). For "off", set
 `enabled = false` and you may drop the `animation =` lines.
+
+**Disappearing cursor (nouveau/NVIDIA).** A cursor that vanishes after sitting still a few seconds
+is almost always the hardware-cursor plane on `nouveau` (or the proprietary `nvidia` driver) — *not*
+`cursor:inactive_timeout` (which defaults to 0). Emit the `cursor { no_hardware_cursors = true }`
+block above when `CURSOR_NO_HARDWARE_RECOMMENDED=1`; it renders the cursor in software so it stays
+visible. Apply live with `hyprctl keyword cursor:no_hardware_cursors true`.
 
 Layout blocks:
 

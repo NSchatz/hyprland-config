@@ -106,6 +106,7 @@ Concrete, attributed moves harvested from real dotfiles and the theme installers
 - *Symlink a theme's `gtk-4.0/` into `~/.config` — the universal libadwaita recolor* (catppuccin/gtk, vinceliuice): when you want a full theme (not just a `@define-color` override), `ln -sf <theme>/gtk-4.0/{gtk.css,gtk-dark.css,assets} ~/.config/gtk-4.0/`. Ship **both** `gtk.css` and `gtk-dark.css` so `color-scheme` light/dark switching works. (Caveat: the symlink method breaks *live* theme-switching — you relog or restart apps. The plugin's own per-palette `gtk-4.0/gtk.css` `@define-color` route avoids this.)
 - *vinceliuice installers automate it* (Graphite, Colloid): `./install.sh -l` (`--libadwaita`) does exactly that symlink. Pick the accent at install time with `-t <color>`, match Hyprland's rounding with `--round <2–16px>`, and use `--tweaks` for variants — Colloid's `--tweaks` even carry **named palettes** (`catppuccin|gruvbox|nord|everforest|dracula`), and `-l`'s default ColorScheme follows the system light/dark switch.
 - *Flatpaks need extra grants* (catppuccin/gtk): `flatpak override --filesystem=$HOME/.local/share/themes` + `--env=GTK_THEME=<name>` to reach sandboxed apps (they honor `color-scheme` via the portal regardless).
+- *murrine-dependent GTK themes can be un-`yay`-installable — build from SCSS instead* (Fausto-Korpsvart Everforest/Catppuccin, and most full GTK themes): their AUR package `depends=gtk-engine-murrine`, but on current Arch **`gtk2` + `gtk-engine-murrine` were dropped from the official repos** (GTK2 is EOL) and are AUR-only — and the AUR `gtk2` compiles GTK2 from source via a huge GNOME git clone that **reliably fails on HTTP/2** (`curl 92 … PROTOCOL_ERROR`), so the whole dependency layer rolls back. murrine is **GTK2-only** (it only themes legacy GTK2 apps you probably don't have), so skip the package: clone the theme repo and run its own `themes/build.sh` + `themes/install.sh -d ~/.local/share/themes -c dark -t <accent> -s standard --libadwaita`, which need **only `sassc`** (official repo). The repo's `icons/` dir holds a matching icon theme — copy it to `~/.local/share/icons/` for green/scheme-colored folders (the icon theme is separate from the GTK theme; that's why folders stay blue otherwise). If a git clone hits the HTTP/2 error, `git -c http.version=HTTP/1.1 clone …`.
 
 **GTK settings under Wayland.**
 - *Set gsettings at startup, every key* (JaKooLit `initial-boot.sh`): there's no XSettings daemon on wlroots, so push the full quartet from an `exec-once` — `gsettings set org.gnome.desktop.interface {color-scheme,gtk-theme,icon-theme,cursor-theme}` + `cursor-size`. A Dark/Light toggle just rewrites `color-scheme` + `gtk-theme` and caches the mode in a flag file.
@@ -213,7 +214,23 @@ same for legacy Qt5 apps.
 - **Cursor size mismatch / disappearing cursor.** Set the cursor in all three: `gsettings`
   (`cursor-theme` + `cursor-size`), `XCURSOR_THEME`/`XCURSOR_SIZE` (XWayland + GTK fallback), and
   `HYPRCURSOR_THEME`/`HYPRCURSOR_SIZE` (native Hyprland). Mismatched sizes cause a jumping cursor;
-  run `hyprctl setcursor <theme> <size>` to fix it live.
+  run `hyprctl setcursor <theme> <size>` to fix it live. A cursor that **vanishes when it sits
+  still** (not on movement) is a *different* bug: the **hardware-cursor plane on nouveau/NVIDIA**
+  blanks when the screen is idle. Fix with `cursor { no_hardware_cursors = true }` in the Hyprland
+  config (`hyprctl keyword cursor:no_hardware_cursors true` live) — software cursors keep it visible.
+- **`GTK_THEME` env silently overrides your GTK theme.** If a session env exports `GTK_THEME=<name>`
+  (the default with **uwsm** — it's in `~/.config/uwsm/env`, and many install scripts add it), GTK
+  apps use that theme and **ignore gsettings / `settings.ini` / `gtk.css` entirely** — so a re-theme
+  appears to "not take" on GTK apps. Find it (`env | grep GTK_THEME`, check `~/.config/uwsm/env`,
+  `~/.config/environment.d/`, `~/.profile`), update it to the new theme, then live-propagate:
+  `hyprctl setenv GTK_THEME <name>` + `dbus-update-activation-environment --systemd GTK_THEME=<name>`
+  (explicit `VAR=value` — bare names re-read the calling shell's stale value). Apps pick it up on
+  next launch. Likewise `XCURSOR_THEME`/`HYPRCURSOR_THEME` live in that env file.
+- **`~/.config/gtk-4.0/gtk.css` is sometimes a symlink** to a system theme (Catppuccin-GTK and other
+  full-theme packages link the whole `gtk-4.0/` dir). Writing your own `@define-color` overrides
+  through it fails with **"Permission denied"** (root-owned target under `/usr/share/themes`). Delete
+  the symlink and write a real file (or, if you want the full theme, keep the symlink and skip the
+  override). Same applies to `assets`/`gtk-dark.css` links.
 - **Theme installed but not selected.** Dropping a theme in `~/.themes` does nothing until a setting
   points at it. Verify with `gsettings get org.gnome.desktop.interface gtk-theme`.
 - **Wrong install dir.** GTK3 themes go in `~/.themes` *or* `~/.local/share/themes`; GTK4

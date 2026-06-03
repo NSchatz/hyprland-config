@@ -50,6 +50,16 @@ Apps without an include mechanism (mako, dunst) are not in the default manifest 
 written whole by the desktop-shell skill, which folds the colors in. Templates for them ship in
 `templates/` for manual use.
 
+**gtk4 gotchas.** (1) `~/.config/gtk-4.0/gtk.css` may already be a **symlink** to a system GTK theme
+(Catppuccin-GTK etc. link the whole `gtk-4.0/` dir) — rendering through it errors with *"Permission
+denied"* (root-owned target). `render-templates.sh` `rm`s a symlinked output before writing, so the
+render replaces it with a rice-owned file. (2) If the user installs a **full** GTK theme via
+`--libadwaita` (which symlinks the theme's `gtk-4.0/gtk.css` into `~/.config`), the engine's `gtk4`
+line would fight it — **comment out the `gtk4` manifest line** so the theme owns that file (the GTK
+*colors* are then the theme's, not engine-driven; re-enable to go back to palette overrides). (3) A
+session `GTK_THEME=` env var (common under **uwsm**) overrides the rendered `gtk.css` for GTK apps —
+fix the env source too (see `theming.md` → GTK, and `detect-version.sh` `UWSM_*`).
+
 ## Shell & prompt theming (fish · starship · oh-my-posh)
 
 The shell is a themed surface too — both the **prompt** (starship / oh-my-posh) and **fish's own

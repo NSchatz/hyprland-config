@@ -48,6 +48,10 @@ render_one() {
         content="${content//\{\{$k\}\}/${P[$k]}}"
     done
     mkdir -p "$(dirname "$out")"
+    # If the output is a symlink (e.g. ~/.config/gtk-4.0/gtk.css pointing at a system GTK theme),
+    # writing through it can fail with "Permission denied" (root-owned target) or clobber the theme.
+    # Replace the symlink with a real, rice-owned file instead.
+    [ -L "$out" ] && rm -f "$out"
     printf '%s' "$content" > "$out"
 }
 

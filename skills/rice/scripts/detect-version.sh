@@ -89,6 +89,20 @@ have_pkg blueman        blueman-applet          blueman
 have_pkg qt6ct          qt6ct
 have_pkg nwg_look       nwg-look
 
+# --- Session env manager: uwsm (Universal Wayland Session Manager) ---
+# When Hyprland is launched via uwsm, ~/.config/uwsm/env (+ env-hyprland) is the AUTHORITATIVE
+# session-environment source: it is exported before the compositor starts and OVERRIDES hypr
+# `env.conf` for app launches — notably GTK_THEME, XCURSOR_THEME/HYPRCURSOR_THEME, and QT_*.
+# So any cursor/GTK/toolkit env change must edit THOSE files too, not just env.conf/gsettings,
+# or GTK apps keep the old theme. Report the env files so the rice skill knows to update them.
+if command -v uwsm >/dev/null 2>&1; then echo "HAVE_uwsm=1"; else echo "MISSING_uwsm=1"; fi
+[ -f "$HOME/.config/uwsm/env" ]          && echo "UWSM_ENV=$HOME/.config/uwsm/env"
+[ -f "$HOME/.config/uwsm/env-hyprland" ] && echo "UWSM_ENV_HYPRLAND=$HOME/.config/uwsm/env-hyprland"
+# Active uwsm-managed session? (the systemd user unit is named wayland-wm@<compositor>.service)
+if systemctl --user list-units --type=service --state=active 2>/dev/null | grep -q 'wayland-wm@'; then
+    echo "UWSM_SESSION=1"
+fi
+
 # --- Active GPU driver (decides whether the proprietary NVIDIA env block is appropriate) ---
 # An NVIDIA *card* does NOT imply the proprietary driver. Many systems run the open `nouveau`
 # driver, under which `LIBVA_DRIVER_NAME=nvidia` / `__GLX_VENDOR_LIBRARY_NAME=nvidia` /
@@ -109,9 +123,13 @@ fi
 if have_mod nvidia || command -v nvidia-smi >/dev/null 2>&1; then
     echo "GPU_DRIVER=nvidia"
     echo "NVIDIA_PROPRIETARY=1"
+    # NVIDIA (proprietary) and nouveau both have flaky hardware-cursor planes — the cursor can
+    # vanish/flicker when the screen is idle. Recommend software cursors (cursor:no_hardware_cursors).
+    echo "CURSOR_NO_HARDWARE_RECOMMENDED=1"
 elif have_mod nouveau || [ "$gpu_bound" = "nouveau" ]; then
     echo "GPU_DRIVER=nouveau"
     echo "NVIDIA_PROPRIETARY=0"   # NVIDIA card but OPEN driver — do NOT set proprietary env
+    echo "CURSOR_NO_HARDWARE_RECOMMENDED=1"   # nouveau blanks the HW cursor when idle
 elif [ -n "$gpu_bound" ]; then
     echo "GPU_DRIVER=${gpu_bound}"   # amdgpu / radeon / i915 / etc.
     echo "NVIDIA_PROPRIETARY=0"

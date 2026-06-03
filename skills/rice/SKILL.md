@@ -204,6 +204,13 @@ a missing placeholder), **or** tell them they appear on next login. After starti
 conflict** (only one can own `org.freedesktop.Notifications`; stop the stray with `pkill -x dunst`
 first), and a **wrong wallpaper binary** (use `SWWW_DAEMON_BIN`, not a hard-coded `swww-daemon`).
 
+Two more, keyed off `detect-version.sh`: when `CURSOR_NO_HARDWARE_RECOMMENDED=1` (nouveau/NVIDIA),
+include the `cursor { no_hardware_cursors = true }` block (see `config-templates.md`) or the cursor
+**disappears when idle**; and when `UWSM_SESSION=1`/`UWSM_ENV=`, remember that `~/.config/uwsm/env`
+overrides hypr `env.conf` for app launches (cursor/`GTK_THEME`/toolkit vars) — write env changes
+there too, and live-propagate with `hyprctl setenv VAR value` + `dbus-update-activation-environment
+--systemd VAR=value` (explicit pairs).
+
 ---
 
 ## Mode B — Theme every surface from one palette
@@ -239,6 +246,16 @@ reproducible, re-applyable, and version-controllable (see `references/engine.md`
 5. `bash ~/.config/hypr-rice/rice apply` (renders every template + reloads running apps). Apply fonts
    across `gsettings` (`font-name`/`monospace-font-name`), GTK `settings.ini`, kitty `font_family`,
    waybar `font-family` per `fonts.md`. For the cursor, also `hyprctl setcursor <Cursor> <size>`.
+
+**GTK theming gotchas** (see `references/theming.md` → GTK and `styling/gtk-qt.md`): a session
+**`GTK_THEME=` env var (default under uwsm — `~/.config/uwsm/env`) overrides gsettings/`settings.ini`
+for all GTK apps**, so a re-theme silently doesn't take until you fix that env and live-propagate it
+(`hyprctl setenv` + `dbus-update-activation-environment --systemd GTK_THEME=…` with explicit values).
+**Folder color is the icon theme, not the GTK theme** — set a scheme-matched `icon-theme` too, or
+folders stay blue. A full GTK theme that depends on `gtk-engine-murrine` may be un-`yay`-installable
+(gtk2 dropped from repos) — **build it from SCSS with `sassc`** instead. And `~/.config/gtk-4.0/
+gtk.css` may be a symlink to a system theme (engine render then hits *Permission denied* — now
+handled by `render-templates.sh`).
 
 For one-off, non-engine theming the per-app templates in `references/templates.md` and
 `scripts/apply-theme.sh` (reloads running apps + cursor) remain valid.
@@ -317,6 +334,12 @@ Set the wallpaper and optionally re-theme the whole desktop from it — the cano
 - Reload running apps rather than forcing a logout; only reload what's running.
 - Don't install packages — suggest them.
 - After any Hyprland color/config change, run `verify-config.sh`; never leave it in `VERIFY=errors`.
+- **On uwsm sessions** (`detect-version.sh` → `UWSM_SESSION=1`/`UWSM_ENV=`), `~/.config/uwsm/env` is
+  the authoritative env source and **overrides hypr `env.conf`** for app launches — change
+  cursor/`GTK_THEME`/toolkit env *there* too (back it up first), and live-propagate with
+  `dbus-update-activation-environment --systemd VAR=value` (explicit pairs, never bare names).
+- **Cursor disappears when idle on nouveau/NVIDIA** → `cursor:no_hardware_cursors = true`
+  (`CURSOR_NO_HARDWARE_RECOMMENDED=1`). **GTK folder color = the icon theme**, not the GTK theme.
 
 ## Resources
 

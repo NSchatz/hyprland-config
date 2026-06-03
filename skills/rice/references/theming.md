@@ -129,11 +129,23 @@ of `@define-color` entries and `@import` it. Reload: `killall -SIGUSR2 waybar`.
 - **GTK4 / libadwaita**: many apps ignore full GTK themes. Lever = color overrides in
   `~/.config/gtk-4.0/gtk.css` with `@define-color` (e.g. `@define-color accent_color #...;`,
   `window_bg_color`, `view_bg_color`). libadwaita honors `color-scheme` (dark/light) and accent.
-  Some users symlink a theme's `gtk-4.0` assets into `~/.config/gtk-4.0/`.
+  For a *full* theme (e.g. an installed Everforest/Catppuccin GTK theme), symlink its `gtk-4.0/`
+  into `~/.config/gtk-4.0/` (`--libadwaita` installers do this) — but then the **rice engine's
+  `gtk4` render owns the same `gtk.css`**, so disable that manifest line (or it fights the symlink).
+- **`gtk.css` may already be a symlink** to a system theme (e.g. `/usr/share/themes/<catppuccin>/…`).
+  Writing the engine's `gtk-4.0/gtk.css` through it fails with **"Permission denied"** (root-owned
+  target). `render-templates.sh` now `rm`s a symlinked output before writing — if doing it by hand,
+  delete the symlink first.
+- **`GTK_THEME` env overrides everything.** If a session env file exports
+  `GTK_THEME=<name>` (very common with **uwsm** — see `config-templates.md` → env.conf, and the
+  `UWSM_*` lines from `detect-version.sh`), GTK apps use *that* theme regardless of gsettings /
+  `settings.ini` / `gtk.css`. Fix the env source too (`~/.config/uwsm/env`), then live-propagate
+  with `hyprctl setenv GTK_THEME <name>` + `dbus-update-activation-environment --systemd
+  GTK_THEME=<name>` (explicit `VAR=value`). nautilus and other GTK apps re-read it on next launch.
 - **Caveat (Hyprland):** GTK4 theming can be flaky; cursor changes via gsettings sometimes don't
   apply on Hyprland — also set the cursor live with `hyprctl setcursor <Theme> <size>` and the
   `HYPRCURSOR_THEME`/`XCURSOR_THEME` env. `nwg-look` is a GUI that writes the GTK3 settings +
-  gsettings for you.
+  gsettings for you (it also manages `~/.gtkrc-2.0` and `~/.icons/default/index.theme`).
 
 ### Qt
 
@@ -145,8 +157,20 @@ of `@define-color` entries and `@import` it. Reload: `killall -SIGUSR2 waybar`.
 ### Cursor & icons & fonts
 
 - **Cursor**: gsettings `cursor-theme`/`cursor-size`, env `XCURSOR_THEME`/`XCURSOR_SIZE` +
-  `HYPRCURSOR_THEME`/`HYPRCURSOR_SIZE`, and live `hyprctl setcursor <Theme> <size>`.
-- **Icons**: gsettings `icon-theme` (e.g. Papirus). Applies live to GTK apps.
+  `HYPRCURSOR_THEME`/`HYPRCURSOR_SIZE`, and live `hyprctl setcursor <Theme> <size>`. For a fully
+  consistent switch, also update the **other** places that record the cursor: `~/.gtkrc-2.0`
+  (GTK2), `~/.config/gtk-{3,4}.0/settings.ini`, `~/.config/xsettingsd/xsettingsd.conf`, the Xcursor
+  default `~/.icons/default/index.theme` (`Inherits=<theme>` — what nwg-look writes and what
+  fastfetch reads), and the **uwsm** env file if present. (Bibata is xcursor-only, so leave
+  `HYPRCURSOR_THEME` to fall back, or set it too and Hyprland uses xcursor.) **Disappearing-when-idle
+  cursor on nouveau/NVIDIA** → `cursor:no_hardware_cursors = true` (see `config-templates.md`), not a
+  cursor-theme issue.
+- **Icons**: gsettings `icon-theme` (e.g. Papirus). Applies live to GTK apps. **Folder color is the
+  icon theme, not the GTK theme** — blue folders after a re-theme means the icon theme didn't change.
+  Use a scheme-matched icon set (Papirus + `papirus-folders -C <accent>`, or a theme that ships its
+  own icons like the Everforest GTK repo's `Everforest-Dark`). Set it in the same places as the GTK
+  theme name (gsettings, GTK2/3/4 `settings.ini`, xsettingsd) and rebuild the cache
+  (`gtk-update-icon-cache`).
 - **Fonts**: gsettings `font-name`; per-app font settings (kitty `font_family`, waybar CSS).
 
 ## Apply + reload
