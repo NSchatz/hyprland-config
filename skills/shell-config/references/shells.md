@@ -158,6 +158,38 @@ Concrete, attributed idioms from real rices. All guard-friendly.
 - *fish needs no plugin manager* for autosuggest/highlight (built in); use `conf.d/*.fish` for auto-sourced fragments, **fisher** only when you want plugins, `abbr -a gco 'git checkout'` (expands inline, editable) over `alias`, and `fish_add_path ~/.local/bin` (idempotent) instead of mangling `$PATH`. caelestia/Matt-FTW put `starship init fish | source` inside `if status is-interactive`.
 - *atuin on bash needs a preexec shim* — `atuin init bash` requires **ble.sh** or **bash-preexec** loaded first; on zsh/fish it's standalone.
 
+## Fish plugins (fisher)
+
+Fish's headline "autocomplete" — **autosuggestions** (ghost-text from history, accept with → / Ctrl-F)
+and rich tab-completions — is **built in, no plugin needed**. Plugins are optional polish, installed
+with **fisher** (the de-facto manager). Make it **reproducible**: list plugins in
+`~/.config/fish/fish_plugins` (one `owner/repo` per line) and version-control that file — `fisher
+update` (re)installs exactly that set on any machine.
+
+Bootstrap (run inside fish, after fish is installed):
+```fish
+curl -sL https://raw.githubusercontent.com/jorgebucaran/fisher/main/functions/fisher.fish | source
+fisher update    # installs everything listed in ~/.config/fish/fish_plugins
+```
+
+High-value, low-risk set (all pure-fish, no daemons):
+- **jorgebucaran/autopair.fish** — auto-close/delete brackets, quotes, parens.
+- **PatrickF1/fzf.fish** — fuzzy **Ctrl-R** history, file/dir/git/process search. *Needs the `fzf`
+  package* (suggest it; the plugin only adds the bindings).
+- **meaningful-ooo/sponge** — auto-prunes failed/typo'd commands from history, keeping
+  autosuggestions clean.
+- **franciscolourenco/done** — desktop notification (via the notification daemon) when a long
+  command finishes while the terminal is unfocused.
+
+`jorgebucaran/fisher` itself goes in `fish_plugins` so `fisher update` keeps the manager current too.
+The plugin set + `fish_plugins` are part of the rice → track them with the **dotfiles** skill.
+
+**aliases vs abbreviations in fish.** Use `alias name 'cmd …'` for command *replacements* with flags
+(`alias ls 'eza …'`, `alias cat 'bat …'`) — they become functions. Use **`abbr -a` for shortcuts you
+want to see expand inline** as you type (Space/Enter), which is the idiomatic fish way for git etc.:
+`abbr -a gco 'git checkout'`, `abbr -a gst 'git status'`, `abbr -a -- .. 'cd ..'`. Define both inside
+`if status is-interactive` in `config.fish`.
+
 ## Theme integration
 
 - The terminal's colors come from the terminal emulator (kitty/alacritty/foot), which the
@@ -175,10 +207,25 @@ Never `source` the rc to test it (side effects). Parse-only:
 
 The plugin's `verify-shell.sh` wraps these and reports `VERIFY_SHELL=ok|errors|skipped`. Run it
 after **every** edit. A clean parse means no syntax errors; it does not prove a referenced tool is
-installed (that's why guards matter).
+installed (that's why guards matter). (`VERIFY_SHELL=skipped` for fish just means fish isn't
+installed yet — the config can still be staged; it parses once fish is in.)
+
+**Changes only apply to shells started *after* the edit.** `config.fish`/`.bashrc`/`.zshrc` run at
+shell startup, so an **already-open** shell won't have the new aliases/abbrs/prompt — the #1 "my
+aliases aren't working" cause. Tell the user to open a new terminal, or **reload in place** with
+`exec fish` / `exec bash` / `exec zsh`. (Don't claim a change is "live" in the current shell when it
+isn't.)
 
 ## Changing the login shell
 
-Switching shells (e.g. to zsh/fish) is `chsh -s "$(command -v zsh)"` — it prompts for the user's
+Switching shells (e.g. to zsh/fish) is `chsh -s "$(command -v fish)"` — it prompts for the user's
 password and takes effect on next login, so it cannot be done non-interactively by the assistant.
-Suggest the command; never assume it ran. Ensure the target shell is installed first.
+Suggest the command; never assume it ran. Ensure the target shell is installed **and listed in
+`/etc/shells`** first (`grep fish /etc/shells`, else `chsh` refuses it).
+
+**Lower-risk alternative — point the terminal at the shell instead of `chsh`.** To get fish in every
+terminal *without* changing the login shell (so TTY/SSH/display-manager scripts that assume POSIX
+stay on bash), set the emulator's shell: kitty `shell /usr/bin/fish` in `kitty.conf`, foot
+`shell=/usr/bin/fish`, Alacritty `[terminal.shell] program = "/usr/bin/fish"`. Reversible and
+contained; offer it as the default, with `chsh` for users who want fish everywhere. (Don't point the
+emulator at a shell binary that isn't installed yet — it'll fail to launch.)

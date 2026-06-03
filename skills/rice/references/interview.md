@@ -389,8 +389,15 @@ shell templates (`engine.md` → "Shell & prompt theming"); the *colors* are pal
 re-themes with everything else. Bias defaults to what's installed (`detect-theme-tools.sh`:
 `HAVE_fish`/`HAVE_starship`/`HAVE_ohmyposh`/`HAVE_fastfetch`).
 
-**16a. Shell to configure** — current login shell **(default)** · bash · zsh · fish (switching login
-shells is a manual `chsh`, note it). Edits go in a guarded managed block, parse-tested after each change.
+**16a. Which shell do you want?** — **always ask this; don't silently default to the current shell.**
+Keep current login shell **(default)** · bash · zsh · **fish** (the popular ricing pick — built-in
+autosuggestions + tab-completions, i.e. "autocomplete" with no plugins). Bias the default to the
+installed/current shell (`CURRENT_SHELL`/`HAVE_fish` from `detect-theme-tools.sh`); name the package
+if a chosen shell isn't installed. If they want the pick as the **login** shell, that's a manual
+`chsh -s "$(command -v <shell>)"` (the shell must be in `/etc/shells`) taking effect next login — or
+offer the lower-risk **per-terminal** route (set the emulator's shell, e.g. kitty `shell
+/usr/bin/fish`, foot `shell=…`), which keeps the login shell unchanged. Note whichever they pick;
+never run `chsh` for them. Edits go in a guarded managed block, parse-tested after each change.
 **16b. Prompt engine** — starship **(default, cross-shell)** · oh-my-posh (cross-shell, JSON themes) ·
 native shell prompt · leave as-is. Wire it to the engine (`STARSHIP_CONFIG` → rice-owned `starship.toml`,
 or `oh-my-posh init --config` → rice-owned `rice.omp.json`) so `rice apply` recolors it. Name the package
@@ -399,7 +406,13 @@ for a missing engine.
 fish defaults. Renders to `~/.config/fish/conf.d/zz-hypr-rice-colors.fish` (auto-sourced).
 **16d. Startup fetch** — fastfetch **(default)** · neofetch (archived) · none. Add a guarded line in the
 managed block; needs a Nerd Font for the logo/glyphs (group 12).
+**16e. fish plugins** (fish only, optional) — autosuggestions/completions are built in; offer a small
+**fisher** set: autopair · fzf.fish (needs `fzf`) · sponge · done. Default **off** unless asked; record
+the chosen set in `~/.config/fish/fish_plugins` so `fisher update` reproduces it (track via the dotfiles
+skill). See `shells.md` → "Fish plugins".
 
 Optional second call: aliases & modern-CLI integration (`eza`/`bat`/`zoxide`/`fzf`/`atuin`, all
-`command -v`-guarded) and editor/history — only for installed tools; defer the rest to the shell-config
-skill. The prompt/fish-color manifest lines to register live in `engine.md`.
+`command -v`-guarded — in fish, prefer `abbr` for git/nav shortcuts) and editor/history — only for
+installed tools; defer the rest to the shell-config skill. The prompt/fish-color manifest lines to
+register live in `engine.md`. **Reminder:** new aliases/prompt only appear in shells started after the
+change — tell the user to open a new terminal or `exec <shell>`.

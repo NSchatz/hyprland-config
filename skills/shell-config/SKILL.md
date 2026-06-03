@@ -32,14 +32,22 @@ zoxide/fzf/atuin`. Default to configuring the user's current login shell unless 
 
 Confirm with the user (offer sensible defaults):
 
-- **Which shell** to configure (default: current). If they want to switch to a shell that isn't
-  installed, note the package and that `chsh` is a manual step (see `shells.md`).
+- **Which shell do you want?** — always ask. Default to the **current** login shell, but offer
+  **bash / zsh / fish** explicitly (fish is the popular ricing pick for its built-in autosuggestions
+  + completions — "autocomplete" out of the box). If they choose one that isn't installed, note the
+  package; if they want it as the *login* shell, that's a manual `chsh -s "$(command -v <shell>)"`
+  (must be in `/etc/shells`) — or the lower-risk per-terminal route (kitty `shell …`) that keeps the
+  login shell unchanged. See `shells.md` → "Changing the login shell".
 - **Prompt engine**: **starship (default, cross-shell)** / **oh-my-posh** (cross-shell, JSON/YAML/TOML
   themes) / built-in shell prompt / leave as-is. Bias to whichever is installed; name the package for a
   missing one. For a themed prompt that re-colors with the desktop, wire it to the **rice engine** (step
   4b) rather than hand-picking colors.
 - **fish colors** (fish only): theme fish's own syntax highlighting (`fish_color_*`) from the rice
   palette — default **yes**. This is independent of the prompt engine (step 4b).
+- **fish plugins** (fish only, optional): autosuggestions/completions are built in, but offer a small
+  **fisher** set — autopair · fzf.fish (needs `fzf`) · sponge · done — recorded in
+  `~/.config/fish/fish_plugins` for reproducibility (see `shells.md` → "Fish plugins"). Default off
+  unless asked; track the manifest with the dotfiles skill.
 - **Aliases & modern CLI**: standard aliases; enable guarded `eza`/`bat`/`zoxide`/`fzf`/`atuin`
   integration only for tools that are installed (others can be added later — keep them guarded).
 - **Startup fetch**: offer a system-info fetch on terminal open — **fastfetch (default)**,
@@ -110,9 +118,13 @@ installed — that's why every tool use is `command -v`-guarded.
 
 ### 6. Report
 
-Summarize what changed, the file, the `VERIFY_SHELL` result, and the backup path. To take effect
-the user opens a new shell or `source`s the rc. If they asked to switch login shells, give the
-`chsh -s "$(command -v <shell>)"` command and note it's a manual, password-prompted step.
+Summarize what changed, the file, the `VERIFY_SHELL` result, and the backup path. **Changes only
+apply to shells started after the edit** — tell the user to open a new terminal or reload in place
+(`exec fish`/`exec bash`/`exec zsh`); an already-open shell won't have the new aliases/abbrs/prompt
+(the #1 "my aliases aren't working" report). Don't claim a change is live in the current shell when
+it isn't. If they asked to switch login shells, give the `chsh -s "$(command -v <shell>)"` command
+(shell must be in `/etc/shells`) and note it's a manual, password-prompted step that takes effect
+next login — or offer the per-terminal `shell` directive as a no-`chsh` alternative.
 
 ## Safety rules
 
