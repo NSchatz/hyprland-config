@@ -24,6 +24,7 @@ have bash
 have zsh
 have fish
 have starship
+have ohmyposh  oh-my-posh
 have eza
 have bat
 have zoxide

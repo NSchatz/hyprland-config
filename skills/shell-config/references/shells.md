@@ -19,6 +19,9 @@ and rewritten idempotently rather than duplicated.
 
 ## Prompt
 
+Two cross-shell engines (both recolor from a single palette block, so the rice engine can re-theme
+them — see *Palette-driven colors* below): **starship** (default) and **oh-my-posh**.
+
 - **starship** (cross-shell, recommended): one config `~/.config/starship.toml`, themeable. Init
   line per shell:
   - bash: `eval "$(starship init bash)"`
@@ -26,11 +29,43 @@ and rewritten idempotently rather than duplicated.
   - fish: `starship init fish | source`
   Guard with `command -v starship >/dev/null && ...`. If starship isn't installed, offer a
   built-in prompt instead (see below) and note the package.
+- **oh-my-posh** (cross-shell): a single theme file (`*.omp.json`/`.toml`/`.yaml`) you init against.
+  - bash: `eval "$(oh-my-posh init bash --config <theme>)"`
+  - zsh:  `eval "$(oh-my-posh init zsh --config <theme>)"`
+  - fish: `oh-my-posh init fish --config <theme> | source`
+  Guard with `command -v oh-my-posh >/dev/null && ...`. Themes recolor from a top-level `palette` of
+  named colors referenced as `p:name`; pick a built-in with `oh-my-posh init <shell>` (no `--config`)
+  to start, then theme. Package: `oh-my-posh` (AUR / official install script).
 - **Built-in fallbacks** (no deps):
   - bash `PS1='\[\e[1;34m\]\w\[\e[0m\] $ '`
   - zsh `PROMPT='%F{blue}%~%f %# '`
   - fish defines `function fish_prompt; ...; end`
 - Heavier frameworks (oh-my-zsh, powerlevel10k) exist but pull in more; only set up if asked.
+  powerlevel10k is zsh-only — its edge is Instant Prompt (renders before plugins load).
+
+### Palette-driven colors (re-theme with the desktop)
+
+Rather than hand-picking prompt colors, render them from the rice palette so a `rice apply` recolors
+the prompt with everything else. The rice engine ships `starship.tmpl` / `oh-my-posh.tmpl` /
+`fish.tmpl`; register a manifest line in `~/.config/hypr-rice/templates.list` (see
+`../../rice/references/engine.md` → "Shell & prompt theming"), then point the shell at the rendered
+file: starship via `export STARSHIP_CONFIG=~/.config/hypr-rice/starship.toml`, oh-my-posh via
+`--config ~/.config/hypr-rice/rice.omp.json`. Neither engine can `include` a palette file, so the
+engine renders the *whole* config to a rice-owned path; the user's own `~/.config/starship.toml` is
+left alone.
+
+### fish colors (syntax highlighting — separate from the prompt)
+
+Fish themes its own command-line *syntax highlighting* and completion *pager* via ~25 `fish_color_*`
+/ `fish_pager_color_*` variables, independent of whichever prompt engine runs. Set them with
+`set -g fish_color_command <hex>` (bare hex, no `#`; add `--bold`/`--underline`/`--background=<hex>`).
+The rice engine's `fish.tmpl` renders these to `~/.config/fish/conf.d/zz-hypr-rice-colors.fish`, which
+fish auto-sources every interactive start — so re-rendering recolors the next shell with no manual
+`fish_config theme choose`. Gotcha: a value previously set with `set -U` (universal) **shadows**
+`set -g`; clear it (`set -e fish_color_command`) if a re-theme seems to not take. fish also supports
+`~/.config/fish/themes/<name>.theme` files (lines like `fish_color_command 89b4fa`, no prefix on the
+value, no `#`) loaded with `fish_config theme choose <name>` — fine for hand-switching, but `set -g`
+in `conf.d` is the re-renderable path.
 
 ## Common aliases & options (cross-shell)
 

@@ -1,11 +1,16 @@
-# Styling TUI Tools & the Shell Prompt (btop · cava · fastfetch · starship)
+# Styling TUI Tools & the Shell Prompt (btop · cava · fastfetch · starship · oh-my-posh · fish)
 
 These tools live *inside* the terminal emulator, so they inherit its font and 16-color
 palette by default — but each also ships its own theme/config file that can override colors
 independently. A **Nerd Font** (e.g. JetBrainsMono Nerd Font, FiraCode Nerd Font) is mandatory:
-btop braille graphs, cava is plain bars, but fastfetch logos, starship powerline separators, and
-every module symbol are Nerd Font glyphs that render as tofu (□) without one. Style these together
-and the terminal side of the rice reads as one piece.
+btop braille graphs, cava is plain bars, but fastfetch logos, the powerline separators of starship
+and oh-my-posh, and every module symbol are Nerd Font glyphs that render as tofu (□) without one.
+Style these together and the terminal side of the rice reads as one piece.
+
+The **prompt** is its own surface: starship and **oh-my-posh** are the two cross-shell engines (both
+recolor from a single named *palette* block), while **fish** additionally themes its own *syntax
+highlighting* via `fish_color_*` variables — independent of the prompt engine. zsh's powerlevel10k is
+the zsh-only alternative.
 
 ## What you're styling
 
@@ -15,8 +20,12 @@ and the terminal side of the rice reads as one piece.
 | **cava** | `~/.config/cava/config` (INI sections) | `[color]` block: `foreground`, `background`, `gradient_color_1..8` | Restart cava (`q` then relaunch); some builds reload on config save |
 | **fastfetch** | `~/.config/fastfetch/config.jsonc` (JSONC) | `display.color`, per-module `keyColor`, `logo.color` | Re-run `fastfetch` (it runs on shell start) |
 | **starship** | `~/.config/starship.toml` (TOML) | `palette` + `[palettes.x]` table; module `style`/`format` | Instant — new prompt on next command (re-source not needed) |
+| **oh-my-posh** | a theme `*.omp.json`/`.toml`/`.yaml` (init `--config`) | top-level `palette` of named colors referenced as `p:name`; per-segment `foreground`/`background` + `*_templates` | Instant — re-evaluated each prompt |
+| **fish** (colors) | universal/global `fish_color_*` vars; or a `~/.config/fish/themes/<name>.theme` | `set -g fish_color_command <hex>` etc., or `fish_config theme choose <name>` | Instant in new shells; `set -g` re-applies on re-source |
 
 Generate starting points: `fastfetch --gen-config`, `starship preset <name> -o ~/.config/starship.toml`,
+`oh-my-posh config export --output ~/.config/ohmyposh/rice.omp.json` (or pick a built-in with
+`oh-my-posh init <shell> --config $(brew --prefix oh-my-posh)/themes/<name>.omp.json`),
 copy `btop`'s default theme from `/usr/share/btop/themes/`, and `cava`'s example from
 `/usr/share/doc/cava/example_files/config` (or the repo `example_files/config`).
 
@@ -54,6 +63,17 @@ Color values accept named (`"blue"`, `"red"`, `"bright_magenta"`), palette indic
 - **Module `format` + `symbol`:** every module has a `symbol` (a Nerd Font glyph, e.g. `git_branch.symbol = ""`) and a `format` template referencing `$symbol`, `$path`, etc., wrapped in `[...](style)` where style is `fg:x bg:y bold`.
 - **Powerline vs plain:** the top-level `format` strings the modules together. Powerline presets emit ``/`` separators with each segment's `bg` becoming the next segment's `fg` (`[](bg:peach fg:red)`), producing the solid colored-block prompt. A minimal two-line prompt skips separators and ends with `$line_break$character`.
 - **Right side & symbols:** `right_format` for a right-aligned clock; `[character]` sets the `success_symbol`/`error_symbol` (`❯`, `✗`, or Nerd glyphs).
+
+### oh-my-posh (theme `*.omp.json`)
+- **`palette` is the single recolor point** — a top-level `"palette": { "accent": "#hex", … }` of named colors; every segment references them as `"foreground": "p:accent"`. (`palettes` with a `template` switches between several palettes by shell/condition.) This is the oh-my-posh analogue of starship's `[palettes.rice]`.
+- **Blocks → segments:** `blocks` are prompt rows (`"alignment": "left"`/`"right"`, `"newline": true` for a second line); each `segment` has a `type` (`path`, `git`, `text`, `os`, language modules…), a `style` (`plain`/`powerline`/`diamond`/`accordion`), and a `template` (Go template, e.g. `{{ .Path }}`, `{{ .HEAD }}`). `powerline` segments draw a `powerline_symbol` () between them, bleeding each segment's `background` into the next — the solid colored-block look.
+- **Conditional color:** `foreground_templates`/`background_templates` are lists of Go-template expressions; the first non-empty result wins (`"{{ if gt .Code 0 }}p:red{{ end }}"` turns the prompt char red on a failed command). Color keywords: `transparent`, `foreground`, `background`, `parentForeground`, `accent`, plus hex/ANSI names/256-indices.
+- **Wiring:** unlike starship there's no `include` — the whole theme is one file, pointed at via `oh-my-posh init <shell> --config <file>`. So a rice renders the *complete* theme (palette + segments) and the shell inits against it.
+
+### fish (`fish_color_*` variables / `.theme` file)
+- **Two independent layers:** the *prompt* (starship/oh-my-posh/tide/native `fish_prompt`) and fish's *syntax highlighting & pager* colors. The latter are ~25 `fish_color_*` vars set with `set -g fish_color_<role> <hex> [--bold|--underline|--background=<hex>]` (fish takes bare hex, no `#`). Roles that carry the look: `command` (the accent), `param`, `quote`, `keyword`, `redirection`, `operator`, `error` (red), `comment`/`autosuggestion` (muted), `selection`/`search_match` (a `--background=` highlight), plus prompt-side `cwd`/`user`/`host`. Pager: `fish_pager_color_prefix`/`_completion`/`_description`/`_selected_background`.
+- **`.theme` files vs `conf.d`:** fish ships themes as `~/.config/fish/themes/<name>.theme` (plain `fish_color_command 89b4fa` lines, no prefix on the value), loaded with `fish_config theme choose <name>` (persists to universal vars) — good for hand-switching, but a re-rendering rice prefers a `conf.d/*.fish` snippet using `set -g` (auto-sourced every interactive start, so a re-render wins over the stale universal-variable store).
+- **Pitfall — `set -U` stickiness:** a value baked into the universal store with `set -U` shadows later `set -g`; rices that re-theme should commit to `set -g` in `conf.d` (or rewrite the `.theme` and re-`choose` it), not mix the two.
 
 ## How the community styles it
 
@@ -267,6 +287,50 @@ error_symbol = "[❯](bold red)"
 ```
 *(Mocha example: `accent = "#cba6f7"`, `accent2 = "#f5c2e7"`, `bg = "#1e1e2e"`, `fg = "#cdd6f4"`. Or just `starship preset catppuccin-powerline -o ~/.config/starship.toml`.)*
 
+### oh-my-posh — a `rice.omp.json` (palette + two-line prompt)
+```json
+{
+  "$schema": "https://raw.githubusercontent.com/JanDeDobbeleer/oh-my-posh/main/themes/schema.json",
+  "version": 3,
+  "final_space": true,
+  "palette": { "accent": "#{{accent}}", "green": "#{{green}}", "red": "#{{red}}", "yellow": "#{{yellow}}" },
+  "blocks": [
+    { "type": "prompt", "alignment": "left", "segments": [
+      { "type": "path", "style": "plain", "foreground": "p:accent", "template": "{{ .Path }}",
+        "properties": { "style": "agnoster_short", "max_depth": 3 } },
+      { "type": "git", "style": "plain", "foreground": "p:green",
+        "foreground_templates": ["{{ if or (.Working.Changed) (.Staging.Changed) }}p:yellow{{ end }}"],
+        "template": "  {{ .HEAD }}", "properties": { "fetch_status": true } } ] },
+    { "type": "prompt", "alignment": "left", "newline": true, "segments": [
+      { "type": "text", "style": "plain", "foreground": "p:accent",
+        "foreground_templates": ["{{ if gt .Code 0 }}p:red{{ end }}"], "template": "❯" } ] }
+  ]
+}
+```
+*Init it: `oh-my-posh init fish --config ~/.config/ohmyposh/rice.omp.json | source` (or `bash`/`zsh`).
+The `{{ .Path }}`/`{{ .HEAD }}` are oh-my-posh's own Go templates — distinct from the `{{accent}}`
+palette placeholders a rice renderer substitutes.*
+
+### fish — `~/.config/fish/conf.d/zz-rice-colors.fish` (syntax highlighting)
+```fish
+set -g fish_color_command        {{accent}}
+set -g fish_color_param          {{fg}}
+set -g fish_color_quote          {{green}}
+set -g fish_color_keyword        {{magenta}}
+set -g fish_color_redirection    {{cyan}}
+set -g fish_color_error          {{red}}
+set -g fish_color_comment        {{muted}}
+set -g fish_color_autosuggestion {{muted}}
+set -g fish_color_selection      {{fg}} --background={{surface}}
+set -g fish_color_search_match   --background={{surface}}
+set -g fish_pager_color_prefix     {{accent}} --bold
+set -g fish_pager_color_completion {{fg}}
+set -g fish_pager_color_selected_background --background={{surface}}
+```
+*Auto-sourced on every interactive start — no `fish_config theme choose` needed; re-rendering recolors
+the next shell. Bare hex, no `#`. This is the syntax/pager layer; pair it with starship or oh-my-posh
+for the prompt itself.*
+
 **Font requirement:** point your terminal's `font_mono`/`font` at a Nerd Font
 (`JetBrainsMono Nerd Font`, `FiraCode Nerd Font`, `CaskaydiaCove Nerd Font`). All glyphs above
 (``, ``, ``, ``, powerline `/`) depend on it.
@@ -285,6 +349,14 @@ error_symbol = "[❯](bold red)"
   approximation) or a `builtin` logo as a portable fallback.
 - **starship feels laggy.** Slow modules block the prompt — disable VCS-heavy or network modules you
   don't need (`[gcloud] disabled = true`, `[aws] disabled = true`), and `command_timeout` guards hangs.
+- **oh-my-posh palette colors render as literal text (`p:accent`).** The segment used `p:name` but the
+  name isn't defined in the top-level `palette` (or you're on an oh-my-posh too old for palettes) —
+  define every referenced name. Invalid JSON (a trailing comma) makes the whole prompt silently fall
+  back; validate the theme file. Don't confuse `p:` palette refs with Go templates (`{{ .Path }}`).
+- **fish colors won't change after a re-theme.** A `set -U fish_color_*` (universal) value shadows your
+  `set -g` snippet. Clear it (`set -e fish_color_command`) or commit to one mechanism — a `conf.d`
+  `set -g` snippet, *or* a `.theme` file re-loaded with `fish_config theme choose`. Also: `.theme`
+  files list values **without** the `fish_color_` prefix and without `#`; `set` lines need the prefix.
 - **Pure-black btop background over a transparent terminal looks wrong.** If your terminal is
   transparent/blurred, a solid `theme[main_bg]` paints an opaque rectangle. Set `theme[main_bg]=""`
   and `theme_background = False` so the wallpaper/blur shows through — or match `main_bg` to your
@@ -296,6 +368,8 @@ error_symbol = "[❯](bold red)"
 - cava config — [karlstav/cava example config](https://raw.githubusercontent.com/karlstav/cava/master/example_files/config), [catppuccin/cava](https://github.com/catppuccin/cava), [cava README](https://github.com/catppuccin/cava/blob/main/README.md)
 - fastfetch — [Configuration wiki](https://github.com/fastfetch-cli/fastfetch/wiki/Configuration), [Logo options wiki](https://github.com/fastfetch-cli/fastfetch/wiki/Logo-options), [fastfetch(1) man page](https://man.archlinux.org/man/extra/fastfetch/fastfetch.1.en)
 - starship — [Catppuccin Powerline preset](https://starship.rs/presets/catppuccin-powerline), [Gruvbox Rainbow preset](https://starship.rs/presets/gruvbox-rainbow), [Presets index](https://starship.rs/presets/), [catppuccin/starship](https://github.com/catppuccin/starship)
+- oh-my-posh — [Colors & palette docs](https://ohmyposh.dev/docs/configuration/colors), [Segment/block config](https://ohmyposh.dev/docs/configuration/general), [pywal palette discussion #6010](https://github.com/JanDeDobbeleer/oh-my-posh/discussions/6010), [polarNord theme example](https://github.com/MirkoR89/polarNord)
+- fish — [Interactive use / `fish_color_*`](https://fishshell.com/docs/current/interactive.html), [`set_color`](https://fishshell.com/docs/current/cmds/set_color.html), [`fish_config`](https://fishshell.com/docs/current/cmds/fish_config.html), [catppuccin/fish theme files](https://github.com/catppuccin/fish), [pywal fish template PR #568](https://github.com/dylanaraps/pywal/pull/568)
 - distro dotfiles — [HyDE](https://github.com/HyDE-Project/HyDE), [ml4w-dotfiles](https://gitlab.com/xeroxero8x/ml4w-dotfiles), [caelestia-dots/fish](https://github.com/caelestia-dots/fish), [It's FOSS: best Hyprland dotfiles](https://itsfoss.com/best-hyprland-dotfiles/)
 
 **Config corpus read for the techniques catalog:**

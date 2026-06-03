@@ -23,7 +23,7 @@ defaults" can skip ahead. Run `detect-version.sh` + `detect-theme-tools.sh` firs
 what's installed (bias defaults to installed tools; name the package for anything missing — never
 install). Use `multiSelect` for the genuinely multi-choice questions (bar modules, autostart, env vars).
 
-**The groups** (a from-scratch run walks all of them; expect **~18–22 `AskUserQuestion` calls** total —
+**The groups** (a from-scratch run walks all of them; expect **~19–24 `AskUserQuestion` calls** total —
 if you've asked only a handful, you've collapsed groups incorrectly, go ask the rest):
 
 | # | Group | Mode A | Mode B | Splits into |
@@ -43,9 +43,11 @@ if you've asked only a handful, you've collapsed groups incorrectly, go ask the 
 | 13 | Wallpaper | ✓ | ✓ | 1 call (catalog pick) |
 | 14 | Autostart & env | ✓ | | 2 calls |
 | 15 | Companion configs | ✓ | | 1 call |
+| 16 | **Shell & prompt** | ✓ | | 1–2 calls |
 
 Map every answer to its template: groups 1–10/14/15 → `config-templates.md`; the functional bar/launcher/
-notification configs → `../../desktop-shell/references/components.md`; groups 11–13 → the rice engine's
+notification configs → `../../desktop-shell/references/components.md`; the shell/prompt configs →
+`../../shell-config/references/shells.md`; groups 11–13 (and the prompt/fish *colors*) → the rice engine's
 `palette.conf` (`engine.md`) which renders the colors. For *why a value looks good*, the styling library
 (`hyprland-reference/.../styling/`) backs each look choice; cite it when explaining.
 
@@ -376,3 +378,28 @@ without it being captured by the timestamped backup. This group is usually a sin
   || hyprlock`; lock *before* dpms-off; `before_sleep_cmd = loginctl lock-session`.
 - **hyprpaper** → `hyprpaper.conf`: `preload` + `wallpaper` (the group-13 image or a placeholder); set
   `ipc = on` so the wallpaper can be switched live.
+
+---
+
+## 16. Shell & prompt  *(dedicated group — generate only)*
+
+The interactive shell is the last themed surface. rice sets up the prompt + shell colors by leaning on
+the **shell-config** recipes (`../../shell-config/references/shells.md`) and the rice engine's
+shell templates (`engine.md` → "Shell & prompt theming"); the *colors* are palette-driven so the prompt
+re-themes with everything else. Bias defaults to what's installed (`detect-theme-tools.sh`:
+`HAVE_fish`/`HAVE_starship`/`HAVE_ohmyposh`/`HAVE_fastfetch`).
+
+**16a. Shell to configure** — current login shell **(default)** · bash · zsh · fish (switching login
+shells is a manual `chsh`, note it). Edits go in a guarded managed block, parse-tested after each change.
+**16b. Prompt engine** — starship **(default, cross-shell)** · oh-my-posh (cross-shell, JSON themes) ·
+native shell prompt · leave as-is. Wire it to the engine (`STARSHIP_CONFIG` → rice-owned `starship.toml`,
+or `oh-my-posh init --config` → rice-owned `rice.omp.json`) so `rice apply` recolors it. Name the package
+for a missing engine.
+**16c. fish syntax colors** (fish only) — Theme `fish_color_*` from the palette **(default yes)** · leave
+fish defaults. Renders to `~/.config/fish/conf.d/zz-hypr-rice-colors.fish` (auto-sourced).
+**16d. Startup fetch** — fastfetch **(default)** · neofetch (archived) · none. Add a guarded line in the
+managed block; needs a Nerd Font for the logo/glyphs (group 12).
+
+Optional second call: aliases & modern-CLI integration (`eza`/`bat`/`zoxide`/`fzf`/`atuin`, all
+`command -v`-guarded) and editor/history — only for installed tools; defer the rest to the shell-config
+skill. The prompt/fish-color manifest lines to register live in `engine.md`.

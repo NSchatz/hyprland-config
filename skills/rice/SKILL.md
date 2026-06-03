@@ -9,15 +9,17 @@ version: 0.4.0
 # Rice — Build & Theme the Hyprland Desktop
 
 The **all-in-one** rice skill: **generate** a complete Hyprland desktop from scratch — compositor,
-terminal, status bar, launcher, notifications, lock screen — **theme** every surface from one palette,
-manage named **profiles**, and set the **wallpaper** (with dynamic theming). A from-scratch build emits
-not just the Hyprland config but the **functional** configs for the whole shell (waybar `config.jsonc` +
-`style.css`, launcher config, notification daemon config), so the user gets a working, themed desktop in
+terminal, status bar, launcher, notifications, lock screen, **shell & prompt** — **theme** every surface
+from one palette, manage named **profiles**, and set the **wallpaper** (with dynamic theming). A
+from-scratch build emits not just the Hyprland config but the **functional** configs for the whole shell
+(waybar `config.jsonc` + `style.css`, launcher config, notification daemon config) and sets up the
+interactive shell (prompt engine + fish colors + fetch), so the user gets a working, themed desktop in
 one pass. They are one skill because they share one source of truth — the **rice engine** at
 `~/.config/hypr-rice/` (`palette.conf` → templates → every app's colors, driven by the `rice` CLI). Read
 `references/engine.md` for the engine contract before touching it. The functional shell-config recipes
-live in `../desktop-shell/references/components.md` (rice generates them by reference; the standalone
-**desktop-shell** skill remains for editing just the bar/launcher/notifications later).
+live in `../desktop-shell/references/components.md` and the terminal-shell recipes in
+`../shell-config/references/shells.md` (rice generates them by reference; those standalone skills remain
+for editing just the bar/launcher/notifications or the shell later).
 
 Treat `$ARGUMENTS` as the request (a scheme name, an image path, "set up from scratch", "switch to
 nord", freeform setup hints). Use it to pick the mode and pre-fill or skip interview questions.
@@ -73,10 +75,11 @@ organized **one group per component**. Walk every group and ask each of its sub-
 default first, skipping only what `$ARGUMENTS` or an existing config already answers. **`AskUserQuestion`
 accepts at most 4 questions per call**, so groups with more sub-questions than that **split across
 multiple consecutive calls** — do not drop or merge questions to fit. A from-scratch run should produce
-**roughly 18–22 calls** (if you've asked only a handful, you've collapsed groups — go ask the rest). The
+**roughly 19–24 calls** (if you've asked only a handful, you've collapsed groups — go ask the rest). The
 groups: **1** monitors · **2** input · **3** keybinds · **4** default apps · **5** terminal · **6** status
 bar · **7** launcher · **8** notifications · **9** lock screen · **10** window look & feel · **11** palette
-· **12** fonts · **13** wallpaper · **14** autostart & env · **15** companion configs. Groups 5–9 ask
+· **12** fonts · **13** wallpaper · **14** autostart & env · **15** companion configs · **16** shell &
+prompt (shell, prompt engine starship/oh-my-posh, fish colors, fetch). Groups 5–9 ask
 **full functional depth** (e.g. bar modules & layout, launcher behavior, notification rules) so the
 generated shell configs are usable, not just colored — don't pick a scheme, bar, or fonts silently. The
 same interview serves re-theming (Mode B uses only groups 10–13: look & feel, palette, fonts, wallpaper)
@@ -123,6 +126,25 @@ files the standalone desktop-shell skill writes). These live under their own `~/
 Keep module on-clicks aligned to installed tools (network → `nm-connection-editor`, audio →
 `pavucontrol`). Don't hardcode theme colors anywhere — every shell config reads the engine's colors
 file. These get backed up + installed alongside the Hyprland config in A5.
+
+### A3c. Set up the shell & prompt (group 16)
+
+Also configure the interactive shell, leaning on **`../shell-config/references/shells.md`** (managed
+block, guarded inits, parse-test) for *behavior* and the rice engine (A4) for *colors*:
+
+- **Prompt engine** (starship default / oh-my-posh): register its manifest line so the engine renders a
+  rice-owned config (`~/.config/hypr-rice/starship.toml` / `rice.omp.json`), and add the guarded init to
+  the shell's managed block — starship with `export STARSHIP_CONFIG=…` first, oh-my-posh with
+  `oh-my-posh init <shell> --config …`. See `engine.md` → "Shell & prompt theming" for the exact lines.
+- **fish colors** (if fish): register the `fish` manifest line → `conf.d/zz-hypr-rice-colors.fish`
+  (auto-sourced; themes fish's syntax highlighting from the palette).
+- **Startup fetch & aliases**: add the chosen fetch (fastfetch default) + guarded modern-CLI aliases to
+  the managed block per `shells.md`.
+
+Editing rc files mid-generation is delicate (parse-test after each change, never source). If the shell
+work is substantial, it's fine to finish the Hyprland install (A5/A6) first, then do the shell pass — or
+hand off to the **shell-config** skill — but the prompt/fish *colors* must go through the engine so they
+re-theme. Back up rc files before editing (`backup-path.sh`).
 
 ### A4. Establish the palette via the rice engine
 
@@ -319,7 +341,9 @@ Set the wallpaper and optionally re-theme the whole desktop from it — the cano
 - **`scripts/`** — `detect-version.sh`, `detect-theme-tools.sh`, `rice-init.sh`, `render-templates.sh`,
   `apply-theme.sh`, `set-wallpaper.sh`, `palette-from-wallpaper.sh`, `safe-apply.sh`,
   `install-config.sh`, `verify-config.sh`, `backup-config.sh`, `reset-config.sh`.
-- **`templates/*.tmpl`** — the color templates the engine renders.
+- **`templates/*.tmpl`** — the color templates the engine renders (incl. the shell/prompt set:
+  `fish.tmpl` → fish `conf.d` colors, `starship.tmpl` → rice-owned `starship.toml`, `oh-my-posh.tmpl` →
+  rice-owned `rice.omp.json`; registered in the manifest by shell-config — see `engine.md`).
 - **`assets/profiles/*.conf`** — the five shipped preset rices; **`assets/rice`** — the CLI
   (incl. `rice wallpapers [scheme]` to list and `rice get-wallpaper <scheme> <n|name> [--set]` to
   curl-download a matching wallpaper; `rice accents [scheme]` to list per-scheme accent variants and

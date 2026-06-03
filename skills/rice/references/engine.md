@@ -50,6 +50,41 @@ Apps without an include mechanism (mako, dunst) are not in the default manifest 
 written whole by the desktop-shell skill, which folds the colors in. Templates for them ship in
 `templates/` for manual use.
 
+## Shell & prompt theming (fish · starship · oh-my-posh)
+
+The shell is a themed surface too — both the **prompt** (starship / oh-my-posh) and **fish's own
+syntax-highlighting colors**. These ship as templates but are **not in the default manifest** (like
+starship before: a shell isn't guaranteed, and we don't want to create `~/.config/fish/` for someone
+who doesn't use fish). The **shell-config** skill registers the relevant line when the user opts in,
+then `rice apply` re-themes the prompt/shell on every theme switch. Add the line(s) for what's chosen:
+
+```
+fish        ~/.config/hypr-rice/templates/fish.tmpl         ~/.config/fish/conf.d/zz-hypr-rice-colors.fish
+starship    ~/.config/hypr-rice/templates/starship.tmpl     ~/.config/hypr-rice/starship.toml
+oh-my-posh  ~/.config/hypr-rice/templates/oh-my-posh.tmpl   ~/.config/hypr-rice/rice.omp.json
+```
+
+(TAB-separated, empty reload-cmd — new shells pick the colors up; no daemon to signal.)
+
+**Prompt configs can't `include` a palette file** the way kitty/waybar do, so the engine renders a
+**complete, rice-owned prompt config** and the shell is pointed at it (one-time wiring, done by
+shell-config):
+
+- **fish colors** → `conf.d/zz-hypr-rice-colors.fish` is auto-sourced by fish on every interactive
+  start (no wiring needed); it `set -g`s the `fish_color_*` / `fish_pager_color_*` vars. This themes
+  fish's *syntax highlighting & pager*, independent of whichever prompt engine is used.
+- **starship** → render to `~/.config/hypr-rice/starship.toml`, then `export
+  STARSHIP_CONFIG=~/.config/hypr-rice/starship.toml` (so the user's own `~/.config/starship.toml` is
+  left untouched). To recolor a prompt the user already designed, instead copy the `[palettes.rice]`
+  block into their config and set `palette = "rice"`.
+- **oh-my-posh** → render the full themed JSON to `~/.config/hypr-rice/rice.omp.json`, then init with
+  `oh-my-posh init <shell> --config ~/.config/hypr-rice/rice.omp.json`. The template uses a top-level
+  `palette` of named colors referenced as `p:accent` etc.; oh-my-posh's own Go templates (`{{ .Path }}`)
+  pass through the engine's `{{key}}` substitution untouched (only bare palette keys are replaced).
+
+zsh prompt engines (powerlevel10k) aren't templated here — point them at the palette by hand, or use
+starship/oh-my-posh which are cross-shell.
+
 ## Palette sources → `palette.conf`
 
 - **Named / manual** — the rice skill writes `palette.conf` directly from `palettes.md`

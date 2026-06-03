@@ -1,9 +1,9 @@
 ---
 name: shell-config
-description: This skill should be used when the user runs "/hyprland-config:shell-config" or asks to set up or change their terminal shell — e.g. "configure my bash/zsh/fish", "set up my shell", "add a starship prompt", "add shell aliases", "add fastfetch/neofetch to my shell", "set up my zshrc/bashrc", "switch to zsh/fish", or "make my shell nicer". Configures the interactive shell (bash/zsh/fish): prompt (starship or built-in), aliases, environment, history, a startup fetch (fastfetch by default, or neofetch), and guarded modern-CLI integration — backing up rc files and syntax-checking after every change. For coloring the terminal emulator itself, use rice.
+description: This skill should be used when the user runs "/hyprland-config:shell-config" or asks to set up or change their terminal shell — e.g. "configure my bash/zsh/fish", "set up my shell", "add a starship prompt", "add shell aliases", "add fastfetch/neofetch to my shell", "set up oh-my-posh", "theme my fish colors", "set up my zshrc/bashrc", "switch to zsh/fish", or "make my shell nicer". Configures the interactive shell (bash/zsh/fish): prompt engine (starship / oh-my-posh / built-in), fish syntax-highlighting colors, aliases, environment, history, a startup fetch (fastfetch by default, or neofetch), and guarded modern-CLI integration — backing up rc files and syntax-checking after every change. Prompt and fish colors are driven by the rice palette engine so they re-theme with the rest of the desktop; for coloring the terminal emulator itself, use rice.
 argument-hint: "[request, e.g. 'set up zsh with starship and aliases']"
 allowed-tools: AskUserQuestion, Bash, Read, Write, Edit, Glob, Grep
-version: 0.1.0
+version: 0.2.0
 ---
 
 # Configure Terminal Shell
@@ -25,8 +25,8 @@ breaks a login.
 bash "${CLAUDE_PLUGIN_ROOT}/skills/rice/scripts/detect-theme-tools.sh"
 ```
 
-Use the `CURRENT_SHELL=` line and the `HAVE_*` lines for `bash/zsh/fish/starship/eza/bat/zoxide/
-fzf/atuin`. Default to configuring the user's current login shell unless they ask to switch.
+Use the `CURRENT_SHELL=` line and the `HAVE_*` lines for `bash/zsh/fish/starship/oh-my-posh/eza/bat/
+zoxide/fzf/atuin`. Default to configuring the user's current login shell unless they ask to switch.
 
 ### 2. Decide scope (ask)
 
@@ -34,7 +34,12 @@ Confirm with the user (offer sensible defaults):
 
 - **Which shell** to configure (default: current). If they want to switch to a shell that isn't
   installed, note the package and that `chsh` is a manual step (see `shells.md`).
-- **Prompt**: starship (if installed) / built-in / leave as-is.
+- **Prompt engine**: **starship (default, cross-shell)** / **oh-my-posh** (cross-shell, JSON/YAML/TOML
+  themes) / built-in shell prompt / leave as-is. Bias to whichever is installed; name the package for a
+  missing one. For a themed prompt that re-colors with the desktop, wire it to the **rice engine** (step
+  4b) rather than hand-picking colors.
+- **fish colors** (fish only): theme fish's own syntax highlighting (`fish_color_*`) from the rice
+  palette — default **yes**. This is independent of the prompt engine (step 4b).
 - **Aliases & modern CLI**: standard aliases; enable guarded `eza`/`bat`/`zoxide`/`fzf`/`atuin`
   integration only for tools that are installed (others can be added later — keep them guarded).
 - **Startup fetch**: offer a system-info fetch on terminal open — **fastfetch (default)**,
@@ -63,7 +68,29 @@ duplicate:
 
 Use `Edit` to replace an existing managed block, or append it if absent. Write fish config to
 `~/.config/fish/config.fish` (or a `conf.d/*.fish` snippet). Use the exact init lines and guards
-from `shells.md`. Never set terminal *colors* here — that's rice's job.
+from `shells.md`. Never hand-pick *colors* in the rc — that's the rice engine's job (step 4b).
+
+### 4b. Wire prompt & fish colors to the rice engine (palette-driven)
+
+So the prompt and fish colors **re-theme with the rest of the desktop**, drive them from the rice
+palette engine instead of hardcoding (see `../rice/references/engine.md` → "Shell & prompt theming").
+Scaffold it if absent (`bash "${CLAUDE_PLUGIN_ROOT}/skills/rice/scripts/rice-init.sh"`), then register a
+manifest line in `~/.config/hypr-rice/templates.list` (TAB-separated `name → template → output → reload`)
+for what the user chose and run `bash ~/.config/hypr-rice/rice apply`:
+
+- **starship** → renders `~/.config/hypr-rice/starship.toml`; in the managed block add
+  `export STARSHIP_CONFIG="$HOME/.config/hypr-rice/starship.toml"` **before** the `starship init` line
+  (fish: `set -gx STARSHIP_CONFIG …`). Leaves the user's own `~/.config/starship.toml` untouched.
+- **oh-my-posh** → renders `~/.config/hypr-rice/rice.omp.json`; init against it:
+  `oh-my-posh init bash --config ~/.config/hypr-rice/rice.omp.json` (eval) /
+  `... init zsh ...` / `oh-my-posh init fish --config ~/.config/hypr-rice/rice.omp.json | source`,
+  all `command -v oh-my-posh`-guarded.
+- **fish colors** → renders `~/.config/fish/conf.d/zz-hypr-rice-colors.fish`, auto-sourced by fish — no
+  rc line needed. Clear any conflicting `set -U fish_color_*` universal vars first (they shadow it).
+
+The templates ship in `~/.config/hypr-rice/templates/` (`starship.tmpl`, `oh-my-posh.tmpl`, `fish.tmpl`).
+If the user wants to keep their own elaborate prompt and only recolor it, copy the palette block instead
+(starship `[palettes.rice]`; oh-my-posh top-level `palette`) — see `engine.md`.
 
 ### 5. Test after every change (parse-only, never source)
 
@@ -97,8 +124,12 @@ the user opens a new shell or `source`s the rc. If they asked to switch login sh
 
 ## Resources
 
-- **`references/shells.md`** — per-shell locations, prompt, aliases, env, history, integration,
-  testing, and login-shell switching.
+- **`references/shells.md`** — per-shell locations, prompt engines (starship/oh-my-posh/native), fish
+  color theming, aliases, env, history, integration, testing, and login-shell switching.
 - **`scripts/verify-shell.sh`** — parse-only syntax check; `VERIFY_SHELL=ok|errors|skipped`.
 - **`${CLAUDE_PLUGIN_ROOT}/scripts/backup-path.sh`** — timestamped backup of rc files.
 - **`${CLAUDE_PLUGIN_ROOT}/skills/rice/scripts/detect-theme-tools.sh`** — shell + tool probe.
+- **`${CLAUDE_PLUGIN_ROOT}/skills/rice/references/engine.md`** — "Shell & prompt theming": the
+  manifest lines + `starship.tmpl`/`oh-my-posh.tmpl`/`fish.tmpl` the prompt/fish colors render from.
+- **Styling**: `${CLAUDE_PLUGIN_ROOT}/skills/hyprland-reference/references/styling/tui-and-prompt.md`
+  — how starship / oh-my-posh / fish colors are styled, with recipes.
