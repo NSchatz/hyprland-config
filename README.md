@@ -251,6 +251,29 @@ The **rice engine** the plugin scaffolds (lives in your home, version-controlled
 └── rice                # the CLI
 ```
 
+## Changelog
+
+### 0.5.0
+
+Hardening from real-world ricing — uwsm sessions, NVIDIA/nouveau cursors, GTK install quirks, and a
+clearer shell setup:
+
+- **uwsm session awareness.** `detect-version.sh` now reports `HAVE_uwsm` / `UWSM_ENV` /
+  `UWSM_SESSION`. On uwsm-launched sessions, `~/.config/uwsm/env` is the **authoritative** env source
+  and overrides `hypr/env.conf` for app launches — including `GTK_THEME` (which silently overrides
+  GTK theming) and the cursor vars. The rice/theming skills now edit it and live-propagate with
+  explicit `dbus-update-activation-environment` pairs.
+- **Disappearing cursor fix.** Detects `CURSOR_NO_HARDWARE_RECOMMENDED` on nouveau/NVIDIA and emits a
+  `cursor { no_hardware_cursors = true }` block — the cursor no longer vanishes when the screen is idle.
+- **GTK theming robustness.** `render-templates.sh` replaces a symlinked `gtk-4.0/gtk.css` instead of
+  failing with *Permission denied*; docs cover murrine-dependent AUR themes that won't `yay`-install
+  (build from SCSS with `sassc` instead), the `GTK_THEME` env override, and that **folder color is the
+  icon theme, not the GTK theme**.
+- **Shell setup.** The interview now **explicitly asks which shell you want** (fish first-class for
+  built-in autocomplete), adds an optional **fisher plugin** set (autopair · fzf.fish · sponge · done)
+  recorded in `fish_plugins`, documents the alias-vs-`abbr` split, the per-terminal `shell` directive
+  as a lower-risk alternative to `chsh`, and the "changes only apply to new shells" gotcha.
+
 ## License
 
 MIT
