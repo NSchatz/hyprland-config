@@ -22,7 +22,10 @@ live in `references/components.md` and the terminal-shell recipes in `references
 rice for both generation and for `edit-config`'s later edits — one source per surface).
 
 Treat `$ARGUMENTS` as the request (a scheme name, an image path, "set up from scratch", "switch to
-nord", freeform setup hints). Use it to pick the mode and pre-fill or skip interview questions.
+nord", freeform setup hints). Use it to pick the **mode** (A/B/C/D). Use it to **reorder option
+lists** in the interview so a hinted pick is the first option (so the user can confirm with one
+press). **Do not use it to skip interview questions** — the user has explicitly required every
+sub-question be asked (see Safety rules below + the interviewer agent's prompt).
 
 This skill leans on the **hyprland-reference** skill for syntax and look-and-feel. Read its files
 under `skills/hyprland-reference/references/` when generating or theming, and **cross-check every
@@ -93,15 +96,23 @@ Then call the Agent tool with `subagent_type: hyprland-interviewer` passing:
 - `EXISTING_CONFIG=~/.config/hypr/hyprland.conf` (if present)
 - `DETECT_VERSION=<the detect-version.sh kv dump>` / `DETECT_THEME=<detect-theme-tools.sh kv dump>`
 
-The agent walks the question bank in `references/interview.md`, **records every answer to
-`<staging>/answers.json` as it goes** (via `scripts/record-answer.sh`), runs a "review your picks"
-pass at the end, and returns just the file path + a short summary. The 23 groups stay in the
-agent's context; your main loop only sees the summary line.
+The agent walks the question bank in `references/interview.md`, **asks every sub-question**
+(see the agent's "STRICT — ASK EVERY QUESTION" rules: `(default)` only reorders the option list,
+it doesn't authorize skipping; `ARGUMENTS` / `EXISTING_CONFIG` reorder, they don't answer),
+records every answer to `<staging>/answers.json` as it goes (via `scripts/record-answer.sh`),
+runs a "review your picks" pass at the end, and returns just the file path + a short summary.
+The 23 groups stay in the agent's context; your main loop only sees the summary line.
+
+**Verify the call count before accepting the agent's report.** If the agent returns
+`groups_recorded` ≪ 23 or a summary that suggests fewer than ~28 `AskUserQuestion` calls were
+made, the interview was collapsed — re-spawn the agent (or fall back to the inline question bank
+in the main loop, asking each question yourself).
 
 For **re-theming (Mode B)** you don't need the full interviewer — Mode B only asks groups 11–14
 (look & feel · palette · fonts · wallpaper) inline; running the heavy agent for four groups is
 overkill. Same `answers.json` schema applies though, so a Mode B run can also persist its picks
-into the rice engine for later replay.
+into the rice engine for later replay. The same no-defaulting rule applies: each of the 4 groups'
+sub-questions still gets an `AskUserQuestion`.
 
 ### A2. Pre-load context for the interviewer
 
@@ -467,6 +478,13 @@ Set the wallpaper and optionally re-theme the whole desktop from it — the cano
   writes every answer there; downstream A3/A3b/A3c/A3d/A4 and the component-writer agents read it.
   If a template needs something that isn't in the file, that's a missing question — go back through
   the interviewer rather than guessing.
+- **Never silently default an interview answer.** The user has explicitly required every
+  sub-question be asked. `(default)` on an option means "list first", not "skip the question".
+  `$ARGUMENTS` and `EXISTING_CONFIG` reorder option lists; they do not answer questions on the
+  user's behalf. Opt-in gates (widgets, login, gaming, laptop, accessibility, plugins) are always
+  asked — chassis / detection only decides which option is first. A full Mode A run produces
+  ~28–38 `AskUserQuestion` calls; collapsing to single digits is a failure mode, not an
+  optimization.
 - Reload running apps rather than forcing a logout; only reload what's running.
 - Install packages **only** after one explicit user confirmation per batch (delegate to the
   **hyprland-package-installer** agent — see A5). Show the resolved package list before asking. For

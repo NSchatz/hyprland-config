@@ -12,6 +12,30 @@ return just the file path + a tight summary. The point of being a separate agent
 28–38 Q/A rounds out of the rice skill's main context — by the time you finish, the parent loop
 sees one short tool result, not a sprawling history that downstream steps would hallucinate from.
 
+## STRICT — ASK EVERY QUESTION
+
+**Do not silently default.** This is the most important rule of the whole agent. The user
+explicitly does not want the interview collapsed to a few presses with "the rest" auto-picked. A
+short interview is a failed interview.
+
+- **Every sub-question in `interview.md` gets asked via `AskUserQuestion`.** No exceptions for
+  "obvious" or "common" picks. The `(default)` annotation on an option means "list this option
+  FIRST" — it does **not** authorize skipping the question.
+- **`$ARGUMENTS` and `EXISTING_CONFIG` pre-fill the recommended option of the matching
+  question — they do not answer the question for the user.** If `$ARGUMENTS` contains "catppuccin
+  mocha", you still run the palette question; you just put `Catppuccin Mocha` as the first option.
+  The user can pick it (one press) or change it. Same for monitor names read from
+  `EXISTING_CONFIG` — surface them as the default in question 1, don't auto-record them.
+- **Opt-in gate questions (groups 7 widgets, 19 login & boot, 20 gaming, 21 laptop, 22
+  accessibility, 23 plugins) are always asked.** Chassis detection (`IS_LAPTOP=1`) sets which
+  option is listed first in the laptop gate — it does **not** answer the gate.
+- **Inferred picks don't count as user choices.** "No animations" in `$ARGUMENTS` does NOT let you
+  skip the look-and-feel animations question; only an exact, in-option-list selector does (e.g.
+  the user said "Tokyo Night" → palette scheme question still asked but Tokyo Night is the first
+  option).
+- A from-scratch run **must** produce roughly **28–38 `AskUserQuestion` calls**. If your call
+  count is in single digits, you skipped questions — start over.
+
 ## Inputs (the caller passes these)
 
 - **`STAGING=<path>`** — the staging directory the rice skill set up (e.g. `/tmp/hypr-gen-abc123`).
@@ -19,10 +43,13 @@ sees one short tool result, not a sprawling history that downstream steps would 
 - **`HYPR_VERSION=<x.y.z>`** — from `detect-version.sh`. Recorded into the file as
   `hypr_version` so version-sensitive questions can reference it.
 - **`ARGUMENTS=<freeform>`** — the user's original `/hyprland-config:rice` argument. Use it to
-  pre-fill obvious answers ("dual monitor, vim keybinds, catppuccin mocha" → set `monitors.setup`,
-  `keybinds.*`, `palette.*` upfront and skip those questions).
+  **reorder option lists so the hinted pick is listed first** ("dual monitor, vim keybinds,
+  catppuccin mocha" → in the monitors question put "Dual side-by-side" first; in the palette
+  question put "Catppuccin Mocha" first). **Still ask the question.** The user can confirm with
+  one press or change their mind.
 - **`EXISTING_CONFIG=<path>`** (optional) — `~/.config/hypr/hyprland.conf` if one exists, so monitor
-  names and current picks can pre-fill.
+  names + obvious current picks can be **listed as the first option** of the matching question.
+  Still ask the question.
 - **`DETECT_VERSION=<kv-dump>`** / **`DETECT_THEME=<kv-dump>`** (optional) — the factual env
   output (`GPU_DRIVER`, `MONITOR_COUNT`, `IS_LAPTOP`, `UWSM_SESSION`, `CURRENT_*`) so questions can
   use the right *default* without filtering options.
@@ -45,44 +72,59 @@ Read **`${CLAUDE_PLUGIN_ROOT}/skills/rice/references/interview.md`** — it has 
 exact key names to use under each group), the 23-group structure, the sub-questions, and the
 4-questions-per-call cap rule. Treat that file as authoritative; don't paraphrase or skip.
 
-### 3. Pre-fill from `ARGUMENTS` and `EXISTING_CONFIG`
+### 3. Parse `ARGUMENTS` and `EXISTING_CONFIG` into option-reordering hints (do NOT record yet)
 
-Before asking anything, parse `ARGUMENTS` for explicit picks ("catppuccin mocha", "dual monitor",
-"vim keybinds", "no animations") and record them with `record-answer.sh`. Read `EXISTING_CONFIG`
-(if present) for monitor names + obvious current settings and record those. Then skip the
-corresponding sub-questions when you walk the groups — but **show the pre-fills in the review
-pass at the end** so the user can override.
+Before asking anything, parse `ARGUMENTS` for picks that match a documented option of a
+sub-question (e.g. "catppuccin mocha" → matches `palette.scheme=catppuccin-mocha`; "dual
+monitor" → matches `monitors.setup=dual-side-by-side`). Read `EXISTING_CONFIG` for monitor names
++ obvious current settings. **Build a hint table** of `{question → suggested first option}` — do
+NOT call `record-answer.sh` for these yet. They become the first option in the relevant
+`AskUserQuestion` call so the user can confirm with one press, but every sub-question is still
+asked.
 
-### 4. Walk the 23 groups, recording each answer
+Inferred / vague hints in `$ARGUMENTS` ("no animations", "make it nice", "simple") don't go into
+the hint table — they're not unambiguous selectors. The user picks them through the actual
+question.
+
+### 4. Walk the 23 groups — ask EVERY sub-question, record each answer
 
 For each group, present its sub-questions via `AskUserQuestion` (split across calls when there are
 >4 sub-questions), then **immediately record each answer** with `record-answer.sh` before moving
 on. The key paths come from the schema in `interview.md` ("How downstream steps use it" table +
 the schema JSON). Examples:
 
-- After group 12 palette: `record-answer.sh "$STAGING/answers.json" palette.scheme catppuccin-mocha`
-  then `... palette.accent mauve`.
-- After group 6 waybar modules (multi-select):
+- Group 12 palette → ask the palette-source question, then the scheme question, then the accent
+  question via three sub-questions. After the user picks: `record-answer.sh "$STAGING/answers.json"
+  palette.scheme catppuccin-mocha` then `... palette.accent mauve`.
+- Group 6 waybar modules (multi-select): present the module list, record:
   `record-answer.sh "$STAGING/answers.json" bar.modules --json '["workspaces","window","clock","pulseaudio","network","tray"]'`.
-- After group 7 widgets (opt-in gate "no"):
-  `record-answer.sh "$STAGING/answers.json" widgets --json '{"system":"none"}'`.
-- After group 21 laptop (chassis default = `IS_LAPTOP`):
-  `record-answer.sh "$STAGING/answers.json" laptop.enabled --json true` (or false).
+- Group 7 widgets gate (opt-in): **ask the gate question**. On "no" record `widgets --json
+  '{"system":"none"}'` and move on. Don't skip the gate just because waybar was chosen in 6.
+- Group 21 laptop gate: **ask it**. The chassis (`IS_LAPTOP=1` or `=0`) decides which option is
+  listed first ("Yes, set up laptop options" first on a laptop; "No, this is a desktop" first
+  otherwise). The detected answer is the *default*, not the recorded answer.
 
 The opt-in groups (7 widgets, 19 login_boot, 20 gaming, 21 laptop, 22 accessibility, 23 plugins)
-start with a gate question; on "no" record `<group>.enabled = false` and move to the next group
-without asking the rest.
+each start with a gate question. **Always ask the gate.** On "no" record `<group>.enabled = false`
+or the equivalent shape, then move on without asking the rest of that group.
 
 Don't try to "remember" each answer in your own context for later — once it's in the JSON file,
 it's safe; you can `jq` the file at any time. After every ~5 groups, run
 `jq . "$STAGING/answers.json"` and confirm the shape matches `interview.md`'s schema so you catch
 a typo'd key path early.
 
+**Check your call count.** Running totals: groups 1–5 should be ~6–8 calls; through group 10
+~14–18; through group 17 ~22–28; through group 23 **28–38**. If you're consistently low — e.g.
+finishing group 10 in 5 calls — you're skipping sub-questions to fit the 4-per-call cap. Go back
+and ask the ones you collapsed.
+
 ### 5. Run the review pass
 
 Once all 23 groups are answered, run **one** `AskUserQuestion` with a structured summary of the
 key picks (palette, fonts, bar strategy, launcher, terminal, shell — the things the user usually
-wants to double-check). Print the full `jq` summary above the question for visibility:
+wants to double-check). Mark any answer that came from an `$ARGUMENTS` hint with `[from
+arguments]`, and any that came from `EXISTING_CONFIG` with `[from existing config]` so the user
+can spot something they didn't actually pick:
 
 ```bash
 jq -r '"

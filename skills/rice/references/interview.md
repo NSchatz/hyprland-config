@@ -150,15 +150,30 @@ template needs something you didn't ask for, add the question to the interview a
 
 Ask with `AskUserQuestion`, **one group per component, in order**. The tool accepts **at most 4
 questions per call**, so a group with more than four sub-questions **must be split across consecutive
-calls** — never drop, merge, or silently skip a sub-question just to fit the cap. Walk every group and
-ask each sub-question; a group only shrinks when `$ARGUMENTS` or an existing config already answers some.
+calls** — never drop, merge, or silently skip a sub-question just to fit the cap. Walk every group
+and **ask every sub-question**.
 
-Always present the recommended default — marked **(default)** — as the first option, so "just pick good
-defaults" can skip ahead. Run `detect-version.sh` + `detect-theme-tools.sh` first for **factual**
-context (Hyprland version, GPU driver, monitor count, chassis, uwsm session, current gsettings), but
-**do not** filter or reorder the menu by what's already installed — every user is offered the same
-options. Whatever the user picks lands in the A3d install batch and A5 installs it. Use `multiSelect`
-for the genuinely multi-choice questions (bar modules, autostart, env vars).
+### Strict — ask every question. Never silently default.
+
+The `(default)` marker on an option means "put this option first in the list" — it does **not**
+authorize skipping the question. The user has explicitly said they don't want the interview
+collapsed to a few presses; a short interview is a failed interview. The hard rules:
+
+- Every sub-question gets an `AskUserQuestion` call. No exceptions for "obvious" picks.
+- `$ARGUMENTS` and an existing config **reorder the option list** (so the matching pick is first
+  and the user can confirm with one press); they do not answer the question. Vague hints like "no
+  animations" or "make it nice" don't even reorder — they're not option selectors.
+- Opt-in gate questions (groups 7 widgets, 19 login & boot, 20 gaming, 21 laptop, 22
+  accessibility, 23 plugins) are **always asked**. Detection (e.g. `IS_LAPTOP=1`) decides which
+  option is listed first in the gate, not the gate's answer.
+- A from-scratch run produces roughly **28–38 `AskUserQuestion` calls**. Single-digit call counts
+  mean the interview was collapsed — go back and ask the rest.
+
+Run `detect-version.sh` + `detect-theme-tools.sh` first for **factual** context (Hyprland version,
+GPU driver, monitor count, chassis, uwsm session, current gsettings), but **do not** filter or
+reorder the menu by what's already installed — every user is offered the same options. Whatever the
+user picks lands in the A3d install batch and A5 installs it. Use `multiSelect` for the genuinely
+multi-choice questions (bar modules, autostart, env vars).
 
 **The groups** (a from-scratch run walks all of them; expect **~28–38 `AskUserQuestion` calls** total on
 a full build — fewer when opt-in groups are declined: 7 (widgets), 19 (login), 20 (gaming), 21
@@ -531,8 +546,9 @@ them.
 The compositor's own aesthetic. Defaults are the well-tuned shipped 0.54 values; see
 `styling/hyprland-decoration.md` for values-that-look-good and `design-principles.md` for the archetypes
 (Catppuccin soft-glass · flat/minimal · heavy glass · maximalist floating-islands). Now **10
-sub-questions** — split across **three calls** (4 + 3 + 3) to respect the 4-per-call cap; the last call
-(groups/per-app rules/blur toggle) is skippable when the user wants plain defaults.
+sub-questions** — split across **three calls** (4 + 3 + 3) to respect the 4-per-call cap. **Ask
+all three calls.** (Earlier wording suggested the last call was skippable; that was a mistake —
+every sub-question gets asked. Defaults are option-list ordering only.)
 
 Call 1:
 **11a. Gaps & borders** — Comfortable (in 5 / out 20 / border 2) **(default)** · Tight (2/6/1) ·
