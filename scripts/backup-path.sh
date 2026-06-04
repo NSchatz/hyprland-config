@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # Timestamped backup of arbitrary config files/dirs before editing them.
-# Used by the rice / shell-config / desktop-shell skills (they touch files
-# outside ~/.config/hypr, so the hypr-specific backup-config.sh does not apply).
+# Used by the rice and edit-config skills (they touch files outside ~/.config/hypr, so the
+# hypr-specific backup-config.sh does not apply).
 #
 # Usage: backup-path.sh <path> [<path> ...]
 # Prints one line per path:

@@ -22,10 +22,9 @@ cp <skill>/assets/scripts/<name>.sh ~/.config/hypr/scripts/
 chmod +x ~/.config/hypr/scripts/<name>.sh
 ```
 
-Then add the bind to `binds.conf` (see each tool below). Bias which tools are *offered* and which are
-**(on)** by default to what `detect-version.sh` reports installed (`HAVE_grim`, `HAVE_satty`,
-`HAVE_tesseract`, `HAVE_bemoji`, `HAVE_wf_recorder`, `HAVE_hyprpicker`, `HAVE_cliphist`, `HAVE_rofi`,
-…). Name the package for anything missing — **never install it**.
+Then add the bind to `binds.conf` (see each tool below). Offer the full menu of utilities regardless of
+what's currently installed — do **not** filter by `HAVE_*` flags. Any missing dependency is added to
+the install batch (A3d → packages.md) so it lands when A5 runs the installer.
 
 ## Shipped scripts
 
@@ -87,7 +86,7 @@ mechanism.
 ## Group 18 question (how to ask)
 
 One `AskUserQuestion`, **multi-select**, options ordered by how often each appears in the corpus, with
-the items whose tools are installed pre-checked **(on)**:
+the commonly-rice'd items pre-checked **(on)**:
 
 > **Which utilities & menus should I set up?** (generates the script + keybind for each)
 > - Screenshot (region/window/full + annotate) **(on)**
@@ -105,4 +104,5 @@ the items whose tools are installed pre-checked **(on)**:
 Map each checked item to its row above: copy the script (or just add the bind), wire the keybind into
 `binds.conf`, and make sure its autostart prerequisite (cliphist watchers, nm-applet) is also enabled
 in group 15. Validate `binds.conf` with `hyprctl reload` + `configerrors` after writing (the rice
-safe-apply flow). For anything whose tool is missing, add the bind but note the package to install.
+safe-apply flow). Any tool that isn't installed yet goes into the A3d package batch — it lands when A5
+runs the installer.

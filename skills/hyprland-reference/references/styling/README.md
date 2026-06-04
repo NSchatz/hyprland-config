@@ -38,7 +38,8 @@ Catppuccin Mocha example.
 
 - **`rice`** — for tasteful structural + palette defaults when building from scratch, and for how to
   color each surface (the recipes assume its rice palette contract).
-- **`desktop-shell`** — for the *layout/structure* of the bar, launcher, and notifications.
+- **`edit-config`** — for the *layout/structure* of the bar, launcher, and notifications when editing
+  an existing surface (recipes live in `rice/references/components.md`).
 
 These are design references, not syntax authorities — for the exact, current option names defer to
 the sibling `hyprland-reference` files (`sections.md`, `window-rules.md`, `deprecations.md`,

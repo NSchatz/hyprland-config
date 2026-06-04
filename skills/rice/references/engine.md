@@ -47,8 +47,8 @@ re-theming):
   *is* `~/.config/gtk-4.0/gtk.css`.
 
 Apps without an include mechanism (mako, dunst) are not in the default manifest — their config is
-written whole by the desktop-shell skill, which folds the colors in. Templates for them ship in
-`templates/` for manual use.
+written whole (by rice in Mode A3b or by edit-config later), which folds the colors in. Templates for
+them ship in `templates/` for manual use.
 
 **gtk4 gotchas.** (1) `~/.config/gtk-4.0/gtk.css` may already be a **symlink** to a system GTK theme
 (Catppuccin-GTK etc. link the whole `gtk-4.0/` dir) — rendering through it errors with *"Permission
@@ -65,8 +65,9 @@ fix the env source too (see `theming.md` → GTK, and `detect-version.sh` `UWSM_
 The shell is a themed surface too — both the **prompt** (starship / oh-my-posh) and **fish's own
 syntax-highlighting colors**. These ship as templates but are **not in the default manifest** (like
 starship before: a shell isn't guaranteed, and we don't want to create `~/.config/fish/` for someone
-who doesn't use fish). The **shell-config** skill registers the relevant line when the user opts in,
-then `rice apply` re-themes the prompt/shell on every theme switch. Add the line(s) for what's chosen:
+who doesn't use fish). Mode A3c (or a later `edit-config` shell pass) registers the relevant line
+when the user opts in, then `rice apply` re-themes the prompt/shell on every theme switch. Add the
+line(s) for what's chosen:
 
 ```
 fish        ~/.config/hypr-rice/templates/fish.tmpl         ~/.config/fish/conf.d/zz-hypr-rice-colors.fish
@@ -77,8 +78,8 @@ oh-my-posh  ~/.config/hypr-rice/templates/oh-my-posh.tmpl   ~/.config/hypr-rice/
 (TAB-separated, empty reload-cmd — new shells pick the colors up; no daemon to signal.)
 
 **Prompt configs can't `include` a palette file** the way kitty/waybar do, so the engine renders a
-**complete, rice-owned prompt config** and the shell is pointed at it (one-time wiring, done by
-shell-config):
+**complete, rice-owned prompt config** and the shell is pointed at it (one-time wiring, done in
+rice A3c or edit-config):
 
 - **fish colors** → `conf.d/zz-hypr-rice-colors.fish` is auto-sourced by fish on every interactive
   start (no wiring needed); it `set -g`s the `fish_color_*` / `fish_pager_color_*` vars. This themes

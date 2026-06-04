@@ -116,8 +116,9 @@ gtk.css color overrides and keep the user's current theme. Common matches (insta
 | Kanagawa      | `kanagawa-gtk-theme-git` (AUR)      | Bibata; Papirus-Dark                    |
 | Solarized     | `solarized-gtk-theme`/`gnome-solarized` | Bibata; Papirus(-Dark)              |
 
-If the matching theme isn't installed, do not install it — apply colors via `gtk.css` overrides
-and tell the user the package if they want the full theme.
+If the matching theme isn't installed, add its package to the A3d install batch (`packages.md`) so it
+lands at A5. The lighter alternative — applying colors via `gtk.css` overrides — is still valid when
+the user wants a smaller footprint or the AUR theme is murrine-dependent (see the caveat below).
 
 **Caveat — murrine-dependent AUR themes.** Several of the full GTK themes above (e.g.
 `everforest-gtk-theme-git`, and other Fausto-Korpsvart themes) `depends=gtk-engine-murrine`, which

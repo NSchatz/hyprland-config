@@ -30,7 +30,9 @@ else
     echo "HYPR_SOURCE=none (hyprctl/Hyprland not found — assume latest stable syntax)"
 fi
 
-# Probe common ecosystem packages so the interview can bias toward what's installed.
+# Probe common ecosystem packages so the install batch (A3d) can annotate already-present packages
+# with `# installed` and the safe-apply step can skip work that's already done. The interview does
+# NOT use these flags to filter options — every user sees the same menu.
 # Reports HAVE_<tool>=1 (present) or MISSING_<tool>=1 (absent). Maps package name -> a
 # representative binary where they differ. Detection only — installs nothing.
 have_pkg() {

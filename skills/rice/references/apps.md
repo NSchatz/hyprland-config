@@ -23,8 +23,8 @@ TAB-separated line in `templates.list`; then `rice apply`.
 | fuzzel | `fuzzel.tmpl` | merge `[colors]` into `~/.config/fuzzel/fuzzel.ini` (RRGGBBAA, no `#`) | (launch) |
 | cava | `cava.tmpl` | merge `[color]` into `~/.config/cava/config` | restart |
 
-"merge" templates aren't included via a colors file (the app has no include directive) — the
-rice / desktop-shell skill folds them into the app's config. The `@import`/`include`/`source`
+"merge" templates aren't included via a colors file (the app has no include directive) — the rice
+generate / edit-config flow folds them into the app's config. The `@import`/`include`/`source`
 ones go straight in the manifest. To enable an `@import` app in the engine, add its line to
 `templates.list`, e.g.:
 

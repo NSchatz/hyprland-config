@@ -19,14 +19,16 @@ calls** — never drop, merge, or silently skip a sub-question just to fit the c
 ask each sub-question; a group only shrinks when `$ARGUMENTS` or an existing config already answers some.
 
 Always present the recommended default — marked **(default)** — as the first option, so "just pick good
-defaults" can skip ahead. Run `detect-version.sh` + `detect-theme-tools.sh` first so options reflect
-what's installed (bias defaults to installed tools; name the package for anything missing — never
-install). Use `multiSelect` for the genuinely multi-choice questions (bar modules, autostart, env vars).
+defaults" can skip ahead. Run `detect-version.sh` + `detect-theme-tools.sh` first for **factual**
+context (Hyprland version, GPU driver, monitor count, chassis, uwsm session, current gsettings), but
+**do not** filter or reorder the menu by what's already installed — every user is offered the same
+options. Whatever the user picks lands in the A3d install batch and A5 installs it. Use `multiSelect`
+for the genuinely multi-choice questions (bar modules, autostart, env vars).
 
 **The groups** (a from-scratch run walks all of them; expect **~28–38 `AskUserQuestion` calls** total on
-a full build — fewer when the conditional groups skip: 7 (widgets), 19 (login), 20 (gaming), 22
-(accessibility), 23 (plugins) are opt-in, and 21 (laptop) self-skips on desktops. If you've asked only a
-handful, you've collapsed groups incorrectly, go ask the rest):
+a full build — fewer when opt-in groups are declined: 7 (widgets), 19 (login), 20 (gaming), 21
+(laptop), 22 (accessibility), 23 (plugins) all start with a gate question and skip the rest on "no".
+If you've asked only a handful, you've collapsed groups incorrectly, go ask the rest):
 
 | # | Group | Mode A | Mode B | Splits into |
 |---|---|---|---|---|
@@ -50,15 +52,15 @@ handful, you've collapsed groups incorrectly, go ask the rest):
 | 18 | **Utilities & menus** | ✓ | | 1 call |
 | 19 | **Login & boot** | ✓ | | 1 call |
 | 20 | **Gaming & performance** | ✓ | | 1–2 calls |
-| 21 | **Laptop** *(if `IS_LAPTOP`)* | ✓ | | 1 call |
+| 21 | **Laptop** *(opt-in; `IS_LAPTOP` is the default answer)* | ✓ | | 1 call |
 | 22 | **Accessibility** *(opt-in)* | ✓ | | 0–1 call |
 | 23 | **Hyprland plugins** *(hyprpm, opt-in)* | ✓ | | 0–2 calls |
 
 Map every answer to its template: the **Hyprland-config** groups (monitors, input, keybinds, default
 apps, terminal, window look & feel, autostart, companion configs) → `config-templates.md`; the functional
-**bar/launcher/notification** configs → `../../desktop-shell/references/components.md`; the **desktop-widget
+**bar/launcher/notification** configs → `components.md`; the **desktop-widget
 shell** → its `styling/` page + the engine's widget template (`engine.md` → "Widget-shell theming"); the
-**shell/prompt** configs → `../../shell-config/references/shells.md`; the **utilities & menus** → their
+**shell/prompt** configs → `shells.md`; the **utilities & menus** → their
 shipped scripts + binds (`utilities.md`); the **login & boot** chrome → `login.md`; the
 **gaming & performance** tweaks → `gaming.md`; the **Hyprland plugins** (hyprpm) → `plugins.md`
 (`plugin {}` blocks into `plugins.conf` + the install commands); the **palette/fonts/wallpaper** groups
@@ -208,7 +210,7 @@ emitted into `looknfeel.conf`).
 ## 6. Status bar  *(dedicated group — full functional depth + waybar design)*
 
 rice generates the **functional** bar config (`config.jsonc`) and its themed `style.css`, not just the
-colors. Recipes: `../../desktop-shell/references/components.md` (waybar). The **design** library
+colors. Recipes: `components.md` (waybar). The **design** library
 `styling/waybar.md` holds the pattern catalog this group draws on — archetypes, the techniques harvested
 from **~55 community configs** off the [Waybar Examples wiki](https://github.com/Alexays/Waybar/wiki/Examples),
 plus the vertical/dual-bar/dock/macOS recipes. **Don't pick a bar look silently** — walk the design
@@ -258,7 +260,7 @@ background with dark text (inverted "candy" pills).
 **6l. Modules** (multi-select; sensible set checked) — workspaces **(on)**, window title **(on)**, clock
 **(on)**, audio/pulseaudio **(on)**, network **(on)**, CPU, memory, temperature, battery **(on if
 laptop)**, system tray **(on)**, media/mpris, bluetooth, idle-inhibitor, notification (swaync if chosen),
-updates, weather. Keep on-clicks aligned to installed tools (network → `nm-connection-editor`, audio →
+updates, weather. Keep on-clicks aligned to the chosen tools (network → `nm-connection-editor`, audio →
 `pavucontrol`).
 **6m. Module grouping** — Inline **(default)** · Collapse cpu/mem/temp (and volume/brightness) behind a
 `group/drawer` that reveals on hover/click — best on **narrow or vertical** bars; can hold GTK sliders ·
@@ -272,7 +274,7 @@ and **workspaces + `wlr/taskbar` + sensors** on the bottom (a JSON **array of na
 `"name": "top"/"bottom"`). Both are spelled out in `styling/waybar.md` ("Bar form").
 
 **Validate `config.jsonc` as strict JSON before reload** — a malformed bar silently fails to appear
-(see the desktop-shell JSON-check). `style.css` must start with `@import "colors.css";` so the engine
+(see `components.md` → JSON-check). `style.css` must start with `@import "colors.css";` so the engine
 themes it.
 
 ---
@@ -294,16 +296,16 @@ SCSS — floating widgets, any shape; pairs with waybar) · **AGS / Astal** (TS/
 included services, the dashboard heritage) · **Quickshell** (QML — the modern, best-looking, animation-
 rich shells; build-your-own; steepest curve) · a **turnkey pre-built shell** (install a ready Quickshell
 desktop — see 7a-bis) · **HyprPanel** (turnkey AGS panel, GUI-configured — note it's **archived 2026-04**
-but still usable; successor *Wayle*). Bias the default to anything already installed
-(`detect-theme-tools.sh`); name the package for a missing one — **never install**. A full shell
-(Quickshell/AGS/HyprPanel/turnkey) means **removing waybar's `exec-once`** so two bars don't fight.
+but still usable; successor *Wayle*). Present all options uniformly — whatever the user picks is added
+to the A3d install batch. A full shell (Quickshell/AGS/HyprPanel/turnkey) means **removing waybar's
+`exec-once`** so two bars don't fight.
 **7a-bis. Turnkey shell** (only if "pre-built" picked) — **end-4 / illogical-impulse** (the most-starred,
 Material-You, AI/OCR extras) · **caelestia** (Material 3, per-monitor `shell.json`, fingerprint lock) ·
 **Noctalia** (sleek minimal, multi-compositor) · **DankMaterialShell** (full shell replacing
 bar/lock/idle/notifications/launcher at once). These are the trending 2025–2026 look — but they're a
 **clone-and-install** of someone else's whole desktop, with their *own* theming model. Don't hand-theme
-them: drive them with **matugen** on the same wallpaper (engine.md → "Widget-shell theming"), print the
-project's install steps, and warn the plugin's per-app theming yields to theirs. **Never install.**
+them: drive them with **matugen** on the same wallpaper (engine.md → "Widget-shell theming"), run the
+project's install steps after one confirmation, and warn the plugin's per-app theming yields to theirs.
 **7b. Which widgets** (multi-select; ordered by how often they appear in the corpus) — OSD
 (volume/brightness) **(on)**, notification center **(on)**, dashboard / control center, music / now-playing
 (MPRIS) **(on)**, calendar / clock panel, power / session menu, sidebar / quick-settings, system-info
@@ -331,12 +333,12 @@ don't run both (the D-Bus name conflict); if a full shell owns notifications, se
 ## 8. Launcher  *(dedicated group — full functional depth)*
 
 rice generates the launcher's functional config + themed style. Recipes:
-`../../desktop-shell/references/components.md`; look: `styling/launchers.md`. Sets `$menu` for binds.
+`components.md`; look: `styling/launchers.md`. Sets `$menu` for binds.
 
 **8a. Launcher tool** — wofi **(default)** · rofi (most themeable) · fuzzel · tofi · **walker** (Wayland-
 native, runs as a service for instant startup) · **vicinae** (the 2025 Raycast-for-Linux — Qt, runs
 Raycast extensions, bundles clipboard/calc/emoji/window-switch) · **anyrun** (krunner-style, plugin-
-extensible). Bias to installed; name the package for a missing one. The newer four (walker/vicinae/
+extensible). Present all uniformly; the chosen one lands in the A3d install batch. The newer four (walker/vicinae/
 anyrun + tofi) ship their own config/theme formats — for vicinae especially the engine themes only what
 it exposes; default the **themeable** picks (wofi/rofi/fuzzel) when the user just wants palette coherence.
 **8b. Mode** — App launcher / `drun` **(default)** · Run + drun combined · Also offer window-switcher
@@ -357,7 +359,7 @@ Style file `@import`s/`include`s the generated colors file so the engine themes 
 
 rice generates the daemon's functional config + themed colors. *Only one* daemon can run (they fight
 for the `org.freedesktop.Notifications` D-Bus name). Recipes:
-`../../desktop-shell/references/components.md`; look: `styling/notifications.md`.
+`components.md`; look: `styling/notifications.md`.
 
 **9a. Daemon** — mako **(default)** · dunst · swaync (adds a notification center / control panel) · none.
 **9b. Position** — Top-right **(default)** · Top-center · Top-left · Bottom-right.
@@ -442,9 +444,10 @@ present it; if the user says "good defaults", use **Catppuccin Mocha** and say s
   Nord, Tokyo Night, Rosé Pine, Dracula, Everforest, Kanagawa, Solarized Dark). Ask the scheme as a
   second question; each ships a ready preset profile + matching wallpapers (group 14).
 - **Match my wallpaper** → needs `matugen` or `wallust`; confirm the wallpaper path. If neither is
-  installed, say so and fall back to a named scheme or manual (don't install). With matugen, the scheme
-  type is selectable (`-t scheme-tonal-spot`/`-expressive`/`-vibrant`/…); Material-You → ANSI is
-  approximate, wallust/pywal give a true 16-color scheme.
+  currently installed, add the chosen generator (default matugen) to the A3d install batch — A5
+  installs it before the palette is rendered. With matugen, the scheme type is selectable
+  (`-t scheme-tonal-spot`/`-expressive`/`-vibrant`/…); Material-You → ANSI is approximate,
+  wallust/pywal give a true 16-color scheme.
 - **Manual hex** → ask at least `bg`, `fg`, `accent`; derive the rest or collect all 16.
 **12b. Light vs dark** (only when ambiguous) — most schemes are dark; if the user picked one with a light
 variant (Catppuccin Latte), confirm. For light, set GTK `color-scheme = prefer-light`.
@@ -461,14 +464,13 @@ highest-leverage single choice.
 
 ## 13. Fonts  *(re-theming asks this too)*
 
-**13a. UI / sans font** (always present) — the GTK/app text font. Present installed families first
-(`FONT_SANS=`/`CURRENT_*FONT*`): Inter, Lexend, Rubik, Cantarell, Noto Sans, Adwaita Sans. Default to an
-installed UI font; offer the catalog (naming the package) for one not present. Record as
-`font_ui = <Family> <size>` (e.g. `Inter 11`).
-**13b. Monospace / Nerd font** (always present) — terminal/bar/fetch/prompt font. **Default to an
-installed Nerd Font** (`JetBrainsMono Nerd Font` is the universal pick) so glyphs render instead of tofu
-(▯). Offer installed Nerd Fonts first; if `MISSING_NERD_FONT`, offer the catalog + name the package and
-warn glyph-heavy bars/prompts show boxes until one is installed. Common pairings: *Inter/Noto Sans +
+**13a. UI / sans font** (always present) — the GTK/app text font. Present the catalog uniformly
+(Inter, Lexend, Rubik, Cantarell, Noto Sans, Adwaita Sans); Inter is the default. The chosen family
+lands in the A3d install batch. Record as `font_ui = <Family> <size>` (e.g. `Inter 11`).
+**13b. Monospace / Nerd font** (always present) — terminal/bar/fetch/prompt font. **Default to
+`JetBrainsMono Nerd Font`** (the universal pick) so glyphs render instead of tofu
+(▯). Offer the full catalog (`fonts.md`); the chosen font lands in the A3d install batch so it's
+present by the time anything glyph-heavy renders. Common pairings: *Inter/Noto Sans +
 JetBrainsMono NF* (safe), *Space Grotesk + JetBrains Mono NF* (modern), *Rubik/Readex Pro + Maple Mono
 NF* (cozy). Record as `font_mono = <Family> <size>`.
 
@@ -507,8 +509,8 @@ Full contract + render flow: `engine.md`; per-scheme hex: `palettes.md`; fonts: 
 
 ## 15. Autostart & env  *(generate only)*
 
-Prefer first-party Hypr ecosystem tools as defaults (see `ecosystem.md`). Only suggest installed tools
-as on-by-default; for missing ones, offer but note they need installing. Never install. (The bar,
+Prefer first-party Hypr ecosystem tools as defaults (see `ecosystem.md`). Present the same menu
+regardless of what's currently installed; the picks land in the A3d install batch. (The bar,
 notification daemon, and lock screen were chosen in their own groups above — here wire their
 `exec-once`/units plus the rest.) Split across **two calls**.
 
@@ -569,24 +571,23 @@ without it being captured by the timestamped backup. This group is usually a sin
 ## 17. Shell & prompt  *(dedicated group — generate only)*
 
 The interactive shell is the last themed surface. rice sets up the prompt + shell colors by leaning on
-the **shell-config** recipes (`../../shell-config/references/shells.md`) and the rice engine's
-shell templates (`engine.md` → "Shell & prompt theming"); the *colors* are palette-driven so the prompt
-re-themes with everything else. Bias defaults to what's installed (`detect-theme-tools.sh`:
-`HAVE_fish`/`HAVE_starship`/`HAVE_ohmyposh`/`HAVE_fastfetch`).
+the shell recipes (`shells.md`) and the rice engine's shell templates (`engine.md` → "Shell & prompt
+theming"); the *colors* are palette-driven so the prompt re-themes with everything else. Present the
+full menu of shells / prompt engines / fetches; whatever is picked lands in the A3d install batch.
 
 **17a. Which shell do you want?** — **always ask this; don't silently default to the current shell.**
 Keep current login shell **(default)** · bash · zsh · **fish** (the popular ricing pick — built-in
-autosuggestions + tab-completions, i.e. "autocomplete" with no plugins). Bias the default to the
-installed/current shell (`CURRENT_SHELL`/`HAVE_fish` from `detect-theme-tools.sh`); name the package
-if a chosen shell isn't installed. If they want the pick as the **login** shell, that's a manual
-`chsh -s "$(command -v <shell>)"` (the shell must be in `/etc/shells`) taking effect next login — or
-offer the lower-risk **per-terminal** route (set the emulator's shell, e.g. kitty `shell
-/usr/bin/fish`, foot `shell=…`), which keeps the login shell unchanged. Note whichever they pick;
-never run `chsh` for them. Edits go in a guarded managed block, parse-tested after each change.
+autosuggestions + tab-completions, i.e. "autocomplete" with no plugins). The pick lands in the A3d
+install batch — even if the chosen shell isn't currently present, A5 installs it. If they want the
+pick as the **login** shell, that's a manual `chsh -s "$(command -v <shell>)"` (the shell must be in
+`/etc/shells`) taking effect next login — or offer the lower-risk **per-terminal** route (set the
+emulator's shell, e.g. kitty `shell /usr/bin/fish`, foot `shell=…`), which keeps the login shell
+unchanged. Note whichever they pick; never run `chsh` for them. Edits go in a guarded managed block,
+parse-tested after each change.
 **17b. Prompt engine** — starship **(default, cross-shell)** · oh-my-posh (cross-shell, JSON themes) ·
 native shell prompt · leave as-is. Wire it to the engine (`STARSHIP_CONFIG` → rice-owned `starship.toml`,
-or `oh-my-posh init --config` → rice-owned `rice.omp.json`) so `rice apply` recolors it. Name the package
-for a missing engine.
+or `oh-my-posh init --config` → rice-owned `rice.omp.json`) so `rice apply` recolors it. The chosen
+engine's package lands in the A3d install batch.
 **17c. fish syntax colors** (fish only) — Theme `fish_color_*` from the palette **(default yes)** · leave
 fish defaults. Renders to `~/.config/fish/conf.d/zz-hypr-rice-colors.fish` (auto-sourced).
 **17d. Startup fetch** — fastfetch **(default)** · neofetch (archived) · none. Add a guarded line in the
@@ -597,9 +598,10 @@ the chosen set in `~/.config/fish/fish_plugins` so `fisher update` reproduces it
 skill). See `shells.md` → "Fish plugins".
 
 Optional second call: aliases & modern-CLI integration (`eza`/`bat`/`zoxide`/`fzf`/`atuin`, all
-`command -v`-guarded — in fish, prefer `abbr` for git/nav shortcuts) and editor/history — only for
-installed tools; defer the rest to the shell-config skill. The prompt/fish-color manifest lines to
-register live in `engine.md`. **Reminder:** new aliases/prompt only appear in shells started after the
+`command -v`-guarded — in fish, prefer `abbr` for git/nav shortcuts) and editor/history. Whichever the
+user picks lands in the A3d install batch; the inits stay `command -v`-guarded so a future
+uninstall doesn't break a login. The prompt/fish-color manifest lines to register live in
+`engine.md`. **Reminder:** new aliases/prompt only appear in shells started after the
 change — tell the user to open a new terminal or `exec <shell>`.
 
 ---
@@ -612,23 +614,22 @@ generator easily skips them. Full recipes, install steps, deps, and binds: `util
 functional scripts ship as **plugin template files** in this skill's `assets/scripts/` (plain scripts,
 no palette — copy + `chmod`, not render); their keybinds go into `binds.conf` (group 3).
 
-**18a. Which utilities & menus?** (multi-select; order by corpus frequency; pre-check the items whose
-tools `detect-version.sh` reports installed) — Screenshot (region/window/full + annotate) **(on)** ·
-Clipboard history picker **(on)** · Color picker **(on if hyprpicker)** · Power menu **(on)** · Screen
-recording · OCR (screen → text) · Emoji picker · Calculator · Wi-Fi menu / applet · Bluetooth menu /
-applet · Night-light toggle.
+**18a. Which utilities & menus?** (multi-select; order by corpus frequency; pre-check the items rices
+typically include) — Screenshot (region/window/full + annotate) **(on)** · Clipboard history picker
+**(on)** · Color picker **(on)** · Power menu **(on)** · Screen recording · OCR (screen → text) ·
+Emoji picker · Calculator · Wi-Fi menu / applet · Bluetooth menu / applet · Night-light toggle.
 
-Prefer the **2025–2026 tools** when present: **satty** for screenshot annotation (over the older
-swappy), **wl-screenrec** for HW-encoded recording (over wf-recorder on AMD/Intel), **hyprshot**/
-`grimblast` for the capture itself. The shipped `screenshot.sh`/`screenrecord.sh` bias to whichever the
-detection reports — name the modern one as the suggested install when absent.
+Prefer the **2025–2026 tools** by default: **satty** for screenshot annotation (over the older swappy),
+**wl-screenrec** for HW-encoded recording (over wf-recorder on AMD/Intel), **hyprshot**/`grimblast` for
+the capture itself. The shipped `screenshot.sh`/`screenrecord.sh` auto-detect at runtime, so the chosen
+tools land in the install batch and the scripts pick the right one once they're present.
 
 For each checked item: copy its script (or just add the bind for the bind-only tools — clipboard,
 emoji, calculator), wire the keybind into `binds.conf`, and ensure its autostart prerequisite (cliphist
 watchers, nm-applet) is enabled in group 15. **Wi-Fi/Bluetooth** ship as the tray applets by default
 (robust) — don't hand-author fragile nmcli/bluetoothctl rofi parsers; see `utilities.md` for the
-keyboard-driven alternative. Name the package for any missing tool — never install. Validate
-`binds.conf` (`hyprctl reload` + `configerrors`) after writing.
+keyboard-driven alternative. Any tool that isn't installed yet goes into the A3d package batch.
+Validate `binds.conf` (`hyprctl reload` + `configerrors`) after writing.
 
 ---
 
@@ -683,22 +684,26 @@ it's a default in the generated `misc` block, not a question here. Validate (`hy
 
 ---
 
-## 21. Laptop  *(dedicated group — generate only; self-skips on desktops)*
+## 21. Laptop  *(dedicated group — generate only; opt-in)*
 
-Only ask this when detection reports **`IS_LAPTOP=1`** (DMI chassis or a battery node) — it self-skips
-entirely on desktops. Lid handling, power profile, and charge limit. Touchpad is already covered in
-group 2; brightness/volume/media keys are already in the default `binds.conf`, so they're not re-asked.
+Lid handling, power profile, and charge limit. Touchpad is already covered in group 2;
+brightness/volume/media keys are already in the default `binds.conf`, so they're not re-asked.
 
-**21a. Lid close action** — Suspend **(default)** · Lock (hyprlock) · Clamshell: blank the internal
+**Call 1 — the gate:**
+**21a. Set up laptop options?** — *(default = the chassis answer: `IS_LAPTOP=1` → Yes, else No)*. The
+detected chassis only sets the default; the user can always pick the other answer.
+
+**Call 2 (only if yes):**
+**21b. Lid close action** — Suspend **(default)** · Lock (hyprlock) · Clamshell: blank the internal
 panel, keep externals (good when docked) · Nothing. Emits a `bindl = , switch:on:Lid Switch, …` line
 (device name from `hyprctl devices`; `config-templates.md` → binds). **Warn about double-handling:** if
 systemd-logind also suspends on lid, set `HandleLidSwitch*` in `/etc/systemd/logind.conf` to `ignore`
 (root-side; document, don't run).
-**21b. Power-profile tool** — *(pre-filled from `POWER_TOOL`)* power-profiles-daemon **(default)** · TLP ·
-auto-cpufreq · none. The three are **mutually exclusive** — never enable two. PPD pairs with the waybar
-power module. If the chosen one isn't installed, name the package; enabling its daemon is root/systemd
-(document the `systemctl enable --now` line).
-**21c. Battery charge limit?** — No **(default)** · Yes, 80% (longevity). Root-side: a systemd one-shot
+**21c. Power-profile tool** — *(pre-filled from `POWER_TOOL` if detected; user can override)*
+power-profiles-daemon **(default)** · TLP · auto-cpufreq · none. The three are **mutually exclusive** —
+never enable two. PPD pairs with the waybar power module. The chosen tool's package lands in the A3d
+install batch; enabling its daemon is root/systemd (document the `systemctl enable --now` line).
+**21d. Battery charge limit?** — No **(default)** · Yes, 80% (longevity). Root-side: a systemd one-shot
 writing `/sys/class/power_supply/BAT*/charge_control_end_threshold`, or TLP's
 `STOP_CHARGE_THRESH`. Generate the unit + the `sudo` install command; never run it.
 

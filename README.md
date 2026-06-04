@@ -9,19 +9,23 @@ up, into `~/.config/hypr`.
 - **Interviews you** one component at a time — monitors, input, keybinds, default apps, terminal,
   status bar, launcher, notifications, lock screen, look & feel, palette, fonts, wallpaper, autostart
   & env — then generates the whole desktop (Hyprland config **plus** the functional bar/launcher/
-  notification configs), themed from one palette, and writes an **`install.sh`** for the packages your
-  picks need (Arch + AUR, idempotent — it never installs for you).
+  notification configs), themed from one palette. **Every user sees the same menu** regardless of
+  what's installed — the install step (below) adds whatever's missing.
+- **Installs the packages your picks need.** After the interview, you confirm the resolved package
+  batch **once**, then a dedicated agent runs the install (pacman + auto-detected paru/yay for AUR,
+  bootstrap if the helper is missing). Idempotent — re-runs are safe. A reviewable **`install.sh`**
+  also ships with the dotfiles so the rice replicates cleanly to a new machine.
 - **Detects your installed Hyprland version** (`hyprctl version`) and emits matching syntax —
   no deprecated options from old tutorials. Conventions are grounded in the **shipped default
   config** and popular community dotfiles: the official keybind scheme (Q=terminal, C=close,
   R=menu, E=files, V=float, M=exit) with `$mainMod`, `layoutmsg, togglesplit`, the `gesture=`
   touchpad API, `windowrule { match:… }` block rules (0.53+), `rounding_power`, and the
   well-tuned default animation curves.
-- **Knows the Hyprland ecosystem.** It probes which companion packages you have installed and
-  wires in first-party tools by default — `hyprlock`, `hypridle`, `hyprpaper`, `hyprpicker`,
-  `hyprshot`, `hyprsunset`, `hyprpolkitagent` — alongside common community choices (waybar /
-  hyprpanel, wofi / rofi / fuzzel, mako / dunst / swaync, swww, cliphist, wlogout, swayosd, and
-  the `xdg-desktop-portal-hyprland` stack for screen sharing).
+- **Knows the Hyprland ecosystem.** First-party defaults — `hyprlock`, `hypridle`, `hyprpaper`,
+  `hyprpicker`, `hyprshot`, `hyprsunset`, `hyprpolkitagent` — alongside common community choices
+  (waybar / hyprpanel, wofi / rofi / fuzzel, mako / dunst / swaync, swww, cliphist, wlogout,
+  swayosd, and the `xdg-desktop-portal-hyprland` stack for screen sharing). Pick anything; it's
+  installed.
 - **Generates a modular config**: a main `hyprland.conf` that `source=`s topic files
   (`env`, `monitors`, `input`, `looknfeel`, `binds`, `windowrules`, `autostart`).
 - **Generates companion configs** when you opt in: starter `hyprlock.conf`, `hypridle.conf`,
@@ -43,22 +47,27 @@ up, into `~/.config/hypr`.
   with a **user-override cascade**, and **version control** of the whole rice in git.
 - **Configures the terminal and desktop shell**: bash/zsh/fish setup (prompt, aliases, env) and
   the bar/launcher/notification functional configs — each backed up and tested after every change.
-- **Validates** the result with a dedicated agent that checks syntax, deprecations, and
-  conflicts (duplicate binds, undefined variables, missing source files), flags
-  referenced-but-not-installed ecosystem tools, and can run a live load-test on request.
+  All of this lives in the `rice` skill on a fresh build and in `edit-config` for later edits.
+- **Uses agents in parallel.** The from-scratch build spawns one **`hyprland-component-writer`**
+  per surface (waybar / launcher / notifications / terminal / lock-screen / Hyprland topic files)
+  so the per-component authoring runs concurrently instead of serializing on the main loop.
+- **Validates** the result with the **`hyprland-config-validator`** agent — syntax, deprecations,
+  conflicts (duplicate binds, undefined variables, missing source files), flags ecosystem coherence
+  issues, optional live load-test. Invoked automatically after generation **and** after non-trivial
+  edits.
 
 ## Components
 
 | Type  | Name                        | Purpose                                                        |
 |-------|-----------------------------|----------------------------------------------------------------|
-| Skill | `rice`                      | User-invoked. The **all-in-one** rice: **generate** a whole desktop from scratch (per-component interview → modular Hyprland config **+ functional bar/launcher/notification/terminal configs + an `install.sh` for the packages your picks need** → install + live-test), **theme** every surface from one palette (named / wallpaper-generated / manual + font choices), manage named **profiles** (12 presets + a user-override cascade), and set/cycle the **wallpaper** with dynamic theming — all driven by a self-contained rice engine (`~/.config/hypr-rice/` with `palette.conf` + templates + a `rice` CLI). |
-| Skill | `edit-config`               | User-invoked. Reads an existing config and makes changes, **testing after every change** with auto-rollback. |
-| Skill | `shell-config`              | User-invoked. Configures the terminal shell (bash/zsh/fish): **prompt engine** (starship / oh-my-posh / native), **fish syntax-highlighting colors**, aliases, env, history, a startup **fetch** (fastfetch default / neofetch), and modern-CLI integration — syntax-checked after every change. Prompt/fish colors are palette-driven through the rice engine, so they re-theme with the desktop. |
-| Skill | `desktop-shell`             | User-invoked. Functional configs for the bar (waybar), launcher (wofi/rofi), and notifications (mako/dunst) — for editing these later; a from-scratch `rice` build already generates them. |
+| Skill | `rice`                      | User-invoked. The **all-in-one** rice: **generate** a whole desktop from scratch (per-component interview → modular Hyprland config + functional bar/launcher/notification/terminal configs + **shell & prompt** + an `install.sh` Claude actually runs after one confirmation → install + live-test), **theme** every surface from one palette (named / wallpaper-generated / manual + font choices), manage named **profiles** (12 presets + a user-override cascade), and set/cycle the **wallpaper** with dynamic theming — all driven by a self-contained rice engine (`~/.config/hypr-rice/` with `palette.conf` + templates + a `rice` CLI). |
+| Skill | `edit-config`               | User-invoked. Edits an **existing** desktop config — Hyprland (`~/.config/hypr/*.conf`), the surfaces around it (waybar, wofi/rofi, mako/dunst/swaync), the terminal shell (bash/zsh/fish rc files), and companion daemons (hyprlock/hypridle/hyprpaper). **Tests after every edit** with auto-rollback (Hyprland: `hyprctl reload`; bar: JSON parse + `SIGUSR2`; shell: parse-only — never sourced). Installs any tool a requested edit needs (after asking once). |
 | Skill | `dotfiles`                  | User-invoked. Version-controls the configs in git (bare-repo / stow / chezmoi) and commits after each verified change. |
 | Skill | `hyprland-reference`        | Auto-triggered. Hyprland config syntax, ecosystem, **testing**, and a **styling reference library** (per-package design guides + cross-cutting design principles, researched from the community). |
 | Command | `reset-config`            | User-invoked. Wipes `~/.config/hypr` to a minimal bare-bones `hyprland.conf` — full backup + live-test + auto-rollback. |
-| Agent | `hyprland-config-validator` | Static validation (plus an optional live load-test) of a generated/edited config. |
+| Agent | `hyprland-config-validator` | Static validation (plus an optional live load-test) of a generated/edited config. Run automatically after rice generation and after non-trivial edits. |
+| Agent | `hyprland-package-installer`| Runs the generated `install.sh` (or an ad-hoc package list) after the user confirms the batch once. Handles pacman + paru/yay routing, bootstraps a helper if missing, retries transient failures, returns a structured verdict. |
+| Agent | `hyprland-component-writer` | Authors **one** desktop surface (waybar / launcher / notifications / terminal / lock-screen / a Hyprland topic file) into staging. The rice skill spawns several in parallel during Mode A so the per-component writing runs concurrently. |
 
 ## Usage
 
@@ -75,9 +84,12 @@ Optionally pass hints to pre-fill the interview:
 ```
 
 The `rice` skill picks the mode from your request (generate / theme / profiles / wallpaper). For a
-fresh build it walks you through one short interview, generates the config into a staging directory,
-statically validates it, backs up and installs it to `~/.config/hypr`, then **live-tests** it
-(`hyprctl reload` + `configerrors`) — rolling back automatically if it fails to load.
+fresh build it walks you through one short interview, spawns several **component-writer agents** in
+parallel to author each surface (waybar, launcher, notifications, terminal, lock-screen, Hyprland
+topic files), statically validates the staging dir, **asks once to install the packages your picks
+need** (handled by the installer agent — pacman + paru/yay routing), backs up and installs the
+configs into `~/.config/hypr` + `~/.config/<app>/`, then **live-tests** Hyprland (`hyprctl reload` +
+`configerrors`) — rolling back automatically if it fails to load.
 
 ### Changing an existing config
 
@@ -106,20 +118,27 @@ colors file for each app (Hyprland, hyprlock, waybar, mako/dunst, wofi/rofi, kit
 Qt, cursor/icons/fonts), then reloads each running app so it shows immediately. Re-theming later is
 a one-file-per-app rewrite + reload.
 
-### Configuring the shells
+### Editing the shells & surfaces around Hyprland
+
+From-scratch builds are owned by `rice`; later edits to any surface are owned by `edit-config`:
 
 ```
-/hyprland-config:shell-config set up zsh with starship and aliases
-/hyprland-config:desktop-shell set up waybar with battery, network, and tray
+/hyprland-config:edit-config set up zsh with starship and aliases
+/hyprland-config:edit-config add a network module to my waybar
+/hyprland-config:edit-config swap my launcher to rofi
+/hyprland-config:edit-config make my notifications stay longer
 ```
 
-`shell-config` sets up your **terminal shell** (bash/zsh/fish — prompt, aliases, env, history, a
-startup **fetch** [fastfetch by default, or neofetch], and guarded `eza`/`bat`/`zoxide`/`fzf`
-integration) inside a managed block, **syntax-checking after every change** (parse-only, never
-executed). `desktop-shell` writes the **functional** configs for waybar / launcher / notifications
-(colors come from `rice`). `rice` also **presents font choices** — a UI font and a
-monospace/Nerd font (needed for bar/fetch/prompt glyphs) — and applies them across GTK, kitty, and
-waybar.
+`edit-config` covers Hyprland (`*.conf`), the desktop-shell surfaces (waybar, wofi/rofi, mako/
+dunst/swaync — `style.css` + functional config), the terminal shell (bash/zsh/fish — prompt,
+aliases, env, history, fetch), and companion daemons (hyprlock/hypridle/hyprpaper). Every edit is
+backed up and **tested before keeping** — Hyprland gets `hyprctl reload` + `configerrors`, waybar
+gets a strict JSON parse + `SIGUSR2` reload, shell rc files get parse-only (`bash -n`/`zsh -n`/
+`fish --no-execute`, never sourced). If an edit needs a tool that isn't installed (e.g. you ask to
+switch to rofi but it's not there), the skill installs it after asking once. Colors are always
+driven through the rice engine so they stay coherent with the rest of the desktop. `rice` also
+**presents font choices** — a UI font and a monospace/Nerd font (needed for bar/fetch/prompt
+glyphs) — and applies them across GTK, kitty, and waybar.
 
 ### The rice engine, wallpaper, profiles
 
@@ -181,19 +200,17 @@ rm -rf ~/.config/hypr && mv ~/.config/hypr.bak.<timestamp> ~/.config/hypr
 
 ## Prerequisites
 
+- **Arch Linux + pacman** (the install step targets `pacman` directly; an AUR helper — paru or yay —
+  is auto-detected and bootstrapped if missing). On other distros the install step skips with the
+  package list printed for manual install.
 - **Hyprland** installed (the plugin detects the version; if neither `hyprctl` nor `Hyprland`
   is on `PATH` it assumes the latest stable syntax and tells you).
-- Common companions are optional — the generator **probes which you have installed** and biases
-  defaults toward them, but you can pick anything. First-party defaults: `hyprlock`, `hypridle`,
-  `hyprpaper`, `hyprpicker`, `hyprshot`, `hyprsunset`, `hyprpolkitagent`. Common extras:
-  `waybar`/`hyprpanel`, `wofi`/`rofi`/`fuzzel`, `mako`/`dunst`/`swaync`, `swww`, `cliphist` +
-  `wl-clipboard`, `wlogout`, `swayosd`, `grim`/`slurp`/`grimblast`, `wpctl` (PipeWire),
-  `brightnessctl`, `playerctl`.
-- For **screen sharing** and native file pickers, install `xdg-desktop-portal-hyprland` and
-  `xdg-desktop-portal-gtk`. The validator notes these if missing.
-- Generated lines for tools you don't have are harmless no-ops — install the tool or remove the
-  line. The full ecosystem catalog lives in
-  `skills/hyprland-reference/references/ecosystem.md`.
+- Everything else is optional — `rice` installs whatever the interview picks need, after you confirm
+  the batch once. First-party Hypr defaults: `hyprlock`, `hypridle`, `hyprpaper`, `hyprpicker`,
+  `hyprshot`, `hyprsunset`, `hyprpolkitagent`. Common extras: `waybar`/`hyprpanel`, `wofi`/`rofi`/
+  `fuzzel`, `mako`/`dunst`/`swaync`, `swww`, `cliphist` + `wl-clipboard`, `wlogout`, `swayosd`,
+  `grim`/`slurp`/`grimblast`, `wpctl` (PipeWire), `brightnessctl`, `playerctl`. The full ecosystem
+  catalog lives in `skills/hyprland-reference/references/ecosystem.md`.
 
 ## Configuration
 
@@ -214,25 +231,27 @@ claude --plugin-dir /home/nschatz/projects/hyprland-plugin
 hyprland-config/
 ├── .claude-plugin/plugin.json
 ├── commands/
-│   └── reset-config.md              # /hyprland-config:reset-config (bare-bones reset)
+│   └── reset-config.md                    # /hyprland-config:reset-config (bare-bones reset)
 ├── agents/
-│   └── hyprland-config-validator.md
-├── scripts/                         # shared across skills
-│   ├── backup-path.sh               # timestamped backup of arbitrary paths
-│   └── dotfiles.sh                  # git versioning: bare / stow / chezmoi
+│   ├── hyprland-config-validator.md       # static lint (+ optional live load-test)
+│   ├── hyprland-package-installer.md      # runs install.sh / ad-hoc package list
+│   └── hyprland-component-writer.md       # one surface per agent, spawned in parallel
+├── scripts/                               # shared across skills
+│   ├── backup-path.sh                     # timestamped backup of arbitrary paths
+│   └── dotfiles.sh                        # git versioning: bare / stow / chezmoi
 ├── skills/
-│   ├── rice/              (generate + theme + profiles + wallpaper — the whole rice)
-│   │   ├── references/   (interview, config-templates, theming, palettes, templates, fonts,
-│   │   │                  engine, apps, login, gaming, utilities, plugins, wallpaper)
+│   ├── rice/              (generate + theme + profiles + wallpaper + shell/desktop-shell)
+│   │   ├── references/   (interview, config-templates, components, shells, theming, palettes,
+│   │   │                  templates, fonts, engine, apps, login, gaming, utilities, plugins,
+│   │   │                  wallpaper, packages)
 │   │   ├── scripts/      (detect-version, detect-theme-tools, rice-init, render-templates,
 │   │   │                  apply-theme, set-wallpaper, palette-from-wallpaper, safe-apply,
-│   │   │                  install-config, verify-config, backup-config, reset-config)
+│   │   │                  install-config, verify-config, verify-shell, backup-config,
+│   │   │                  reset-config)
 │   │   ├── templates/    (*.tmpl color templates rendered by the engine)
 │   │   ├── assets/       (rice CLI, profiles/*.conf presets, wallpapers.tsv catalog)
 │   │   └── examples/     (a complete generated modular config)
-│   ├── edit-config/       (read + change existing config, test after every change)
-│   ├── shell-config/      (bash/zsh/fish: prompt, aliases, fetch; parse-checked)
-│   ├── desktop-shell/     (waybar / launcher / notification functional configs)
+│   ├── edit-config/       (read + change ANY existing surface, test after every change)
 │   ├── dotfiles/          (git version control of the configs)
 │   └── hyprland-reference/  (auto-triggered: syntax, ecosystem, testing knowledge)
 │       └── references/styling/  (per-package styling guides + design principles, researched)
@@ -253,6 +272,41 @@ The **rice engine** the plugin scaffolds (lives in your home, version-controlled
 ```
 
 ## Changelog
+
+### 0.11.0
+
+A structural overhaul — what the plugin **does** (it installs now), how it **chooses** (no
+detection-based filtering), how it's **organized** (four skills instead of six), and how it
+**works** (parallel agents).
+
+- **Claude installs packages.** The strict "never install" policy is gone. After the interview
+  the user confirms the resolved package batch **once**; a new **`hyprland-package-installer`**
+  agent then runs the install (pacman + auto-detected paru/yay, with a one-question bootstrap if
+  no AUR helper is present). Idempotent (`--needed`); retries transient failures; classifies real
+  ones; returns a structured `INSTALL=ok|partial|failed|skipped` verdict the rice flow acts on.
+  `install.sh` still ships as a reviewable artifact so the rice replicates to a new machine.
+  Same policy in `edit-config`: an edit that needs a missing tool installs it after one ask.
+- **The interview stops filtering by what's installed.** Every user sees the same menu of choices;
+  detection's `HAVE_*`/`MISSING_*` flags only annotate the install batch (`# installed` comments
+  + `--needed`) and don't reorder, hide, or default-bias the options. Group 21 (laptop) is now
+  opt-in with the DMI chassis answer as just the default — desktops are no longer silently skipped
+  past it. **Factual** detection still drives correctness (Hyprland version, GPU driver, uwsm
+  session, monitor names, chassis as default).
+- **Four skills, not six.** `desktop-shell` (waybar/launcher/notifications) and `shell-config`
+  (bash/zsh/fish) are merged: their **recipes** now live under `rice/references/` (`components.md`
+  and `shells.md` — same files), and their **editing entry point** lives in `edit-config`, which
+  now covers Hyprland *and* the surfaces around it *and* the terminal shell — one
+  "edit→verify→roll-back" loop per surface (Hyprland: `hyprctl reload`; waybar: JSON parse +
+  `SIGUSR2`; shells: parse-only, never sourced). The from-scratch story (rice) is unchanged in
+  scope.
+- **Parallel writers.** A new **`hyprland-component-writer`** agent authors one surface (waybar,
+  launcher, notifications, terminal, lock-screen, a Hyprland topic file) into staging. Mode A
+  spawns several in parallel — one per surface — so the per-component writing doesn't serialize on
+  the main loop. Each writer reads only its own recipe, fills the template, validates the output
+  (JSON parse / balanced braces / deprecation check) and returns a verdict; failed surfaces
+  re-spawn individually.
+- **Validator becomes a post-edit default.** `edit-config` step 5 invokes
+  `hyprland-config-validator` after non-trivial edits as a matter of course — not just on demand.
 
 ### 0.10.0
 

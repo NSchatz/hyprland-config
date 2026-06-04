@@ -5,12 +5,13 @@ overview** (exposé), **scrolling / tree** layouts, **per-monitor workspaces**, 
 and dropdown **scratchpads**. Gated behind one opt-in (group 23) — non-plugin users never see it.
 
 **The hard rule: plugins are pinned to the exact Hyprland build.** Every plugin is compiled against the
-running Hyprland's headers, so a Hyprland upgrade **breaks every plugin** until you rebuild them. That
-makes installation a user action, not ours: **Claude never runs `hyprpm`** — we generate the `plugin {}`
-config blocks + binds, then hand the user the exact `hyprpm` commands. (User is on Hyprland 0.54.3; the
-plugins must match.)
+running Hyprland's headers, so a Hyprland upgrade **breaks every plugin** until you rebuild them. So
+plugin installs need *two* explicit confirmations: one when first installing them, and another after
+every Hyprland upgrade (run by the user or by the **hyprland-package-installer** agent on the next
+build). We generate the `plugin {}` config blocks + binds, run the `hyprpm` commands after that
+confirmation, and document the upgrade-day refresh.
 
-## The hyprpm flow (hand these to the user — never run them)
+## The hyprpm flow (run after one user confirmation; warn about Hyprland upgrades)
 
 ```bash
 hyprpm update                         # build/refresh headers for the running Hyprland (run after EVERY Hyprland upgrade)
@@ -26,9 +27,10 @@ exec-once = hyprpm reload -n           # -n = no notification on success
 ```
 
 On 0.45+ the dispatcher-permission system can gate plugin loading; if `ecosystem:enforce_permissions`
-is on, the user also needs `permission = /usr/(bin|local/bin)/hyprpm, plugin, allow`. `hyprpm` needs the
-build toolchain (`base-devel`/`cmake`/`meson`) present — name it, never install. After any Hyprland
-update tell the user to re-run `hyprpm update && hyprpm reload` or plugins silently vanish.
+is on, the user also needs `permission = /usr/(bin|local/bin)/hyprpm, plugin, allow`. The build
+toolchain (`base-devel`/`cmake`/`meson`/`cpio`) is added to the install batch (A3d → packages.md →
+"PKGS") so it lands with the rest. After any Hyprland update re-run `hyprpm update && hyprpm reload`
+(prompt the user) or plugins silently vanish.
 
 ## Catalog — what to offer (config block + bind, frequency-ordered)
 
@@ -121,8 +123,10 @@ offer pyprland when the user wants **multiple named** dropdowns or expose/magnif
 ## Mapping group-23 answers
 Each checked plugin → its `plugin {}` block into a staged **`plugins.conf`** (`source`d from
 `hyprland.conf`), its binds into `binds.conf` (group 3), and (for layout plugins) the `general:layout`
-line — **only if** the plugin is confirmed present. For every plugin: print the `hyprpm`/`pip` install
-commands, note the build-toolchain dep, and warn that a Hyprland upgrade requires `hyprpm update &&
-hyprpm reload`. Validate (`hyprctl reload` + `configerrors`) after writing; a `plugin {}` block for an
-unloaded plugin is **ignored** (harmless), but a layout/dispatcher from a missing plugin **errors** —
-so gate `layout =`/`hy3:`/`split-workspace` binds on the plugin actually being installed.
+line — **only after** the plugin has been installed by hyprpm (gate the layout/dispatcher emission on
+the install succeeding). For every plugin: run the `hyprpm` (or `pip` for pyprland) install commands
+via the installer agent after one confirmation, and warn that a Hyprland upgrade requires `hyprpm
+update && hyprpm reload`. Validate (`hyprctl reload` + `configerrors`) after writing; a `plugin {}`
+block for an unloaded plugin is **ignored** (harmless), but a layout/dispatcher from a missing plugin
+**errors** — so gate `layout =`/`hy3:`/`split-workspace` binds on the plugin install actually
+succeeding.

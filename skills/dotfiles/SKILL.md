@@ -25,7 +25,8 @@ new-machine restore. All operations go through the helper:
 - **chezmoi** — a chezmoi-managed source repo with templating/secrets/multi-machine (requires
   `chezmoi`).
 
-If the chosen tool isn't installed (stow/chezmoi), say so and offer bare instead — don't install.
+If the chosen tool isn't installed (stow/chezmoi), ask once whether to install it (`stow`/`chezmoi`
+via pacman); if the user declines, fall back to bare.
 
 ## Workflow
 
@@ -73,7 +74,8 @@ how to add one). For a new machine, give the restore command from `dotfiles.md`.
 
 - **Never track secrets.** Don't add files containing tokens/keys/passwords; the bare repo's
   `showUntrackedFiles=no` already prevents accidental `$HOME` adds. Warn before adding shell rc.
-- Don't install `stow`/`chezmoi` — suggest them; fall back to bare.
+- Install `stow`/`chezmoi` only after one confirmation if the user picks that method; otherwise fall
+  back to bare.
 - Pushing publishes the configs — confirm the remote/visibility with the user first.
 
 ## Resources

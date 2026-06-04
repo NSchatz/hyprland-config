@@ -1,7 +1,6 @@
 #!/usr/bin/env bash
-# Probe theming/shell tooling and the current desktop appearance so the rice /
-# shell-config skills can bias toward what's installed and read the current state.
-# Detection only — changes nothing.
+# Probe theming/shell tooling and the current desktop appearance so the rice and edit-config
+# skills can present the current state. Detection only — changes nothing.
 #
 # Prints HAVE_<tool>=1 / MISSING_<tool>=1 lines, then CURRENT_* lines for gsettings values.
 set -uo pipefail
@@ -39,7 +38,7 @@ have kvantum   kvantummanager  kvantum
 have kitty
 have alacritty
 have foot
-# Bars / launchers / notifiers (for desktop-shell)
+# Bars / launchers / notifiers
 have waybar
 have hyprpanel
 have wofi
@@ -47,7 +46,7 @@ have rofi
 have mako
 have dunst
 have swaync
-# System-info fetch tools (for shell-config startup greeting)
+# System-info fetch tools (startup greeting)
 have fastfetch
 have neofetch
 

@@ -148,8 +148,9 @@ the alpha suffix (`ee`) is appended directly. swaync (GTK CSS) gets `@define-col
 **Catppuccin Mocha** example follows each (surface `313244`, fg `cdd6f4`, accent/mauve `cba6f7`,
 red `f38ba8`, bg `1e1e2e`).
 
-> This plugin's `desktop-shell` skill writes mako/dunst as **whole files** with colours already
-> folded in, so this recipe is the whole config, self-contained — not a fragment to be merged.
+> This plugin (rice in Mode A3b, edit-config for later tweaks) writes mako/dunst as **whole files**
+> with colours already folded in, so this recipe is the whole config, self-contained — not a
+> fragment to be merged.
 
 ### mako — `~/.config/mako/config`
 

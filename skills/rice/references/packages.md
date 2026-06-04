@@ -2,10 +2,11 @@
 
 A from-scratch build (Mode A) ends up choosing many tools across the 23 interview groups — a terminal,
 a bar, a launcher, a notification daemon, fonts, a palette generator, utility tools, a shell/prompt,
-maybe a widget shell or plugins. The skill **never installs** any of them (Safety rules), but it
-*does* hand the user a single reviewable artifact that installs exactly what their picks need: a
-generated **`install.sh`**. This file is the selection→package map plus the script's shape and the
-rule for assembling it.
+maybe a widget shell or plugins. The skill **installs them on the user's behalf after one
+confirmation** at A5 (via the **hyprland-package-installer** agent, which runs the generated script).
+The script itself is the deliverable too — it ships with the dotfiles so the rice replicates cleanly
+to a new machine, and the user can re-run it any time (idempotent). This file is the selection→package
+map plus the script's shape and the rule for assembling it.
 
 The target is **Arch + AUR** (the Hyprland ecosystem is overwhelmingly Arch/AUR-centric). The script
 is self-contained: it takes **one mixed package list** and **auto-routes** each name at runtime —
@@ -34,6 +35,8 @@ a dotfiles repo. On a non-pacman system it just lists the names.
    hyprpm section (see below), and add the build toolchain (`base-devel cmake meson cpio`) to `PKGS`.
 6. Stage it at `<staging>/install.sh` so it installs to `~/.config/hypr/install.sh` and travels with
    the config + its backup (and version-controls with the dotfiles skill). `chmod +x` it.
+7. **A5 runs it** via the **hyprland-package-installer** agent after one user confirmation — pass the
+   staged path. The user can also re-run it manually later (it's idempotent).
 
 The repo/AUR column in the map below is **informational** — it documents the canonical name and where
 the package currently lives, but the script no longer depends on it being right; `pacman -Si` decides at
@@ -256,9 +259,10 @@ Notes:
 - Routing means you never have to classify: a package that moved repos↔AUR between releases
   (`swww`/`swaync`/`ghostty`/`cliphist`) lands in the right bucket on the user's actual system.
 - Add `--noconfirm` to the `pacman`/helper calls for an unattended run; leave it off (default) to let
-  the user confirm each transaction.
+  the user confirm each transaction. The installer agent's default is the non-noconfirm form so the
+  user sees pacman's transaction summary; pass `--noconfirm` only when the user explicitly opts in.
 - List the *real* wallpaper daemon (`swww` **or** the `awww` fork, per `SWWW_DAEMON_BIN`), not both.
-- The user should run `install.sh` **before** the autostart daemons are started / before next login,
-  or the bar/wallpaper/notification daemons (A6) have nothing to launch.
+- A5 runs `install.sh` so the bar/wallpaper/notification daemons (A6) have something to launch. If the
+  user declined the install batch, point them at the script in A6.
 </content>
 </invoke>

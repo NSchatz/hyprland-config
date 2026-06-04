@@ -1,6 +1,6 @@
 ---
 name: hyprland-config-validator
-description: Use this agent when a Hyprland config has just been generated or edited and needs checking before it goes live, or when the user asks to "validate my hyprland config", "check hyprland.conf for errors", "lint my Hyprland setup", or "is my hyprland config correct". Typical triggers include the rice skill finishing a write, a user pointing at a hyprland.conf or ~/.config/hypr directory and asking whether it is valid, and a user reporting that Hyprland failed to load a config. See "When to invoke" in the agent body for worked scenarios.
+description: Use this agent when a Hyprland config has just been generated or edited and needs checking before it goes live, or when the user asks to "validate my hyprland config", "check hyprland.conf for errors", "lint my Hyprland setup", or "is my hyprland config correct". Typical triggers include the rice skill finishing a write (Mode A5 step 1), the edit-config skill finishing a non-trivial edit (step 5 — invoke routinely, not just on demand), a user pointing at a hyprland.conf or ~/.config/hypr directory and asking whether it is valid, and a user reporting that Hyprland failed to load a config. See "When to invoke" in the agent body for worked scenarios.
 model: inherit
 color: yellow
 tools: Read, Grep, Glob, Bash
@@ -13,9 +13,13 @@ yourself — you diagnose and recommend, leaving fixes to the caller.
 
 ## When to invoke
 
-- **Post-generation check.** The rice skill has just written a config to a directory
-  and passes you the path plus the target Hyprland version. Validate everything before the user
-  reloads Hyprland.
+- **Post-generation check.** The rice skill (Mode A5 step 1) has just written a config to a staging
+  directory and passes you the path plus the target Hyprland version. Validate everything before the
+  user reloads Hyprland.
+- **Post-edit check.** The edit-config skill (step 5) has just modified the live config and wants a
+  second opinion beyond the live `hyprctl reload` test — this catches deprecations, duplicate binds,
+  and ecosystem-coherence issues a clean reload won't flag. Invoke routinely after non-trivial edits,
+  not just on demand.
 - **User-requested lint.** The user points at a `hyprland.conf` or `~/.config/hypr` and asks
   whether it is valid or why Hyprland rejects it.
 - **Troubleshooting a failed load.** The user reports Hyprland showing a config error overlay;
