@@ -253,6 +253,31 @@ The **rice engine** the plugin scaffolds (lives in your home, version-controlled
 
 ## Changelog
 
+### 0.7.0
+
+An extensive **desktop-widget** implementation — the widget shells (dashboards, sidebars, OSDs, control
+centers, notification hubs, music players, overviews) that define the modern Hyprland scene, which the
+styling library had no coverage of. Built from a wide survey of the GitHub `hyprland`/`quickshell` topics
+and r/unixporn:
+
+- **Four new styling references.** [`styling/widgets.md`](skills/hyprland-reference/references/styling/widgets.md)
+  is the cross-cutting decision guide — a system-by-system **decision matrix** (waybar+custom · eww ·
+  AGS/Astal · Quickshell · HyprPanel · fabric · nwg-shell), the ranked **widget archetypes**, turnkey
+  panels, and the cross-toolkit theming flow. Three deep per-toolkit pages back it: **`eww.md`** (yuck +
+  SCSS — cards, sliders, circular-progress, reveal animations), **`ags-astal.md`** (the v1→v2/Astal
+  split, material cards, quick-settings toggles, blurred album-art player, matugen Material You), and
+  **`quickshell.md`** (QML, *not* CSS — the `Theme`/`Colors` singleton, `Behavior` animations,
+  layer-namespace blur). Each is attributed to real community configs.
+- **New interview group 7 — "Desktop widgets."** A `6a` **bar & shell strategy** question now decides
+  waybar vs waybar+widgets vs a full shell that *replaces* the bar (Quickshell/AGS) vs HyprPanel; group 7
+  then walks the **widget system**, **which widgets** (OSD · notification center · dashboard · music ·
+  calendar · power menu · sidebar · gauges · overview), the **look**, and **motion/density**. The
+  remaining groups renumbered (launcher→8 … shell & prompt→17); a from-scratch run is now ~22–28 calls.
+- **Engine widget-shell theming.** New `eww.tmpl` → eww `colors.scss`, `ags.tmpl` → AGS/Astal
+  `colors.scss`, `quickshell.tmpl` → Quickshell `Colors.qml`, registered in the manifest when a shell is
+  chosen so `rice apply` re-themes it with everything else (HyprPanel/Material-You shells are driven by
+  matugen instead). See `engine.md` → "Widget-shell theming".
+
 ### 0.6.0
 
 A dedicated **waybar design** interview group, backed by a styling reference rebuilt from a wide survey

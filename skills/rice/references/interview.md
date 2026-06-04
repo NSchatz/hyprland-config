@@ -23,7 +23,7 @@ defaults" can skip ahead. Run `detect-version.sh` + `detect-theme-tools.sh` firs
 what's installed (bias defaults to installed tools; name the package for anything missing — never
 install). Use `multiSelect` for the genuinely multi-choice questions (bar modules, autostart, env vars).
 
-**The groups** (a from-scratch run walks all of them; expect **~21–26 `AskUserQuestion` calls** total —
+**The groups** (a from-scratch run walks all of them; expect **~22–28 `AskUserQuestion` calls** total —
 if you've asked only a handful, you've collapsed groups incorrectly, go ask the rest):
 
 | # | Group | Mode A | Mode B | Splits into |
@@ -34,22 +34,26 @@ if you've asked only a handful, you've collapsed groups incorrectly, go ask the 
 | 4 | Default apps (browser, files) | ✓ | | 1 call |
 | 5 | **Terminal** | ✓ | | 1–2 calls |
 | 6 | **Status bar + waybar design** | ✓ | | 4 calls |
-| 7 | **Launcher** | ✓ | | 1–2 calls |
-| 8 | **Notifications** | ✓ | | 1 call |
-| 9 | **Lock screen** | ✓ | | 1 call |
-| 10 | Window look & feel | ✓ | ✓ | 2 calls |
-| 11 | Palette | ✓ | ✓ | 1–2 calls + accent pick |
-| 12 | Fonts | ✓ | ✓ | 1 call |
-| 13 | Wallpaper | ✓ | ✓ | 1 call (catalog pick) |
-| 14 | Autostart & env | ✓ | | 2 calls |
-| 15 | Companion configs | ✓ | | 1 call |
-| 16 | **Shell & prompt** | ✓ | | 1–2 calls |
+| 7 | **Desktop widgets** (eww / AGS / Quickshell / HyprPanel) | ✓ | | 0–2 calls |
+| 8 | **Launcher** | ✓ | | 1–2 calls |
+| 9 | **Notifications** | ✓ | | 1 call |
+| 10 | **Lock screen** | ✓ | | 1 call |
+| 11 | Window look & feel | ✓ | ✓ | 2 calls |
+| 12 | Palette | ✓ | ✓ | 1–2 calls + accent pick |
+| 13 | Fonts | ✓ | ✓ | 1 call |
+| 14 | Wallpaper | ✓ | ✓ | 1 call (catalog pick) |
+| 15 | Autostart & env | ✓ | | 2 calls |
+| 16 | Companion configs | ✓ | | 1 call |
+| 17 | **Shell & prompt** | ✓ | | 1–2 calls |
 
-Map every answer to its template: groups 1–10/14/15 → `config-templates.md`; the functional bar/launcher/
-notification configs → `../../desktop-shell/references/components.md`; the shell/prompt configs →
-`../../shell-config/references/shells.md`; groups 11–13 (and the prompt/fish *colors*) → the rice engine's
-`palette.conf` (`engine.md`) which renders the colors. For *why a value looks good*, the styling library
-(`hyprland-reference/.../styling/`) backs each look choice; cite it when explaining.
+Map every answer to its template: the **Hyprland-config** groups (monitors, input, keybinds, default
+apps, terminal, window look & feel, autostart, companion configs) → `config-templates.md`; the functional
+**bar/launcher/notification** configs → `../../desktop-shell/references/components.md`; the **desktop-widget
+shell** → its `styling/` page + the engine's widget template (`engine.md` → "Widget-shell theming"); the
+**shell/prompt** configs → `../../shell-config/references/shells.md`; the **palette/fonts/wallpaper** groups
+(and the prompt/fish *colors*) → the rice engine's `palette.conf` (`engine.md`) which renders the colors.
+For *why a value looks good*, the styling library (`hyprland-reference/.../styling/`) backs each look
+choice; cite it when explaining.
 
 ---
 
@@ -69,7 +73,7 @@ Real names come from `hyprctl monitors`; use detected names, else placeholders (
 - No, scale 1 **(default)**
 - Yes, 1.5 · Yes, 2 · Custom
 
-**Gotcha:** when a fractional `scale` is pinned, also emit a matching `env = GDK_SCALE,N` (group 14)
+**Gotcha:** when a fractional `scale` is pinned, also emit a matching `env = GDK_SCALE,N` (group 15)
 and `xwayland { force_zero_scaling = true }` or XWayland/GTK apps render blurry/wrong-sized.
 
 ---
@@ -104,7 +108,7 @@ close, exit, launcher, float, fullscreen, workspaces 1–10 switch + move-to, fo
 mouse move/resize (`bindm`), volume & brightness (`bindel` — repeat + works while locked), and a
 special/scratchpad workspace. Idioms worth using: `bindl` for media/`Print` so they work on the lock
 screen, `bindd` (described) so a cheat-sheet can read the binds, `code:10`–`code:19` for the number row
-(layout-independent). Wire **ecosystem binds** for the tools chosen below + in group 14 (see
+(layout-independent). Wire **ecosystem binds** for the tools chosen below + in group 15 (see
 `ecosystem.md`): screenshot (`hyprshot -m region` / `grimblast copy area` / `grim -g "$(slurp)" - |
 wl-copy`), lock (`hyprlock`), color picker (`hyprpicker -a`), logout (`wlogout`), clipboard
 (`cliphist list | $menu | cliphist decode | wl-copy`).
@@ -117,7 +121,7 @@ The launched apps wired to `$terminal`/`$menu`/`$browser`/`$fileManager` variabl
 launcher get their own detailed groups next — here just confirm the non-themed picks.)
 
 **4a. Browser** → default `firefox`; common: `chromium`, `brave`, `qutebrowser`. (Firefox → set
-`MOZ_ENABLE_WAYLAND,1` in group 14.)
+`MOZ_ENABLE_WAYLAND,1` in group 15.)
 **4b. File manager** → default `nautilus`; common: `thunar`, `dolphin`, `nemo`, `pcmanfm`, or a TUI
 (`yazi`, `ranger`) launched in `$terminal`.
 
@@ -136,7 +140,7 @@ with Hyprland blur on the terminal's layer for a glass look) · Custom.
 **5d. Cursor shape & blink** — Block, no blink **(default)** · Beam · Underline · Block + blink.
 
 Second call if needed:
-**5e. Font size** — 11 **(default)** · 10 · 12 · 13 (the family is the monospace/Nerd font from group 12;
+**5e. Font size** — 11 **(default)** · 10 · 12 · 13 (the family is the monospace/Nerd font from group 13;
 just size here).
 **5f. Extras** (multi-select, off by default): font ligatures, larger scrollback (10k+ lines), audible
 bell off, confirm-on-close off.
@@ -155,7 +159,12 @@ questions; the option labels below are ordered by how often the pattern shows up
 state → content. The two design calls are the "waybar design" heart of this group.
 
 **Call 1 — basics:**
-**6a. Bar tool** — waybar **(default)** · hyprpanel (own config model) · none.
+**6a. Bar & shell strategy** — waybar **(default)** · waybar **+ extra widgets** (keep the bar, add eww
+floating widgets / a swaync center — configured in group 7) · a **full widget shell that replaces the
+bar** (Quickshell or AGS/Astal — caelestia/end-4-style; skip the rest of this group and do group 7
+instead) · **HyprPanel** (turnkey bar+widgets panel, own config model — group 7) · none. *If a full shell
+or HyprPanel is chosen, this group collapses to this one question and the bar look lives in group 7
+(`styling/widgets.md`); waybar's design calls below only apply when waybar is the bar.*
 **6b. Form & position** — Top horizontal **(default)** · Bottom (dock feel) · Vertical (narrow left/right
 column) · Dual (top + bottom). *Vertical and dual change the whole layout — see `styling/waybar.md`
 ("Bar form").*
@@ -210,51 +219,94 @@ themes it.
 
 ---
 
-## 7. Launcher  *(dedicated group — full functional depth)*
+## 7. Desktop widgets  *(dedicated group — beyond the bar)*
+
+The widgets that make a desktop feel like a *rice* rather than a bar on a wallpaper: dashboards/control
+centers, sidebars, on-screen displays (OSDs), music players, notification centers, calendars, power
+menus, workspace overviews. Decided by the strategy answer in **6a**. The design library
+`styling/widgets.md` is the decision guide (choosing a system + the widget archetypes); the per-toolkit
+pages `styling/eww.md`, `styling/ags-astal.md`, `styling/quickshell.md` back the look. **Don't pick a
+widget system silently** — it's a real commitment (a full shell *replaces* waybar, and only one
+notification daemon can run). The engine themes the chosen shell via its widget template (`engine.md` →
+"Widget-shell theming"). Skip this group entirely if 6a was plain **waybar** with no extra widgets.
+
+**Call 1 — system & widgets:**
+**7a. Widget system** — *(pre-filled from 6a; confirm)* None / just waybar **(default)** · **eww** (yuck +
+SCSS — floating widgets, any shape; pairs with waybar) · **AGS / Astal** (TS/JS over GTK — batteries-
+included services, the dashboard heritage) · **Quickshell** (QML — the modern, best-looking, animation-
+rich shells; caelestia/end-4; steepest curve) · **HyprPanel** (turnkey AGS panel, GUI-configured — note
+it's **archived 2026-04** but still usable; successor *Wayle*). Bias the default to anything already
+installed (`detect-theme-tools.sh`); name the package for a missing one — **never install**. A full shell
+(Quickshell/AGS/HyprPanel) means **removing waybar's `exec-once`** so two bars don't fight.
+**7b. Which widgets** (multi-select; ordered by how often they appear in the corpus) — OSD
+(volume/brightness) **(on)**, notification center **(on)**, dashboard / control center, music / now-playing
+(MPRIS) **(on)**, calendar / clock panel, power / session menu, sidebar / quick-settings, system-info
+gauges (CPU/RAM rings), workspace overview with live previews *(Quickshell only)*, clipboard / emoji /
+color picker. *(A full shell typically ships most of these; eww-on-waybar usually adds just a couple — an
+OSD + a dashboard.)*
+**7c. Widget look** — Match my palette (engine-themed from the chosen scheme) **(default)** · Material You
+(matugen, wallpaper-driven — the dominant full-shell look; needs `matugen`) · Glass / translucent + blur ·
+Flat / opaque. *(Material You pairs naturally with Quickshell/AGS/HyprPanel; "match my palette" is the
+engine's named-scheme path — see group 12.)*
+
+Second call only if the system is a **full shell** and warrants it:
+**7d. Motion & density** — Smooth eased (Material/`Behavior` animations, soft shadows) **(default)** ·
+Snappy/minimal · Static. And card shape: Soft cards ~16px radius **(default)** · Pill/stadium · Square.
+
+**Theming wiring:** register the chosen shell's line in the engine manifest (`eww`/`ags`/`quickshell`
+template → its colors file) so `rice apply` re-themes it; one-time `@import`/`@use`/`qmldir` wiring per
+`engine.md`. For **HyprPanel / Material-You-native** shells, don't fight their own theming — drive them
+with **matugen** on the same wallpaper instead (`engine.md` → "Widget-shell theming"). Notification
+widgets from a full shell (AGS `Notifd`, Quickshell `Notifications`) **replace** the group-9 daemon —
+don't run both (the D-Bus name conflict); if a full shell owns notifications, set group 9 to *none*.
+
+---
+
+## 8. Launcher  *(dedicated group — full functional depth)*
 
 rice generates the launcher's functional config + themed style. Recipes:
 `../../desktop-shell/references/components.md`; look: `styling/launchers.md`. Sets `$menu` for binds.
 
-**7a. Launcher tool** — wofi **(default)** · rofi (most themeable) · fuzzel · tofi. Bias to installed.
-**7b. Mode** — App launcher / `drun` **(default)** · Run + drun combined · Also offer window-switcher
+**8a. Launcher tool** — wofi **(default)** · rofi (most themeable) · fuzzel · tofi. Bias to installed.
+**8b. Mode** — App launcher / `drun` **(default)** · Run + drun combined · Also offer window-switcher
 bind.
-**7c. Layout & size** — Centered overlay, ~600px, single column **(default)** · Compact list (top) ·
+**8c. Layout & size** — Centered overlay, ~600px, single column **(default)** · Compact list (top) ·
 Fullscreen grid · Multi-column grid (icons).
-**7d. Show icons?** — Yes, app icons **(default)** · Text only (faster, no icon theme needed).
+**8d. Show icons?** — Yes, app icons **(default)** · Text only (faster, no icon theme needed).
 
 Second call if needed:
-**7e. Matching & behavior** (multi-select): fuzzy matching **(on)**, type-to-search, hide scrollbar,
+**8e. Matching & behavior** (multi-select): fuzzy matching **(on)**, type-to-search, hide scrollbar,
 close on focus-loss **(on)**.
 
 Style file `@import`s/`include`s the generated colors file so the engine themes it.
 
 ---
 
-## 8. Notifications  *(dedicated group)*
+## 9. Notifications  *(dedicated group)*
 
 rice generates the daemon's functional config + themed colors. *Only one* daemon can run (they fight
 for the `org.freedesktop.Notifications` D-Bus name). Recipes:
 `../../desktop-shell/references/components.md`; look: `styling/notifications.md`.
 
-**8a. Daemon** — mako **(default)** · dunst · swaync (adds a notification center / control panel) · none.
-**8b. Position** — Top-right **(default)** · Top-center · Top-left · Bottom-right.
-**8c. Default timeout** — 5s **(default)** · 3s (snappy) · 10s · Never (manual dismiss).
-**8d. Behavior** (multi-select): group by app, show app icons **(on)**, a do-not-disturb toggle bind
+**9a. Daemon** — mako **(default)** · dunst · swaync (adds a notification center / control panel) · none.
+**9b. Position** — Top-right **(default)** · Top-center · Top-left · Bottom-right.
+**9c. Default timeout** — 5s **(default)** · 3s (snappy) · 10s · Never (manual dismiss).
+**9d. Behavior** (multi-select): group by app, show app icons **(on)**, a do-not-disturb toggle bind
 **(on)**, max visible ~5.
 
 Color keys come from the engine (leave them to rice / `@import` the colors file); don't hardcode hex.
 
 ---
 
-## 9. Lock screen
+## 10. Lock screen
 
-Whether and how to lock (hyprlock). If on, generate a `hyprlock.conf` (group 15) and bind a lock key;
-if hypridle is on (group 14), point its `lock_cmd` at hyprlock. Look: `styling/hyprlock.md`.
+Whether and how to lock (hyprlock). If on, generate a `hyprlock.conf` (group 16) and bind a lock key;
+if hypridle is on (group 15), point its `lock_cmd` at hyprlock. Look: `styling/hyprlock.md`.
 
-**9a. Enable a lock screen?** — Yes, hyprlock **(default)** · No.
-**9b. Background** — Blurred screenshot **(default)** · The wallpaper · Solid palette color.
-**9c. Clock** — Large time + date **(default)** · Time only · None.
-**9d. Input pill style** — Accent-outlined, centered **(default)** · Minimal underline · Hidden until
+**10a. Enable a lock screen?** — Yes, hyprlock **(default)** · No.
+**10b. Background** — Blurred screenshot **(default)** · The wallpaper · Solid palette color.
+**10c. Clock** — Large time + date **(default)** · Time only · None.
+**10d. Input pill style** — Accent-outlined, centered **(default)** · Minimal underline · Hidden until
 typing.
 
 hyprlock colors are **literal hex** from the palette (it can't read Hyprland `$vars`) — the engine fills
@@ -262,7 +314,7 @@ them.
 
 ---
 
-## 10. Window look & feel  *(re-theming asks this too)*
+## 11. Window look & feel  *(re-theming asks this too)*
 
 The compositor's own aesthetic. Defaults are the well-tuned shipped 0.54 values; see
 `styling/hyprland-decoration.md` for values-that-look-good and `design-principles.md` for the archetypes
@@ -270,43 +322,43 @@ The compositor's own aesthetic. Defaults are the well-tuned shipped 0.54 values;
 calls**.
 
 Call 1:
-**10a. Gaps & borders** — Comfortable (in 5 / out 20 / border 2) **(default)** · Tight (2/6/1) ·
+**11a. Gaps & borders** — Comfortable (in 5 / out 20 / border 2) **(default)** · Tight (2/6/1) ·
 None (0/0/1) · Spacious (8/30/3). Rhythm: `gaps_out ≈ 2× gaps_in`, rounding tracks `gaps_out`.
-**10b. Corner rounding** — Rounded (10) **(default)** · Subtle (5) · Square (0). On 0.5x add
+**11b. Corner rounding** — Rounded (10) **(default)** · Subtle (5) · Square (0). On 0.5x add
 `rounding_power = 2` (bump to 2.3–4 for a softer "squircle").
-**10c. Blur & shadows** — Blur + shadows on **(default)** · Blur on, shadows off · Both off (lighter
+**11c. Blur & shadows** — Blur + shadows on **(default)** · Blur on, shadows off · Both off (lighter
 GPU). Frosted preset: `blur { size 6, passes 2 }`; pair window opacity with blur or it does nothing.
-**10d. Window opacity** — Opaque 1.0 **(default)** · Slightly translucent inactive (active 1.0 /
+**11d. Window opacity** — Opaque 1.0 **(default)** · Slightly translucent inactive (active 1.0 /
 inactive 0.9). Keep content windows opaque; chrome (terminals) can be translucent per-app.
 
 Call 2:
-**10e. Animations** — On, smooth defaults **(default)** · On, snappy/fast (speeds ~0.6×) · Off. Curve
+**11e. Animations** — On, smooth defaults **(default)** · On, snappy/fast (speeds ~0.6×) · Off. Curve
 families: shipped `easeOutQuint`, the `wind/winIn` slide-overshoot family, or Material-3
 `md3_decel`/`md3_accel`.
-**10f. Border color** — From my palette **(default)** → `col.active_border = $accent $accent2 45deg`
+**11f. Border color** — From my palette **(default)** → `col.active_border = $accent $accent2 45deg`
 (vars come from the engine's `colors.conf`, so the border re-themes for free) · Custom gradient (free
 text, e.g. `rgba(33ccffee) rgba(00ff99ee) 45deg`).
-**10g. Layout** — Dwindle (BSP-like) **(default)** · Master/stack. (`scrolling` is plugin-only, not core
+**11g. Layout** — Dwindle (BSP-like) **(default)** · Master/stack. (`scrolling` is plugin-only, not core
 0.54 — only offer it if a scrolling-layout plugin is installed.)
 
 ---
 
-## 11. Palette  *(re-theming asks this too)*
+## 12. Palette  *(re-theming asks this too)*
 
 This is what makes the desktop **coherent** instead of a stock-gray box with a random border. Resolve
 every answer into the engine's `palette.conf` (see *Mapping* below). Don't pick a scheme silently —
 present it; if the user says "good defaults", use **Catppuccin Mocha** and say so.
 
-**11a. Palette source** (always ask)
+**12a. Palette source** (always ask)
 - **Named scheme (default)** → one from `palettes.md` (Catppuccin Mocha/Frappé/Macchiato/Latte, Gruvbox,
   Nord, Tokyo Night, Rosé Pine, Dracula, Everforest, Kanagawa, Solarized Dark). Ask the scheme as a
-  second question; each ships a ready preset profile + matching wallpapers (group 13).
+  second question; each ships a ready preset profile + matching wallpapers (group 14).
 - **Match my wallpaper** → needs `matugen` or `wallust`; confirm the wallpaper path. If neither is
   installed, say so and fall back to a named scheme or manual (don't install). With matugen, the scheme
   type is selectable (`-t scheme-tonal-spot`/`-expressive`/`-vibrant`/…); Material-You → ANSI is
   approximate, wallust/pywal give a true 16-color scheme.
 - **Manual hex** → ask at least `bg`, `fg`, `accent`; derive the rest or collect all 16.
-**11b. Light vs dark** (only when ambiguous) — most schemes are dark; if the user picked one with a light
+**12b. Light vs dark** (only when ambiguous) — most schemes are dark; if the user picked one with a light
 variant (Catppuccin Latte), confirm. For light, set GTK `color-scheme = prefer-light`.
 
 **Accent pick** (separate `AskUserQuestion` after the scheme): each scheme has a sensible default
@@ -319,13 +371,13 @@ highest-leverage single choice.
 
 ---
 
-## 12. Fonts  *(re-theming asks this too)*
+## 13. Fonts  *(re-theming asks this too)*
 
-**12a. UI / sans font** (always present) — the GTK/app text font. Present installed families first
+**13a. UI / sans font** (always present) — the GTK/app text font. Present installed families first
 (`FONT_SANS=`/`CURRENT_*FONT*`): Inter, Lexend, Rubik, Cantarell, Noto Sans, Adwaita Sans. Default to an
 installed UI font; offer the catalog (naming the package) for one not present. Record as
 `font_ui = <Family> <size>` (e.g. `Inter 11`).
-**12b. Monospace / Nerd font** (always present) — terminal/bar/fetch/prompt font. **Default to an
+**13b. Monospace / Nerd font** (always present) — terminal/bar/fetch/prompt font. **Default to an
 installed Nerd Font** (`JetBrainsMono Nerd Font` is the universal pick) so glyphs render instead of tofu
 (▯). Offer installed Nerd Fonts first; if `MISSING_NERD_FONT`, offer the catalog + name the package and
 warn glyph-heavy bars/prompts show boxes until one is installed. Common pairings: *Inter/Noto Sans +
@@ -334,9 +386,9 @@ NF* (cozy). Record as `font_mono = <Family> <size>`.
 
 ---
 
-## 13. Wallpaper  *(re-theming asks this too)*
+## 14. Wallpaper  *(re-theming asks this too)*
 
-**13a. Matching wallpaper** (offer after the scheme is chosen — skip if the source was already "match my
+**14a. Matching wallpaper** (offer after the scheme is chosen — skip if the source was already "match my
 wallpaper"). The engine ships a curated, theme-tagged catalog of curl-downloadable wallpapers
 (`rice wallpapers <scheme>` lists the ones matching the chosen scheme, plus a few theme-agnostic `any`
 ones). Present the names, then download + set the pick: `rice get-wallpaper <scheme> <number|name>
@@ -365,7 +417,7 @@ Full contract + render flow: `engine.md`; per-scheme hex: `palettes.md`; fonts: 
 
 ---
 
-## 14. Autostart & env  *(generate only)*
+## 15. Autostart & env  *(generate only)*
 
 Prefer first-party Hypr ecosystem tools as defaults (see `ecosystem.md`). Only suggest installed tools
 as on-by-default; for missing ones, offer but note they need installing. Never install. (The bar,
@@ -373,18 +425,18 @@ notification daemon, and lock screen were chosen in their own groups above — h
 `exec-once`/units plus the rest.) Split across **two calls**.
 
 Call 1 — services:
-**14a. Wallpaper tool** — hyprpaper **(default, first-party)** · swww/awww (animated) · none. For swww
+**15a. Wallpaper tool** — hyprpaper **(default, first-party)** · swww/awww (animated) · none. For swww
 emit the `SWWW_DAEMON_BIN` from `detect-version.sh` (`swww-daemon` *or* the `awww` fork's `awww-daemon`),
 never a hard-coded binary.
-**14b. Polkit agent** — hyprpolkitagent **(default)** → `systemctl --user start hyprpolkitagent`
+**15b. Polkit agent** — hyprpolkitagent **(default)** → `systemctl --user start hyprpolkitagent`
 (systemd unit survives reloads) · polkit-gnome · polkit-kde · none.
-**14c. Also autostart** (multi-select; defaults checked): clipboard history — `wl-paste --type text
+**15c. Also autostart** (multi-select; defaults checked): clipboard history — `wl-paste --type text
 --watch cliphist store` **and** a second `--type image` line **(on)**; network tray `nm-applet
 --indicator` **(on if NetworkManager)**; bluetooth `blueman-applet` (off); idle `hypridle` **(on)**;
 blue-light `hyprsunset -t 4000` (off); OSD `swayosd-server` (off). The portal env-propagation pair
 (`dbus-update-activation-environment --systemd …` + `systemctl --user import-environment …`) is the
 standard "screen-share is black" fix — include it.
-**14d. Screen sharing / portals** (inform) — needs `xdg-desktop-portal-hyprland` +
+**15d. Screen sharing / portals** (inform) — needs `xdg-desktop-portal-hyprland` +
 `xdg-desktop-portal-gtk` and `XDG_CURRENT_DESKTOP=Hyprland`; add the env var and note missing packages.
 
 Call 2 — environment variables (multi-select, sensible defaults checked):
@@ -402,7 +454,7 @@ safe on any GPU. Don't ask "is it NVIDIA?" — read the driver and confirm the r
 
 ---
 
-## 15. Companion configs  *(generate only — when the matching tool is chosen)*
+## 16. Companion configs  *(generate only — when the matching tool is chosen)*
 
 Generate a starter config for each tool picked above. These live in `~/.config/hypr/` next to
 `hyprland.conf` but are read by their own daemons (NOT `source=`d). Formats: `ecosystem.md` +
@@ -418,7 +470,7 @@ without it being captured by the timestamped backup. This group is usually a sin
 
 ---
 
-## 16. Shell & prompt  *(dedicated group — generate only)*
+## 17. Shell & prompt  *(dedicated group — generate only)*
 
 The interactive shell is the last themed surface. rice sets up the prompt + shell colors by leaning on
 the **shell-config** recipes (`../../shell-config/references/shells.md`) and the rice engine's
@@ -426,7 +478,7 @@ shell templates (`engine.md` → "Shell & prompt theming"); the *colors* are pal
 re-themes with everything else. Bias defaults to what's installed (`detect-theme-tools.sh`:
 `HAVE_fish`/`HAVE_starship`/`HAVE_ohmyposh`/`HAVE_fastfetch`).
 
-**16a. Which shell do you want?** — **always ask this; don't silently default to the current shell.**
+**17a. Which shell do you want?** — **always ask this; don't silently default to the current shell.**
 Keep current login shell **(default)** · bash · zsh · **fish** (the popular ricing pick — built-in
 autosuggestions + tab-completions, i.e. "autocomplete" with no plugins). Bias the default to the
 installed/current shell (`CURRENT_SHELL`/`HAVE_fish` from `detect-theme-tools.sh`); name the package
@@ -435,15 +487,15 @@ if a chosen shell isn't installed. If they want the pick as the **login** shell,
 offer the lower-risk **per-terminal** route (set the emulator's shell, e.g. kitty `shell
 /usr/bin/fish`, foot `shell=…`), which keeps the login shell unchanged. Note whichever they pick;
 never run `chsh` for them. Edits go in a guarded managed block, parse-tested after each change.
-**16b. Prompt engine** — starship **(default, cross-shell)** · oh-my-posh (cross-shell, JSON themes) ·
+**17b. Prompt engine** — starship **(default, cross-shell)** · oh-my-posh (cross-shell, JSON themes) ·
 native shell prompt · leave as-is. Wire it to the engine (`STARSHIP_CONFIG` → rice-owned `starship.toml`,
 or `oh-my-posh init --config` → rice-owned `rice.omp.json`) so `rice apply` recolors it. Name the package
 for a missing engine.
-**16c. fish syntax colors** (fish only) — Theme `fish_color_*` from the palette **(default yes)** · leave
+**17c. fish syntax colors** (fish only) — Theme `fish_color_*` from the palette **(default yes)** · leave
 fish defaults. Renders to `~/.config/fish/conf.d/zz-hypr-rice-colors.fish` (auto-sourced).
-**16d. Startup fetch** — fastfetch **(default)** · neofetch (archived) · none. Add a guarded line in the
-managed block; needs a Nerd Font for the logo/glyphs (group 12).
-**16e. fish plugins** (fish only, optional) — autosuggestions/completions are built in; offer a small
+**17d. Startup fetch** — fastfetch **(default)** · neofetch (archived) · none. Add a guarded line in the
+managed block; needs a Nerd Font for the logo/glyphs (group 13).
+**17e. fish plugins** (fish only, optional) — autosuggestions/completions are built in; offer a small
 **fisher** set: autopair · fzf.fish (needs `fzf`) · sponge · done. Default **off** unless asked; record
 the chosen set in `~/.config/fish/fish_plugins` so `fisher update` reproduces it (track via the dotfiles
 skill). See `shells.md` → "Fish plugins".

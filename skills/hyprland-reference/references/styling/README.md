@@ -23,6 +23,10 @@ Catppuccin Mocha example.
 | [`design-principles.md`](design-principles.md) | **Start here.** Coherence rules, the aesthetic archetypes, wallpaper-driven theming, a coherence checklist. |
 | [`hyprland-decoration.md`](hyprland-decoration.md) | The compositor look: gaps, borders, gradient `col.active_border`, rounding, blur, shadow, animations/beziers. |
 | [`waybar.md`](waybar.md) | The status bar: `config.jsonc` layout + `style.css`, the floating-island vs edge-to-edge looks, pill modules, states. |
+| [`widgets.md`](widgets.md) | **Desktop widgets beyond the bar.** Choosing a widget system (decision matrix), the common widget archetypes, turnkey panels (HyprPanel/nwg-shell), the cross-toolkit theming flow. Read before the per-toolkit pages. |
+| [`eww.md`](eww.md) | eww (ElKowar's Wacky Widgets): yuck + SCSS, dashboards/sidebars/OSDs/music, sliders & circular-progress, reveal animations, layer-namespace blur. |
+| [`ags-astal.md`](ags-astal.md) | AGS / Astal (JS/TS over GTK): the v1-vs-v2 split, material cards, quick-settings toggles, blurred album-art player, matugen Material You. |
+| [`quickshell.md`](quickshell.md) | QtQuick/QML shells (caelestia, end-4, Noctalia): styling via QML properties (not CSS), widget archetypes, the `Theme`/`Colors` singleton + matugen, layer-namespace blur. |
 | [`launchers.md`](launchers.md) | wofi / rofi / fuzzel / tofi: the centered floating panel, the selection highlight, blur. |
 | [`notifications.md`](notifications.md) | mako / dunst / swaync: the accent-bordered card, urgency colors, the control center. |
 | [`terminals.md`](terminals.md) | kitty / alacritty / foot / wezterm / ghostty: the 16-color palette, font, padding, opacity + blur. |

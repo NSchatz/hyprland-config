@@ -82,6 +82,13 @@ theming a desktop for looks, or when the user asks "how do I make my X look good
 - **`references/styling/hyprland-decoration.md`** — gaps, gradient borders, rounding, blur, shadow,
   animations/beziers — the compositor's own look.
 - **`references/styling/waybar.md`** — the status bar (`config.jsonc` layout + `style.css`).
+- **`references/styling/widgets.md`** — desktop widgets beyond the bar: choosing a widget system
+  (decision matrix), the widget archetypes, turnkey panels (HyprPanel/nwg-shell), theming flow.
+- **`references/styling/eww.md`** — eww (yuck + SCSS): dashboards, sidebars, OSDs, music, gauges.
+- **`references/styling/ags-astal.md`** — AGS / Astal (JS/TS over GTK): the v1-vs-v2 split, material
+  cards, quick-settings toggles, blurred album-art player, matugen Material You.
+- **`references/styling/quickshell.md`** — QtQuick/QML desktop shells (caelestia, end-4, Noctalia,
+  DankMaterialShell): styling via QML properties (not CSS), the `Theme`/`Colors` singleton + matugen.
 - **`references/styling/launchers.md`** — wofi / rofi / fuzzel / tofi.
 - **`references/styling/notifications.md`** — mako / dunst / swaync.
 - **`references/styling/terminals.md`** — kitty / alacritty / foot / wezterm / ghostty.

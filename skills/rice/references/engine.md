@@ -95,6 +95,45 @@ shell-config):
 zsh prompt engines (powerlevel10k) aren't templated here — point them at the palette by hand, or use
 starship/oh-my-posh which are cross-shell.
 
+## Widget-shell theming (eww · AGS/Astal · Quickshell · HyprPanel)
+
+A **desktop widget shell** (dashboards, sidebars, OSDs, control centers — see
+`hyprland-reference/.../styling/widgets.md`) is a themed surface too. Like the prompt templates, these
+ship in `templates/` but are **not in the default manifest** — not everyone runs a widget shell, and
+we don't want to create `~/.config/eww/` (etc.) for someone who doesn't. The **rice skill registers the
+one line** for the shell the user picked (interview group "Desktop widgets"), then `rice apply`
+re-themes it on every theme switch. The templates render a **colors file the shell imports** — same
+include-don't-overwrite model as waybar's `colors.css`:
+
+```
+eww         ~/.config/hypr-rice/templates/eww.tmpl         ~/.config/eww/colors.scss             eww reload
+ags         ~/.config/hypr-rice/templates/ags.tmpl         ~/.config/ags/colors.scss
+quickshell  ~/.config/hypr-rice/templates/quickshell.tmpl  ~/.config/quickshell/Colors.qml
+```
+
+(TAB-separated. Output paths vary per config — match the shell's actual layout; e.g. an Astal project
+may want `style/colors.scss`, a Quickshell config a `theme/Colors.qml` next to its `qmldir`.) One-time
+wiring, done when the line is registered:
+
+- **eww** → `@import "colors";` at the top of `eww.scss` (references `$bg`/`$accent`/…). Reload-cmd
+  `eww reload` (a no-op if the daemon isn't running — guarded like every hook). See `styling/eww.md`.
+- **AGS / Astal** → `@use "colors" as *;` (dart-sass) or `@import "colors";` (sassc) in `style.scss`;
+  the shell's own file-monitor recompiles + `resetCss`/`applyCss`, so the reload-cmd is empty. The
+  template also emits a few `@define-color` lines for GTK-CSS interop. See `styling/ags-astal.md`.
+- **Quickshell** → the output **is** a `Colors.qml` singleton (register it in `qmldir` as
+  `singleton Colors Colors.qml`, or it uses `pragma Singleton`); QML references `Colors.accent` etc.
+  Quickshell hot-reloads on file save, so the reload-cmd is empty — re-rendering repaints the shell.
+  See `styling/quickshell.md`. (QML is not GTK CSS — properties, not a stylesheet.)
+- **Fonts**: the widget templates are **colors only** (palette.conf's `font_ui`/`font_mono` carry a
+  trailing size that a `font-family` / QML `font.family` must not include). The rice skill writes the
+  bare family into the shell's own config when wiring, same as kitty/waybar font handling (`fonts.md`).
+
+**HyprPanel and other Material-You-native shells** (end-4, caelestia) are themed differently: they own
+their colors via a **GUI / `.json` theme import** (HyprPanel) or read a matugen `colors.json` directly.
+Don't fight them with a rice template — instead drive them with **matugen** on the same wallpaper (the
+"matugen as an additional renderer" section below), mapping `primary→accent`, `surface→bg`, …, so the
+shell themes from the wallpaper while the engine owns the core surfaces. Keep one palette source per run.
+
 ## Palette sources → `palette.conf`
 
 - **Named / manual** — the rice skill writes `palette.conf` directly from `palettes.md`

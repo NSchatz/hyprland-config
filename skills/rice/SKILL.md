@@ -3,7 +3,7 @@ name: rice
 description: This skill should be used when the user runs "/hyprland-config:rice" or asks to build, theme, or restyle their Hyprland desktop — i.e. (1) GENERATE a config from scratch ("generate/create my hyprland.conf", "set up Hyprland from scratch", "make me a new config", "build a hyprland config"); (2) THEME/recolor/set fonts ("theme my desktop", "apply Catppuccin/Gruvbox/Nord/Tokyo Night/Dracula/Everforest/Kanagawa/Solarized/Rosé Pine", "change my color scheme/accent", "match my colors to my wallpaper", "set up matugen/wallust", "change my font"); (3) manage named theme PROFILES / "rices" ("save my theme as X", "switch to nord", "list my themes", "load my <name> rice", "pin my accent"); or (4) set/change/cycle the WALLPAPER ("set my wallpaper", "random wallpaper", "make my theme match my wallpaper"). It runs one interactive interview, generates a modular version-matched config, and drives a self-contained rice engine (~/.config/hypr-rice/ — one palette.conf + templates + a `rice` CLI + profiles + a user-override cascade) that themes Hyprland, hyprlock, waybar, notifications, launcher, terminal, GTK/Qt/cursor/icons/fonts and the wallpaper consistently — backing up, live-testing, and reloading after every change.
 argument-hint: "[what you want, e.g. 'set up from scratch', 'catppuccin mocha', 'switch to nord', 'wallpaper ~/x.png and theme from it']"
 allowed-tools: AskUserQuestion, Bash, Read, Write, Edit, Glob, Grep, Agent
-version: 0.4.0
+version: 0.7.0
 ---
 
 # Rice — Build & Theme the Hyprland Desktop
@@ -30,8 +30,9 @@ emitted option against `deprecations.md`** so deprecated syntax never ships. For
 (so a generated config looks designed, not stock-gray) consult the styling library
 `skills/hyprland-reference/references/styling/` — `design-principles.md` (coherence, accent
 discipline, the archetypes) and the per-app pages (`hyprland-decoration.md`, `waybar.md`,
-`terminals.md`, `notifications.md`, `launchers.md`, `hyprlock.md`, `gtk-qt.md`, `tui-and-prompt.md`),
-all written around this skill's palette contract. For companion apps read `ecosystem.md`.
+`widgets.md` + `eww.md`/`ags-astal.md`/`quickshell.md` (desktop widget shells), `terminals.md`,
+`notifications.md`, `launchers.md`, `hyprlock.md`, `gtk-qt.md`, `tui-and-prompt.md`), all written
+around this skill's palette contract. For companion apps read `ecosystem.md`.
 
 ## Routing — pick the mode from the request
 
@@ -75,15 +76,16 @@ organized **one group per component**. Walk every group and ask each of its sub-
 default first, skipping only what `$ARGUMENTS` or an existing config already answers. **`AskUserQuestion`
 accepts at most 4 questions per call**, so groups with more sub-questions than that **split across
 multiple consecutive calls** — do not drop or merge questions to fit. A from-scratch run should produce
-**roughly 21–26 calls** (if you've asked only a handful, you've collapsed groups — go ask the rest). The
+**roughly 22–28 calls** (if you've asked only a handful, you've collapsed groups — go ask the rest). The
 groups: **1** monitors · **2** input · **3** keybinds · **4** default apps · **5** terminal · **6** status
-bar **+ waybar design** · **7** launcher · **8** notifications · **9** lock screen · **10** window look &
-feel · **11** palette · **12** fonts · **13** wallpaper · **14** autostart & env · **15** companion configs
-· **16** shell & prompt (shell, prompt engine starship/oh-my-posh, fish colors, fetch). Groups 5–9 ask
-**full functional depth** (e.g. bar modules, **waybar design** — archetype/shape/transparency/workspace
-indicator/accent/motion — launcher behavior, notification rules) so the generated shell configs are
-usable, not just colored — don't pick a scheme, bar look, or fonts silently. The
-same interview serves re-theming (Mode B uses only groups 10–13: look & feel, palette, fonts, wallpaper)
+bar **+ waybar design** · **7** **desktop widgets** (eww/AGS/Quickshell/HyprPanel) · **8** launcher ·
+**9** notifications · **10** lock screen · **11** window look & feel · **12** palette · **13** fonts ·
+**14** wallpaper · **15** autostart & env · **16** companion configs · **17** shell & prompt (shell,
+prompt engine starship/oh-my-posh, fish colors, fetch). Groups 5–10 ask **full functional depth** (e.g.
+bar modules, **waybar design** — archetype/shape/transparency/workspace indicator/accent/motion —
+**widget system + widgets + look**, launcher behavior, notification rules) so the generated shell configs
+are usable, not just colored — don't pick a scheme, bar look, widget shell, or fonts silently. The
+same interview serves re-theming (Mode B uses only groups 11–14: look & feel, palette, fonts, wallpaper)
 so the two never drift.
 
 ### A2. Read any existing config (context only)
@@ -107,7 +109,7 @@ the look stays in sync with a later re-theme.
 ### A3b. Generate the functional shell configs
 
 rice is all-in-one, so also stage the **functional** configs for the shell components chosen in
-interview groups 5–9, using **`../desktop-shell/references/components.md`** as the recipe source (same
+interview groups 5–10, using **`../desktop-shell/references/components.md`** as the recipe source (same
 files the standalone desktop-shell skill writes). These live under their own `~/.config/<app>/` dirs
 (not in `~/.config/hypr/`), so stage them in a parallel tree, e.g. `/tmp/hypr-gen-<id>/_shell/<app>/`:
 
@@ -115,11 +117,20 @@ files the standalone desktop-shell skill writes). These live under their own `~/
   comment-free JSON**) + `waybar/style.css` (the archetype/transparency look, starting with
   `@import "colors.css";`). Validate the JSON before install (`python3 -c "import json…"`); a malformed
   `config.jsonc` makes the bar silently fail to appear.
-- **Launcher** (group 7): `wofi/config` + `wofi/style.css` (`@import "colors.css";`), or
+- **Desktop widgets** (group 7): only if a widget system was chosen. For **eww** stage `eww/eww.yuck` +
+  `eww/eww.scss` (`@import "colors";` → the engine's `eww.tmpl`); for an **AGS/Astal** or **Quickshell**
+  shell, scaffold per its tooling and wire its colors file (`ags.tmpl`/`quickshell.tmpl`) — recipes in
+  `styling/{eww,ags-astal,quickshell}.md`, wiring in `engine.md` → "Widget-shell theming". A **full shell
+  replaces waybar** (drop the waybar `exec-once`) and may **own notifications** (then skip the group-9
+  daemon). **HyprPanel / Material-You** shells: drive via matugen, don't hand-theme. Heavy shells
+  (Quickshell/AGS) can be left for the user to install — stage what's tractable, name the package, and
+  note the rest; never install.
+- **Launcher** (group 8): `wofi/config` + `wofi/style.css` (`@import "colors.css";`), or
   `rofi/config.rasi` (+ a theme that `@import`s `colors.rasi`), or fuzzel/tofi `.ini` — per the chosen
   tool/mode/layout.
-- **Notifications** (group 8): `mako/config` / `dunst/dunstrc` / `swaync/config.json`+`style.css` — per
-  the chosen daemon/position/timeout/behavior. Leave color keys to the engine (don't hardcode hex).
+- **Notifications** (group 9): `mako/config` / `dunst/dunstrc` / `swaync/config.json`+`style.css` — per
+  the chosen daemon/position/timeout/behavior. Leave color keys to the engine (don't hardcode hex). Skip
+  if a full widget shell (group 7) owns notifications — only one daemon can hold the D-Bus name.
 - **Terminal** (group 5): the emulator's config (e.g. `kitty/kitty.conf`, `alacritty/alacritty.toml`,
   `foot/foot.ini`) with opacity/padding/cursor/font-size from the interview, including its colors file
   the engine themes (`include`/`source`).
@@ -128,7 +139,7 @@ Keep module on-clicks aligned to installed tools (network → `nm-connection-edi
 `pavucontrol`). Don't hardcode theme colors anywhere — every shell config reads the engine's colors
 file. These get backed up + installed alongside the Hyprland config in A5.
 
-### A3c. Set up the shell & prompt (group 16)
+### A3c. Set up the shell & prompt (group 17)
 
 Also configure the interactive shell, leaning on **`../shell-config/references/shells.md`** (managed
 block, guarded inits, parse-test) for *behavior* and the rice engine (A4) for *colors*:
@@ -149,13 +160,13 @@ re-theme. Back up rc files before editing (`backup-path.sh`).
 
 ### A4. Establish the palette via the rice engine
 
-The colors/fonts from interview groups 11–13 (palette, fonts, wallpaper) are owned by the **engine**
+The colors/fonts from interview groups 12–14 (palette, fonts, wallpaper) are owned by the **engine**
 (`~/.config/hypr-rice/`). Wiring it here is what makes the config come out themed and keeps a later
 re-theme consistent. Read `references/engine.md`. Then:
 
 1. Scaffold (idempotent — never clobbers an existing palette):
    `bash "${CLAUDE_PLUGIN_ROOT}/skills/rice/scripts/rice-init.sh"`
-2. Write `~/.config/hypr-rice/palette.conf` from the group 11–13 answers — resolve a named scheme
+2. Write `~/.config/hypr-rice/palette.conf` from the group 12–14 answers — resolve a named scheme
    (`references/palettes.md`), a wallpaper palette (`scripts/palette-from-wallpaper.sh`), or manual
    hex into the contract keys + `scheme`/`wallpaper`/`font_ui`/`font_mono`. **Always populate
    `accent2`** (default it to `accent` on the manual path) — the border template references it.
@@ -163,7 +174,11 @@ re-theme consistent. Read `references/engine.md`. Then:
    `~/.config/hypr` before A5): take `templates/hyprland.tmpl`, substitute its `{{accent}}` etc.
    from `palette.conf`, and `Write` the result. Likewise fill any companion-config color placeholders
    **and the staged shell configs' colors files** (`_shell/<app>/colors.css`/`.rasi` etc.) by rendering
-   the matching `templates/*.tmpl` so the bar/launcher/notifications install already themed.
+   the matching `templates/*.tmpl` so the bar/launcher/notifications install already themed. If a
+   **widget shell** was chosen (group 7), **register its manifest line** (`eww`/`ags`/`quickshell` →
+   its colors file) so `rice apply` re-themes it on every switch, and render its colors file into the
+   staged shell tree — see `engine.md` → "Widget-shell theming" (HyprPanel/Material-You shells are
+   driven by matugen instead, not the manifest).
 4. **Only after a successful install** (A5 returns `ok`/`installed-untested`), run
    `bash ~/.config/hypr-rice/rice apply` so any already-present apps pick up the palette. **Skip it on
    `rolled-back`/`install-failed`** — it would re-render outside the safe-apply harness.
@@ -223,7 +238,7 @@ transparency, the archetypes — read the styling library (`design-principles.md
 
 ### B1. Choose the palette source & fonts (always ask)
 
-Run interview **groups 10–13** (look & feel, palette, fonts, wallpaper) from `references/interview.md`
+Run interview **groups 11–14** (look & feel, palette, fonts, wallpaper) from `references/interview.md`
 (palette source → scheme/wallpaper/manual, accent, light/dark; UI font; monospace/Nerd font). The
 named-scheme catalog is `references/palettes.md`;
 for the wallpaper source, `scripts/palette-from-wallpaper.sh` produces the palette when matugen/wallust
@@ -344,9 +359,9 @@ Set the wallpaper and optionally re-theme the whole desktop from it — the cano
 
 ## Resources
 
-- **`references/interview.md`** — the one unified question bank, one group per component (15 groups;
-  re-theming reuses groups 10–13). Groups 5–9 (terminal/bar/launcher/notifications/lock) ask full
-  functional depth.
+- **`references/interview.md`** — the one unified question bank, one group per component (17 groups;
+  re-theming reuses groups 11–14). Groups 5–10 (terminal/bar/widgets/launcher/notifications/lock) ask
+  full functional depth.
 - **`references/config-templates.md`** — annotated templates for every generated Hyprland file
   (Mode A): `env`/`monitors`/`input`/`looknfeel`/`binds`/`windowrules`/`autostart` + companion configs.
 - **`../desktop-shell/references/components.md`** — the functional shell-config recipes rice generates
@@ -367,7 +382,9 @@ Set the wallpaper and optionally re-theme the whole desktop from it — the cano
   `install-config.sh`, `verify-config.sh`, `backup-config.sh`, `reset-config.sh`.
 - **`templates/*.tmpl`** — the color templates the engine renders (incl. the shell/prompt set:
   `fish.tmpl` → fish `conf.d` colors, `starship.tmpl` → rice-owned `starship.toml`, `oh-my-posh.tmpl` →
-  rice-owned `rice.omp.json`; registered in the manifest by shell-config — see `engine.md`).
+  rice-owned `rice.omp.json`; and the **widget-shell set**: `eww.tmpl` → eww `colors.scss`, `ags.tmpl`
+  → AGS/Astal `colors.scss`, `quickshell.tmpl` → Quickshell `Colors.qml`; registered in the manifest
+  when chosen — see `engine.md` → "Shell & prompt theming" and "Widget-shell theming").
 - **`assets/profiles/*.conf`** — the five shipped preset rices; **`assets/rice`** — the CLI
   (incl. `rice wallpapers [scheme]` to list and `rice get-wallpaper <scheme> <n|name> [--set]` to
   curl-download a matching wallpaper; `rice accents [scheme]` to list per-scheme accent variants and
