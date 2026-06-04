@@ -29,6 +29,12 @@ default_border none
 gaps inner 8
 gaps outer 12
 font pango:Inter 11
+
+# Place kitty (the rice preview window) at a known spot so the per-window crop is stable. We
+# avoid swaymsg-after-launch because focus/timing is racy; for_window rules apply when the
+# window is mapped.
+for_window [app_id="kitty"] floating enable, resize set 900 600, move position 60 140
+for_window [app_id="wofi"]  floating enable, move position 500 170
 EOF
 
 # ----- 2. Start sway headlessly --------------------------------------------------------------
@@ -225,6 +231,12 @@ PRESETS=(catppuccin-mocha gruvbox nord tokyo-night)
 manifest_entries=()
 
 start_app_bg() { setsid "$@" >/dev/null 2>&1 < /dev/null & disown; }
+# Like start_app_bg but redirects the app's stderr to a per-app log so we can debug rendering
+# failures (waybar in particular fails silently on a CSS parse error).
+start_app_logged() {
+    local logf="$1"; shift
+    setsid "$@" >"$logf" 2>&1 < /dev/null & disown
+}
 
 # Kill any stale clients before each preset. Wofi/waybar/mako will be relaunched per preset to
 # pick up the freshly-rendered colors.
@@ -283,12 +295,19 @@ for preset in "${PRESETS[@]}"; do
         sleep 0.2
     fi
 
-    # Launch the components.
-    start_app_bg waybar
-    start_app_bg mako
-    sleep 1.0  # waybar + mako both need a beat to lay out
+    # Launch the components. Capture waybar/mako stderr so a silent CSS or JSON parse error
+    # surfaces as a real log entry instead of an empty screenshot.
+    start_app_logged "/tmp/waybar.log" waybar
+    start_app_logged "/tmp/mako.log"   mako
+    sleep 2.0  # both need a beat to draw; waybar in particular has a noticeable warm-up
     send_notification "$preset rice screenshot run"
-    sleep 0.4
+    sleep 0.6
+
+    # Echo any error/warning lines waybar produced (so the orchestrator log has them).
+    if [ -s /tmp/waybar.log ]; then
+        echo "----- waybar log ($preset) -----"
+        head -n 20 /tmp/waybar.log
+    fi
 
     out_dir="$OUT/$preset"; mkdir -p "$out_dir"
 
@@ -297,7 +316,7 @@ for preset in "${PRESETS[@]}"; do
     # Waybar-only via crop region. The bar is at the top of HEADLESS-1.
     grim -g "0,0 1600x80" "$out_dir/waybar.png" 2>/dev/null && manifest_entries+=("$preset/waybar.png")
     # Notification-only crop (mako anchored top-right).
-    grim -g "1180,80 400,160" "$out_dir/notification.png" 2>/dev/null && manifest_entries+=("$preset/notification.png")
+    grim -g "1180,80 400x160" "$out_dir/notification.png" 2>/dev/null && manifest_entries+=("$preset/notification.png")
 
     # Terminal: launch kitty, run a small color demo script in it, screenshot.
     start_app_bg kitty --hold bash -c '
@@ -316,10 +335,9 @@ for preset in "${PRESETS[@]}"; do
         printf "  $ \033[32mhyprctl reload\033[0m\n"
         printf "  ok\n\n"
     '
-    sleep 1.2
-    # Resize kitty into a known box so the crop is stable.
-    move_focused_window "60 140" "900 600"
-    sleep 0.6
+    # Sway's `for_window [app_id="kitty"] floating enable, resize set 900 600, move position
+    # 60 140` rule fires when the kitty window is mapped, so no swaymsg-after-launch race.
+    sleep 1.5
     grim -g "60,140 900x600" "$out_dir/terminal.png" 2>/dev/null && manifest_entries+=("$preset/terminal.png")
 
     # Wofi: launch, screenshot, dismiss. wofi prints its picks to stdout — `&` it and read pid.
