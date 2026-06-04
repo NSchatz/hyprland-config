@@ -386,6 +386,12 @@ bind = $mainMod SHIFT, S, movetoworkspace, special:magic
 bindm = $mainMod, mouse:272, movewindow
 bindm = $mainMod, mouse:273, resizewindow
 
+# Accessibility magnifier (group 22) — Hyprland's built-in cursor zoom, no external tool.
+{{#if a11y_magnifier}}
+bind = $mainMod, equal, exec, hyprctl keyword cursor:zoom_factor 2
+bind = $mainMod, minus, exec, hyprctl keyword cursor:zoom_factor 1
+{{/if}}
+
 # Laptop lid (group 21) — emit only when IS_LAPTOP. Device name from `hyprctl devices`
 # (often "Lid Switch"); bindl fires even when locked. Pick ONE action per the 21a answer.
 {{#if laptop}}

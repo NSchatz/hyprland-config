@@ -49,6 +49,7 @@ if you've asked only a handful, you've collapsed groups incorrectly, go ask the 
 | 19 | **Login & boot** | ✓ | | 1 call |
 | 20 | **Gaming & performance** | ✓ | | 1–2 calls |
 | 21 | **Laptop** *(if `IS_LAPTOP`)* | ✓ | | 1 call |
+| 22 | **Accessibility** *(opt-in)* | ✓ | | 0–1 call |
 
 Map every answer to its template: the **Hyprland-config** groups (monitors, input, keybinds, default
 apps, terminal, window look & feel, autostart, companion configs) → `config-templates.md`; the functional
@@ -484,12 +485,16 @@ Call 2 — environment variables (multi-select, sensible defaults checked):
 - Qt theming: `QT_QPA_PLATFORMTHEME,qt6ct` (on if qt6ct present; `QT_STYLE_OVERRIDE,kvantum` if Kvantum)
 - Session/portals: `XDG_CURRENT_DESKTOP,Hyprland` (on)
 - Firefox Wayland: `MOZ_ENABLE_WAYLAND,1` (on if browser is firefox)
-- NVIDIA set (`LIBVA_DRIVER_NAME,nvidia`, `__GLX_VENDOR_LIBRARY_NAME,nvidia`, `GBM_BACKEND,nvidia-drm`,
-  `NVD_BACKEND,direct`) **(off — only the proprietary `nvidia` driver)**
+- NVIDIA set — **2026 slim set**: `LIBVA_DRIVER_NAME,nvidia`, `__GLX_VENDOR_LIBRARY_NAME,nvidia`,
+  `NVD_BACKEND,direct` (only with nvidia-vaapi-driver), `ELECTRON_OZONE_PLATFORM_HINT,auto` **(off —
+  only the proprietary `nvidia` driver)**. **Do not emit `GBM_BACKEND` or `WLR_NO_HARDWARE_CURSORS`** —
+  they're no longer in the required set (driver 555+ with explicit sync makes NVIDIA "just work").
 
 **Gate the NVIDIA block on the active driver, not the card.** Emit the NVIDIA lines only when
 `NVIDIA_PROPRIETARY=1`; under `nouveau` they break GLX/VA-API. `ELECTRON_OZONE_PLATFORM_HINT,auto` is
-safe on any GPU. Don't ask "is it NVIDIA?" — read the driver and confirm the result.
+safe on any GPU. Don't ask "is it NVIDIA?" — read the driver and confirm the result. When
+`CURSOR_NO_HARDWARE_RECOMMENDED=1` (nvidia/nouveau), also offer `cursor:no_hardware_cursors = true` in
+looknfeel — the standard fix for a vanishing/stuttering cursor on those drivers.
 
 ---
 
@@ -641,3 +646,23 @@ writing `/sys/class/power_supply/BAT*/charge_control_end_threshold`, or TLP's
 `STOP_CHARGE_THRESH`. Generate the unit + the `sudo` install command; never run it.
 
 Dock/undock **monitor** profiles are part of the Monitors group (1), not here.
+
+---
+
+## 22. Accessibility  *(dedicated group — generate only, opt-in)*
+
+Off by default — surface it once (a single multi-select with nothing pre-checked), since it's high
+value for those who need it and cheap to skip for those who don't. Blocks: `config-templates.md`.
+
+**22a. Accessibility helpers?** (multi-select, all off by default) —
+- **Screen magnifier** — bind `SUPER+=` / `SUPER+-` to Hyprland's built-in `cursor:zoom_factor` (no
+  external tool). Optionally `cursor:zoom_rigid = true` to keep the cursor centred.
+- **Large cursor** — bump `XCURSOR_SIZE`/`HYPRCURSOR_SIZE` to 32/48 (group 15 env) + `hyprctl setcursor
+  <theme> <size>`; also set GTK `cursor-size`.
+- **Night-light toggle** — bind `hyprsunset` warm-temp toggle (shares the mechanism in `utilities.md` →
+  night light; `SUPER+SHIFT+N`).
+- **Larger UI** — a low-vision preset: bump monitor `scale` (group 1) + GTK `text-scaling-factor 1.25`
+  (note the XWayland-blur fractional-scaling caveat).
+
+Map each checked item to its block/env/bind. Magnifier and large-cursor are pure Hyprland; the UI-scale
+one touches monitor scale + GTK settings (mention the fractional-scaling gotcha). Validate after writing.
