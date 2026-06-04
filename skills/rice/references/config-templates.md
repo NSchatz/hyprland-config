@@ -170,8 +170,12 @@ input {
     kb_layout = {{kb_layout}}
     kb_variant =
     kb_options = {{kb_options_or_blank}}
-    follow_mouse = 1
-    sensitivity = 0          # libinput accel, -1.0 .. 1.0
+    follow_mouse = {{follow_mouse}}     # 0 click-to-focus, 1 normal, 2 detached, 3 sloppy/strict
+    sensitivity = {{sensitivity}}       # libinput accel, -1.0 .. 1.0 (0 = default)
+    repeat_rate = {{repeat_rate}}       # default 25; bump to ~40-50 for fast key repeat
+    repeat_delay = {{repeat_delay}}     # default 600; drop to ~250-300 for a shorter hold
+    {{#if accel_flat}}accel_profile = flat{{/if}}
+    {{#if numlock}}numlock_by_default = true{{/if}}
 
     touchpad {
         natural_scroll = {{touchpad_natural_scroll}}
@@ -181,19 +185,25 @@ input {
     }
 }
 
-# Touchpad gestures — 0.45+ keyword API (the shipped default ships this line)
-{{#if touchpad}}
-gesture = 3, horizontal, workspace
+# Gestures — 0.45+ keyword API (one keyword per gesture). Emit the set the user picked (group 2e).
+{{#if gestures}}
+gesture = 3, horizontal, workspace          # 3-finger swipe ⇄ change workspace (the default)
+{{#if gesture_4move}}gesture = 4, horizontal, move{{/if}}        # 4-finger drag a window
+{{#if gesture_3fullscreen}}gesture = 3, up, fullscreen{{/if}}    # 3-finger up → fullscreen
+{{#if gesture_pinch_float}}gesture = 3, pinchin, float, tile{{/if}}   # pinch toggles float/tile (HyDE)
+{{#if gesture_4special}}gesture = 4, up, special{{/if}}          # 4-finger up → special/scratchpad
 {{/if}}
 ```
 
-Omit the `touchpad {}` block and the `gesture =` line entirely for desktops. On a target older
-than 0.45, use a `gestures { workspace_swipe = true }` block instead (see `deprecations.md`).
+Omit the `touchpad {}` block and the `gesture =` lines entirely for desktops (no touchpad). On a
+target older than 0.45, use a `gestures { workspace_swipe = true }` block instead (see
+`deprecations.md`). `follow_mouse` default is `1`; `0` = strict click-to-focus, `2`/`3` = focus
+follows the pointer (sloppy focus) — ask in group 2 rather than assuming. `repeat_rate`/`repeat_delay`
+default to `25`/`600`; only emit non-defaults.
 
 Common `{{kb_options}}` recipes (from real configs): `caps:swapescape` or `caps:escape` (the most
 popular), `compose:caps`, or for a multi-layout `kb_layout = us, es` add `grp:win_space_toggle`
-(or `grp:alt_shift_toggle`) to cycle layouts. Add `numlock_by_default = true` and
-`accel_profile = flat` (disable mouse acceleration) to the `input {}` block if the user wants them.
+(or `grp:alt_shift_toggle`) to cycle layouts.
 
 ---
 
@@ -270,6 +280,13 @@ cursor {
     inactive_timeout = 0          # never hide the cursor on inactivity
 }
 {{/if}}
+
+misc {
+    vfr = true                    # variable frame rate — biggest idle/battery win, set unconditionally
+    disable_hyprland_logo = true
+    {{#if enable_swallow}}enable_swallow = true{{/if}}        # terminal hides itself while a GUI child runs
+    {{#if enable_swallow}}swallow_regex = {{swallow_regex}}{{/if}}   # e.g. ^(kitty|foot|Alacritty)$
+}
 ```
 
 For a "snappy" preference, scale the speeds down (e.g. multiply by ~0.6). For "off", set
@@ -297,10 +314,11 @@ master {
 }
 ```
 
-Core built-ins are **dwindle** and **master** only. A niri/PaperWM-style `scrolling` layout is **not**
-core in 0.54 — it comes from a plugin (`hyprscroller`/`hyprscrolling`); only offer it via the (deferred)
-hyprpm plugins flow, never emit `layout = scrolling` without the plugin installed (see
-`hyprland-reference/.../sections.md`).
+Core built-ins are **dwindle** and **master** only. A niri/PaperWM-style `scrolling` layout (and the
+i3-tree `hy3` layout) are **not** core in 0.54 — they come from plugins (`hyprscrolling`/`hy3`); offer
+them via the **group-23 plugins flow** (`plugins.md`), never emit `layout = scrolling`/`hy3` without the
+plugin installed (a bare non-core layout errors the reload). See `plugins.md` for the full hyprpm
+catalog (overview, scrolling/tree layouts, per-monitor workspaces, title bars, scratchpads).
 
 **Window groups (tabbed/stacked windows)** — core Hyprland; themed from the palette like the bar; emit when the user
 opts in (group 11). Colors reference the engine's `$accent`/`$muted` vars:
@@ -441,6 +459,11 @@ bind = $mainMod, Print, exec, grim - | wl-copy
 {{#if util_blur_toggle}}bind = $mainMod SHIFT, B, exec, ~/.config/hypr/scripts/blur-toggle.sh{{/if}}
 {{#if util_gamemode}}bind = $mainMod, F1, exec, ~/.config/hypr/scripts/gamemode.sh{{/if}}
 
+# Theme switcher (group 3, opt-in) — engine-driven. Menu lists every saved rice; the toggle flips
+# two named profiles (the dark/light switch every distro ships). theme-switch.sh ships in assets/scripts/.
+{{#if theme_switcher}}bind = $mainMod SHIFT, T, exec, ~/.config/hypr/scripts/theme-switch.sh{{/if}}
+{{#if theme_toggle}}bind = $mainMod CTRL, T, exec, ~/.config/hypr-rice/rice theme-toggle {{theme_light}} {{theme_dark}}{{/if}}
+
 # Resize submap (group 3, opt-in) — SUPER+R enters; arrows/HJKL resize; Esc exits.
 {{#if resize_submap}}
 bind = $mainMod, R, submap, resize
@@ -506,6 +529,19 @@ windowrule {
     match:fullscreen = true
     idle_inhibit = fullscreen
 }
+
+# App → workspace assignment (group 1e, opt-in) — pin apps to a workspace so they always open there.
+# One windowrule per app the user named (class + target workspace). Pairs well with persistent
+# workspaces (monitors.conf). The complementary direction — launch an app when a workspace is first
+# opened — is the `on-created-empty` workspace rule in monitors.conf, e.g.
+#   workspace = 9, on-created-empty:[silent] $browser
+{{#each app_workspaces}}
+windowrule {
+    name = ws-{{this.class}}
+    match:class = ^({{this.class}})$
+    workspace = {{this.ws}}{{#if this.silent}} silent{{/if}}
+}
+{{/each}}
 
 # Layer blur for the bar/launcher (0.54 block form — match chosen tools)
 {{#if waybar}}
@@ -648,6 +684,35 @@ listener {
     timeout = 1800
     on-timeout = systemctl suspend
 }
+```
+
+The four listener timeouts (dim → lock → dpms → suspend) are the **group-16 idle-tier** answers —
+ask them rather than hardcoding (laptops often want a tighter ladder, e.g. 120/300/330/900; desktops
+a looser one or no suspend at all). `lock_cmd = pidof hyprlock || hyprlock` (don't stack lockers);
+`before_sleep_cmd = loginctl lock-session` (lock *before* sleep); lock listener fires *before* dpms.
+
+---
+
+## plugins.conf (group 23 — only when community plugins are chosen)
+
+`source`d from `hyprland.conf` (add `source = ~/.config/hypr/plugins.conf`). Holds the `plugin {}`
+config blocks for the hyprpm plugins the user enabled; binds go in `binds.conf`, layout plugins also
+set `general:layout`. **Claude never runs `hyprpm`** — generate this file + print the install commands.
+Full catalog, per-plugin blocks, the hyprpm flow, and the version-pinning caveat: **`plugins.md`**.
+
+```ini
+# Example — workspace overview (hyprexpo). Emit only the blocks for plugins the user enabled;
+# a plugin {} block for an unloaded plugin is ignored (harmless), but a layout/dispatcher from a
+# missing plugin errors the reload — so gate `layout =`/`hy3:`/`split-workspace` on install.
+plugin {
+    hyprexpo {
+        columns = 3
+        gap_size = 5
+        bg_col = rgb(000000)
+        workspace_method = center current
+    }
+}
+# bind (binds.conf): bind = $mainMod, grave, hyprexpo:expo, toggle
 ```
 
 If hyprlock was **not** chosen, drop the `lock_cmd` and the lock listener (or point them at the
