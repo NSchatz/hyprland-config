@@ -66,3 +66,49 @@ jobs:
         env:
           RUN_INTEGRATION: "1"
         run: bash tests/run.sh integration_docker
+
+  visual:
+    name: Theme screenshots
+    runs-on: ubuntu-latest
+    needs: unit
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Verify docker
+        run: docker --version
+
+      # Same caching strategy as the integration job — the image is heavier here (sway +
+      # waybar + kitty + mako + wofi + grim + fonts), so the cache is the difference between
+      # a 30s run and a 5-minute build.
+      - name: Cache visual container image
+        id: visual-image-cache
+        uses: actions/cache@v4
+        with:
+          path: /tmp/hypr-visual-image.tar
+          key: hyprland-visual-image-${{ hashFiles('tests/visual/Dockerfile', 'tests/visual/run-screenshots.sh') }}
+
+      - name: Load cached image
+        if: steps.visual-image-cache.outputs.cache-hit == 'true'
+        run: docker load --input /tmp/hypr-visual-image.tar
+
+      - name: Build image (cache miss)
+        if: steps.visual-image-cache.outputs.cache-hit != 'true'
+        run: |
+          docker build -t hyprland-config-visual tests/visual
+          docker save hyprland-config-visual -o /tmp/hypr-visual-image.tar
+
+      - name: Run screenshot generator
+        env:
+          RUN_VISUAL: "1"
+        run: bash tests/run.sh visual_themes
+
+      # Upload regardless of test outcome — even a partial set of screenshots is useful for
+      # diagnosing what broke. The retention is short so we don't pile up artifacts.
+      - name: Upload theme screenshots
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: theme-screenshots
+          path: tests/visual/output
+          if-no-files-found: warn
+          retention-days: 14
