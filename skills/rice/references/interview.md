@@ -23,16 +23,16 @@ defaults" can skip ahead. Run `detect-version.sh` + `detect-theme-tools.sh` firs
 what's installed (bias defaults to installed tools; name the package for anything missing — never
 install). Use `multiSelect` for the genuinely multi-choice questions (bar modules, autostart, env vars).
 
-**The groups** (a from-scratch run walks all of them; expect **~26–34 `AskUserQuestion` calls** total on
+**The groups** (a from-scratch run walks all of them; expect **~28–38 `AskUserQuestion` calls** total on
 a full build — fewer when the conditional groups skip: 7 (widgets), 19 (login), 20 (gaming), 22
-(accessibility) are opt-in, and 21 (laptop) self-skips on desktops. If you've asked only a handful,
-you've collapsed groups incorrectly, go ask the rest):
+(accessibility), 23 (plugins) are opt-in, and 21 (laptop) self-skips on desktops. If you've asked only a
+handful, you've collapsed groups incorrectly, go ask the rest):
 
 | # | Group | Mode A | Mode B | Splits into |
 |---|---|---|---|---|
 | 1 | Monitors | ✓ | | 1–2 calls |
-| 2 | Input (keyboard & touchpad) | ✓ | | 1 call |
-| 3 | Keybinds | ✓ | | 1 call |
+| 2 | Input (keyboard, mouse, touchpad, gestures) | ✓ | | 1–2 calls |
+| 3 | Keybinds | ✓ | | 1–2 calls |
 | 4 | Default apps (browser, files) | ✓ | | 1 call |
 | 5 | **Terminal** | ✓ | | 1–2 calls |
 | 6 | **Status bar + waybar design** | ✓ | | 4 calls |
@@ -52,6 +52,7 @@ you've collapsed groups incorrectly, go ask the rest):
 | 20 | **Gaming & performance** | ✓ | | 1–2 calls |
 | 21 | **Laptop** *(if `IS_LAPTOP`)* | ✓ | | 1 call |
 | 22 | **Accessibility** *(opt-in)* | ✓ | | 0–1 call |
+| 23 | **Hyprland plugins** *(hyprpm, opt-in)* | ✓ | | 0–2 calls |
 
 Map every answer to its template: the **Hyprland-config** groups (monitors, input, keybinds, default
 apps, terminal, window look & feel, autostart, companion configs) → `config-templates.md`; the functional
@@ -59,7 +60,8 @@ apps, terminal, window look & feel, autostart, companion configs) → `config-te
 shell** → its `styling/` page + the engine's widget template (`engine.md` → "Widget-shell theming"); the
 **shell/prompt** configs → `../../shell-config/references/shells.md`; the **utilities & menus** → their
 shipped scripts + binds (`utilities.md`); the **login & boot** chrome → `login.md`; the
-**gaming & performance** tweaks → `gaming.md`; the **palette/fonts/wallpaper** groups
+**gaming & performance** tweaks → `gaming.md`; the **Hyprland plugins** (hyprpm) → `plugins.md`
+(`plugin {}` blocks into `plugins.conf` + the install commands); the **palette/fonts/wallpaper** groups
 (and the prompt/fish *colors*) → the rice engine's `palette.conf` (`engine.md`) which renders the colors.
 For *why a value looks good*, the styling library (`hyprland-reference/.../styling/`) backs each look
 choice; cite it when explaining.
@@ -97,20 +99,38 @@ renumbering) + a catch-all `monitor = , preferred, auto, 1`. For auto-switch on 
 **1e. Workspace rules?** — None **(default)** · Bind workspaces to monitors (e.g. 1–5 → primary, 6–10 →
 second) + make them **persistent**; optionally a **named scratchpad** (`special:magic`) and **smart
 gaps** (no gaps/border when one tiled window). Block goes in `monitors.conf`.
+**1f. Pin apps to workspaces?** — No **(default)** · Yes — collect class + target workspace for each app
+that should always open on a fixed workspace (e.g. browser → 1, chat → 9). Emits per-app `workspace`
+**window rules** (`windowrules.conf`); add ` silent` so they don't yank focus on launch. The
+complementary "launch an app when a workspace is first opened" is `on-created-empty` in the workspace
+rule (`monitors.conf`). Pairs naturally with persistent workspaces (1e).
 
 ---
 
-## 2. Input (keyboard & touchpad)
+## 2. Input (keyboard, mouse, touchpad, gestures)
+
+Up to **6 sub-questions** — split across **two calls** (e.g. 4 + 2) to respect the 4-per-call cap;
+the gesture call self-skips on desktops with no touchpad.
 
 **2a. Keyboard layout** → free text, default `us`.
 **2b. Caps/Esc & layout options** (offer common `kb_options`, off by default): `caps:swapescape` or
 `caps:escape` (Caps→Esc, the popular pick), `compose:caps`; for a multi-layout (`kb_layout = us, es`) add
 `grp:win_space_toggle` (or `grp:alt_shift_toggle`) to cycle layouts.
-**2c. Input baseline** (multi-select, off by default): `accel_profile = flat` (no mouse accel),
-`numlock_by_default = true`.
-**2d. Touchpad** (only if a laptop/touchpad is likely): Natural scroll + tap-to-click on **(default)** ·
+**2c. Key repeat** — Default (rate 25 / delay 600) **(default)** · Fast (rate 40 / delay 300) · Snappy
+(rate 50 / delay 250) · Custom. Maps to `repeat_rate`/`repeat_delay`; only emit non-defaults.
+**2d. Focus model** — Click / normal (`follow_mouse = 1`) **(default)** · Strict click-to-focus
+(`0` — pointer never changes focus) · Sloppy / focus-follows-mouse (`2` detached, or `3` strict-follow).
+A common power-user preference; don't assume `1` silently.
+**2e. Input baseline** (multi-select, off by default): `accel_profile = flat` (no mouse acceleration —
+gamers), `numlock_by_default = true`, raise/lower mouse `sensitivity` (-1.0 … 1.0, default 0).
+**2f. Touchpad** (only if a laptop/touchpad is likely): Natural scroll + tap-to-click on **(default)** ·
 Traditional scroll, tap on · No touchpad / desktop. The full block also offers `disable_while_typing`,
 `clickfinger_behavior`, `scroll_factor`.
+**2g. Touchpad gestures** (only when a touchpad is present — 0.45+ `gesture =` keyword API; multi-select,
+3-finger workspace swipe pre-checked) — **3-finger horizontal → switch workspace** **(on)** · 4-finger
+horizontal → move window · 3-finger up → fullscreen · 3-finger pinch → toggle float/tile (HyDE) ·
+4-finger up → special/scratchpad. Each emits one `gesture =` line (`config-templates.md` → input). On a
+pre-0.45 target fall back to the `gestures { workspace_swipe = true }` block (see `deprecations.md`).
 
 ---
 
@@ -131,6 +151,13 @@ include the Esc exit + a `submap = reset`.
 `assets/scripts/keybind-cheatsheet.sh` (reads live binds via `hyprctl binds -j` — robust; richer when
 the binds use `bindd` descriptions, which this scheme already prefers). Needs `jq` + a menu
 (rofi/wofi/fuzzel) — name them if missing.
+**3f. Theme-switcher keybind?** — Yes, `SUPER+SHIFT+T` opens a theme menu **(default)** · Menu + a
+`SUPER+CTRL+T` dark/light toggle · No. Every major distro ships a live theme switcher (Omarchy
+`SUPER+CTRL+SHIFT+Space`, HyDE, JaKooLit, ML4W); this leverages the rice engine you're already setting
+up. Installs `assets/scripts/theme-switch.sh` (lists saved profiles via `rice themes` → `rice theme`);
+the toggle binds `rice theme-toggle <light> <dark>` between two named profiles (default the chosen
+scheme's dark variant + a light one, e.g. `catppuccin-mocha`/`catppuccin-latte`). Needs a menu for the
+picker (rofi/wofi/fuzzel); the toggle needs none. Binds go in `binds.conf` (`config-templates.md`).
 
 Bind split-toggle with `layoutmsg, togglesplit` (not a bare dispatcher). Always include: terminal,
 close, exit, launcher, float, fullscreen, workspaces 1–10 switch + move-to, focus move, window move,
@@ -172,7 +199,9 @@ Second call if needed:
 **5e. Font size** — 11 **(default)** · 10 · 12 · 13 (the family is the monospace/Nerd font from group 13;
 just size here).
 **5f. Extras** (multi-select, off by default): font ligatures, larger scrollback (10k+ lines), audible
-bell off, confirm-on-close off.
+bell off, confirm-on-close off, **window swallowing** (the terminal hides itself while a GUI app it
+launched is open — Hyprland `misc:enable_swallow = true` + `swallow_regex = ^(<terminal-class>)$`,
+emitted into `looknfeel.conf`).
 
 ---
 
@@ -263,10 +292,18 @@ notification daemon can run). The engine themes the chosen shell via its widget 
 **7a. Widget system** — *(pre-filled from 6a; confirm)* None / just waybar **(default)** · **eww** (yuck +
 SCSS — floating widgets, any shape; pairs with waybar) · **AGS / Astal** (TS/JS over GTK — batteries-
 included services, the dashboard heritage) · **Quickshell** (QML — the modern, best-looking, animation-
-rich shells; caelestia/end-4; steepest curve) · **HyprPanel** (turnkey AGS panel, GUI-configured — note
-it's **archived 2026-04** but still usable; successor *Wayle*). Bias the default to anything already
-installed (`detect-theme-tools.sh`); name the package for a missing one — **never install**. A full shell
-(Quickshell/AGS/HyprPanel) means **removing waybar's `exec-once`** so two bars don't fight.
+rich shells; build-your-own; steepest curve) · a **turnkey pre-built shell** (install a ready Quickshell
+desktop — see 7a-bis) · **HyprPanel** (turnkey AGS panel, GUI-configured — note it's **archived 2026-04**
+but still usable; successor *Wayle*). Bias the default to anything already installed
+(`detect-theme-tools.sh`); name the package for a missing one — **never install**. A full shell
+(Quickshell/AGS/HyprPanel/turnkey) means **removing waybar's `exec-once`** so two bars don't fight.
+**7a-bis. Turnkey shell** (only if "pre-built" picked) — **end-4 / illogical-impulse** (the most-starred,
+Material-You, AI/OCR extras) · **caelestia** (Material 3, per-monitor `shell.json`, fingerprint lock) ·
+**Noctalia** (sleek minimal, multi-compositor) · **DankMaterialShell** (full shell replacing
+bar/lock/idle/notifications/launcher at once). These are the trending 2025–2026 look — but they're a
+**clone-and-install** of someone else's whole desktop, with their *own* theming model. Don't hand-theme
+them: drive them with **matugen** on the same wallpaper (engine.md → "Widget-shell theming"), print the
+project's install steps, and warn the plugin's per-app theming yields to theirs. **Never install.**
 **7b. Which widgets** (multi-select; ordered by how often they appear in the corpus) — OSD
 (volume/brightness) **(on)**, notification center **(on)**, dashboard / control center, music / now-playing
 (MPRIS) **(on)**, calendar / clock panel, power / session menu, sidebar / quick-settings, system-info
@@ -296,7 +333,12 @@ don't run both (the D-Bus name conflict); if a full shell owns notifications, se
 rice generates the launcher's functional config + themed style. Recipes:
 `../../desktop-shell/references/components.md`; look: `styling/launchers.md`. Sets `$menu` for binds.
 
-**8a. Launcher tool** — wofi **(default)** · rofi (most themeable) · fuzzel · tofi. Bias to installed.
+**8a. Launcher tool** — wofi **(default)** · rofi (most themeable) · fuzzel · tofi · **walker** (Wayland-
+native, runs as a service for instant startup) · **vicinae** (the 2025 Raycast-for-Linux — Qt, runs
+Raycast extensions, bundles clipboard/calc/emoji/window-switch) · **anyrun** (krunner-style, plugin-
+extensible). Bias to installed; name the package for a missing one. The newer four (walker/vicinae/
+anyrun + tofi) ship their own config/theme formats — for vicinae especially the engine themes only what
+it exposes; default the **themeable** picks (wofi/rofi/fuzzel) when the user just wants palette coherence.
 **8b. Mode** — App launcher / `drun` **(default)** · Run + drun combined · Also offer window-switcher
 bind.
 **8c. Layout & size** — Centered overlay, ~600px, single column **(default)** · Compact list (top) ·
@@ -337,6 +379,10 @@ if hypridle is on (group 15), point its `lock_cmd` at hyprlock. Look: `styling/h
 **10c. Clock** — Large time + date **(default)** · Time only · None.
 **10d. Input pill style** — Accent-outlined, centered **(default)** · Minimal underline · Hidden until
 typing.
+**10e. Fingerprint unlock?** (offer when `IS_LAPTOP` / an `fprintd` device is likely) — No **(default)** ·
+Yes — emit hyprlock's `auth { fingerprint { enabled = true } }` block so a registered finger unlocks
+alongside the password. Requires `fprintd` + an enrolled finger (`fprintd-enroll`, root/user-side — name
+it, never run it); note it falls back to password if no reader is present.
 
 hyprlock colors are **literal hex** from the palette (it can't read Hyprland `$vars`) — the engine fills
 them.
@@ -510,7 +556,11 @@ without it being captured by the timestamped backup. This group is usually a sin
 - **hyprlock** → `hyprlock.conf` (required by hyprlock or it errors): background + accent-outlined input
   pill + clock per the group-9 answers. Colors are **literal hex** from the palette.
 - **hypridle** → `hypridle.conf`: dim → lock → dpms-off → suspend listeners; `lock_cmd = pidof hyprlock
-  || hyprlock`; lock *before* dpms-off; `before_sleep_cmd = loginctl lock-session`.
+  || hyprlock`; lock *before* dpms-off; `before_sleep_cmd = loginctl lock-session`. **Ask the idle
+  ladder** (one question): Balanced — lock 5m / screen-off 6m / suspend 30m **(default)** · Aggressive
+  (laptop battery) — dim 1m / lock 2m / off 3m / suspend 10m · Relaxed — lock 15m / off 20m / no suspend ·
+  Never (no auto-lock/suspend). Maps to the four `listener` timeouts (`config-templates.md` → hypridle);
+  desktops usually drop the suspend tier.
 - **hyprpaper** → `hyprpaper.conf`: `preload` + `wallpaper` (the group-13 image or a placeholder); set
   `ipc = on` so the wallpaper can be switched live.
 
@@ -567,6 +617,11 @@ tools `detect-version.sh` reports installed) — Screenshot (region/window/full 
 Clipboard history picker **(on)** · Color picker **(on if hyprpicker)** · Power menu **(on)** · Screen
 recording · OCR (screen → text) · Emoji picker · Calculator · Wi-Fi menu / applet · Bluetooth menu /
 applet · Night-light toggle.
+
+Prefer the **2025–2026 tools** when present: **satty** for screenshot annotation (over the older
+swappy), **wl-screenrec** for HW-encoded recording (over wf-recorder on AMD/Intel), **hyprshot**/
+`grimblast` for the capture itself. The shipped `screenshot.sh`/`screenrecord.sh` bias to whichever the
+detection reports — name the modern one as the suggested install when absent.
 
 For each checked item: copy its script (or just add the bind for the bind-only tools — clipboard,
 emoji, calculator), wire the keybind into `binds.conf`, and ensure its autostart prerequisite (cliphist
@@ -668,3 +723,44 @@ value for those who need it and cheap to skip for those who don't. Blocks: `conf
 
 Map each checked item to its block/env/bind. Magnifier and large-cursor are pure Hyprland; the UI-scale
 one touches monitor scale + GTK settings (mention the fractional-scaling gotcha). Validate after writing.
+
+---
+
+## 23. Hyprland plugins  *(dedicated group — generate only, opt-in)*
+
+The community-plugin layer (`hyprpm`) most generators skip: a **workspace overview** (exposé),
+**scrolling / tree** layouts, **per-monitor workspaces**, window **title bars**, and dropdown
+**scratchpads**. Gated behind one opt-in so non-plugin users never see it. Full flow, per-plugin config
+blocks, and the version-pinning caveat: **`plugins.md`**.
+
+**The hard rule:** plugins are compiled against the exact running Hyprland build, so a Hyprland upgrade
+**breaks every plugin** until rebuilt. That makes install a *user* action — **Claude never runs
+`hyprpm`**; we generate the `plugin {}` blocks (→ `plugins.conf`) + binds, then print the exact
+`hyprpm add/enable/reload` commands and the build-toolchain dep. (User is on Hyprland 0.54.3 — plugins
+must match.) Gate `general:layout =` / `hy3:` / `split-workspace` binds on the plugin actually being
+installed (a missing non-core layout/dispatcher errors the reload; an unused `plugin {}` block is
+harmless).
+
+**Call 1 — the gate:**
+**23a. Set up Hyprland plugins?** — No, skip **(default)** · Yes.
+
+**Call 2 (only if yes; multiSelect, none pre-checked):**
+**23b. Which plugins?** —
+- **Workspace overview** — `hyprexpo` (grid exposé, `SUPER+\`` toggle). *Skip if a full widget shell
+  (group 7) already provides an overview.*
+- **Scrolling layout** — `hyprscrolling` (official) / `hyprscroller` — PaperWM-style infinite strip;
+  **replaces** dwindle/master (group 11g).
+- **i3/sway tree tiling** — `hy3` — manual split tree with tabbed groups; replaces the layout + split binds.
+- **Per-monitor workspaces** — `split-monitor-workspaces` — each display gets its own 1–10 (offer only
+  when `MONITOR_COUNT > 1`; rebinds the workspace keys).
+- **Window title bars** — `hyprbars` (CSD-like bars + buttons; themable from the palette).
+- **Dropdown scratchpads** — `pyprland` (Quake terminal + expose/magnify; **pip/AUR, not hyprpm** — its
+  own `pyprland.toml` + `exec-once = pypr`). Core's `special:` workspace (group 1) already covers one
+  scratchpad with no dependency — offer pyprland for **multiple named** dropdowns.
+- **Decorative** — `borders-plus-plus` (extra border ring), `hyprtrails` (motion trails), `hyprwinwrap`
+  (run an app as the wallpaper).
+
+For each checked plugin: emit its `plugin {}` block into `plugins.conf` (add `source = ~/.config/hypr/
+plugins.conf` to `hyprland.conf`), its binds into `binds.conf`, the `layout =` line for a layout plugin
+(gated on install), and print the `hyprpm`/`pip` commands + the "re-run `hyprpm update && hyprpm reload`
+after every Hyprland upgrade" warning. Validate (`hyprctl reload` + `configerrors`) after writing.
