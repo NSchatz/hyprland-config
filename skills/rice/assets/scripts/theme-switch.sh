@@ -1,0 +1,18 @@
+#!/usr/bin/env bash
+# Searchable theme switcher — lists the saved rice profiles in a menu and applies the pick.
+# Leans entirely on the rice engine: `rice themes` to list, `rice theme <name>` to apply
+# (so the whole desktop re-themes coherently). No hardcoded theme names.
+# Deps: the rice CLI (~/.config/hypr-rice/rice); one of rofi/wofi/fuzzel.
+set -euo pipefail
+
+RICE="${RICE_BIN:-$HOME/.config/hypr-rice/rice}"
+[ -x "$RICE" ] || { command -v notify-send >/dev/null 2>&1 && notify-send "rice" "engine not found ($RICE)"; exit 1; }
+
+menu() {
+    if   command -v rofi   >/dev/null 2>&1; then rofi -dmenu -i -p "Theme" -theme-str 'window {width: 20em;}'
+    elif command -v wofi   >/dev/null 2>&1; then wofi --dmenu -i -p "Theme"
+    else fuzzel --dmenu; fi
+}
+
+chosen="$(bash "$RICE" themes | grep -v '^(' | menu || true)"
+[ -n "$chosen" ] && bash "$RICE" theme "$chosen"

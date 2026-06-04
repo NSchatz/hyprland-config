@@ -146,6 +146,22 @@ case "$cmd" in
         if ls "$RICE_DIR/profiles"/*.conf >/dev/null 2>&1; then
             for p in "$RICE_DIR/profiles"/*.conf; do basename "$p" .conf; done
         else echo "(no profiles yet — save one with: rice save <name>)"; fi;;
+    theme-toggle)
+        # Flip between two profiles by name — the dark/light (or any A/B) toggle keybind.
+        # Reads the current scheme from palette.conf; applies whichever of the two it is NOT.
+        a="${1:-}"; b="${2:-}"
+        [ -n "$a" ] && [ -n "$b" ] || { echo "usage: rice theme-toggle <profileA> <profileB>" >&2; exit 1; }
+        cur="$(sed -n 's/^scheme=//p' "$RICE_DIR/palette.conf" 2>/dev/null | head -1)"
+        if [ "$cur" = "$a" ]; then exec "$0" theme "$b"; else exec "$0" theme "$a"; fi;;
+    theme-next)
+        # Cycle to the next saved profile (alphabetical) — a single-key theme cycler, no menu needed.
+        ls "$RICE_DIR/profiles"/*.conf >/dev/null 2>&1 || { echo "(no profiles to cycle)" >&2; exit 1; }
+        cur="$(sed -n 's/^scheme=//p' "$RICE_DIR/palette.conf" 2>/dev/null | head -1)"
+        names=""; for p in "$RICE_DIR/profiles"/*.conf; do names="$names $(basename "$p" .conf)"; done
+        set -- $names; first="$1"; nxt=""; take=0
+        for n in "$@"; do [ "$take" = 1 ] && { nxt="$n"; break; }; [ "$n" = "$cur" ] && take=1; done
+        [ -n "$nxt" ] || nxt="$first"
+        exec "$0" theme "$nxt";;
     palette)
         cat "$RICE_DIR/palette.conf" 2>/dev/null || echo "no palette yet ($RICE_DIR/palette.conf)";;
     templates|list)
@@ -167,6 +183,8 @@ hypr-rice — desktop theme engine ($RICE_DIR)
   rice accents [scheme]   list the accent variants for a scheme (default: current)
   rice accent <name|hex> [--pin]    set the accent (in-palette name or raw hex); --pin = survive re-theme
   rice theme <name>       load a saved profile (palette + wallpaper) and re-theme
+  rice theme-toggle <a> <b>  flip between two profiles (the dark/light toggle keybind)
+  rice theme-next         cycle to the next saved profile (single-key theme cycler)
   rice save <name>        snapshot the current palette as a profile
   rice themes             list saved profiles
   rice palette            print the current palette
