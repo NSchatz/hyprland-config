@@ -401,7 +401,7 @@ Set the wallpaper and optionally re-theme the whole desktop from it — the cano
   rice-owned `rice.omp.json`; and the **widget-shell set**: `eww.tmpl` → eww `colors.scss`, `ags.tmpl`
   → AGS/Astal `colors.scss`, `quickshell.tmpl` → Quickshell `Colors.qml`; registered in the manifest
   when chosen — see `engine.md` → "Shell & prompt theming" and "Widget-shell theming").
-- **`assets/profiles/*.conf`** — the five shipped preset rices; **`assets/rice`** — the CLI
+- **`assets/profiles/*.conf`** — the twelve shipped preset rices; **`assets/rice`** — the CLI
   (incl. `rice wallpapers [scheme]` to list and `rice get-wallpaper <scheme> <n|name> [--set]` to
   curl-download a matching wallpaper; `rice accents [scheme]` to list per-scheme accent variants and
   `rice accent <name|hex> [--pin]` to swap the accent; `rice theme-toggle <a> <b>` flips two profiles
