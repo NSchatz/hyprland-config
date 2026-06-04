@@ -49,11 +49,11 @@ run_log="$(mktemp -t hypr-visual-run.XXXXXX.log)"
 # container can drop PNGs the orchestrator (and CI artifact upload) can read.
 docker run --rm \
     -v "$PLUGIN_ROOT:/plugin:ro" \
-    -v "$PLUGIN_ROOT/tests/visual/run-screenshots.sh:/home/tester/run.sh:ro" \
+    -v "$PLUGIN_ROOT/tests/visual/run-screenshots.sh:/root/run.sh:ro" \
     -v "$out_host:/screenshots" \
     --tmpfs /tmp:exec,mode=1777 \
     "$image" \
-    bash /home/tester/run.sh \
+    bash /root/run.sh \
     >"$run_log" 2>&1
 rc=$?
 

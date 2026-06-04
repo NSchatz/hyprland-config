@@ -36,16 +36,20 @@ RUN pacman -Syu --noconfirm --needed \
     && pacman -Scc --noconfirm \
     && rm -rf /var/cache/pacman/pkg/*
 
-RUN useradd -m -s /bin/bash tester
-USER tester
-WORKDIR /home/tester
+# Run as root in this image. Sway's binary on Arch has file capabilities (cap_sys_nice+ep) that
+# Docker's default security profile strips during a non-root exec — that exec then fails with
+# "Operation not permitted". Running as root inside an ephemeral container avoids the entire
+# problem; sway accepts root for headless test sessions. This image is test-only.
+WORKDIR /root
 
 ENV WLR_BACKENDS=headless \
     WLR_LIBINPUT_NO_DEVICES=1 \
     WLR_RENDERER=pixman \
     WLR_HEADLESS_OUTPUTS=1 \
-    XDG_RUNTIME_DIR=/tmp/runtime-tester \
-    XDG_CACHE_HOME=/home/tester/.cache \
+    LIBSEAT_BACKEND=noop \
+    XDG_RUNTIME_DIR=/tmp/runtime-root \
+    XDG_CACHE_HOME=/root/.cache \
+    HOME=/root \
     XDG_CURRENT_DESKTOP=sway
 
 CMD ["bash"]
