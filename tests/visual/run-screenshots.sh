@@ -39,25 +39,35 @@ WLR_BACKENDS=headless WLR_LIBINPUT_NO_DEVICES=1 sway > "$SWAY_LOG" 2>&1 &
 SWAY_PID=$!
 
 # Sway picks a socket path under XDG_RUNTIME_DIR/sway-ipc.* — wait for it to appear.
-deadline=$(( $(date +%s) + 20 ))
+deadline=$(( $(date +%s) + 30 ))
 ready=0
 while [ "$(date +%s)" -lt "$deadline" ]; do
-    # SWAYSOCK is also set via $XDG_RUNTIME_DIR/sway-ipc.<uid>.<sway-pid>.sock
     sock="$(find "$XDG_RUNTIME_DIR" -maxdepth 2 -name 'sway-ipc.*.sock' 2>/dev/null | head -n1)"
-    if [ -n "$sock" ] && swaymsg -t get_version >/dev/null 2>&1; then
-        ready=1; break
+    if [ -n "$sock" ]; then
+        export SWAYSOCK="$sock"
+        if swaymsg -t get_version >/dev/null 2>&1; then
+            ready=1; break
+        fi
     fi
     sleep 0.3
 done
 
 if [ "$ready" -ne 1 ]; then
     echo "VISUAL_PHASE=sway-failed-to-start"
-    echo "----- sway log -----"
+    echo "----- diagnostic: process state -----"
+    ps -ef | grep -E 'sway|wayland' | grep -v grep || true
+    echo "----- diagnostic: XDG_RUNTIME_DIR contents -----"
+    ls -la "$XDG_RUNTIME_DIR" 2>&1 || true
+    echo "----- diagnostic: SWAYSOCK env -----"
+    echo "SWAYSOCK=${SWAYSOCK:-<unset>}"
+    echo "----- diagnostic: swaymsg version probe -----"
+    swaymsg -t get_version 2>&1 || true
+    echo "----- sway stdout/stderr (full) -----"
     cat "$SWAY_LOG" || true
-    echo "VISUAL=failed (sway did not become ready in 20s)"
+    echo "VISUAL=failed (sway did not become ready in 30s)"
     exit 2
 fi
-echo "VISUAL_PHASE=sway-ready"
+echo "VISUAL_PHASE=sway-ready (socket: $SWAYSOCK)"
 
 # WAYLAND_DISPLAY is the socket name (relative to XDG_RUNTIME_DIR). Sway's default is wayland-1.
 export WAYLAND_DISPLAY="wayland-1"
