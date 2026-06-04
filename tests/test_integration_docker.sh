@@ -65,35 +65,53 @@ rc=$?
     echo "  ── end container stdout ──"
 } >&2
 
-# Verdict.
+# Two possible success modes the container reports via INTEGRATION_PHASE:
+#   "config-parse-ok-backend-cannot-init-on-ci" — Hyprland's parser accepted the config,
+#       backend then failed (CI has no /dev/dri). Live `hyprctl reload` is unreachable here.
+#   anything else, ending in INTEGRATION=ok — Hyprland came up and safe-apply.sh ran.
+parse_only_mode=0
+if grep -q '^INTEGRATION_PHASE=config-parse-ok-backend-cannot-init-on-ci' "$run_log"; then
+    parse_only_mode=1
+fi
+
 if [ "$rc" -eq 0 ] && grep -q '^INTEGRATION=ok' "$run_log"; then
-    pass "Hyprland headless: SAFE_APPLY=ok, configerrors empty, no log ERR/CRITICAL"
+    if [ "$parse_only_mode" -eq 1 ]; then
+        pass "Hyprland parse-only mode: config accepted by Hyprland's own parser (no /dev/dri on CI)"
+    else
+        pass "Hyprland live mode: SAFE_APPLY=ok, configerrors empty, no log ERR/CRITICAL"
+    fi
 else
     fail "Hyprland headless integration" "container exit $rc; see full log at $run_log"
     return 0
 fi
 
-# Cross-check: confirm the safe-apply verdict line landed.
-if grep -q '^SAFE_APPLY=ok' "$run_log"; then
-    pass "safe-apply.sh reports SAFE_APPLY=ok"
+# The remaining cross-checks only apply when Hyprland actually came up. In parse-only mode
+# safe-apply / configerrors / live log don't exist.
+if [ "$parse_only_mode" -eq 1 ]; then
+    skip "safe-apply.sh reports SAFE_APPLY=ok" "parse-only mode (no live Hyprland on CI)"
+    skip "hyprctl configerrors is empty"        "parse-only mode (no live Hyprland on CI)"
+    skip "Hyprland log has no ERR/CRITICAL lines" "parse-only mode (backend init errors are expected here)"
 else
-    fail "safe-apply.sh reports SAFE_APPLY=ok" "$(grep -E '^SAFE_APPLY=|^VERIFY=|^INSTALLED=' "$run_log")"
-fi
-
-# Cross-check: hyprctl configerrors was empty.
-if grep -q '^----- hyprctl configerrors -----$' "$run_log" \
-   && [ "$(awk '/^----- hyprctl configerrors -----$/{f=1;next} /^-----/{f=0} f' "$run_log" | grep -vE '^\(none\)$|^$' | wc -l)" -eq 0 ]; then
-    pass "hyprctl configerrors is empty"
-else
-    fail "hyprctl configerrors is empty" "$(awk '/^----- hyprctl configerrors -----$/{f=1;next} /^-----/{f=0} f' "$run_log")"
-fi
-
-# Cross-check: no ERR/CRITICAL lines in the Hyprland log.
-log_errs="$(awk '/^----- Hyprland log errors/{f=1;next} /^-----/{f=0} f' "$run_log" | grep -vE '^\(none\)$|^$' || true)"
-if [ -z "$log_errs" ]; then
-    pass "Hyprland log has no ERR/CRITICAL lines"
-else
-    fail "Hyprland log has no ERR/CRITICAL lines" "$log_errs"
+    # Confirm the safe-apply verdict line landed.
+    if grep -q '^SAFE_APPLY=ok' "$run_log"; then
+        pass "safe-apply.sh reports SAFE_APPLY=ok"
+    else
+        fail "safe-apply.sh reports SAFE_APPLY=ok" "$(grep -E '^SAFE_APPLY=|^VERIFY=|^INSTALLED=' "$run_log")"
+    fi
+    # Confirm hyprctl configerrors was empty.
+    if grep -q '^----- hyprctl configerrors -----$' "$run_log" \
+       && [ "$(awk '/^----- hyprctl configerrors -----$/{f=1;next} /^-----/{f=0} f' "$run_log" | grep -vE '^\(none\)$|^$' | wc -l)" -eq 0 ]; then
+        pass "hyprctl configerrors is empty"
+    else
+        fail "hyprctl configerrors is empty" "$(awk '/^----- hyprctl configerrors -----$/{f=1;next} /^-----/{f=0} f' "$run_log")"
+    fi
+    # Confirm no ERR/CRITICAL lines in the Hyprland log.
+    log_errs="$(awk '/^----- Hyprland log errors/{f=1;next} /^-----/{f=0} f' "$run_log" | grep -vE '^\(none\)$|^$' || true)"
+    if [ -z "$log_errs" ]; then
+        pass "Hyprland log has no ERR/CRITICAL lines"
+    else
+        fail "Hyprland log has no ERR/CRITICAL lines" "$log_errs"
+    fi
 fi
 
 # Leave the run log around on failure so the user can inspect; clean up on success.
