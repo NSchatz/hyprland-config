@@ -88,6 +88,14 @@ have_pkg nm_applet      nm-applet               network-manager-applet
 have_pkg blueman        blueman-applet          blueman
 have_pkg qt6ct          qt6ct
 have_pkg nwg_look       nwg-look
+# Utility-menu / screenshot-menu tooling (Group 18 "Utilities & menus")
+have_pkg tesseract      tesseract               tesseract        # OCR (grab on-screen text)
+have_pkg bemoji         bemoji                                   # emoji picker
+have_pkg wf_recorder    wf-recorder                              # screen recorder (CLI)
+have_pkg wl_screenrec   wl-screenrec                             # HW-accelerated recorder
+have_pkg swappy         swappy                                   # screenshot annotation (alt to satty)
+have_pkg kanshi         kanshi                                   # auto monitor profiles (dock/undock)
+have_pkg shikane        shikane                                  # kanshi successor
 
 # --- Session env manager: uwsm (Universal Wayland Session Manager) ---
 # When Hyprland is launched via uwsm, ~/.config/uwsm/env (+ env-hyprland) is the AUTHORITATIVE
@@ -136,3 +144,28 @@ elif [ -n "$gpu_bound" ]; then
 else
     echo "GPU_DRIVER=unknown"
 fi
+
+# --- Chassis / power shape (the laptop-only interview group self-skips on desktops) ---
+# DMI chassis_type: 8 Portable, 9 Laptop, 10 Notebook, 14 Sub-Notebook, 31 Convertible,
+# 32 Detachable. Fall back to a battery node when DMI is missing/unreliable (VMs, OEM quirks).
+chassis="$(cat /sys/class/dmi/id/chassis_type 2>/dev/null)"
+case " 8 9 10 14 31 32 " in
+    *" ${chassis} "*) echo "IS_LAPTOP=1" ;;
+    *) if ls /sys/class/power_supply/BAT* >/dev/null 2>&1; then echo "IS_LAPTOP=1"; else echo "IS_LAPTOP=0"; fi ;;
+esac
+# Battery present (gates the optional charge-threshold offer)
+ls /sys/class/power_supply/BAT* >/dev/null 2>&1 && echo "HAVE_BATTERY=1"
+# Lid switch present (gates the lid-close action question)
+[ -d /proc/acpi/button/lid ] && echo "HAVE_LID=1"
+
+# --- Monitor count (the Monitors group expands to dock/per-monitor questions when >1) ---
+if command -v hyprctl >/dev/null 2>&1; then
+    mc="$(hyprctl monitors -j 2>/dev/null | grep -c '"name":')"
+    [ "${mc:-0}" -gt 0 ] 2>/dev/null && echo "MONITOR_COUNT=${mc}"
+fi
+
+# --- Power-profile tool (laptop power group; the three are mutually exclusive — report which) ---
+if command -v powerprofilesctl >/dev/null 2>&1; then echo "POWER_TOOL=power-profiles-daemon"
+elif command -v tlp >/dev/null 2>&1;            then echo "POWER_TOOL=tlp"
+elif command -v auto-cpufreq >/dev/null 2>&1;   then echo "POWER_TOOL=auto-cpufreq"
+else echo "POWER_TOOL=none"; fi
