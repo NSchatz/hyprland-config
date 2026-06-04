@@ -134,8 +134,12 @@ if [ "$ready" -ne 1 ]; then
     parse_errors="$(grep -E '\[ERR\][[:space:]]*\[Config Parser\]|Config Error:|invalid keyword|invalid field|invalid token' "$HYPR_LOG" 2>/dev/null || true)"
     if [ -z "$parse_errors" ] \
        && grep -q 'Creating the ConfigManager' "$HYPR_LOG" 2>/dev/null \
-       && grep -qE 'CBackend::create\(\) failed|CCompositor\(\) failed' "$HYPR_LOG" 2>/dev/null; then
+       && grep -qE 'CBackend::create\(\) failed|CCompositor\(\) failed|Cannot open backend' "$HYPR_LOG" 2>/dev/null; then
         # Backend failed but parse was clean — that's the expected CI signature. Pass.
+        # Force a leading newline because Hyprland's last stdout line (the CRIT/throw output)
+        # often lacks a trailing newline, which would otherwise glue our phase marker to it and
+        # break the orchestrator's `grep -q '^INTEGRATION_PHASE=...'` match.
+        printf '\n'
         echo "INTEGRATION_PHASE=config-parse-ok-backend-cannot-init-on-ci"
         echo "INTEGRATION=ok (config parsed cleanly; backend cannot init without /dev/dri — expected on CI)"
         exit 0
