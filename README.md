@@ -65,9 +65,10 @@ up, into `~/.config/hypr`.
 | Skill | `dotfiles`                  | User-invoked. Version-controls the configs in git (bare-repo / stow / chezmoi) and commits after each verified change. |
 | Skill | `hyprland-reference`        | Auto-triggered. Hyprland config syntax, ecosystem, **testing**, and a **styling reference library** (per-package design guides + cross-cutting design principles, researched from the community). |
 | Command | `reset-config`            | User-invoked. Wipes `~/.config/hypr` to a minimal bare-bones `hyprland.conf` — full backup + live-test + auto-rollback. |
+| Agent | `hyprland-interviewer`      | Owns the rice from-scratch interview (28–38 `AskUserQuestion` calls across 23 groups) and persists every answer to `<staging>/answers.json` as it goes. Runs a "review your picks" pass at the end. Returns just the file path so the main rice loop's context stays clean for the work that follows. |
 | Agent | `hyprland-config-validator` | Static validation (plus an optional live load-test) of a generated/edited config. Run automatically after rice generation and after non-trivial edits. |
 | Agent | `hyprland-package-installer`| Runs the generated `install.sh` (or an ad-hoc package list) after the user confirms the batch once. Handles pacman + paru/yay routing, bootstraps a helper if missing, retries transient failures, returns a structured verdict. |
-| Agent | `hyprland-component-writer` | Authors **one** desktop surface (waybar / launcher / notifications / terminal / lock-screen / a Hyprland topic file) into staging. The rice skill spawns several in parallel during Mode A so the per-component writing runs concurrently. |
+| Agent | `hyprland-component-writer` | Authors **one** desktop surface (waybar / launcher / notifications / terminal / lock-screen / a Hyprland topic file) into staging. The rice skill spawns several in parallel during Mode A so the per-component writing runs concurrently, each fed a `jq` slice of `answers.json`. |
 
 ## Usage
 
@@ -233,12 +234,14 @@ hyprland-config/
 ├── commands/
 │   └── reset-config.md                    # /hyprland-config:reset-config (bare-bones reset)
 ├── agents/
+│   ├── hyprland-interviewer.md            # owns the 23-group interview, writes answers.json
 │   ├── hyprland-config-validator.md       # static lint (+ optional live load-test)
 │   ├── hyprland-package-installer.md      # runs install.sh / ad-hoc package list
 │   └── hyprland-component-writer.md       # one surface per agent, spawned in parallel
 ├── scripts/                               # shared across skills
 │   ├── backup-path.sh                     # timestamped backup of arbitrary paths
-│   └── dotfiles.sh                        # git versioning: bare / stow / chezmoi
+│   ├── dotfiles.sh                        # git versioning: bare / stow / chezmoi
+│   └── record-answer.sh                   # jq setpath into <staging>/answers.json
 ├── skills/
 │   ├── rice/              (generate + theme + profiles + wallpaper + shell/desktop-shell)
 │   │   ├── references/   (interview, config-templates, components, shells, theming, palettes,
@@ -272,6 +275,30 @@ The **rice engine** the plugin scaffolds (lives in your home, version-controlled
 ```
 
 ## Changelog
+
+### 0.12.0
+
+The interview no longer drifts into hallucination after it finishes. The fix has three parts that
+work together — a structured answers file, a dedicated interviewer agent, and a review pass:
+
+- **Persisted answers (`answers.json`).** A new `scripts/record-answer.sh` `jq`-`setpath`s each
+  pick into `<staging>/answers.json` as it's chosen. Every downstream step (A3 Hyprland topic
+  files, A3b shell components, A3c shell/prompt, A3d install.sh, A4 palette) and every
+  component-writer agent now reads picks from that file deterministically — no more recalling
+  picks from a 28-round chat history. The schema (one top-level key per group, with normalised
+  value types) is documented in `interview.md` so the agent and downstream code share one source
+  of truth.
+- **`hyprland-interviewer` agent.** A new agent owns the entire interview. The main rice loop
+  spawns it once at A1; the 28–38 `AskUserQuestion` calls happen *inside* the agent's context, and
+  the main loop sees a single short tool result (`answers_file: …`, summary). This is the
+  structural fix: the Q/A noise that used to crowd out generation now stays in the subagent.
+- **Review pass.** Before returning, the interviewer prints a structured summary of the key
+  picks (palette, fonts, bar, launcher, terminal, notifications, shell, opt-ins) and asks once:
+  approve / fix one or more groups / start over. "Fix" re-asks just the chosen group(s) and
+  loops back to the review.
+- **Mode B (re-theming)** keeps its inline interview (only 4 groups — too light to need the
+  agent) but still uses `record-answer.sh`, so a later A-mode build or a profile save can replay
+  the picks exactly.
 
 ### 0.11.0
 

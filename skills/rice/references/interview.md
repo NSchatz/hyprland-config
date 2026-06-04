@@ -11,6 +11,141 @@ configs for the whole desktop — compositor, terminal, status bar, launcher, no
 — then themes every surface from one palette. So the interview is **organized one group per component**,
 each with its own focused set of questions, rather than a few broad catch-all areas.
 
+## Recording answers (the discipline that prevents post-interview drift)
+
+The interview is long enough — **28–38 `AskUserQuestion` calls** — that natural-language answers
+scattered through chat history get garbled by the time downstream steps (file generation, package
+list, component writers) try to use them. The fix: **persist every answer to `<staging>/answers.json`
+as it comes in**, then every downstream step reads it with `jq`. The model never has to recall a pick.
+
+**After every `AskUserQuestion`**, immediately call:
+
+```bash
+bash "${CLAUDE_PLUGIN_ROOT}/scripts/record-answer.sh" <answers-file> <key.path> <value>
+# or for arrays / objects / numbers / bools:
+bash "${CLAUDE_PLUGIN_ROOT}/scripts/record-answer.sh" <answers-file> <key.path> --json '<jsonval>'
+```
+
+`record-answer.sh` `setpath`s the value into the JSON file (creating it if absent), idempotently —
+re-asking a question and re-recording just overwrites the key, no duplicate state. The file lives at
+`<staging>/answers.json` (e.g. `/tmp/hypr-gen-abc123/answers.json`); it's the single source of truth
+the rest of Mode A reads from. **Never invent a key after-the-fact** — if a downstream step needs
+something the interview didn't capture, go back and ask, then re-record.
+
+### The schema
+
+One top-level key per interview group. Use the exact key names below so every step reads the same
+shape. Anything optional / not-asked is simply absent (don't write nulls). Multi-select answers are
+arrays of the canonical option labels.
+
+```json
+{
+  "version": 1,
+  "staging_dir": "/tmp/hypr-gen-<id>",
+  "hypr_version": "0.54.3",
+
+  "monitors": {
+    "setup": "single-auto | single-specific | dual-side-by-side | complex",
+    "list": [{ "name": "DP-1", "mode": "2560x1440@144", "pos": "0x0", "scale": 1.0, "transform": 0, "vrr": 0, "bitdepth": 8 }],
+    "scaling": 1.0,
+    "dock_undock": false,
+    "workspace_rules": { "1-5": "DP-1", "6-10": "HDMI-A-1", "scratchpad": false, "smart_gaps": false },
+    "pin_apps": { "firefox": 1, "thunderbird": 9 }
+  },
+  "input": {
+    "kb_layout": "us",
+    "kb_options": ["caps:swapescape"],
+    "key_repeat": { "rate": 25, "delay": 600 },
+    "follow_mouse": 1,
+    "mouse_sensitivity": 0.0,
+    "touchpad_gestures": ["workspace-swipe"]
+  },
+  "keybinds": { "mod": "SUPER", "extras": ["theme-switch","blur-toggle","cheatsheet"], "resize_submap": false },
+  "default_apps": { "browser": "firefox", "files": "thunar" },
+  "terminal": { "emulator": "kitty", "opacity": 1.0, "padding": 8, "font_size": 11, "extras": ["scrollback-10k"], "swallow": false },
+  "bar": {
+    "strategy": "waybar | waybar+widgets | full-shell | hyprpanel | none",
+    "form": "top | bottom | vertical-left | vertical-right | dual",
+    "height": 34,
+    "archetype": "floating-islands | separated-pills | single-lozenge | edge-to-edge | powerline | dock",
+    "corner": "rounded | square | pill",
+    "transparency": "opaque | translucent | glassy | frosted",
+    "workspace_indicator": "pill-fill | underline | dots | numbers",
+    "accent_strategy": "single | per-module | monochrome | semantic-state",
+    "accent_application": "text | inverted-pill",
+    "motion": "smooth | snappy | none",
+    "modules": ["workspaces","window","clock","cpu","memory","pulseaudio","network","tray"]
+  },
+  "widgets": {
+    "system": "none | eww | ags | quickshell | hyprpanel | turnkey",
+    "turnkey": "end-4 | caelestia | noctalia | dankmaterial",
+    "enabled": ["osd","notification-center","music","dashboard"],
+    "look": "match-palette | material-you | glass | flat",
+    "motion": "smooth | snappy | static"
+  },
+  "launcher": { "tool": "wofi | rofi | fuzzel | tofi | walker | vicinae | anyrun", "mode": "drun | run-drun", "layout": "centered | compact-top | fullscreen-grid | multi-column", "icons": true, "behavior": ["fuzzy","close-on-focus-loss"] },
+  "notifications": { "daemon": "mako | dunst | swaync | none", "position": "top-right | top-center | top-left | bottom-right", "timeout": 5, "behavior": ["group-by-app","app-icons","dnd-bind"] },
+  "lock_screen": { "enabled": true, "background": "blurred-screenshot | wallpaper | solid", "clock": "large | time-only | none", "input_pill": "accent-outlined | underline | hidden", "fingerprint": false },
+  "look_feel": {
+    "gaps_preset": "comfortable | tight | none | spacious",
+    "rounding": "rounded | subtle | square",
+    "blur_shadows": "both-on | blur-on-shadows-off | both-off",
+    "opacity": { "active": 1.0, "inactive": 0.9 },
+    "animations": "smooth | snappy | off",
+    "border_color": "palette | custom-gradient",
+    "layout": "dwindle | master",
+    "master_orientation": "left",
+    "groups": false,
+    "per_app_rules": [{"class":"firefox-developer-edition","effects":["pin"]}],
+    "blur_toggle": false
+  },
+  "palette": { "source": "named | wallpaper | manual", "scheme": "catppuccin-mocha", "light_dark": "dark", "accent": "mauve", "wallpaper_path": null, "manual": { "bg":"1e1e2e", "fg":"cdd6f4", "accent":"cba6f7" } },
+  "fonts": { "ui": "Inter 11", "mono": "JetBrainsMono Nerd Font 11" },
+  "wallpaper": { "path": "/home/u/Pictures/wallpapers/mocha.png", "catalog_pick": null },
+  "autostart_env": {
+    "wallpaper_tool": "hyprpaper | swww | none",
+    "polkit": "hyprpolkitagent | polkit-gnome | polkit-kde | none",
+    "autostart": ["cliphist-text","cliphist-image","nm-applet","hypridle"],
+    "env": ["XCURSOR_SIZE,24","HYPRCURSOR_SIZE,24","QT_QPA_PLATFORM,wayland;xcb","GDK_BACKEND,wayland,x11,*","XDG_CURRENT_DESKTOP,Hyprland"]
+  },
+  "companion_configs": { "hyprlock": true, "hypridle_ladder": "balanced | aggressive | relaxed | never", "hyprpaper": true },
+  "shell_prompt": { "shell": "fish | zsh | bash | keep-current", "prompt": "starship | oh-my-posh | native | keep-current", "fish_colors": true, "fetch": "fastfetch | neofetch | none", "fisher": ["autopair","fzf.fish","sponge","done"], "aliases": true, "modern_cli": ["eza","bat","zoxide","fzf"] },
+  "utilities": { "selected": ["screenshot","clipboard","color-picker","power-menu","screen-record","ocr","emoji","calculator","wifi-applet","bluetooth-applet","night-light"] },
+  "login_boot": { "greeter": "greetd-tuigreet | greetd-regreet | sddm | none", "plymouth": false, "grub_theme": false },
+  "gaming": { "enabled": false, "tearing_classes": ["steam_app_"], "vrr_mode": 0, "strip_fullscreen_effects": true, "gamemode_toggle": true },
+  "laptop": { "enabled": false, "lid_action": "suspend | lock | clamshell | nothing", "power_tool": "ppd | tlp | auto-cpufreq | none", "charge_limit": 80 },
+  "accessibility": ["magnifier","large-cursor","night-light","larger-ui"],
+  "plugins": { "enabled": false, "selected": ["hyprexpo","hy3"] }
+}
+```
+
+Notes on writing this file:
+- Keys are conservative — short, lowercase, snake_case. Don't introduce new top-level keys without
+  updating this schema.
+- Optional groups (gaming, accessibility, plugins, laptop, login_boot) keep their top-level key with
+  `"enabled": false` when the user declines the gate — that way downstream code can branch on a
+  single boolean instead of checking key presence.
+- `palette.manual.*` is only populated on the manual path. The actual hex values that end up in
+  `palette.conf` are derived from `palette.source`/`scheme`/`accent` plus `references/palettes.md`
+  during A4 — don't try to record all 16 colors here.
+- The Hyprland version + staging dir live at the top so any tool reading the file knows the build
+  target without re-running detection.
+
+### How downstream steps use it
+
+| Step | What it reads from `answers.json` |
+|---|---|
+| A3 (Hyprland topic files) | `monitors`, `input`, `keybinds`, `terminal`, `look_feel`, `autostart_env`, `companion_configs`, `gaming`, `laptop`, `accessibility`, `plugins` |
+| A3b (shell components) | `bar`, `widgets`, `launcher`, `notifications`, `terminal`, `lock_screen` |
+| A3c (shell & prompt) | `shell_prompt` |
+| A3d (install.sh) | every group — walks the JSON deterministically against `packages.md` |
+| A4 (palette) | `palette`, `fonts`, `wallpaper` |
+| Component-writer agents | `ANSWERS=` is a `jq` slice of the relevant group(s), passed in directly |
+
+Read with `jq -r '.palette.scheme' <answers-file>` or pull a whole subtree with
+`jq '.bar' <answers-file>`. **Never make up a value** that isn't in the file — if a downstream
+template needs something you didn't ask for, add the question to the interview and re-record.
+
 ## How to ask — group structure & the 4-question cap
 
 Ask with `AskUserQuestion`, **one group per component, in order**. The tool accepts **at most 4

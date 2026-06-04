@@ -3,7 +3,7 @@ name: rice
 description: This skill should be used when the user runs "/hyprland-config:rice" or asks to build, theme, or restyle their Hyprland desktop — i.e. (1) GENERATE a config from scratch ("generate/create my hyprland.conf", "set up Hyprland from scratch", "make me a new config", "build a hyprland config"); (2) THEME/recolor/set fonts ("theme my desktop", "apply Catppuccin/Gruvbox/Nord/Tokyo Night/Dracula/Everforest/Kanagawa/Solarized/Rosé Pine", "change my color scheme/accent", "match my colors to my wallpaper", "set up matugen/wallust", "change my font"); (3) manage named theme PROFILES / "rices" ("save my theme as X", "switch to nord", "list my themes", "load my <name> rice", "pin my accent"); or (4) set/change/cycle the WALLPAPER ("set my wallpaper", "random wallpaper", "make my theme match my wallpaper"). It runs one interactive interview, generates a modular version-matched config, and drives a self-contained rice engine (~/.config/hypr-rice/ — one palette.conf + templates + a `rice` CLI + profiles + a user-override cascade) that themes Hyprland, hyprlock, waybar, notifications, launcher, terminal, GTK/Qt/cursor/icons/fonts and the wallpaper consistently — backing up, live-testing, and reloading after every change.
 argument-hint: "[what you want, e.g. 'set up from scratch', 'catppuccin mocha', 'switch to nord', 'wallpaper ~/x.png and theme from it']"
 allowed-tools: AskUserQuestion, Bash, Read, Write, Edit, Glob, Grep, Agent
-version: 0.11.0
+version: 0.12.0
 ---
 
 # Rice — Build & Theme the Hyprland Desktop
@@ -75,42 +75,62 @@ Generate a complete, validated, **modular** config (a main `hyprland.conf` that 
 files), back up any existing config, install it, and live-test with auto-rollback. Do not write to
 `~/.config/hypr` until the config is generated and the user has seen the plan.
 
-### A1. Run the unified interview
+### A1. Delegate the interview to the `hyprland-interviewer` agent
 
-Gather preferences with `AskUserQuestion` using the bank in **`references/interview.md`**, which is
-organized **one group per component**. Walk every group and ask each of its sub-questions, sensible
-default first, skipping only what `$ARGUMENTS` or an existing config already answers. **`AskUserQuestion`
-accepts at most 4 questions per call**, so groups with more sub-questions than that **split across
-multiple consecutive calls** — do not drop or merge questions to fit. A from-scratch run should produce
-**roughly 28–38 calls** (if you've asked only a handful, you've collapsed groups — go ask the rest). The
-groups: **1** monitors · **2** input (keyboard/mouse/touchpad/**gestures**) · **3** keybinds · **4**
-default apps · **5** terminal · **6** status bar **+ waybar design** · **7** **desktop widgets**
-(eww/AGS/Quickshell/turnkey-shells/HyprPanel) · **8** launcher · **9** notifications · **10** lock screen
-· **11** window look & feel · **12** palette · **13** fonts · **14** wallpaper · **15** autostart & env ·
-**16** companion configs · **17** shell & prompt (shell, prompt engine starship/oh-my-posh, fish colors,
-fetch) · **18** utilities · **19** login & boot · **20** gaming · **21** laptop · **22** accessibility ·
-**23** **Hyprland plugins** (hyprpm — opt-in; overview/scrolling/tree layouts/scratchpads). Groups 5–10 ask **full functional depth** (e.g.
-bar modules, **waybar design** — archetype/shape/transparency/workspace indicator/accent/motion —
-**widget system + widgets + look**, launcher behavior, notification rules) so the generated shell configs
-are usable, not just colored — don't pick a scheme, bar look, widget shell, or fonts silently. The
-same interview serves re-theming (Mode B uses only groups 11–14: look & feel, palette, fonts, wallpaper)
-so the two never drift.
+The interview is 28–38 `AskUserQuestion` calls across 23 groups. **Do not run it in the main rice
+loop** — by the time it finishes, the main context is full of Q/A noise and downstream steps start
+hallucinating picks. Instead, set up a staging dir and spawn the **`hyprland-interviewer`** agent:
 
-### A2. Read any existing config (context only)
+```bash
+staging="/tmp/hypr-gen-$(date +%s)-$$"
+mkdir -p "$staging"
+```
 
-If `~/.config/hypr/hyprland.conf` exists, read it to learn monitor names, layout, and apps so
-questions pre-fill. Don't edit in place — it's backed up wholesale at install.
+Then call the Agent tool with `subagent_type: hyprland-interviewer` passing:
+- `STAGING=<staging>`
+- `HYPR_VERSION=<from detect-version.sh>`
+- `ARGUMENTS=<the user's $ARGUMENTS>`
+- `EXISTING_CONFIG=~/.config/hypr/hyprland.conf` (if present)
+- `DETECT_VERSION=<the detect-version.sh kv dump>` / `DETECT_THEME=<detect-theme-tools.sh kv dump>`
 
-### A3. Generate into a staging dir
+The agent walks the question bank in `references/interview.md`, **records every answer to
+`<staging>/answers.json` as it goes** (via `scripts/record-answer.sh`), runs a "review your picks"
+pass at the end, and returns just the file path + a short summary. The 23 groups stay in the
+agent's context; your main loop only sees the summary line.
 
-Build the file set in `/tmp/hypr-gen-<stable-id>` (not `~/.config/hypr`) using
-**`references/config-templates.md`** as the structure. The actual file authoring is **delegated to
-`hyprland-component-writer` agents in parallel** (see A3b for the spawn pattern — the same agent
-handles Hyprland topic files via `SURFACE=hyprland-topic`).
+For **re-theming (Mode B)** you don't need the full interviewer — Mode B only asks groups 11–14
+(look & feel · palette · fonts · wallpaper) inline; running the heavy agent for four groups is
+overkill. Same `answers.json` schema applies though, so a Mode B run can also persist its picks
+into the rice engine for later replay.
+
+### A2. Pre-load context for the interviewer
+
+Run `detect-version.sh` + `detect-theme-tools.sh` and capture their output as the `DETECT_*` blobs
+above. If `~/.config/hypr/hyprland.conf` exists, pass the path as `EXISTING_CONFIG` (the agent
+reads it for monitor names + obvious current picks; the file is backed up wholesale at install,
+not edited in place).
+
+### A3. Generate into the staging dir (reading answers.json, not memory)
+
+Build the file set in the same `<staging>` the interviewer wrote `answers.json` into (not
+`~/.config/hypr`) using **`references/config-templates.md`** as the structure. **Read every pick
+from `<staging>/answers.json` with `jq`** — never from memory or chat history. The schema is the
+canonical map between answers and files (see `interview.md` → "Recording answers" → "How
+downstream steps use it"). If the template needs a value that isn't in the file, that's a missing
+question — go back through the interviewer rather than inventing.
+
+The actual file authoring is **delegated to `hyprland-component-writer` agents in parallel** (see
+A3b for the spawn pattern — the same agent handles Hyprland topic files via
+`SURFACE=hyprland-topic`). Each writer gets a `jq` slice of `answers.json` as its `ANSWERS`
+parameter, e.g.:
+
+```bash
+ANSWERS="$(jq '{monitors, input}' "$staging/answers.json")"
+```
 
 The main loop is responsible for:
-- The index file `hyprland.conf` (variables + `source=` lines — small, benefits from the surrounding
-  context),
+- The index file `hyprland.conf` (variables + `source=` lines — small, benefits from the
+  surrounding context),
 - `colors.conf` (filled in A4 — not by hand),
 - Aggregating the per-topic writer reports.
 
@@ -128,14 +148,15 @@ later re-theme.
 rice is all-in-one, so also stage the **functional** configs for the shell components chosen in
 interview groups 5–10, using **`references/components.md`** as the recipe source. These live under
 their own `~/.config/<app>/` dirs (not in `~/.config/hypr/`), so stage them in a parallel tree, e.g.
-`/tmp/hypr-gen-<id>/_shell/<app>/`.
+`<staging>/_shell/<app>/`.
 
 **Spawn one `hyprland-component-writer` agent per surface**, in parallel (one message with several
 Agent tool calls), passing each:
 - `SURFACE=<waybar|launcher|notifications|terminal|lock-screen|widgets>`
-- `ANSWERS=<the relevant interview slice>` (e.g. group 6 for waybar)
+- `ANSWERS=<jq slice of answers.json>` — e.g. for waybar:
+  `ANSWERS="$(jq '{bar, palette, fonts}' "$staging/answers.json")"`
 - `PALETTE=~/.config/hypr-rice/palette.conf`
-- `STAGING=/tmp/hypr-gen-<id>` (each writer respects the `_shell/<app>/` layout)
+- `STAGING=<staging>` (each writer respects the `_shell/<app>/` layout)
 - `HYPR_VERSION=<x.y.z>`
 
 Each writer reads only its own recipe, fills it, validates the output (waybar JSON parse, balanced
@@ -177,8 +198,11 @@ file. These get backed up + installed alongside the Hyprland config in A5.
 
 ### A3c. Set up the shell & prompt (group 17)
 
-Also configure the interactive shell, leaning on **`references/shells.md`** (managed block, guarded
-inits, parse-test) for *behavior* and the rice engine (A4) for *colors*:
+Read the shell pick from `answers.json` (`jq -r .shell_prompt.shell answers.json` → `fish`/`zsh`/
+`bash`/`keep-current`; same for `.shell_prompt.prompt`, `.shell_prompt.fetch`,
+`.shell_prompt.fish_colors`, `.shell_prompt.fisher`, `.shell_prompt.modern_cli`). Then configure
+the interactive shell, leaning on **`references/shells.md`** (managed block, guarded inits,
+parse-test) for *behavior* and the rice engine (A4) for *colors*:
 
 - **Prompt engine** (starship default / oh-my-posh): register its manifest line so the engine renders a
   rice-owned config (`~/.config/hypr-rice/starship.toml` / `rice.omp.json`), and add the guarded init to
@@ -197,35 +221,62 @@ editing (`backup-path.sh`).
 ### A3d. Generate the package install script (for review + replication)
 
 The interview selects many tools (terminal, bar, launcher, notification daemon, fonts, palette
-generator, utilities, shell/prompt, widget shell, plugins). Stage a reviewable **`install.sh`** so the
-user can see exactly what will be installed and so the script ships with the dotfiles to a new machine
-(idempotent on re-run). Read **`references/packages.md`** for the selection→package map and the
-script shape. In short: walk every group's actual answers, collect each chosen tool's canonical
-package name into **one `PKGS` list** (Arch + AUR target — repo and AUR names mixed), de-dupe shared
-deps, and annotate already-present packages (`HAVE_*`) with `# installed`. The emitted script
-**auto-routes at runtime** — it loops over `PKGS`, sends whatever `pacman -Si` knows to `pacman` and
-the rest to a detected `paru`/`yay` helper — so you never have to classify repo-vs-AUR (drift-proof),
-and `--needed` makes it idempotent (non-pacman systems just get the name list). Group-19 login/boot
-packages go in a commented `sudo` block; group-23 hyprpm plugins go in the separate commented hyprpm
-section (never inline) with the build toolchain added to `PKGS`. Stage it at `<staging>/install.sh`
-(installs to `~/.config/hypr/install.sh`, travels with the config + its backup, version-controls with
-the dotfiles skill) and `chmod +x` it.
+generator, utilities, shell/prompt, widget shell, plugins). Stage a reviewable **`install.sh`** so
+the user can see exactly what will be installed and so the script ships with the dotfiles to a new
+machine (idempotent on re-run). Read **`references/packages.md`** for the selection→package map and
+the script shape.
+
+**Walk `answers.json` deterministically — don't recall picks.** Iterate the answer keys, look up
+each pick's package name(s) in the `packages.md` map, collect into **one `PKGS` list** (Arch + AUR
+target — repo and AUR names mixed), de-dupe shared deps, and annotate already-present packages
+(`HAVE_*` from detection) with `# installed`. A reference shape:
+
+```bash
+pkgs=()
+[ "$(jq -r .bar.strategy        answers.json)" = "waybar" ]   && pkgs+=(waybar)
+case "$(jq -r .launcher.tool      answers.json)" in
+  wofi)    pkgs+=(wofi) ;;
+  rofi)    pkgs+=(rofi) ;;
+  fuzzel)  pkgs+=(fuzzel) ;;
+  …
+esac
+case "$(jq -r .notifications.daemon answers.json)" in
+  mako)    pkgs+=(mako) ;;
+  dunst)   pkgs+=(dunst) ;;
+  swaync)  pkgs+=(swaync) ;;
+esac
+mapfile -t utils < <(jq -r '.utilities.selected[]' answers.json)
+for u in "${utils[@]}"; do …; done
+…
+```
+
+(The actual mapping table lives in `packages.md` — iterate the JSON, look up the table, emit names.)
+The emitted script **auto-routes at runtime** — it loops over `PKGS`, sends whatever `pacman -Si`
+knows to `pacman` and the rest to a detected `paru`/`yay` helper — so you never have to classify
+repo-vs-AUR (drift-proof), and `--needed` makes it idempotent (non-pacman systems just get the name
+list). Group-19 login/boot packages go in a commented `sudo` block; group-23 hyprpm plugins go in
+the separate commented hyprpm section (never inline) with the build toolchain added to `PKGS`.
+Stage it at `<staging>/install.sh` (installs to `~/.config/hypr/install.sh`, travels with the
+config + its backup, version-controls with the dotfiles skill) and `chmod +x` it.
 
 The script is **also what A5 runs** to do the actual install — once written, you don't author a
 separate install path.
 
 ### A4. Establish the palette via the rice engine
 
-The colors/fonts from interview groups 12–14 (palette, fonts, wallpaper) are owned by the **engine**
-(`~/.config/hypr-rice/`). Wiring it here is what makes the config come out themed and keeps a later
-re-theme consistent. Read `references/engine.md`. Then:
+The colors/fonts from interview groups 12–14 (palette, fonts, wallpaper) live in `answers.json`
+under `.palette` / `.fonts` / `.wallpaper`. Read them with `jq`; the engine's `palette.conf` is the
+materialized form. Read `references/engine.md`. Then:
 
 1. Scaffold (idempotent — never clobbers an existing palette):
    `bash "${CLAUDE_PLUGIN_ROOT}/skills/rice/scripts/rice-init.sh"`
-2. Write `~/.config/hypr-rice/palette.conf` from the group 12–14 answers — resolve a named scheme
-   (`references/palettes.md`), a wallpaper palette (`scripts/palette-from-wallpaper.sh`), or manual
-   hex into the contract keys + `scheme`/`wallpaper`/`font_ui`/`font_mono`. **Always populate
-   `accent2`** (default it to `accent` on the manual path) — the border template references it.
+2. Write `~/.config/hypr-rice/palette.conf` from `answers.json` — resolve the chosen source:
+   - `.palette.source == "named"` → look up `.palette.scheme` in `references/palettes.md`,
+   - `.palette.source == "wallpaper"` → `scripts/palette-from-wallpaper.sh "$(jq -r .wallpaper.path answers.json)"`,
+   - `.palette.source == "manual"` → take the hex from `.palette.manual.*`.
+   Resolve to the contract keys + `scheme`/`wallpaper`/`font_ui`/`font_mono` (from `.fonts.ui` /
+   `.fonts.mono`). **Always populate `accent2`** (default it to `accent` on the manual path) — the
+   border template references it.
 3. Fill `<staging>/colors.conf` so it installs with the rest (don't let the engine write to
    `~/.config/hypr` before A5): take `templates/hyprland.tmpl`, substitute its `{{accent}}` etc.
    from `palette.conf`, and `Write` the result. Likewise fill any companion-config color placeholders
@@ -305,11 +356,13 @@ transparency, the archetypes — read the styling library (`design-principles.md
 ### B1. Choose the palette source & fonts (always ask)
 
 Run interview **groups 11–14** (look & feel, palette, fonts, wallpaper) from `references/interview.md`
-(palette source → scheme/wallpaper/manual, accent, light/dark; UI font; monospace/Nerd font). The
-named-scheme catalog is `references/palettes.md`;
-for the wallpaper source, `scripts/palette-from-wallpaper.sh` produces the palette when matugen/wallust
-is present. Resolve every answer into the **palette contract** (`theming.md`) as bare `RRGGBB`. Don't
-pick a scheme or fonts silently — present them.
+(palette source → scheme/wallpaper/manual, accent, light/dark; UI font; monospace/Nerd font). Four
+groups is light enough to run inline, but **still record each answer** via `record-answer.sh` into
+`~/.config/hypr-rice/answers.json` — that way a later A-mode build (or a profile save) can replay
+exactly what was chosen. The named-scheme catalog is `references/palettes.md`; for the wallpaper
+source, `scripts/palette-from-wallpaper.sh` produces the palette when matugen/wallust is present.
+Resolve every answer into the **palette contract** (`theming.md`) as bare `RRGGBB`. Don't pick a
+scheme or fonts silently — present them.
 
 ### B2. Choose surfaces (default: all installed)
 
@@ -410,6 +463,10 @@ Set the wallpaper and optionally re-theme the whole desktop from it — the cano
   first. Keep the `BACKUP=` paths for rollback.
 - Never emit deprecated syntax — cross-check `hyprland-reference/references/deprecations.md`. Keep
   monitor names exactly as `hyprctl monitors` reports; use placeholders + a note when unavailable.
+- **Read picks from `<staging>/answers.json` with `jq` — never from memory.** The interviewer agent
+  writes every answer there; downstream A3/A3b/A3c/A3d/A4 and the component-writer agents read it.
+  If a template needs something that isn't in the file, that's a missing question — go back through
+  the interviewer rather than guessing.
 - Reload running apps rather than forcing a logout; only reload what's running.
 - Install packages **only** after one explicit user confirmation per batch (delegate to the
   **hyprland-package-installer** agent — see A5). Show the resolved package list before asking. For
@@ -462,9 +519,16 @@ Set the wallpaper and optionally re-theme the whole desktop from it — the cano
 - **`scripts/`** — `detect-version.sh`, `detect-theme-tools.sh`, `rice-init.sh`, `render-templates.sh`,
   `apply-theme.sh`, `set-wallpaper.sh`, `palette-from-wallpaper.sh`, `safe-apply.sh`,
   `install-config.sh`, `verify-config.sh`, `verify-shell.sh`, `backup-config.sh`, `reset-config.sh`.
+- **`${CLAUDE_PLUGIN_ROOT}/scripts/record-answer.sh`** — `jq`-based `setpath` into `answers.json`.
+  Called by the interviewer agent after every `AskUserQuestion` so picks land on disk before the
+  next question.
 - **Agents** (under `${CLAUDE_PLUGIN_ROOT}/agents/`):
+  - `hyprland-interviewer` — owns the 23-group interview, records each answer to
+    `<staging>/answers.json`, runs the review pass, returns just the path + a summary. **A1 spawns
+    this so the main loop's context stays clean.**
   - `hyprland-component-writer` — authors one surface (waybar / launcher / notifications / terminal /
-    lock-screen / widgets / Hyprland topic) into staging. **A3 + A3b spawn several in parallel.**
+    lock-screen / widgets / Hyprland topic) into staging. **A3 + A3b spawn several in parallel**,
+    each fed a `jq` slice of `answers.json`.
   - `hyprland-package-installer` — runs the generated `install.sh` (or an ad-hoc package list) after
     A5 user confirmation. Handles pacman/paru routing, paru bootstrap, transient retries.
   - `hyprland-config-validator` — static lint of the staging dir (and optional live load-test). A5
