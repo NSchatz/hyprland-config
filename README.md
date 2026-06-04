@@ -9,7 +9,8 @@ up, into `~/.config/hypr`.
 - **Interviews you** one component at a time — monitors, input, keybinds, default apps, terminal,
   status bar, launcher, notifications, lock screen, look & feel, palette, fonts, wallpaper, autostart
   & env — then generates the whole desktop (Hyprland config **plus** the functional bar/launcher/
-  notification configs), themed from one palette.
+  notification configs), themed from one palette, and writes an **`install.sh`** for the packages your
+  picks need (Arch + AUR, idempotent — it never installs for you).
 - **Detects your installed Hyprland version** (`hyprctl version`) and emits matching syntax —
   no deprecated options from old tutorials. Conventions are grounded in the **shipped default
   config** and popular community dotfiles: the official keybind scheme (Q=terminal, C=close,
@@ -50,7 +51,7 @@ up, into `~/.config/hypr`.
 
 | Type  | Name                        | Purpose                                                        |
 |-------|-----------------------------|----------------------------------------------------------------|
-| Skill | `rice`                      | User-invoked. The **all-in-one** rice: **generate** a whole desktop from scratch (per-component interview → modular Hyprland config **+ functional bar/launcher/notification/terminal configs** → install + live-test), **theme** every surface from one palette (named / wallpaper-generated / manual + font choices), manage named **profiles** (12 presets + a user-override cascade), and set/cycle the **wallpaper** with dynamic theming — all driven by a self-contained rice engine (`~/.config/hypr-rice/` with `palette.conf` + templates + a `rice` CLI). |
+| Skill | `rice`                      | User-invoked. The **all-in-one** rice: **generate** a whole desktop from scratch (per-component interview → modular Hyprland config **+ functional bar/launcher/notification/terminal configs + an `install.sh` for the packages your picks need** → install + live-test), **theme** every surface from one palette (named / wallpaper-generated / manual + font choices), manage named **profiles** (12 presets + a user-override cascade), and set/cycle the **wallpaper** with dynamic theming — all driven by a self-contained rice engine (`~/.config/hypr-rice/` with `palette.conf` + templates + a `rice` CLI). |
 | Skill | `edit-config`               | User-invoked. Reads an existing config and makes changes, **testing after every change** with auto-rollback. |
 | Skill | `shell-config`              | User-invoked. Configures the terminal shell (bash/zsh/fish): **prompt engine** (starship / oh-my-posh / native), **fish syntax-highlighting colors**, aliases, env, history, a startup **fetch** (fastfetch default / neofetch), and modern-CLI integration — syntax-checked after every change. Prompt/fish colors are palette-driven through the rice engine, so they re-theme with the desktop. |
 | Skill | `desktop-shell`             | User-invoked. Functional configs for the bar (waybar), launcher (wofi/rofi), and notifications (mako/dunst) — for editing these later; a from-scratch `rice` build already generates them. |
@@ -252,6 +253,29 @@ The **rice engine** the plugin scaffolds (lives in your home, version-controlled
 ```
 
 ## Changelog
+
+### 0.10.0
+
+A from-scratch build now hands the user a **generated `install.sh`** for the packages their interview
+picks need — closing the gap between "the config is written" and "the apps it references exist." The
+skill still **never installs** anything; the script is a single reviewable artifact the user runs.
+
+- **New step A3d — generate `install.sh`.** Walking the actual answers across all 23 groups, the skill
+  collects each chosen tool's package(s) into a **`REPO`** (official) and an **`AUR`** array, de-dupes
+  shared deps, and emits a self-contained installer: it detects an AUR helper (`paru`/`yay`), splits
+  repo vs AUR, and uses `--needed` so it's **idempotent** — already-installed packages are skipped,
+  nothing is reinstalled or upgraded. Targets **Arch + AUR** (where the Hyprland ecosystem lives); on
+  other distros it prints the name list. Stages to `~/.config/hypr/install.sh`, so it travels with the
+  config + its backup and version-controls with the **dotfiles** skill.
+- **New reference — [`packages.md`](skills/rice/references/packages.md).** The authoritative
+  selection→package map (repo vs AUR) across every group — compositor/portals, terminal, bar, widgets,
+  launcher, notifications, palette generators, fonts, utilities, shell/prompt — plus the script shape.
+  Login/boot packages (group 19) go in a commented `sudo` block; group-23 **hyprpm plugins** stay in a
+  separate commented section (built from source, pinned to the Hyprland build — never inline with the
+  package installs), with the build toolchain folded into `REPO`.
+- **A6 surfaces it first.** When anything was missing, the report tells the user to run `install.sh`
+  *before* starting the autostart daemons / next login — otherwise the bar, wallpaper daemon, and
+  notification daemon have nothing to launch.
 
 ### 0.9.0
 

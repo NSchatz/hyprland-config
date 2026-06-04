@@ -3,7 +3,7 @@ name: rice
 description: This skill should be used when the user runs "/hyprland-config:rice" or asks to build, theme, or restyle their Hyprland desktop — i.e. (1) GENERATE a config from scratch ("generate/create my hyprland.conf", "set up Hyprland from scratch", "make me a new config", "build a hyprland config"); (2) THEME/recolor/set fonts ("theme my desktop", "apply Catppuccin/Gruvbox/Nord/Tokyo Night/Dracula/Everforest/Kanagawa/Solarized/Rosé Pine", "change my color scheme/accent", "match my colors to my wallpaper", "set up matugen/wallust", "change my font"); (3) manage named theme PROFILES / "rices" ("save my theme as X", "switch to nord", "list my themes", "load my <name> rice", "pin my accent"); or (4) set/change/cycle the WALLPAPER ("set my wallpaper", "random wallpaper", "make my theme match my wallpaper"). It runs one interactive interview, generates a modular version-matched config, and drives a self-contained rice engine (~/.config/hypr-rice/ — one palette.conf + templates + a `rice` CLI + profiles + a user-override cascade) that themes Hyprland, hyprlock, waybar, notifications, launcher, terminal, GTK/Qt/cursor/icons/fonts and the wallpaper consistently — backing up, live-testing, and reloading after every change.
 argument-hint: "[what you want, e.g. 'set up from scratch', 'catppuccin mocha', 'switch to nord', 'wallpaper ~/x.png and theme from it']"
 allowed-tools: AskUserQuestion, Bash, Read, Write, Edit, Glob, Grep, Agent
-version: 0.9.0
+version: 0.10.0
 ---
 
 # Rice — Build & Theme the Hyprland Desktop
@@ -12,9 +12,10 @@ The **all-in-one** rice skill: **generate** a complete Hyprland desktop from scr
 terminal, status bar, launcher, notifications, lock screen, **shell & prompt** — **theme** every surface
 from one palette, manage named **profiles**, and set the **wallpaper** (with dynamic theming). A
 from-scratch build emits not just the Hyprland config but the **functional** configs for the whole shell
-(waybar `config.jsonc` + `style.css`, launcher config, notification daemon config) and sets up the
-interactive shell (prompt engine + fish colors + fetch), so the user gets a working, themed desktop in
-one pass. They are one skill because they share one source of truth — the **rice engine** at
+(waybar `config.jsonc` + `style.css`, launcher config, notification daemon config), sets up the
+interactive shell (prompt engine + fish colors + fetch), and writes a reviewable **`install.sh`** for
+the packages the user's picks need (Arch + AUR, idempotent — the skill never installs directly), so the
+user gets a working, themed desktop in one pass. They are one skill because they share one source of truth — the **rice engine** at
 `~/.config/hypr-rice/` (`palette.conf` → templates → every app's colors, driven by the `rice` CLI). Read
 `references/engine.md` for the engine contract before touching it. The functional shell-config recipes
 live in `../desktop-shell/references/components.md` and the terminal-shell recipes in
@@ -38,7 +39,7 @@ around this skill's palette contract. For companion apps read `ecosystem.md`.
 
 | The user wants… | Mode | What it does |
 |---|---|---|
-| a config built from scratch / "set up Hyprland" / "generate hyprland.conf" | **A — Generate** | full interview → modular config + functional shell configs (bar/launcher/notifications) → install + live-test |
+| a config built from scratch / "set up Hyprland" / "generate hyprland.conf" | **A — Generate** | full interview → modular config + functional shell configs (bar/launcher/notifications) + an `install.sh` for the packages the picks need → install + live-test |
 | to theme / recolor / change scheme / set fonts / match wallpaper colors | **B — Theme** | one palette across every surface |
 | to save / list / switch a named rice, or pin a color | **C — Profiles** | the `rice` CLI + override cascade |
 | to set / change / cycle the wallpaper | **D — Wallpaper** | set wallpaper (+ optional dynamic theme) |
@@ -160,6 +161,21 @@ work is substantial, it's fine to finish the Hyprland install (A5/A6) first, the
 hand off to the **shell-config** skill — but the prompt/fish *colors* must go through the engine so they
 re-theme. Back up rc files before editing (`backup-path.sh`).
 
+### A3d. Generate the package install script
+
+The interview selects many tools the user may not have yet (terminal, bar, launcher, notification
+daemon, fonts, palette generator, utilities, shell/prompt, widget shell, plugins). The skill **never
+installs** them — instead, stage a single reviewable **`install.sh`** that installs exactly what the
+picks imply. Read **`references/packages.md`** for the selection→package map and the script shape. In
+short: walk every group's actual answers, collect each chosen tool's package(s) into a **`REPO`**
+(official) and an **`AUR`** array (Arch + AUR target), de-dupe shared deps, annotate already-present
+packages (`HAVE_*`) with `# installed`, and emit the self-contained skeleton (detects `paru`/`yay`,
+splits repo vs AUR, `--needed` so it's idempotent, non-pacman systems just get the name list). Group-19
+login/boot packages go in a commented `sudo` block; group-23 hyprpm plugins go in the separate commented
+hyprpm section (never inline) with the build toolchain added to `REPO`. Stage it at
+`<staging>/install.sh` (so it installs to `~/.config/hypr/install.sh`, travels with the config + its
+backup, and version-controls with the dotfiles skill) and `chmod +x` it.
+
 ### A4. Establish the palette via the rice engine
 
 The colors/fonts from interview groups 12–14 (palette, fonts, wallpaper) are owned by the **engine**
@@ -211,6 +227,11 @@ re-theme consistent. Read `references/engine.md`. Then:
 Summarize version, files, backup, validator verdict, `SAFE_APPLY`/`VERIFY` result, the chosen
 palette/fonts (now in `palette.conf` as the source of truth), and how to restore the backup
 (`rm -rf ~/.config/hypr && cp -a ~/.config/hypr.bak.<ts> ~/.config/hypr && hyprctl reload`).
+
+**Point the user at `install.sh` first.** If any selected tool was missing (`MISSING_*`), tell them to
+review and run `~/.config/hypr/install.sh` (A3d) **before** starting the autostart daemons / next login
+— otherwise the bar, wallpaper daemon, and notification daemon below have nothing to launch. It's
+idempotent, so it's a near-no-op if they already had everything.
 
 **`hyprctl reload` does NOT run `exec-once`.** A reload re-reads settings but does not start the
 `autostart.conf` programs (bar, wallpaper daemon, notification daemon, polkit, trays) — they only
@@ -343,7 +364,8 @@ Set the wallpaper and optionally re-theme the whole desktop from it — the cano
 - Never emit deprecated syntax — cross-check `hyprland-reference/references/deprecations.md`. Keep
   monitor names exactly as `hyprctl monitors` reports; use placeholders + a note when unavailable.
 - Reload running apps rather than forcing a logout; only reload what's running.
-- Don't install packages — suggest them.
+- Don't install packages — Mode A generates a reviewable `install.sh` the user runs themselves
+  (`references/packages.md`); other modes name the package to install. Never run a package manager.
 - After any Hyprland color/config change, run `verify-config.sh`; never leave it in `VERIFY=errors`.
 - **On uwsm sessions** (`detect-version.sh` → `UWSM_SESSION=1`/`UWSM_ENV=`), `~/.config/uwsm/env` is
   the authoritative env source and **overrides hypr `env.conf`** for app launches — change
@@ -367,6 +389,9 @@ Set the wallpaper and optionally re-theme the whole desktop from it — the cano
 - **`../desktop-shell/references/components.md`** — the functional shell-config recipes rice generates
   in A3b (waybar `config.jsonc`+`style.css`, wofi/rofi/fuzzel, mako/dunst/swaync). Same file the
   standalone desktop-shell skill uses.
+- **`references/packages.md`** — the selection→package map (repo vs AUR) and the `install.sh` shape the
+  skill generates in A3d, so the user can install everything their interview picks need in one reviewable
+  pass (Arch + AUR; idempotent; the skill never installs directly).
 - **`references/theming.md`** — theming architecture, palette contract, per-surface mechanics, reloads.
 - **`references/templates.md`** — per-app **color** templates the rendered colors files use.
 - **`references/palettes.md`** — named schemes → contract hex (+ matching GTK/cursor/icons).

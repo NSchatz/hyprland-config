@@ -6,14 +6,14 @@
   },
   "metadata": {
     "description": "Marketplace hosting the hyprland-config rice engine for Claude Code.",
-    "version": "0.9.0"
+    "version": "0.10.0"
   },
   "plugins": [
     {
       "name": "hyprland-config",
       "source": "./",
       "description": "A Hyprland rice engine for Claude Code: generate/edit/live-test the config, theme the whole desktop from one palette (named/wallpaper-generated/manual) via a self-contained rice engine with profiles and a user-override cascade, set wallpapers with dynamic theming, configure the terminal + desktop shell, and version-control it all in git — backing up and verifying after every change.",
-      "keywords": ["hyprland", "wayland", "config", "dotfiles", "linux", "window-manager", "theming", "ricing", "waybar", "widgets", "eww", "ags", "astal", "quickshell", "hyprpanel", "shell", "fonts", "fastfetch", "matugen", "wallust", "wallpaper", "chezmoi", "stow", "uwsm", "gtk", "cursor", "fish", "hyprpm", "plugins", "gestures", "hyprexpo", "pyprland"],
+      "keywords": ["hyprland", "wayland", "config", "dotfiles", "linux", "window-manager", "theming", "ricing", "waybar", "widgets", "eww", "ags", "astal", "quickshell", "hyprpanel", "shell", "fonts", "fastfetch", "matugen", "wallust", "wallpaper", "chezmoi", "stow", "uwsm", "gtk", "cursor", "fish", "hyprpm", "plugins", "gestures", "hyprexpo", "pyprland", "install", "aur", "pacman"],
       "license": "MIT"
     }
   ]
