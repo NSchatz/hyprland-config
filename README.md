@@ -261,12 +261,15 @@ picks need — closing the gap between "the config is written" and "the apps it 
 skill still **never installs** anything; the script is a single reviewable artifact the user runs.
 
 - **New step A3d — generate `install.sh`.** Walking the actual answers across all 23 groups, the skill
-  collects each chosen tool's package(s) into a **`REPO`** (official) and an **`AUR`** array, de-dupes
-  shared deps, and emits a self-contained installer: it detects an AUR helper (`paru`/`yay`), splits
-  repo vs AUR, and uses `--needed` so it's **idempotent** — already-installed packages are skipped,
-  nothing is reinstalled or upgraded. Targets **Arch + AUR** (where the Hyprland ecosystem lives); on
-  other distros it prints the name list. Stages to `~/.config/hypr/install.sh`, so it travels with the
-  config + its backup and version-controls with the **dotfiles** skill.
+  collects each chosen tool's package into one list and emits a self-contained installer that
+  **auto-routes at runtime**: `pacman -Si <pkg>` decides whether each name is an official-repo package
+  (installed via `pacman`) or from the AUR (installed via a detected `paru`/`yay` helper) — so packages
+  that have drifted between the repos and the AUR (`swww`/`swaync`/`ghostty`/`cliphist`) land in the
+  right bucket on the user's actual system, no static classification to go stale. `--needed` makes it
+  **idempotent** — already-installed packages are skipped, nothing is reinstalled or upgraded. Targets
+  **Arch + AUR** (where the Hyprland ecosystem lives); on other distros it prints the name list. Stages
+  to `~/.config/hypr/install.sh`, so it travels with the config + its backup and version-controls with
+  the **dotfiles** skill.
 - **New reference — [`packages.md`](skills/rice/references/packages.md).** The authoritative
   selection→package map (repo vs AUR) across every group — compositor/portals, terminal, bar, widgets,
   launcher, notifications, palette generators, fonts, utilities, shell/prompt — plus the script shape.

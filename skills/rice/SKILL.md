@@ -167,12 +167,14 @@ The interview selects many tools the user may not have yet (terminal, bar, launc
 daemon, fonts, palette generator, utilities, shell/prompt, widget shell, plugins). The skill **never
 installs** them — instead, stage a single reviewable **`install.sh`** that installs exactly what the
 picks imply. Read **`references/packages.md`** for the selection→package map and the script shape. In
-short: walk every group's actual answers, collect each chosen tool's package(s) into a **`REPO`**
-(official) and an **`AUR`** array (Arch + AUR target), de-dupe shared deps, annotate already-present
-packages (`HAVE_*`) with `# installed`, and emit the self-contained skeleton (detects `paru`/`yay`,
-splits repo vs AUR, `--needed` so it's idempotent, non-pacman systems just get the name list). Group-19
-login/boot packages go in a commented `sudo` block; group-23 hyprpm plugins go in the separate commented
-hyprpm section (never inline) with the build toolchain added to `REPO`. Stage it at
+short: walk every group's actual answers, collect each chosen tool's canonical package name into **one
+`PKGS` list** (Arch + AUR target — repo and AUR names mixed), de-dupe shared deps, and annotate
+already-present packages (`HAVE_*`) with `# installed`. The emitted script **auto-routes at runtime** —
+it loops over `PKGS`, sends whatever `pacman -Si` knows to `pacman` and the rest to a detected
+`paru`/`yay` helper — so you never have to classify repo-vs-AUR (drift-proof), and `--needed` makes it
+idempotent (non-pacman systems just get the name list). Group-19 login/boot packages go in a commented
+`sudo` block; group-23 hyprpm plugins go in the separate commented hyprpm section (never inline) with the
+build toolchain added to `PKGS`. Stage it at
 `<staging>/install.sh` (so it installs to `~/.config/hypr/install.sh`, travels with the config + its
 backup, and version-controls with the dotfiles skill) and `chmod +x` it.
 

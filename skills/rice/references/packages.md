@@ -8,16 +8,22 @@ generated **`install.sh`**. This file is the selection→package map plus the sc
 rule for assembling it.
 
 The target is **Arch + AUR** (the Hyprland ecosystem is overwhelmingly Arch/AUR-centric). The script
-is self-contained: it detects an AUR helper (`paru`/`yay`), splits **repo** vs **AUR** packages, and
-falls back to listing names on non-pacman systems. It installs the **full set the selections imply**,
-made idempotent with `--needed` — already-present packages are skipped, nothing is reinstalled or
-upgraded, so it's safe to re-run after a fresh install or to keep in a dotfiles repo.
+is self-contained: it takes **one mixed package list** and **auto-routes** each name at runtime —
+`pacman -Si <pkg>` succeeds → it's an official-repo package (install via `pacman`); it fails → it's
+from the AUR (install via a detected `paru`/`yay` helper). This means a package that has drifted between
+the official repos and the AUR across releases (`swww`, `swaync`, `ghostty`, `cliphist`, …) routes
+itself correctly on the user's actual system — no static classification to get stale. It installs the
+**full set the selections imply**, made idempotent with `--needed` — already-present packages are
+skipped, nothing is reinstalled or upgraded, so it's safe to re-run after a fresh install or to keep in
+a dotfiles repo. On a non-pacman system it just lists the names.
 
 ## How to assemble it
 
 1. After the interview (A1) and detection (`detect-version.sh` / `detect-theme-tools.sh`), walk the
    user's actual selections group by group and collect each chosen tool's package(s) from the map
-   below into two lists: **`REPO`** (official `extra`/`core`) and **`AUR`**.
+   below into **one `PKGS` list** — repo and AUR names mixed; the script partitions them at runtime, so
+   you don't have to get the repo-vs-AUR split right. Just use the **canonical package name** from the
+   map (e.g. `matugen-bin`, not `matugen`).
 2. Use the *real* binary the user has where it matters — e.g. the wallpaper daemon is `swww` *or* the
    `awww` fork (`SWWW_DAEMON_BIN`); don't list both.
 3. De-duplicate (shared deps like `wl-clipboard`, `slurp`, `jq` recur across utility scripts).
@@ -25,9 +31,13 @@ upgraded, so it's safe to re-run after a fresh install or to keep in a dotfiles 
    packages with a trailing `# installed` comment (from the `HAVE_*` flags) so the user sees the script
    is mostly a no-op for them.
 5. Group-23 **hyprpm plugins** are *not* package-manager installable — emit them in the separate
-   hyprpm section (see below), and add the build toolchain (`base-devel cmake meson cpio`) to `REPO`.
+   hyprpm section (see below), and add the build toolchain (`base-devel cmake meson cpio`) to `PKGS`.
 6. Stage it at `<staging>/install.sh` so it installs to `~/.config/hypr/install.sh` and travels with
    the config + its backup (and version-controls with the dotfiles skill). `chmod +x` it.
+
+The repo/AUR column in the map below is **informational** — it documents the canonical name and where
+the package currently lives, but the script no longer depends on it being right; `pacman -Si` decides at
+run time.
 
 ## The map — selection → package (repo vs AUR)
 
@@ -156,7 +166,7 @@ render as tofu boxes.
 | Plymouth | `plymouth` | | |
 
 These install to the system, not the user's config — keep them in a clearly-labelled **commented**
-block the user runs with `sudo`, never in the main `pacman`/AUR arrays.
+block the user runs with `sudo`, never in the main `PKGS` list.
 
 ### Laptop / power (group 21)
 | | repo | AUR |
@@ -168,7 +178,7 @@ block the user runs with `sudo`, never in the main `pacman`/AUR arrays.
 | monitor profiles (shikane) | | `shikane` |
 
 ### Plugins (group 23) — hyprpm, built from source, NOT the package manager
-Add the build toolchain to `REPO`: `base-devel cmake meson cpio`. The plugins themselves
+Add the build toolchain to `PKGS`: `base-devel cmake meson cpio`. The plugins themselves
 (`hyprexpo`, `hyprscrolling`, `hy3`, `split-monitor-workspaces`, `hyprbars`, …) are added/enabled via
 `hyprpm` against the running Hyprland build and **break on every Hyprland upgrade** — so the script
 emits them as a **separate, commented hyprpm section** the user runs deliberately, never inline with
@@ -177,8 +187,9 @@ exception that *is* packaged — AUR `pyprland`.
 
 ## The script shape
 
-Emit this skeleton, filling `REPO`, `AUR`, the optional root/hyprpm blocks, and the `# installed`
-annotations from the selections + detect flags. Keep it readable — the user reviews it before running.
+Emit this skeleton, filling the single `PKGS` list, the optional root/hyprpm blocks, and the
+`# installed` annotations from the selections + detect flags. Keep it readable — the user reviews it
+before running.
 
 ```bash
 #!/usr/bin/env bash
@@ -187,37 +198,39 @@ annotations from the selections + detect flags. Keep it readable — the user re
 # packages are skipped — nothing is reinstalled or upgraded. Review, then run:  bash install.sh
 set -euo pipefail
 
-# Official-repo packages (pacman)
-REPO=(
+# Everything your picks imply — repo and AUR names mixed. The script sorts them out at run time:
+# whatever the official repos know (pacman -Si) is installed with pacman; the rest come from the AUR.
+PKGS=(
   hyprland            # installed
   waybar wofi mako kitty
   ttf-jetbrains-mono-nerd inter-font noto-fonts-emoji
   grim slurp jq wl-clipboard
-  # …everything the picks imply…
-)
-
-# AUR packages (need paru/yay)
-AUR=(
   matugen-bin
-  # …
+  # …everything the picks imply…
 )
 
 if ! command -v pacman >/dev/null 2>&1; then
   echo "This installer targets Arch Linux (pacman). On another distro, install these by hand:"
-  printf '  %s\n' "${REPO[@]}" "${AUR[@]}"
+  printf '  %s\n' "${PKGS[@]}"
   exit 1
 fi
 
-# Repo packages
-[ ${#REPO[@]} -gt 0 ] && sudo pacman -S --needed --noconfirm "${REPO[@]}"
+# Auto-route each name: present in the sync databases → official repo; otherwise → AUR.
+repo=(); aur=()
+for p in "${PKGS[@]}"; do
+  if pacman -Si "$p" >/dev/null 2>&1; then repo+=("$p"); else aur+=("$p"); fi
+done
 
-# AUR packages — prefer an installed helper, else explain how to get one
-if [ ${#AUR[@]} -gt 0 ]; then
-  if   command -v paru >/dev/null 2>&1; then paru -S --needed "${AUR[@]}"
-  elif command -v yay  >/dev/null 2>&1; then yay  -S --needed "${AUR[@]}"
+# Official-repo packages via pacman
+[ ${#repo[@]} -gt 0 ] && sudo pacman -S --needed "${repo[@]}"
+
+# AUR packages via an installed helper, else explain how to get one
+if [ ${#aur[@]} -gt 0 ]; then
+  if   command -v paru >/dev/null 2>&1; then paru -S --needed "${aur[@]}"
+  elif command -v yay  >/dev/null 2>&1; then yay  -S --needed "${aur[@]}"
   else
-    echo "These need the AUR but no helper (paru/yay) was found:"
-    printf '  %s\n' "${AUR[@]}"
+    echo "Not in the official repos (need the AUR), but no helper (paru/yay) was found:"
+    printf '  %s\n' "${aur[@]}"
     echo "Install one first, e.g.:"
     echo "  sudo pacman -S --needed base-devel git && git clone https://aur.archlinux.org/paru.git && cd paru && makepkg -si"
   fi
@@ -237,10 +250,14 @@ echo "Done. Log out/in (or start the autostart daemons) to see the full desktop.
 ```
 
 Notes:
-- Drop `--noconfirm` if you'd rather the user confirm each pacman transaction; keep it for a one-shot
-  run. AUR helpers prompt anyway (build review), so no `--noconfirm` there.
-- If the wallpaper daemon is the `awww` fork, put `awww` in `AUR`, not `swww` in `REPO`.
-- Empty `AUR=()` is fine — the block self-skips.
+- `pacman -Si` reads the **local sync databases** (no refresh, no network, no `sudo`) — fast even for
+  ~50 names. If a db is stale and a real repo package gets routed to the `aur` bucket, an installed
+  helper still finds it there (paru/yay install repo packages too), so the worst case self-corrects.
+- Routing means you never have to classify: a package that moved repos↔AUR between releases
+  (`swww`/`swaync`/`ghostty`/`cliphist`) lands in the right bucket on the user's actual system.
+- Add `--noconfirm` to the `pacman`/helper calls for an unattended run; leave it off (default) to let
+  the user confirm each transaction.
+- List the *real* wallpaper daemon (`swww` **or** the `awww` fork, per `SWWW_DAEMON_BIN`), not both.
 - The user should run `install.sh` **before** the autostart daemons are started / before next login,
   or the bar/wallpaper/notification daemons (A6) have nothing to launch.
 </content>
