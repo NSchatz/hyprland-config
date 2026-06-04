@@ -26,6 +26,7 @@ RUN pacman -Syu --noconfirm --needed \
         sed \
         gawk \
         procps-ng \
+        libcap \
         xorg-xwayland \
         ttf-jetbrains-mono-nerd \
         ttf-nerd-fonts-symbols \
@@ -34,7 +35,11 @@ RUN pacman -Syu --noconfirm --needed \
         inter-font \
         otf-font-awesome \
     && pacman -Scc --noconfirm \
-    && rm -rf /var/cache/pacman/pkg/*
+    && rm -rf /var/cache/pacman/pkg/* \
+    # Strip file capabilities from sway. Docker's default no-new-privileges flag turns binaries
+    # with fcaps into EPERM on exec — even for root — so just remove them. We don't need
+    # cap_sys_nice for headless rendering.
+    && setcap -r /usr/bin/sway 2>/dev/null || true
 
 # Run as root in this image. Sway's binary on Arch has file capabilities (cap_sys_nice+ep) that
 # Docker's default security profile strips during a non-root exec — that exec then fails with
