@@ -359,9 +359,9 @@ Set the wallpaper and optionally re-theme the whole desktop from it — the cano
 
 ## Resources
 
-- **`references/interview.md`** — the one unified question bank, one group per component (17 groups;
+- **`references/interview.md`** — the one unified question bank, one group per component (18 groups;
   re-theming reuses groups 11–14). Groups 5–10 (terminal/bar/widgets/launcher/notifications/lock) ask
-  full functional depth.
+  full functional depth; group 18 (utilities & menus) ships functional scripts.
 - **`references/config-templates.md`** — annotated templates for every generated Hyprland file
   (Mode A): `env`/`monitors`/`input`/`looknfeel`/`binds`/`windowrules`/`autostart` + companion configs.
 - **`../desktop-shell/references/components.md`** — the functional shell-config recipes rice generates
@@ -376,10 +376,14 @@ Set the wallpaper and optionally re-theme the whole desktop from it — the cano
 - **`references/apps.md`** — shipped long-tail templates (btop/cava/starship/swaync/wlogout/fuzzel) +
   reaching matugen's 50+ app library.
 - **`references/login.md`** — login/display-manager theming (greetd/tuigreet/ReGreet, SDDM) + boot.
+- **`references/utilities.md`** — group-18 utilities & menus: screenshot/record/OCR/color-picker/power
+  scripts (shipped in `assets/scripts/`), clipboard/emoji/calc binds, Wi-Fi/BT applet recipe.
 - **`references/wallpaper.md`** — backends, dynamic theming, cycling automation.
 - **`scripts/`** — `detect-version.sh`, `detect-theme-tools.sh`, `rice-init.sh`, `render-templates.sh`,
   `apply-theme.sh`, `set-wallpaper.sh`, `palette-from-wallpaper.sh`, `safe-apply.sh`,
   `install-config.sh`, `verify-config.sh`, `backup-config.sh`, `reset-config.sh`.
+- **`assets/scripts/*.sh`** — group-18 utility scripts shipped as-is (copy + `chmod`, not rendered):
+  `screenshot.sh`, `screenrecord.sh`, `ocr.sh`, `colorpicker.sh`, `powermenu.sh` (see `utilities.md`).
 - **`templates/*.tmpl`** — the color templates the engine renders (incl. the shell/prompt set:
   `fish.tmpl` → fish `conf.d` colors, `starship.tmpl` → rice-owned `starship.toml`, `oh-my-posh.tmpl` →
   rice-owned `rice.omp.json`; and the **widget-shell set**: `eww.tmpl` → eww `colors.scss`, `ags.tmpl`

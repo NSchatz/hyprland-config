@@ -45,12 +45,14 @@ if you've asked only a handful, you've collapsed groups incorrectly, go ask the 
 | 15 | Autostart & env | ✓ | | 2 calls |
 | 16 | Companion configs | ✓ | | 1 call |
 | 17 | **Shell & prompt** | ✓ | | 1–2 calls |
+| 18 | **Utilities & menus** | ✓ | | 1 call |
 
 Map every answer to its template: the **Hyprland-config** groups (monitors, input, keybinds, default
 apps, terminal, window look & feel, autostart, companion configs) → `config-templates.md`; the functional
 **bar/launcher/notification** configs → `../../desktop-shell/references/components.md`; the **desktop-widget
 shell** → its `styling/` page + the engine's widget template (`engine.md` → "Widget-shell theming"); the
-**shell/prompt** configs → `../../shell-config/references/shells.md`; the **palette/fonts/wallpaper** groups
+**shell/prompt** configs → `../../shell-config/references/shells.md`; the **utilities & menus** → their
+shipped scripts + binds (`utilities.md`); the **palette/fonts/wallpaper** groups
 (and the prompt/fish *colors*) → the rice engine's `palette.conf` (`engine.md`) which renders the colors.
 For *why a value looks good*, the styling library (`hyprland-reference/.../styling/`) backs each look
 choice; cite it when explaining.
@@ -505,3 +507,26 @@ Optional second call: aliases & modern-CLI integration (`eza`/`bat`/`zoxide`/`fz
 installed tools; defer the rest to the shell-config skill. The prompt/fish-color manifest lines to
 register live in `engine.md`. **Reminder:** new aliases/prompt only appear in shells started after the
 change — tell the user to open a new terminal or `exec <shell>`.
+
+---
+
+## 18. Utilities & menus  *(dedicated group — generate only)*
+
+The small tools and pop-up menus that make a config feel *finished* — screenshots, screen recording,
+OCR, color picker, clipboard/emoji pickers, and a power menu. Every popular rice ships these; a
+generator easily skips them. Full recipes, install steps, deps, and binds: `utilities.md`. The
+functional scripts ship as **plugin template files** in this skill's `assets/scripts/` (plain scripts,
+no palette — copy + `chmod`, not render); their keybinds go into `binds.conf` (group 3).
+
+**18a. Which utilities & menus?** (multi-select; order by corpus frequency; pre-check the items whose
+tools `detect-version.sh` reports installed) — Screenshot (region/window/full + annotate) **(on)** ·
+Clipboard history picker **(on)** · Color picker **(on if hyprpicker)** · Power menu **(on)** · Screen
+recording · OCR (screen → text) · Emoji picker · Calculator · Wi-Fi menu / applet · Bluetooth menu /
+applet · Night-light toggle.
+
+For each checked item: copy its script (or just add the bind for the bind-only tools — clipboard,
+emoji, calculator), wire the keybind into `binds.conf`, and ensure its autostart prerequisite (cliphist
+watchers, nm-applet) is enabled in group 15. **Wi-Fi/Bluetooth** ship as the tray applets by default
+(robust) — don't hand-author fragile nmcli/bluetoothctl rofi parsers; see `utilities.md` for the
+keyboard-driven alternative. Name the package for any missing tool — never install. Validate
+`binds.conf` (`hyprctl reload` + `configerrors`) after writing.
