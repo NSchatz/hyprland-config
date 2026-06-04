@@ -27,6 +27,7 @@ RUN pacman -Syu --noconfirm --needed \
         gawk \
         procps-ng \
         libcap \
+        dbus \
         xorg-xwayland \
         ttf-jetbrains-mono-nerd \
         ttf-nerd-fonts-symbols \

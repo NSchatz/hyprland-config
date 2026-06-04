@@ -18,6 +18,18 @@ OUT="/screenshots"
 mkdir -p "$OUT" "$XDG_RUNTIME_DIR" "${XDG_CACHE_HOME:-$HOME/.cache}/hyprland/crashReports"
 chmod 700 "$XDG_RUNTIME_DIR"
 
+# ----- 0. Bring up a session D-Bus -----------------------------------------------------------
+# waybar + mako require a session bus. Without /etc/machine-id (which we don't get from the
+# Arch base image), dbus-daemon refuses to start. Synthesize one + launch a session bus and
+# export DBUS_SESSION_BUS_ADDRESS so every child (waybar, mako, gdbus notify call) picks it up.
+if [ ! -s /etc/machine-id ]; then
+    dbus-uuidgen --ensure=/etc/machine-id
+fi
+if [ -z "${DBUS_SESSION_BUS_ADDRESS:-}" ]; then
+    eval "$(dbus-launch --sh-syntax)"
+    echo "DBUS_SESSION_BUS_ADDRESS=$DBUS_SESSION_BUS_ADDRESS"
+fi
+
 # ----- 1. Write a minimal sway config so it boots cleanly headless ---------------------------
 mkdir -p "$HOME/.config/sway"
 cat > "$HOME/.config/sway/config" <<'EOF'
