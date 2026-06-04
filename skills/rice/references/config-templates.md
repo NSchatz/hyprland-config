@@ -355,6 +355,16 @@ bind = $mainMod SHIFT, S, movetoworkspace, special:magic
 bindm = $mainMod, mouse:272, movewindow
 bindm = $mainMod, mouse:273, resizewindow
 
+# Laptop lid (group 21) — emit only when IS_LAPTOP. Device name from `hyprctl devices`
+# (often "Lid Switch"); bindl fires even when locked. Pick ONE action per the 21a answer.
+{{#if laptop}}
+# Suspend on close (simplest):
+bindl = , switch:on:Lid Switch, exec, systemctl suspend
+# — OR clamshell: blank the internal panel on close, restore on open (use when docked):
+# bindl = , switch:on:Lid Switch,  exec, hyprctl keyword monitor "eDP-1, disable"
+# bindl = , switch:off:Lid Switch, exec, hyprctl keyword monitor "eDP-1, preferred, auto, 1"
+{{/if}}
+
 # Media & brightness (repeat + work when locked). -l 1 caps volume at 100%.
 bindel = , XF86AudioRaiseVolume,  exec, wpctl set-volume -l 1 @DEFAULT_AUDIO_SINK@ 5%+
 bindel = , XF86AudioLowerVolume,  exec, wpctl set-volume @DEFAULT_AUDIO_SINK@ 5%-

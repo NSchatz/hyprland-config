@@ -48,6 +48,7 @@ if you've asked only a handful, you've collapsed groups incorrectly, go ask the 
 | 18 | **Utilities & menus** | ✓ | | 1 call |
 | 19 | **Login & boot** | ✓ | | 1 call |
 | 20 | **Gaming & performance** | ✓ | | 1–2 calls |
+| 21 | **Laptop** *(if `IS_LAPTOP`)* | ✓ | | 1 call |
 
 Map every answer to its template: the **Hyprland-config** groups (monitors, input, keybinds, default
 apps, terminal, window look & feel, autostart, companion configs) → `config-templates.md`; the functional
@@ -604,3 +605,26 @@ Per-monitor `vrr` field; needs a FreeSync/G-Sync display.
 **`misc:vfr = true` is set unconditionally** (biggest idle/battery win) regardless of these answers —
 it's a default in the generated `misc` block, not a question here. Validate (`hyprctl reload` +
 `configerrors`) after writing.
+
+---
+
+## 21. Laptop  *(dedicated group — generate only; self-skips on desktops)*
+
+Only ask this when detection reports **`IS_LAPTOP=1`** (DMI chassis or a battery node) — it self-skips
+entirely on desktops. Lid handling, power profile, and charge limit. Touchpad is already covered in
+group 2; brightness/volume/media keys are already in the default `binds.conf`, so they're not re-asked.
+
+**21a. Lid close action** — Suspend **(default)** · Lock (hyprlock) · Clamshell: blank the internal
+panel, keep externals (good when docked) · Nothing. Emits a `bindl = , switch:on:Lid Switch, …` line
+(device name from `hyprctl devices`; `config-templates.md` → binds). **Warn about double-handling:** if
+systemd-logind also suspends on lid, set `HandleLidSwitch*` in `/etc/systemd/logind.conf` to `ignore`
+(root-side; document, don't run).
+**21b. Power-profile tool** — *(pre-filled from `POWER_TOOL`)* power-profiles-daemon **(default)** · TLP ·
+auto-cpufreq · none. The three are **mutually exclusive** — never enable two. PPD pairs with the waybar
+power module. If the chosen one isn't installed, name the package; enabling its daemon is root/systemd
+(document the `systemctl enable --now` line).
+**21c. Battery charge limit?** — No **(default)** · Yes, 80% (longevity). Root-side: a systemd one-shot
+writing `/sys/class/power_supply/BAT*/charge_control_end_threshold`, or TLP's
+`STOP_CHARGE_THRESH`. Generate the unit + the `sudo` install command; never run it.
+
+Dock/undock **monitor** profiles are part of the Monitors group (1), not here.
