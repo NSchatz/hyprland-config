@@ -28,7 +28,7 @@ if you've asked only a handful, you've collapsed groups incorrectly, go ask the 
 
 | # | Group | Mode A | Mode B | Splits into |
 |---|---|---|---|---|
-| 1 | Monitors | ✓ | | 1 call |
+| 1 | Monitors | ✓ | | 1–2 calls |
 | 2 | Input (keyboard & touchpad) | ✓ | | 1 call |
 | 3 | Keybinds | ✓ | | 1 call |
 | 4 | Default apps (browser, files) | ✓ | | 1 call |
@@ -81,6 +81,19 @@ Real names come from `hyprctl monitors`; use detected names, else placeholders (
 
 **Gotcha:** when a fractional `scale` is pinned, also emit a matching `env = GDK_SCALE,N` (group 15)
 and `xwayland { force_zero_scaling = true }` or XWayland/GTK apps render blurry/wrong-sized.
+
+**Multi-monitor extras** — ask these only when detection reports **`MONITOR_COUNT > 1`** (or the user
+described more than one); a second call. Fields/blocks: `config-templates.md` → monitors.
+
+**1c. Per-monitor extras** (multi-select, off by default) — VRR/adaptive sync per display (`vrr, 2`
+fullscreen / `3` content-aware; needs FreeSync/G-Sync), rotation (`transform, 1/2/3` for a vertical/
+flipped panel), mirroring (`mirror, <other>` for presentations), 10-bit (`bitdepth, 10`).
+**1d. Dock/undock?** — No **(default)** · Yes — emit **`desc:`-based** monitor rules (survive port
+renumbering) + a catch-all `monitor = , preferred, auto, 1`. For auto-switch on hotplug, name
+`kanshi`/`shikane` (don't author the daemon config inline).
+**1e. Workspace rules?** — None **(default)** · Bind workspaces to monitors (e.g. 1–5 → primary, 6–10 →
+second) + make them **persistent**; optionally a **named scratchpad** (`special:magic`) and **smart
+gaps** (no gaps/border when one tiled window). Block goes in `monitors.conf`.
 
 ---
 

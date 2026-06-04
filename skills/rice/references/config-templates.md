@@ -130,6 +130,37 @@ the `highrr`/`highres` "magic" modes pick the highest refresh / resolution (`mon
 or XWayland/GTK apps render blurry/wrong-sized — `xwayland { force_zero_scaling = true }` is the
 companion fix for blurry XWayland.
 
+**Per-monitor extra fields** (group 1c, multi-monitor) — appended after scale:
+```ini
+monitor = DP-1, 2560x1440@165, 0x0, 1, vrr, 2          # adaptive sync (0 off,1 on,2 fullscreen,3 content)
+monitor = DP-2, 1920x1080@60, auto, 1, transform, 1    # rotate 90° (1=90,2=180,3=270; 4-7 flipped)
+monitor = HDMI-A-1, preferred, auto, 1, mirror, DP-1   # mirror another output
+monitor = DP-1, 3840x2160@120, 0x0, 1, bitdepth, 10    # 10-bit color
+```
+
+**Dock/undock profiles** (group 1d) — Hyprland has no first-class "profiles", but **`desc:` matching**
+survives port renumbering across docks (get the description from `hyprctl monitors` → "description"):
+```ini
+monitor = desc:Dell Inc. DELL U2720Q ..., 3840x2160@60, 0x0, 1.5
+monitor = , preferred, auto, 1          # catch-all so an unlisted/hotplugged panel still lights up
+```
+For automatic switching on hotplug, point the user at `kanshi`/`shikane` (detection reports them);
+document, don't author a daemon config inline.
+
+**Workspace rules** (group 1e) — bind workspaces to monitors, make them persistent, add a named
+scratchpad, and smart-gaps. Live in `monitors.conf` (they're output-related):
+```ini
+# Per-monitor binding + persistent (1-5 on the primary, 6-10 on the second)
+workspace = 1, monitor:DP-1, default:true, persistent:true
+workspace = 6, monitor:HDMI-A-1, persistent:true
+# Named scratchpad (toggle with the special-workspace binds already in binds.conf)
+workspace = special:magic, on-created-empty:$terminal
+# Smart gaps — no gaps/border when a workspace holds a single tiled window
+workspace = w[tv1], gapsout:0, gapsin:0
+windowrule { name = smartgaps-noborder; match:onworkspace = w[tv1]; match:float = false; border_size = 0 }
+windowrule { name = smartgaps-norounding; match:onworkspace = w[tv1]; match:float = false; rounding = 0 }
+```
+
 ---
 
 ## input.conf
