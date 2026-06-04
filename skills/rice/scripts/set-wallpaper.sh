@@ -18,7 +18,11 @@ swww_bin=""; swww_daemon_bin=""
 if command -v swww >/dev/null 2>&1; then swww_bin="swww"; swww_daemon_bin="swww-daemon"
 elif command -v awww >/dev/null 2>&1; then swww_bin="awww"; swww_daemon_bin="awww-daemon"; fi
 if [ -n "$swww_bin" ]; then
-    if [ "$dry" -eq 0 ]; then "$swww_bin" query >/dev/null 2>&1 || { setsid "$swww_daemon_bin" >/dev/null 2>&1 & sleep 1; }; fi
+    if [ "$dry" -eq 0 ] && ! "$swww_bin" query >/dev/null 2>&1; then
+        setsid "$swww_daemon_bin" >/dev/null 2>&1 &
+        # poll for the daemon socket instead of a flat sleep (slow first start would race `img`)
+        for _ in 1 2 3 4 5 6; do "$swww_bin" query >/dev/null 2>&1 && break; sleep 0.5; done
+    fi
     run "$swww_bin img '$img' --transition-type any --transition-fps 60"
     echo "SET_WALLPAPER=ok ($swww_bin)"
 elif command -v hyprpaper >/dev/null 2>&1; then

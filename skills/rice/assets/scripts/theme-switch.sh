@@ -11,7 +11,11 @@ RICE="${RICE_BIN:-$HOME/.config/hypr-rice/rice}"
 menu() {
     if   command -v rofi   >/dev/null 2>&1; then rofi -dmenu -i -p "Theme" -theme-str 'window {width: 20em;}'
     elif command -v wofi   >/dev/null 2>&1; then wofi --dmenu -i -p "Theme"
-    else fuzzel --dmenu; fi
+    elif command -v fuzzel >/dev/null 2>&1; then fuzzel --dmenu
+    else
+        command -v notify-send >/dev/null 2>&1 && notify-send "rice" "Install rofi, wofi, or fuzzel"
+        return 1
+    fi
 }
 
 chosen="$(bash "$RICE" themes | grep -v '^(' | menu || true)"

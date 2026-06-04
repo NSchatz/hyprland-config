@@ -8,7 +8,11 @@ set -euo pipefail
 menu() {
     if   command -v rofi   >/dev/null 2>&1; then rofi -dmenu -i -p "Keybinds" -theme-str 'window {width: 50%;}'
     elif command -v wofi   >/dev/null 2>&1; then wofi --dmenu -i -p "Keybinds"
-    else fuzzel --dmenu; fi
+    elif command -v fuzzel >/dev/null 2>&1; then fuzzel --dmenu
+    else
+        command -v notify-send >/dev/null 2>&1 && notify-send "Keybinds" "Install rofi, wofi, or fuzzel"
+        return 1
+    fi
 }
 
 # Decode Hyprland's modmask bitfield → readable names (SHIFT=1 CTRL=4 ALT=8 SUPER=64).

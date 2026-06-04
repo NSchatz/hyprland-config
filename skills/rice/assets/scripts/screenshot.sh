@@ -39,5 +39,5 @@ if [ "$annotate" = "edit" ]; then
     fi
 fi
 
-wl-copy < "$file"
+if [ -f "$file" ] && command -v wl-copy >/dev/null 2>&1; then wl-copy < "$file"; fi
 notify-send "Screenshot" "Saved & copied — $(basename "$file")" -i "$file" 2>/dev/null || true
