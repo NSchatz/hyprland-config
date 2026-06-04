@@ -13,6 +13,12 @@ STAGING="/tmp/staging"
 LOG_DIR="$XDG_RUNTIME_DIR/hypr"
 mkdir -p "$STAGING"
 
+# Make sure XDG_RUNTIME_DIR exists with the perms Hyprland insists on (0700 owned by current
+# user). The Dockerfile creates this dir, but the orchestrator mounts a fresh tmpfs over /tmp at
+# run time which wipes it — so re-create here.
+mkdir -p "$XDG_RUNTIME_DIR"
+chmod 700 "$XDG_RUNTIME_DIR"
+
 # ----- 1. Compose a minimal, known-good Hyprland config in the staging dir ------------------
 # Modular layout matching what the rice skill generates.
 cat > "$STAGING/hyprland.conf" <<'EOF'
