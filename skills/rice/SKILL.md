@@ -220,14 +220,10 @@ wallpaper this session**, which reads as "broken." Either **offer to start them 
 a missing placeholder), **or** tell them they appear on next login. After starting a daemon live,
 **verify it stayed up** (`pgrep -x <name>`). Two common silent failures: a **notification-daemon name
 conflict** (only one can own `org.freedesktop.Notifications`; stop the stray with `pkill -x dunst`
-first), and a **wrong wallpaper binary** (use `SWWW_DAEMON_BIN`, not a hard-coded `swww-daemon`).
-
-Two more, keyed off `detect-version.sh`: when `CURSOR_NO_HARDWARE_RECOMMENDED=1` (nouveau/NVIDIA),
-include the `cursor { no_hardware_cursors = true }` block (see `config-templates.md`) or the cursor
-**disappears when idle**; and when `UWSM_SESSION=1`/`UWSM_ENV=`, remember that `~/.config/uwsm/env`
-overrides hypr `env.conf` for app launches (cursor/`GTK_THEME`/toolkit vars) — write env changes
-there too, and live-propagate with `hyprctl setenv VAR value` + `dbus-update-activation-environment
---systemd VAR=value` (explicit pairs).
+first), and a **wrong wallpaper binary** (use `SWWW_DAEMON_BIN`, not a hard-coded `swww-daemon`). Two
+more env gotchas keyed off `detect-version.sh` — the nouveau/NVIDIA `no_hardware_cursors` block and
+uwsm's `~/.config/uwsm/env` override — are in the Safety rules below (full detail in
+`config-templates.md`).
 
 ---
 
@@ -265,15 +261,12 @@ reproducible, re-applyable, and version-controllable (see `references/engine.md`
    across `gsettings` (`font-name`/`monospace-font-name`), GTK `settings.ini`, kitty `font_family`,
    waybar `font-family` per `fonts.md`. For the cursor, also `hyprctl setcursor <Cursor> <size>`.
 
-**GTK theming gotchas** (see `references/theming.md` → GTK and `styling/gtk-qt.md`): a session
-**`GTK_THEME=` env var (default under uwsm — `~/.config/uwsm/env`) overrides gsettings/`settings.ini`
-for all GTK apps**, so a re-theme silently doesn't take until you fix that env and live-propagate it
-(`hyprctl setenv` + `dbus-update-activation-environment --systemd GTK_THEME=…` with explicit values).
-**Folder color is the icon theme, not the GTK theme** — set a scheme-matched `icon-theme` too, or
-folders stay blue. A full GTK theme that depends on `gtk-engine-murrine` may be un-`yay`-installable
-(gtk2 dropped from repos) — **build it from SCSS with `sassc`** instead. And `~/.config/gtk-4.0/
-gtk.css` may be a symlink to a system theme (engine render then hits *Permission denied* — now
-handled by `render-templates.sh`).
+**GTK theming has three engine-breaking gotchas** — a session `GTK_THEME=` (default under uwsm —
+`~/.config/uwsm/env`) that silently defeats the re-theme until the env is fixed and live-propagated;
+"folder color is the icon theme, not the GTK theme" (set a scheme-matched `icon-theme` too); and a
+root-owned `gtk-4.0/gtk.css` symlink that render hits as *Permission denied* (now handled by
+`render-templates.sh`). Full detail, the propagation commands, and the murrine-needs-`sassc` build
+note live in **`references/theming.md` → GTK** and `styling/gtk-qt.md`.
 
 For one-off, non-engine theming the per-app templates in `references/templates.md` and
 `scripts/apply-theme.sh` (reloads running apps + cursor) remain valid.
