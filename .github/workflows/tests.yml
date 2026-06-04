@@ -1,0 +1,68 @@
+name: tests
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+# Two jobs: a fast "unit" pass that runs on every push, and a slower "integration" pass that
+# actually boots Hyprland headlessly inside a container and runs hyprctl reload against a
+# generated config. The integration pass is the only place the heavy build (Arch + Hyprland +
+# companions) happens.
+
+jobs:
+  unit:
+    name: Unit + contract tests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Show env
+        run: |
+          bash --version | head -n1
+          jq --version
+          git --version
+          shellcheck --version | head -n2 || true
+
+      - name: Run test suite
+        run: bash tests/run.sh
+
+  integration:
+    name: Hyprland headless integration
+    runs-on: ubuntu-latest
+    # Don't gate the cheap unit pass on the slow build.
+    needs: unit
+    steps:
+      - uses: actions/checkout@v4
+
+      # Docker is preinstalled on ubuntu-latest runners; just make sure it's running.
+      - name: Verify docker
+        run: |
+          docker --version
+          docker info | head -n 5
+
+      # The image is ~1-2 GB and stable; cache it so most runs pull from the cache instead of
+      # rebuilding for every PR. We key on the Dockerfile + the in-container script.
+      - name: Cache Hyprland container image
+        id: image-cache
+        uses: actions/cache@v4
+        with:
+          path: /tmp/hypr-image.tar
+          key: hyprland-test-image-${{ hashFiles('tests/integration/Dockerfile', 'tests/integration/run-in-container.sh') }}
+
+      - name: Load cached image
+        if: steps.image-cache.outputs.cache-hit == 'true'
+        run: docker load --input /tmp/hypr-image.tar
+
+      - name: Build image (cache miss)
+        if: steps.image-cache.outputs.cache-hit != 'true'
+        run: |
+          docker build -t hyprland-config-test tests/integration
+          docker save hyprland-config-test -o /tmp/hypr-image.tar
+
+      - name: Run integration test
+        env:
+          RUN_INTEGRATION: "1"
+        run: bash tests/run.sh integration_docker
