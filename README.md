@@ -222,7 +222,7 @@ hyprland-config/
 ├── skills/
 │   ├── rice/              (generate + theme + profiles + wallpaper — the whole rice)
 │   │   ├── references/   (interview, config-templates, theming, palettes, templates, fonts,
-│   │   │                  engine, apps, login, wallpaper)
+│   │   │                  engine, apps, login, gaming, utilities, plugins, wallpaper)
 │   │   ├── scripts/      (detect-version, detect-theme-tools, rice-init, render-templates,
 │   │   │                  apply-theme, set-wallpaper, palette-from-wallpaper, safe-apply,
 │   │   │                  install-config, verify-config, backup-config, reset-config)
@@ -252,6 +252,28 @@ The **rice engine** the plugin scaffolds (lives in your home, version-controlled
 ```
 
 ## Changelog
+
+### 0.9.0
+
+A second **interview expansion** from deep research across the GitHub `hyprland` topic (HyDE, end-4,
+ML4W, JaKooLit, Omarchy, caelestia) and the Hyprland wiki — closing the gaps the survey surfaced. The
+interview grows from **22 groups to 23** and ~26–34 calls to **~28–38**.
+
+- **New group 23 — "Hyprland plugins"** (hyprpm, opt-in). The community-plugin layer every power rice
+  reaches for: `hyprexpo` workspace overview, `hyprscrolling`/`hy3` scrolling & tree layouts,
+  `split-monitor-workspaces`, `hyprbars`, `pyprland` dropdown scratchpads, and the decorative set. Plugins
+  are pinned to the exact Hyprland build, so install stays a *user* action — the plugin generates the
+  `plugin {}` blocks (→ `plugins.conf`) + binds and prints the `hyprpm` commands, never runs them. See
+  [`plugins.md`](skills/rice/references/plugins.md). (Replaces the 0.8.0 "deferred" note.)
+- **Live theme switching.** A new group-3 keybind (`SUPER+SHIFT+T` menu, `SUPER+CTRL+T` dark/light
+  toggle) backed by new engine commands `rice theme-toggle <a> <b>` / `rice theme-next` and a shipped
+  `theme-switch.sh` — the live switcher every major distro ships, leveraging the existing profile engine.
+- **Expanded group 2 — Input.** Key repeat rate/delay, focus model (`follow_mouse`), mouse sensitivity,
+  and a **touchpad-gestures** sub-question (0.45+ `gesture =` API: workspace swipe, move, pinch-float).
+- **Smaller gaps closed.** Pin-apps-to-workspaces (1), terminal window swallowing (5), turnkey pre-built
+  Quickshell shells — end-4/caelestia/Noctalia/DankMaterialShell (7), the 2025 launchers
+  vicinae/walker/anyrun (8), hyprlock fingerprint auth (10), a hypridle idle-tier ladder (16), and
+  satty/wl-screenrec as the modern annotation/recording picks (18).
 
 ### 0.8.0
 
@@ -284,7 +306,7 @@ plugin template files in [`skills/rice/assets/scripts/`](skills/rice/assets/scri
   `POWER_TOOL`, and the extra utility tools, so the new groups self-gate and bias defaults to what's
   installed. A full from-scratch run is now ~26–34 calls (fewer when conditional groups skip).
 - *Deferred to a later release:* a hyprpm community-plugins group (hyprexpo/hyprbars/hy3/hyprwinwrap)
-  and a 0.55+ Lua-dialect output branch.
+  — **shipped in 0.9.0** — and a 0.55+ Lua-dialect output branch (still deferred).
 
 ### 0.7.0
 

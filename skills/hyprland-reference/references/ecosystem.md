@@ -37,9 +37,10 @@ Libraries (not user-facing, listed for recognition): `hyprutils`, `hyprlang`, `h
 | `waybar`     | Default recommendation; GTK bar for wlroots. `exec-once = waybar`. Config in `~/.config/waybar/`. |
 | `hyprpanel`  | Batteries-included bar built on AGS (AUR). `exec-once = hyprpanel`.    |
 | `ags`/astal  | Aylur's GTK Shell — scriptable widgets/bars (AUR: `aylurs-gtk-shell`). |
-| `quickshell` | QML-based shell toolkit (AUR).                                         |
+| `quickshell` | QML-based shell *toolkit* (AUR) — build-your-own; underpins the turnkey shells below. |
 | `eww`        | ElKowar's wacky widgets — custom bars/widgets.                         |
 | `nwg-panel`  | Python/GTK panel from the nwg-shell project.                          |
+| **turnkey Quickshell shells** | Ready-to-install full desktops (replace waybar): **end-4/illogical-impulse** (Material-You, most-starred), **caelestia** (per-monitor `shell.json`, fingerprint lock), **Noctalia**, **DankMaterialShell**. Clone-and-install; drive their theming with **matugen**, not the engine. The trending 2025–2026 look. |
 
 ## App launchers / menus
 
@@ -50,7 +51,8 @@ Libraries (not user-facing, listed for recognition): `hyprutils`, `hyprlang`, `h
 | `fuzzel`        | `fuzzel`                  | Fast native Wayland launcher.          |
 | `tofi`          | `tofi-drun \| xargs swaymsg exec` / `tofi-run` | Minimal, very fast.       |
 | `anyrun`        | `anyrun`                  | Plugin-based (AUR).                     |
-| `walker`        | `walker`                  | Modular runner (AUR).                   |
+| `walker`        | `walker`                  | Modular runner; runs as a service for instant startup (AUR). |
+| `vicinae`       | `vicinae`                 | 2025 Raycast-for-Linux (Qt); runs Raycast extensions, bundles clipboard/calc/emoji/window-switch (AUR). |
 | `bemenu`        | `bemenu-run`              | dmenu-like, scriptable.                |
 | `hyprlauncher`  | `hyprlauncher`            | First-party (AUR).                     |
 

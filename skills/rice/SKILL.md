@@ -3,7 +3,7 @@ name: rice
 description: This skill should be used when the user runs "/hyprland-config:rice" or asks to build, theme, or restyle their Hyprland desktop — i.e. (1) GENERATE a config from scratch ("generate/create my hyprland.conf", "set up Hyprland from scratch", "make me a new config", "build a hyprland config"); (2) THEME/recolor/set fonts ("theme my desktop", "apply Catppuccin/Gruvbox/Nord/Tokyo Night/Dracula/Everforest/Kanagawa/Solarized/Rosé Pine", "change my color scheme/accent", "match my colors to my wallpaper", "set up matugen/wallust", "change my font"); (3) manage named theme PROFILES / "rices" ("save my theme as X", "switch to nord", "list my themes", "load my <name> rice", "pin my accent"); or (4) set/change/cycle the WALLPAPER ("set my wallpaper", "random wallpaper", "make my theme match my wallpaper"). It runs one interactive interview, generates a modular version-matched config, and drives a self-contained rice engine (~/.config/hypr-rice/ — one palette.conf + templates + a `rice` CLI + profiles + a user-override cascade) that themes Hyprland, hyprlock, waybar, notifications, launcher, terminal, GTK/Qt/cursor/icons/fonts and the wallpaper consistently — backing up, live-testing, and reloading after every change.
 argument-hint: "[what you want, e.g. 'set up from scratch', 'catppuccin mocha', 'switch to nord', 'wallpaper ~/x.png and theme from it']"
 allowed-tools: AskUserQuestion, Bash, Read, Write, Edit, Glob, Grep, Agent
-version: 0.7.0
+version: 0.9.0
 ---
 
 # Rice — Build & Theme the Hyprland Desktop
@@ -76,12 +76,14 @@ organized **one group per component**. Walk every group and ask each of its sub-
 default first, skipping only what `$ARGUMENTS` or an existing config already answers. **`AskUserQuestion`
 accepts at most 4 questions per call**, so groups with more sub-questions than that **split across
 multiple consecutive calls** — do not drop or merge questions to fit. A from-scratch run should produce
-**roughly 22–28 calls** (if you've asked only a handful, you've collapsed groups — go ask the rest). The
-groups: **1** monitors · **2** input · **3** keybinds · **4** default apps · **5** terminal · **6** status
-bar **+ waybar design** · **7** **desktop widgets** (eww/AGS/Quickshell/HyprPanel) · **8** launcher ·
-**9** notifications · **10** lock screen · **11** window look & feel · **12** palette · **13** fonts ·
-**14** wallpaper · **15** autostart & env · **16** companion configs · **17** shell & prompt (shell,
-prompt engine starship/oh-my-posh, fish colors, fetch). Groups 5–10 ask **full functional depth** (e.g.
+**roughly 28–38 calls** (if you've asked only a handful, you've collapsed groups — go ask the rest). The
+groups: **1** monitors · **2** input (keyboard/mouse/touchpad/**gestures**) · **3** keybinds · **4**
+default apps · **5** terminal · **6** status bar **+ waybar design** · **7** **desktop widgets**
+(eww/AGS/Quickshell/turnkey-shells/HyprPanel) · **8** launcher · **9** notifications · **10** lock screen
+· **11** window look & feel · **12** palette · **13** fonts · **14** wallpaper · **15** autostart & env ·
+**16** companion configs · **17** shell & prompt (shell, prompt engine starship/oh-my-posh, fish colors,
+fetch) · **18** utilities · **19** login & boot · **20** gaming · **21** laptop · **22** accessibility ·
+**23** **Hyprland plugins** (hyprpm — opt-in; overview/scrolling/tree layouts/scratchpads). Groups 5–10 ask **full functional depth** (e.g.
 bar modules, **waybar design** — archetype/shape/transparency/workspace indicator/accent/motion —
 **widget system + widgets + look**, launcher behavior, notification rules) so the generated shell configs
 are usable, not just colored — don't pick a scheme, bar look, widget shell, or fonts silently. The
@@ -359,10 +361,14 @@ Set the wallpaper and optionally re-theme the whole desktop from it — the cano
 
 ## Resources
 
-- **`references/interview.md`** — the one unified question bank, one group per component (22 groups;
+- **`references/interview.md`** — the one unified question bank, one group per component (23 groups;
   re-theming reuses groups 11–14). Groups 5–10 (terminal/bar/widgets/launcher/notifications/lock) ask
   full functional depth; 18 ships utility scripts, 19 themes the login/boot chrome, 20 is the opt-in
-  gaming/performance bundle, 21 (laptop) self-skips on desktops, 22 (accessibility) is opt-in.
+  gaming/performance bundle, 21 (laptop) self-skips on desktops, 22 (accessibility) and 23 (Hyprland
+  plugins / hyprpm) are opt-in.
+- **`references/plugins.md`** — group-23 hyprpm community plugins: the version-pinned install flow
+  (never auto-run) + catalog (hyprexpo overview, hyprscrolling/hy3 layouts, split-monitor-workspaces,
+  hyprbars, borders-plus-plus/hyprtrails/hyprwinwrap, pyprland scratchpads) → `plugins.conf`.
 - **`references/config-templates.md`** — annotated templates for every generated Hyprland file
   (Mode A): `env`/`monitors`/`input`/`looknfeel`/`binds`/`windowrules`/`autostart` + companion configs.
 - **`../desktop-shell/references/components.md`** — the functional shell-config recipes rice generates
@@ -388,7 +394,8 @@ Set the wallpaper and optionally re-theme the whole desktop from it — the cano
 - **`assets/scripts/*.sh`** — group-18 utility scripts shipped as-is (copy + `chmod`, not rendered):
   `screenshot.sh`, `screenrecord.sh`, `ocr.sh`, `colorpicker.sh`, `powermenu.sh` (see `utilities.md`),
   `gamemode.sh` (group-20 effects toggle, see `gaming.md`), `keybind-cheatsheet.sh` (group 3, reads
-  `hyprctl binds -j`), `blur-toggle.sh` (group 11).
+  `hyprctl binds -j`), `blur-toggle.sh` (group 11), `theme-switch.sh` (group 3, menu of saved rices →
+  `rice theme`).
 - **`templates/*.tmpl`** — the color templates the engine renders (incl. the shell/prompt set:
   `fish.tmpl` → fish `conf.d` colors, `starship.tmpl` → rice-owned `starship.toml`, `oh-my-posh.tmpl` →
   rice-owned `rice.omp.json`; and the **widget-shell set**: `eww.tmpl` → eww `colors.scss`, `ags.tmpl`
@@ -397,7 +404,8 @@ Set the wallpaper and optionally re-theme the whole desktop from it — the cano
 - **`assets/profiles/*.conf`** — the five shipped preset rices; **`assets/rice`** — the CLI
   (incl. `rice wallpapers [scheme]` to list and `rice get-wallpaper <scheme> <n|name> [--set]` to
   curl-download a matching wallpaper; `rice accents [scheme]` to list per-scheme accent variants and
-  `rice accent <name|hex> [--pin]` to swap the accent). **`assets/wallpapers.tsv`** — the curated,
+  `rice accent <name|hex> [--pin]` to swap the accent; `rice theme-toggle <a> <b>` flips two profiles
+  for the dark/light keybind and `rice theme-next` cycles them). **`assets/wallpapers.tsv`** — the curated,
   theme-tagged, curl-downloadable wallpaper catalog (verified raw URLs; `scheme<TAB>name<TAB>url`).
   **`assets/accents.tsv`** — per-scheme accent variants (`scheme<TAB>name<TAB>hex`, 6–8 each).
 - **`examples/sample-config/`** — a complete reference output (a generated modular config set).
