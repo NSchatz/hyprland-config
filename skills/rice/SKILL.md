@@ -387,7 +387,8 @@ Set the wallpaper and optionally re-theme the whole desktop from it — the cano
   `install-config.sh`, `verify-config.sh`, `backup-config.sh`, `reset-config.sh`.
 - **`assets/scripts/*.sh`** — group-18 utility scripts shipped as-is (copy + `chmod`, not rendered):
   `screenshot.sh`, `screenrecord.sh`, `ocr.sh`, `colorpicker.sh`, `powermenu.sh` (see `utilities.md`),
-  `gamemode.sh` (group-20 effects toggle, see `gaming.md`).
+  `gamemode.sh` (group-20 effects toggle, see `gaming.md`), `keybind-cheatsheet.sh` (group 3, reads
+  `hyprctl binds -j`), `blur-toggle.sh` (group 11).
 - **`templates/*.tmpl`** — the color templates the engine renders (incl. the shell/prompt set:
   `fish.tmpl` → fish `conf.d` colors, `starship.tmpl` → rice-owned `starship.toml`, `oh-my-posh.tmpl` →
   rice-owned `rice.omp.json`; and the **widget-shell set**: `eww.tmpl` → eww `colors.scss`, `ags.tmpl`

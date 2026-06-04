@@ -38,7 +38,7 @@ if you've asked only a handful, you've collapsed groups incorrectly, go ask the 
 | 8 | **Launcher** | ✓ | | 1–2 calls |
 | 9 | **Notifications** | ✓ | | 1 call |
 | 10 | **Lock screen** | ✓ | | 1 call |
-| 11 | Window look & feel | ✓ | ✓ | 2 calls |
+| 11 | Window look & feel | ✓ | ✓ | 3 calls |
 | 12 | Palette | ✓ | ✓ | 1–2 calls + accent pick |
 | 13 | Fonts | ✓ | ✓ | 1 call |
 | 14 | Wallpaper | ✓ | ✓ | 1 call (catalog pick) |
@@ -107,6 +107,13 @@ Traditional scroll, tap on · No touchpad / desktop. The full block also offers 
 - Minimal (just essentials)
 **3c. Add vim HJKL focus?** — No **(default)** · Yes (on top of either flavor; `togglesplit` then moves
 off `J` → `T`).
+**3d. Resize submap?** — Yes, `SUPER+R` enters a resize mode (arrows resize, Esc exits) **(default)** ·
+No. Near-universal nicety; emits the `submap = resize` block (`config-templates.md` → binds). Always
+include the Esc exit + a `submap = reset`.
+**3e. Keybind cheat-sheet?** — Yes, bind `SUPER+/` to a searchable list **(default)** · No. Installs
+`assets/scripts/keybind-cheatsheet.sh` (reads live binds via `hyprctl binds -j` — robust; richer when
+the binds use `bindd` descriptions, which this scheme already prefers). Needs `jq` + a menu
+(rofi/wofi/fuzzel) — name them if missing.
 
 Bind split-toggle with `layoutmsg, togglesplit` (not a bare dispatcher). Always include: terminal,
 close, exit, launcher, float, fullscreen, workspaces 1–10 switch + move-to, focus move, window move,
@@ -323,8 +330,9 @@ them.
 
 The compositor's own aesthetic. Defaults are the well-tuned shipped 0.54 values; see
 `styling/hyprland-decoration.md` for values-that-look-good and `design-principles.md` for the archetypes
-(Catppuccin soft-glass · flat/minimal · heavy glass · maximalist floating-islands). Split across **two
-calls**.
+(Catppuccin soft-glass · flat/minimal · heavy glass · maximalist floating-islands). Now **10
+sub-questions** — split across **three calls** (4 + 3 + 3) to respect the 4-per-call cap; the last call
+(groups/per-app rules/blur toggle) is skippable when the user wants plain defaults.
 
 Call 1:
 **11a. Gaps & borders** — Comfortable (in 5 / out 20 / border 2) **(default)** · Tight (2/6/1) ·
@@ -343,8 +351,20 @@ families: shipped `easeOutQuint`, the `wind/winIn` slide-overshoot family, or Ma
 **11f. Border color** — From my palette **(default)** → `col.active_border = $accent $accent2 45deg`
 (vars come from the engine's `colors.conf`, so the border re-themes for free) · Custom gradient (free
 text, e.g. `rgba(33ccffee) rgba(00ff99ee) 45deg`).
-**11g. Layout** — Dwindle (BSP-like) **(default)** · Master/stack. (`scrolling` is plugin-only, not core
-0.54 — only offer it if a scrolling-layout plugin is installed.)
+**11g. Layout** — Dwindle (BSP-like) **(default)** · Master/stack (offer `orientation` left/right/top/
+bottom/center as a sub-pick). (`scrolling` is plugin-only, not core 0.54 — only offer it if a
+scrolling-layout plugin is installed; defer to the hyprpm plugins flow.)
+**11h. Window groups/tabs?** — No **(default)** · Yes, enable groups + a themed `groupbar` (tabbed
+windows; `SUPER+G` togglegroup, `SUPER+TAB` cycle). Core Hyprland; the groupbar themes from the palette
+like waybar (`config-templates.md` → looknfeel).
+**11i. Per-app window rules?** — Beyond the shipped defaults (float pavucontrol/dialogs, PiP pin,
+idleinhibit-on-fullscreen), ask if any apps should always **float / pin / go to a workspace / be
+translucent**. Collect class + effect; emit block-form rules into `windowrules.conf`. Skippable —
+the defaults already cover the common cases.
+**11j. Runtime blur toggle?** — No **(default)** · Yes, bind `SUPER+SHIFT+B` to toggle blur (weak-GPU /
+screenshot convenience). Installs `assets/scripts/blur-toggle.sh` (transient; a reload restores the real
+setting). *(The heavier animation-preset switcher is a separate, deferred enhancement — the group-20
+game-mode toggle already covers "all effects off".)*
 
 ---
 

@@ -40,6 +40,11 @@ Then add the bind to `binds.conf` (see each tool below). Bias which tools are *o
 `screenshot.sh` and `screenrecord.sh` auto-detect the best installed capture tool, so they work
 whether the user has grimblast, hyprshot, or bare grim+slurp.
 
+**Scripts owned by other groups** install the same way (copy → `~/.config/hypr/scripts/`, `chmod +x`,
+add bind): `keybind-cheatsheet.sh` (group 3, `SUPER+/`, reads `hyprctl binds -j` — needs `jq`),
+`blur-toggle.sh` (group 11, `SUPER+SHIFT+B`), `gamemode.sh` (group 20, `SUPER+F1`). Their binds are
+emitted with the rest in `binds.conf`.
+
 ## Tools that are a bind, not a script
 
 - **Clipboard history** — needs the `cliphist` store watchers running (group 15 autostart) and a

@@ -262,7 +262,33 @@ dwindle {
 master {
     new_status = master
     mfact = 0.55
+    orientation = left        # left|right|top|bottom|center
 }
+```
+
+Core built-ins are **dwindle** and **master** only. A niri/PaperWM-style `scrolling` layout is **not**
+core in 0.54 — it comes from a plugin (`hyprscroller`/`hyprscrolling`); only offer it via the (deferred)
+hyprpm plugins flow, never emit `layout = scrolling` without the plugin installed (see
+`hyprland-reference/.../sections.md`).
+
+**Window groups (tabbed/stacked windows)** — core Hyprland; themed from the palette like the bar; emit when the user
+opts in (group 11). Colors reference the engine's `$accent`/`$muted` vars:
+
+```ini
+group {
+    col.border_active   = $accent
+    col.border_inactive = $muted
+    groupbar {
+        enabled    = true
+        font_size  = 11
+        height     = 18
+        gradients  = true
+        text_color = $fg
+        col.active   = $accent
+        col.inactive = $surface
+    }
+}
+# Binds: SUPER+G togglegroup; SUPER+TAB changegroupactive
 ```
 
 Anim speed: smooth ≈ 7, snappy ≈ 4. If animations off, set `enabled = false` and the
@@ -362,6 +388,23 @@ bind = $mainMod, Print, exec, grim - | wl-copy
 {{#if hyprpicker}}bind = $mainMod SHIFT, P, exec, hyprpicker -a{{/if}}
 {{#if wlogout}}bind = $mainMod SHIFT, M, exec, wlogout{{/if}}
 {{#if cliphist}}bind = $mainMod SHIFT, V, exec, cliphist list | $menu | cliphist decode | wl-copy{{/if}}
+
+# Utility-script binds (group 18) — emit per chosen util; scripts live in ~/.config/hypr/scripts/
+{{#if util_cheatsheet}}bind = $mainMod, slash, exec, ~/.config/hypr/scripts/keybind-cheatsheet.sh{{/if}}
+{{#if util_blur_toggle}}bind = $mainMod SHIFT, B, exec, ~/.config/hypr/scripts/blur-toggle.sh{{/if}}
+{{#if util_gamemode}}bind = $mainMod, F1, exec, ~/.config/hypr/scripts/gamemode.sh{{/if}}
+
+# Resize submap (group 3, opt-in) — SUPER+R enters; arrows/HJKL resize; Esc exits.
+{{#if resize_submap}}
+bind = $mainMod, R, submap, resize
+submap = resize
+binde = , right, resizeactive, 10 0
+binde = , left,  resizeactive, -10 0
+binde = , up,    resizeactive, 0 -10
+binde = , down,  resizeactive, 0 10
+bind = , escape, submap, reset
+submap = reset
+{{/if}}
 ```
 
 Generate all ten workspace switch + move lines explicitly. The `{{#if}}`/`{{#unless}}`/`{{else}}`
