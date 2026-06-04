@@ -253,6 +253,39 @@ The **rice engine** the plugin scaffolds (lives in your home, version-controlled
 
 ## Changelog
 
+### 0.8.0
+
+A broad **interview expansion** — built from deep research across the GitHub `hyprland` topic (ML4W,
+JaKooLit, HyDE, end-4, Omarchy, caelestia, gh0stzk), the Hyprland wiki, and the companion-tool
+ecosystem. The interview grows from 17 groups to **22**, surfacing capabilities the reference layer
+already knew but never *asked* about, plus genuinely new categories. Functional helper scripts ship as
+plugin template files in [`skills/rice/assets/scripts/`](skills/rice/assets/scripts/).
+
+- **New group 18 — "Utilities & menus."** The screenshot / screen-record / OCR / color-picker /
+  clipboard / emoji / power-menu tools every popular rice ships. Seven shipped scripts (`screenshot.sh`,
+  `screenrecord.sh`, `ocr.sh`, `colorpicker.sh`, `powermenu.sh`, `keybind-cheatsheet.sh`,
+  `blur-toggle.sh`) auto-detect the best installed tool; Wi-Fi/Bluetooth documented as the robust tray
+  applets rather than fragile homegrown parsers. See [`utilities.md`](skills/rice/references/utilities.md).
+- **New group 19 — "Login & boot."** Wires the previously-orphaned
+  [`login.md`](skills/rice/references/login.md) into the interview: palette-matched SDDM/greetd greeter
+  + Plymouth + GRUB, generated root-side with the exact `sudo` commands (never run for you).
+- **New group 20 — "Gaming & performance"** (opt-in). Tearing (`allow_tearing` + per-class `immediate`,
+  with the kernel-gated `WLR_DRM_NO_ATOMIC`), VRR modes, fullscreen effect-stripping, `misc:vfr` as an
+  unconditional default, and a shipped `gamemode.sh` toggle. See [`gaming.md`](skills/rice/references/gaming.md).
+- **New group 21 — "Laptop"** (self-skips on desktops via DMI/battery detection): lid-close action,
+  power-profile tool, optional battery charge limit.
+- **New group 22 — "Accessibility"** (opt-in): built-in cursor-zoom magnifier, large cursor, night-light
+  toggle, larger-UI preset.
+- **Expanded existing groups.** Monitors (1) gains per-monitor VRR/transform/mirror/10-bit, dock/undock
+  `desc:` profiles, and workspace rules (per-monitor binding, persistent, scratchpad, smart-gaps).
+  Keybinds (3) gains a resize submap and the cheat-sheet. Look & feel (11) gains window groups/tabs,
+  per-app window rules, and a blur toggle. Group 15's NVIDIA env tightened to the 2026 slim set.
+- **Detection.** `detect-version.sh` now reports `IS_LAPTOP`/`HAVE_BATTERY`/`HAVE_LID`, `MONITOR_COUNT`,
+  `POWER_TOOL`, and the extra utility tools, so the new groups self-gate and bias defaults to what's
+  installed. A full from-scratch run is now ~26–34 calls (fewer when conditional groups skip).
+- *Deferred to a later release:* a hyprpm community-plugins group (hyprexpo/hyprbars/hy3/hyprwinwrap)
+  and a 0.55+ Lua-dialect output branch.
+
 ### 0.7.0
 
 An extensive **desktop-widget** implementation — the widget shells (dashboards, sidebars, OSDs, control

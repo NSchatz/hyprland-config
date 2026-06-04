@@ -23,8 +23,10 @@ defaults" can skip ahead. Run `detect-version.sh` + `detect-theme-tools.sh` firs
 what's installed (bias defaults to installed tools; name the package for anything missing — never
 install). Use `multiSelect` for the genuinely multi-choice questions (bar modules, autostart, env vars).
 
-**The groups** (a from-scratch run walks all of them; expect **~22–28 `AskUserQuestion` calls** total —
-if you've asked only a handful, you've collapsed groups incorrectly, go ask the rest):
+**The groups** (a from-scratch run walks all of them; expect **~26–34 `AskUserQuestion` calls** total on
+a full build — fewer when the conditional groups skip: 7 (widgets), 19 (login), 20 (gaming), 22
+(accessibility) are opt-in, and 21 (laptop) self-skips on desktops. If you've asked only a handful,
+you've collapsed groups incorrectly, go ask the rest):
 
 | # | Group | Mode A | Mode B | Splits into |
 |---|---|---|---|---|
