@@ -19,6 +19,11 @@ mkdir -p "$STAGING"
 mkdir -p "$XDG_RUNTIME_DIR"
 chmod 700 "$XDG_RUNTIME_DIR"
 
+# Hyprland writes crash reports under $XDG_CACHE_HOME/hyprland/crashReports — without that dir
+# the crash reporter itself errors out ("failed to mkdir() crash report directory"), masking the
+# real crash. Create it ahead of time so any actual Hyprland crash leaves a readable artifact.
+mkdir -p "${XDG_CACHE_HOME:-$HOME/.cache}/hyprland/crashReports"
+
 # ----- 1. Compose a minimal, known-good Hyprland config in the staging dir ------------------
 # Modular layout matching what the rice skill generates.
 cat > "$STAGING/hyprland.conf" <<'EOF'
