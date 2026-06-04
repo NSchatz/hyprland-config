@@ -359,9 +359,10 @@ Set the wallpaper and optionally re-theme the whole desktop from it — the cano
 
 ## Resources
 
-- **`references/interview.md`** — the one unified question bank, one group per component (19 groups;
+- **`references/interview.md`** — the one unified question bank, one group per component (20 groups;
   re-theming reuses groups 11–14). Groups 5–10 (terminal/bar/widgets/launcher/notifications/lock) ask
-  full functional depth; group 18 ships utility scripts, group 19 themes the login/boot chrome.
+  full functional depth; group 18 ships utility scripts, 19 themes the login/boot chrome, 20 is the
+  opt-in gaming/performance bundle.
 - **`references/config-templates.md`** — annotated templates for every generated Hyprland file
   (Mode A): `env`/`monitors`/`input`/`looknfeel`/`binds`/`windowrules`/`autostart` + companion configs.
 - **`../desktop-shell/references/components.md`** — the functional shell-config recipes rice generates
@@ -378,12 +379,15 @@ Set the wallpaper and optionally re-theme the whole desktop from it — the cano
 - **`references/login.md`** — login/display-manager theming (greetd/tuigreet/ReGreet, SDDM) + boot.
 - **`references/utilities.md`** — group-18 utilities & menus: screenshot/record/OCR/color-picker/power
   scripts (shipped in `assets/scripts/`), clipboard/emoji/calc binds, Wi-Fi/BT applet recipe.
+- **`references/gaming.md`** — group-20 opt-in tweaks: tearing (`allow_tearing`+`immediate`), VRR
+  modes, fullscreen effect-stripping, `misc:vfr`, the shipped `gamemode.sh` toggle.
 - **`references/wallpaper.md`** — backends, dynamic theming, cycling automation.
 - **`scripts/`** — `detect-version.sh`, `detect-theme-tools.sh`, `rice-init.sh`, `render-templates.sh`,
   `apply-theme.sh`, `set-wallpaper.sh`, `palette-from-wallpaper.sh`, `safe-apply.sh`,
   `install-config.sh`, `verify-config.sh`, `backup-config.sh`, `reset-config.sh`.
 - **`assets/scripts/*.sh`** — group-18 utility scripts shipped as-is (copy + `chmod`, not rendered):
-  `screenshot.sh`, `screenrecord.sh`, `ocr.sh`, `colorpicker.sh`, `powermenu.sh` (see `utilities.md`).
+  `screenshot.sh`, `screenrecord.sh`, `ocr.sh`, `colorpicker.sh`, `powermenu.sh` (see `utilities.md`),
+  `gamemode.sh` (group-20 effects toggle, see `gaming.md`).
 - **`templates/*.tmpl`** — the color templates the engine renders (incl. the shell/prompt set:
   `fish.tmpl` → fish `conf.d` colors, `starship.tmpl` → rice-owned `starship.toml`, `oh-my-posh.tmpl` →
   rice-owned `rice.omp.json`; and the **widget-shell set**: `eww.tmpl` → eww `colors.scss`, `ags.tmpl`

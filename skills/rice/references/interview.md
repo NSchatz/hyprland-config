@@ -47,6 +47,7 @@ if you've asked only a handful, you've collapsed groups incorrectly, go ask the 
 | 17 | **Shell & prompt** | ✓ | | 1–2 calls |
 | 18 | **Utilities & menus** | ✓ | | 1 call |
 | 19 | **Login & boot** | ✓ | | 1 call |
+| 20 | **Gaming & performance** | ✓ | | 1–2 calls |
 
 Map every answer to its template: the **Hyprland-config** groups (monitors, input, keybinds, default
 apps, terminal, window look & feel, autostart, companion configs) → `config-templates.md`; the functional
@@ -54,7 +55,7 @@ apps, terminal, window look & feel, autostart, companion configs) → `config-te
 shell** → its `styling/` page + the engine's widget template (`engine.md` → "Widget-shell theming"); the
 **shell/prompt** configs → `../../shell-config/references/shells.md`; the **utilities & menus** → their
 shipped scripts + binds (`utilities.md`); the **login & boot** chrome → `login.md`; the
-**palette/fonts/wallpaper** groups
+**gaming & performance** tweaks → `gaming.md`; the **palette/fonts/wallpaper** groups
 (and the prompt/fish *colors*) → the rice engine's `palette.conf` (`engine.md`) which renders the colors.
 For *why a value looks good*, the styling library (`hyprland-reference/.../styling/`) backs each look
 choice; cite it when explaining.
@@ -557,3 +558,29 @@ user only wants the per-user desktop.
 These are coarse (palette-matched backgrounds, not live-regenerated on every re-theme) and entirely
 root-side: **generate the files, print the commands, never run them silently.** Note the package for
 any greeter/theme not installed.
+
+---
+
+## 20. Gaming & performance  *(dedicated group — generate only, opt-in)*
+
+The latency/perf tweaks gamers expect and a generator usually omits: screen tearing, VRR, fullscreen
+effect-stripping, and a runtime "game mode" toggle. **Gated behind one opt-in** so non-gamers never see
+it. Full recipes, caveats, and the exact rules: `gaming.md`. All output is 0.54 hyprlang block-form.
+
+**Call 1 — the gate:**
+**20a. Set up gaming/performance tweaks?** — No, skip **(default)** · Yes.
+
+**Call 2 (only if yes):**
+**20b. Screen tearing** — Off **(default)** · On for specific games (ask classes from `hyprctl
+clients`). Sets `general:allow_tearing = true` + a per-class `immediate` rule; **gate the `env =
+WLR_DRM_NO_ATOMIC,1` line on kernel < 6.8 only** — don't emit it on modern kernels.
+**20c. VRR / adaptive sync** — Off **(default)** · Fullscreen (`2`) · Content-aware (`3`, smartest).
+Per-monitor `vrr` field; needs a FreeSync/G-Sync display.
+**20d. Strip effects on fullscreen + inhibit idle?** — Yes **(default)** · No. Emits the
+`no_blur`/`no_border`/`no_anim`/`idle_inhibit` fullscreen rules.
+**20e. Game-mode toggle key?** — Yes, bind `SUPER+F1` **(default)** · No. Installs the shipped
+`assets/scripts/gamemode.sh` (copy + `chmod`, like group 18) and binds it.
+
+**`misc:vfr = true` is set unconditionally** (biggest idle/battery win) regardless of these answers —
+it's a default in the generated `misc` block, not a question here. Validate (`hyprctl reload` +
+`configerrors`) after writing.
