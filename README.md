@@ -253,6 +253,28 @@ The **rice engine** the plugin scaffolds (lives in your home, version-controlled
 
 ## Changelog
 
+### 0.6.0
+
+A dedicated **waybar design** interview group, backed by a styling reference rebuilt from a wide survey
+of the community:
+
+- **Survey of ~55 configs.** Read the `config.jsonc` + `style.css` of every reachable example linked off
+  the [Waybar Examples wiki](https://github.com/Alexays/Waybar/wiki/Examples), extracting the recurring
+  design axes and the long-tail tricks.
+- **Group 6 is now "Status bar + waybar design"** (4 calls). Beyond the functional questions (tool,
+  modules, clock) it walks the look language: **archetype** (floating islands · separated pills · single
+  lozenge · edge-to-edge · powerline · dock), **corner style**, **transparency** (translucent/glassy/
+  frosted/opaque), **depth**, **workspace indicator** (pill-fill · underline · dots · numbers), **accent
+  strategy** (single · per-module hue · monochrome · semantic-state), **accent application** (text vs
+  inverted-pill), **motion**, and **module grouping** (inline · drawer-collapsed · powerline). Options are
+  ordered by how often the pattern appears in the corpus.
+- **`styling/waybar.md` grew a "Bar form" section** — **vertical** bars (`position:left/right`, `rotate`,
+  two-line formats, vertical sliders, edge-hugging radius), **dual** top+bottom bars (JSON array of named
+  bars), and **dock / macOS Sequoia / Windows 10** mimic recipes — plus two new archetypes (powerline,
+  dock) and ~20 newly-harvested techniques (single-lozenge `7rem` pill, two-level pill nesting, inverted
+  candy pills, `border-color`-as-state, stepped blink, springy overshoot, glassmorphism stack, icon-gauge
+  ramps, conditional `.solo`/`.empty` backdrops, theme-as-folder, …).
+
 ### 0.5.0
 
 Hardening from real-world ricing — uwsm sessions, NVIDIA/nouveau cursors, GTK install quirks, and a

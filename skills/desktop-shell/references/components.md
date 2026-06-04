@@ -12,10 +12,14 @@ Two files in `~/.config/waybar/`: `config.jsonc` (modules) and `style.css` (look
 ### `config.jsonc`
 
 A modern **floating-islands** default (transparent bar + three rounded glass groups). For the full
-styling-technique catalog (capsule formula, tinted-accent workspaces, drawer/slider groups, blink
-keyframes, …) and the system/ecosystem module recipes (temperature hwmon path, `mpris`,
+styling-technique catalog (the seven archetypes, capsule formula, tinted-accent workspaces,
+drawer/slider groups, blink keyframes, …), the **bar forms** (vertical `position:left/right` with
+`rotate`/two-line formats/vertical sliders, dual top+bottom as a JSON array of named bars, dock/macOS/
+Win10 recipes), and the system/ecosystem module recipes (temperature hwmon path, `mpris`,
 `idle_inhibitor`, swaync `custom/notification`, `group/drawer`), see
-`${CLAUDE_PLUGIN_ROOT}/skills/hyprland-reference/references/styling/waybar.md`.
+`${CLAUDE_PLUGIN_ROOT}/skills/hyprland-reference/references/styling/waybar.md`. The rice interview's
+**Group 6 (waybar design)** maps each answer (archetype/corner/transparency/workspace
+indicator/accent/motion) onto those recipes.
 
 ```jsonc
 {

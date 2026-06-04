@@ -23,7 +23,7 @@ defaults" can skip ahead. Run `detect-version.sh` + `detect-theme-tools.sh` firs
 what's installed (bias defaults to installed tools; name the package for anything missing — never
 install). Use `multiSelect` for the genuinely multi-choice questions (bar modules, autostart, env vars).
 
-**The groups** (a from-scratch run walks all of them; expect **~19–24 `AskUserQuestion` calls** total —
+**The groups** (a from-scratch run walks all of them; expect **~21–26 `AskUserQuestion` calls** total —
 if you've asked only a handful, you've collapsed groups incorrectly, go ask the rest):
 
 | # | Group | Mode A | Mode B | Splits into |
@@ -33,7 +33,7 @@ if you've asked only a handful, you've collapsed groups incorrectly, go ask the 
 | 3 | Keybinds | ✓ | | 1 call |
 | 4 | Default apps (browser, files) | ✓ | | 1 call |
 | 5 | **Terminal** | ✓ | | 1–2 calls |
-| 6 | **Status bar** | ✓ | | 2 calls |
+| 6 | **Status bar + waybar design** | ✓ | | 4 calls |
 | 7 | **Launcher** | ✓ | | 1–2 calls |
 | 8 | **Notifications** | ✓ | | 1 call |
 | 9 | **Lock screen** | ✓ | | 1 call |
@@ -143,29 +143,66 @@ bell off, confirm-on-close off.
 
 ---
 
-## 6. Status bar  *(dedicated group — full functional depth)*
+## 6. Status bar  *(dedicated group — full functional depth + waybar design)*
 
-rice now generates the **functional** bar config (`config.jsonc`) and its themed `style.css`, not just
-the colors. Recipes: `../../desktop-shell/references/components.md` (waybar); look guidance:
-`styling/waybar.md`. Split across **two calls**.
+rice generates the **functional** bar config (`config.jsonc`) and its themed `style.css`, not just the
+colors. Recipes: `../../desktop-shell/references/components.md` (waybar). The **design** library
+`styling/waybar.md` holds the pattern catalog this group draws on — archetypes, the techniques harvested
+from **~55 community configs** off the [Waybar Examples wiki](https://github.com/Alexays/Waybar/wiki/Examples),
+plus the vertical/dual-bar/dock/macOS recipes. **Don't pick a bar look silently** — walk the design
+questions; the option labels below are ordered by how often the pattern shows up in that corpus
+(commonest = the default, first). Split across **four calls**: basics → design·shape → design·color &
+state → content. The two design calls are the "waybar design" heart of this group.
 
-Call 1 — shape:
+**Call 1 — basics:**
 **6a. Bar tool** — waybar **(default)** · hyprpanel (own config model) · none.
-**6b. Position** — Top **(default)** · Bottom.
-**6c. Style archetype** — Floating pill/islands (rounded, margins, grouped modules) **(default)** ·
-Full-width solid bar · Minimal flat. (Drives margins, rounding, and grouping in `style.css`; see
-`styling/waybar.md`.)
-**6d. Height & transparency** — Standard ~34px, slightly translucent **(default)** · Compact ~28px ·
-Tall ~40px · Opaque.
+**6b. Form & position** — Top horizontal **(default)** · Bottom (dock feel) · Vertical (narrow left/right
+column) · Dual (top + bottom). *Vertical and dual change the whole layout — see `styling/waybar.md`
+("Bar form").*
+**6c. Height & density** — Standard ~34px **(default)** · Compact ~26–28px · Tall ~40–44px. *(Vertical:
+this becomes column **width** ~32–44px.)*
 
-Call 2 — content:
-**6e. Modules** (multi-select; sensible set checked) — workspaces **(on)**, window title **(on)**, clock
+**Call 2 — Waybar design · shape** *(the look language — `styling/waybar.md` "Archetypes" backs each):*
+**6d. Shape archetype** — Floating islands (transparent bar, three translucent rounded groups — the
+dominant modern look) **(default)** · Separated per-module pills (every module its own capsule) · Single
+bordered lozenge (whole bar one outlined capsule) · Edge-to-edge solid (flush, square, minimal). *(Long
+tail in `waybar.md`: powerline/segmented, dock/shelf, minimal-flat transparent — offer via "Other".)*
+**6e. Corner style** — Soft pills ~12px **(default)** · Full stadium/capsule (oversized radius, e.g.
+`border-radius: 7rem`/`999px`) · Subtle ~4px · Square `0`.
+**6f. Transparency** — Translucent ~0.8 + blur **(default)** · Glassy ~0.5 + blur · Frosted glass (low
+~0.2 alpha + hairline border + drop shadow) · Opaque. *(Any translucency wants the `layerrule … blur`
+block — see `waybar.md`.)*
+**6g. Depth / elevation** — Flat **(default)** · Soft drop shadow (floating) · Border ring (2px accent
+outline) · Inset glow.
+
+**Call 3 — Waybar design · color & state:**
+**6h. Workspace indicator** — Pill-fill active, tinted accent **(default)** · Underline (`border-bottom`)
+· Dots (filled vs hollow glyph) · Plain numbers. *(Variants in `waybar.md`: nerd-icon glyphs,
+opacity-only, outline-border, growing pill, gradient/skew.)*
+**6i. Accent strategy** — Single accent (active ws + one or two signal modules) **(default)** · Per-module
+hue (each module its own color) · Monochrome (accent only on the active workspace) · Semantic-state-only
+(color only on warning/critical/charging).
+**6j. Accent application** — Accent as glyph/text color on a dark bar **(default)** · Accent as pill
+background with dark text (inverted "candy" pills).
+**6k. Motion** — Subtle: hover fades + state cues (battery-critical blink, urgent pulse, mpris glow)
+**(default)** · Static (no animation) · Springy/animated (cubic-bezier overshoot, breathing pulses).
+
+**Call 4 — content:**
+**6l. Modules** (multi-select; sensible set checked) — workspaces **(on)**, window title **(on)**, clock
 **(on)**, audio/pulseaudio **(on)**, network **(on)**, CPU, memory, temperature, battery **(on if
-laptop)**, system tray **(on)**, idle-inhibitor, media/mpris, bluetooth. Keep on-clicks aligned to
-installed tools (network → `nm-connection-editor`, audio → `pavucontrol`).
-**6f. Clock format** — `HH:MM` 24-hour + date tooltip **(default)** · 12-hour `hh:MM AM` · With date
-inline. 
-**6g. Workspace display** — Numbers **(default)** · Icons/Nerd-font glyphs · Dots.
+laptop)**, system tray **(on)**, media/mpris, bluetooth, idle-inhibitor, notification (swaync if chosen),
+updates, weather. Keep on-clicks aligned to installed tools (network → `nm-connection-editor`, audio →
+`pavucontrol`).
+**6m. Module grouping** — Inline **(default)** · Collapse cpu/mem/temp (and volume/brightness) behind a
+`group/drawer` that reveals on hover/click — best on **narrow or vertical** bars; can hold GTK sliders ·
+Segmented powerline (chained arrow separators welding modules into one strip).
+**6n. Clock format** — `HH:MM` 24-hour + date tooltip **(default)** · 12-hour `hh:MM AM` · date inline.
+
+**If 6b = Vertical:** prefer **icon-only** or two-line `\n` formats (`clock {:%H\n%M}`), `rotate: 90/270`
+for text-bearing modules, and **vertical sliders** in drawers; round only the inward edge
+(`border-radius: 0 6px 6px 0`). **If 6b = Dual:** put chrome on top (clock, tray, system, notifications)
+and **workspaces + `wlr/taskbar` + sensors** on the bottom (a JSON **array of named bars**,
+`"name": "top"/"bottom"`). Both are spelled out in `styling/waybar.md` ("Bar form").
 
 **Validate `config.jsonc` as strict JSON before reload** — a malformed bar silently fails to appear
 (see the desktop-shell JSON-check). `style.css` must start with `@import "colors.css";` so the engine

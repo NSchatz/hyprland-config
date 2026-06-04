@@ -73,7 +73,7 @@ Confirm the namespace with `hyprctl layers` (look for `namespace: waybar`). Know
 
 ## How the community styles it
 
-Five recognizable archetypes. Most popular dotfiles ship one of these:
+Seven recognizable archetypes. Most popular dotfiles ship one of these (the first five are the staples; powerline and dock are the distinctive long tail). These are *horizontal* looks — for **vertical and dual bars** see "Bar form" below.
 
 **(a) Floating island bar** — *the dominant modern look* (HyDE, ml4w themes, countless r/unixporn posts). Bar itself is transparent and detached via `margin`; the three module groups become opaque rounded islands.
 ```css
@@ -103,6 +103,10 @@ Pair with the `layerrule … blur = true` block (above) for the frosted-glass ef
 
 **(e) Minimal mono** — JetBrains/Fira Nerd mono font, near-monochrome (`@text` on transparent), accent used *only* on the active workspace dot. Tiny height, `spacing` tight. Common in "clean desktop" showcases.
 
+**(f) Powerline / segmented** — modules fuse into one continuous strip with angled separators. Two ways: (1) **chained-arrow modules** — interleave `custom/arrow1..N` whose `format` is a single powerline glyph (`` / ``) and whose CSS sets `color` = the next module's bg and `background` = the previous module's bg, so the triangle bridges two solid blocks (cjbassi chains 4, mxkrsv chains 10 into a full gradient; mechabar uses `custom/left_div`/`right_div` slanted divider modules). (2) **End-cap rounding** — give a row of `border-radius: 0` modules rounded caps only on the first (`6px 0 0 6px`) and last (`0 6px 6px 0`) so N differently-colored modules read as one capsule (Prateek7071, DN-debug, oscarcp's directional half-radius weld). Reads "techy/retro"; pairs with per-module solid bg.
+
+**(g) Dock / shelf** — a bottom bar that behaves like a launcher dock. ChromeOS-shelf (cxOrz): `position: bottom`, `border-radius: 24px 24px 0 0` (top corners only), a translucent system "status pill" grouping clock+audio+net+bt+battery via first/last-child rounding, and an active-workspace that morphs a bar into an accent dot. macOS-dock / Win10-taskbar (kamlendras, TheFrankyDoll): a `wlr/taskbar` with `icon-size: 36` as the actual Dock/taskbar, optionally a second top bar. See the recipes under "Bar form".
+
 **Project idioms worth stealing:**
 - **HyDE** (`HyDE-Project/HyDE`): layouts in `~/.config/waybar/layouts/`, matched style by basename in `styles/`; a 4-layer CSS cascade (`defaults.css` → wallbash-generated palette → `theme.css` → `user-style.css`). Border-radius and font-size live in generated `includes/` files derived from Hyprland's rounding. Don't hand-edit the symlinked `config`/`style.css` — edit `user-style.css`.
 - **JaKooLit** (`JaKooLit/Hyprland-Dots`): `config` and `style.css` are **symlinks** into `configs/` and `styles/`. Switch with `SUPER+ALT+B` (layout) / `SUPER+CTRL+B` (style). Default font-size `97%`. Edit copies, never the symlinks.
@@ -110,7 +114,35 @@ Pair with the `layerrule … blur = true` block (above) for the frosted-glass ef
 - **Catppuccin** (`catppuccin/waybar`): drop `mocha.css` next to `style.css`, `@import "mocha.css";` at top, reference `@text`/`@base`/`@mauve` etc., and use `alpha()`/`shade()` for translucency.
 - **end-4** (`end-4/dots-hyprland`): *not Waybar* — it uses a custom AGS/Quickshell shell. Great for visual inspiration, but none of its styling transfers to a `style.css`.
 
-## Battle-tested techniques (harvested from ~30 community configs)
+## Bar form — orientation, vertical & multi-bar
+
+Everything above is a *top horizontal* bar. Waybar also does **bottom**, **vertical** (a narrow left/right column), and **multiple bars at once** — these change layout, not just CSS. Pick the form first (it gates the archetype): horizontal islands don't translate to a 32px-wide column, and a dual-bar splits modules across two `config` objects.
+
+**Vertical bar** (`position: "left"` or `"right"`; the niri/ultrawide favorite — saatvik333, Sudhboi, gdots, Pipshag_kitties, EviLuci). Set a **`width`** instead of height (≈ `32`–`44`), and rethink every wide module:
+- **Read direction.** Two strategies: go **icon-only** (saatvik333 — drop text labels, size glyphs with Pango `<span size='14pt'>`), or **`rotate` text modules** so labels read down the column — `"rotate": 90` (or `270`) on `clock`, `network`, `mpris`, `cpu` (Sudhboi, gdots, Pipshag_kitties). `rotate` is a **module-config** key, not CSS.
+- **Stacked formats.** Replace one-line formats with newlines: `"format": "{:%H\n%M}"` for the clock, `"{capacity}\n{icon}"` for battery — no rotation needed.
+- **Vertical sliders.** `pulseaudio/slider` / `backlight/slider` with `"orientation": "vertical"`; style `trough { min-width: 8px; min-height: 70px; border-radius: 8px; }`, `highlight { background: @accent; }`, hide the knob `slider { opacity: 0; }`. Usually revealed inside a `group/drawer` (`"orientation": "inherit"` so the drawer flows vertically too).
+- **Edge-hugging shape.** Round only the inward corners — left bar `border-radius: 0 6px 6px 0`, right bar `6px 0 0 6px` (Sudhboi). A left-edge **`box-shadow: inset 2px 0 @accent`** "color spine" replaces the horizontal underline as the active marker.
+- Workspaces become a vertical stack of dots/numbers; `min-height` (not `min-width`) gives them size.
+
+**Dual bar — top + bottom** (Bwc9876, EviLuci-old, kamlendras, qoheniac). `config.jsonc` becomes a **JSON array of bar objects**, each with a `"name"`. The consistent split: **top = chrome** (clock, tray, system stats, notifications, privacy, media) · **bottom = workspaces + `wlr/taskbar` + sensors**.
+```jsonc
+[
+  { "name": "top",    "position": "top",    "mode": "dock", "exclusive": true,
+    "modules-center": ["clock"], "modules-right": ["tray", "network", "pulseaudio", "battery"] },
+  { "name": "bottom", "position": "bottom", "mode": "dock", "exclusive": true,
+    "modules-left": ["hyprland/workspaces"], "modules-center": ["wlr/taskbar"],
+    "modules-right": ["cpu", "memory", "temperature"] }
+]
+```
+Target a single bar from one stylesheet via its name: `window#waybar.top { … }`, `.bottom#workspaces { … }` (Lynndroid21 also toggles extra bars with `"start_hidden": true` + `"on-sigusr1": "toggle"`).
+
+**Dock / shelf & OS-mimic recipes.**
+- **ChromeOS shelf** (cxOrz): `{"position":"bottom","height":48}`, `window#waybar { border-radius: 24px 24px 0 0; background: alpha(@bg,0.80); }`. Group clock+audio+net+bt+battery into one "status pill" by rounding only the first (`18px 0 0 18px`) and last (`0 18px 18px 0`) member. Active workspace morphs a `min-width:20px;border-radius:4px` bar into a `min-width:8px;border-radius:50%;background:@accent` dot (label `font-size: 0`).
+- **macOS Sequoia** (kamlendras): the look is ~80% **frosted-white translucency + compositor blur**, not heavy CSS. `window#waybar { background: rgba(255,255,255,0.5); color: #000; }` + the `layerrule … blur = true` block. A slim top **menu bar** (`height:24`) whose left side is `custom/launcher` 🔍 (Spotlight → wofi `drun`) followed by plain-text `custom/text*` modules printing **"File" "Edit" "View" "Help"** (`"exec":"echo File"`, each with an on-click app), and `hyprland/window` rewriting an empty class → **"Finder"**. A bottom bar is the **Dock**: `wlr/taskbar` `icon-size:36`. Workspace = neutral-gray tab `border-bottom: 3px solid white` on `.focused`; Apple easing `transition: all .25s cubic-bezier(0.165,0.84,0.44,1)`; color reserved for alerts only.
+- **Windows 10 taskbar** (TheFrankyDoll): `{"position":"bottom","mode":"dock","height":41}`, square corners, `wlr/taskbar` with window title+icon (`min-width:130px`) and an underline-active (`border-bottom:3px solid white`, urgent = `dashed`), a Windows-logo `custom/os_button` launcher, and the **reveal-on-critical** trick (`#temperature{font-size:0;color:transparent}` → `.critical{font-size:initial}`).
+
+## Battle-tested techniques (harvested from ~55 community configs)
 
 A catalog of concrete, reusable moves pulled from the dotfiles linked off the [Waybar Examples wiki](https://github.com/Alexays/Waybar/wiki/Examples). Each is attributed to a config that demonstrates it (most appear in several) and quoted close to verbatim — drop them in and swap literal colors for the rice palette vars (`@accent`, `@bg`, …). Grouped by what they buy you.
 
@@ -121,6 +153,10 @@ A catalog of concrete, reusable moves pulled from the dotfiles linked off the [W
 - *Segmented capsule from independent modules* (Prateek7071, Harsh-bin, soaddevgit): set a row of modules to `border-radius: 0`, then round only the **end caps** — first `border-radius: 6px 0 0 6px`, last `0 6px 6px 0` — fusing N differently-colored modules into one continuous pill.
 - *Section-pill via asymmetric radius* (ashish-kus): on a transparent bar round only the bar's inner corners — `.modules-right { border-radius: 15px 0 0 15px }`, `.modules-left { border-radius: 0 15px 15px 0 }`.
 - *Outer-frame border ring without a `border`* (mechabar): color `#waybar` with the outline color, then `#waybar > box { margin: 4px; background-color: @bg; }` — the 4px reveal becomes a crisp ring. Often paired with `* { all: initial; }` to wipe inherited GTK theme.
+- *Single outlined lozenge (the "7rem" whole-bar pill)* (saibhargav): make the entire bar one capsule — `window#waybar { background: transparent; border: 2px solid @accent; border-radius: 7rem; }` and set every module `background: transparent` so they read as text inside one outlined pill. The oversized radius self-clamps to a perfect semicircle at any height.
+- *Two-level pill nesting* (d00m1k): a translucent `.modules-*` group pill (`rgba(…,0.75)`) holding translucent per-module pills (`rgba(…,0.7)`) — stacked alpha alone gives layered glass depth, no shadow.
+- *Differential island alpha* (dpgraham4401): give the three islands **different** bg alphas (left `0.6`, right/center `0.85`) so one reads as nearer — depth from transparency, not shadow.
+- *Outlined-chip look* (rocketmike12): a `2px solid @accent` border on *every* element (bar, each module, each workspace button) over a solid bg — a crisp wireframe aesthetic; the "zen" variant is the same sheet with `border-radius: 0`.
 
 **Workspaces & active state.**
 - *Tinted-accent buttons (the modern default)* (zen0x00, Prateek7071): active = accent text + a faint accent fill + a stronger accent border, all from one hue — calmer than a solid block. `#workspaces button.active { color:@accent; background: alpha(@accent,0.14); border:1px solid alpha(@accent,0.45); }` Reuse the `0.14`-fill / `0.45`-border ratio for `.urgent` (red) and `:hover` (surface).
@@ -128,6 +164,11 @@ A catalog of concrete, reusable moves pulled from the dotfiles linked off the [W
 - *Underline-only focus* (HANCORE, manish12ys, Robinhuett, Win10-style): `border-bottom: 2px solid transparent` → accent on `.active`. Robinhuett balances it with a matching transparent **top** border so the glyph never shifts. Keeps a busy bar calm.
 - *Circular dot* (cxOrz): `button.active { min-width:8px; border-radius:50%; background:@accent; }`.
 - *Opacity for state* (Pipshag, saatvik333): inactive `opacity: 0.3–0.5`, active `opacity: 1` — the cheapest possible indicator.
+- *Dot/bar morph* (cxOrz): inactive workspace = a wide rounded bar with the number hidden (`min-width:20px; min-height:8px; border-radius:4px; background: alpha(@text,0.25);` + label `font-size:0`); active morphs to a circle (`min-width:8px; border-radius:50%; background:@accent`) under `transition: all 0.2s`.
+- *Filled-vs-hollow glyph dots* (mechakotik, elifouts, saatvik333): `format-icons { "active":"", "default":"", "empty":"" }` (or a Material `󰮯`/`` pair) — the indicator is the glyph itself; CSS only recolors active. Simplest "dots" look.
+- *Growing active pill* (haikal-hakim/athena): active button widens via larger `padding` (`0 12px` vs `0 4px`) with a `cubic-bezier` transition — animated emphasis with no color change.
+- *Underline by hiding the number* (HANCORE V1.9d): `font-size: 0` collapses the label so the button becomes a pure colored dash/bar; active = a different `border` color. A clean numberless underline.
+- *Gradient / skew advanced markers*: skewed-parallelogram tabs via `background-image: linear-gradient(-63.435deg, …)` (Jan-Aarela); animated `border-image: linear-gradient(45deg,…) 1` (EviLuci); soft `linear-gradient(0deg, @accent, @surface)` fill (hajosattila); a left-edge `box-shadow: inset 2px 0 @accent` "color spine" for vertical bars (Sudhboi); `font-family` swap (FA Brands→Classic) to fill an icon on `.active` (Lynndroid21).
 
 **Color & accent.**
 - *GTK reset before styling* (manish12ys): start `#workspaces button { all: unset; }` (or at minimum `background:transparent; box-shadow:none; border:none;`) to defeat the inherited GTK theme — otherwise button styles silently don't apply. Re-set font/color after `all: unset`.
@@ -135,6 +176,11 @@ A catalog of concrete, reusable moves pulled from the dotfiles linked off the [W
 - *`currentColor` underline* (benny-e): one rule `border-bottom: 1px solid currentColor` makes each module's underline auto-match its own text accent — define the hue once.
 - *Tonal hierarchy from one accent via GTK color functions* (gdots): `alpha()`/`shade()`/`mix()` plus `lighter()`/`darker()` — `alpha(@bg,0.7)` bar, `alpha(darker(@accent),0.3)` inner pill, `lighter(@accent)` highlight. One variable drives the whole bar.
 - *`@import` palette + `@define-color` aliasing* (HANCORE): import the theme's color file, alias to semantic `@bg/@fg/@accent`, then use `alpha(@fg,0.2)` for borders/separators/empty states — keeps the sheet palette-swappable. This is exactly how the rice engine's `colors.css` is meant to be consumed.
+- *Inverted "candy" pills* (soaddevgit, theCode-Breaker, newemperor221): a bright per-module pill bg with **dark** glyph text (`background:@accent; color:@bg`) instead of accent-on-dark. High-contrast, playful; works best with a per-module hue palette.
+- *`border-color` as the only state channel* (Bwc9876): never change a module's bg for state — only its `border-color`. Battery warn→`@yellow`, crit→`@red`, charging→`@green`, idle→`@mauve`, notification→`@accent`. Calm and uniform; extends to ~30 weather-condition classes (`#custom-weather.sunny { border-color:@yellow }`, `.thundery { border-color:@teal }`).
+- *Colored left-edge tab* (Zilero232): `border-left: 4px solid <hue>` per module — cheap color-coding that reads like a tab without a full pill.
+- *Per-module hue, the standard list* (mxkrsv, cjbassi, Pipshag, hajosattila, EviLuci): a recurring, legible mapping — clock/network = blue/cyan, cpu = green or violet, memory = red/mauve, temperature = orange/teal, battery = green, audio = yellow/cyan. Drive each from a `@define-color` so the hues survive a re-theme.
+- *Split a module to color each state* (qoheniac): instead of one `network` recoloured by class, list `network#wifi/#ethernet/#vpn/#disconnected` — only the live one renders, each with its own hue.
 
 **Motion & state animation.**
 - *Now-playing glow* (HANCORE): `#mpris.playing { animation: glow 2s ease-in-out infinite alternate; }` + `@keyframes glow { from { color:@fg; } to { color:@accent; } }`.
@@ -143,11 +189,16 @@ A catalog of concrete, reusable moves pulled from the dotfiles linked off the [W
 - *Whole-bar `.empty` morph* (Sudhboi): with `* { transition: 0.5s ease-out; }`, animate the bar's `background-color` + `border-radius` (e.g. 5px→20px) and `#window { opacity:0 }` on `window#waybar.empty` — the bar visibly softens when no window is focused.
 - *Collapse-to-zero reveal* (Win10-style): `#temperature { font-size:0; color:transparent; transition: all .25s; }` then `#temperature.critical { font-size:initial; color:@red; }` — a module that only appears when its state fires.
 - *Shared easing constant*: apply one `cubic-bezier(0.165, 0.84, 0.44, 1)` to every transition for a unified motion feel (Win10-style, macOS-sequoia).
+- *Springy overshoot* (notscripter, Anik200): a `cubic-bezier(0.55, 0, 0.28, 1.682)` (note the `>1` final value) makes buttons bounce past their target — playful, "iOS-y". Use sparingly (workspace buttons, drawer reveals).
+- *CPU-friendly stepped blink* (arkboix, DerAnsari, HANCORE): `animation-timing-function: steps(12)` (or `steps(2)`) instead of a linear fade — a deliberate stutter that's lighter on the GPU than a smooth alternate.
+- *Conditional bar backdrop* (Robinhuett, Sudhboi): the bar reacts to window state — `window#waybar.solo { background: rgba(…,0.85) }` (opaque only when a window fills the screen), `window#waybar.empty { background: transparent }` (or morph its radius), `.empty #window { opacity: 0 }`.
 
 **Depth & tooltip.**
 - *Elevation shadows* (Prateek7071, zen0x00): `box-shadow: 0 1px 3px rgba(0,0,0,0.1)` on cards, `0 8px 32px rgba(0,0,0,0.45)` on a floating island, `0 4px 12px rgba(0,0,0,0.2)` on tooltips.
 - *Frosted tooltip* (manish12ys, Prateek7071): dark bg, 1px accent-alpha border, `border-radius: 8px`, drop + inset-hairline shadow; style `tooltip label strong { color:@accent; }`.
 - *Tray icon effects* (macOS-sequoia, Catppuccin): `#tray > .passive { -gtk-icon-effect: dim; }`, `#tray > .needs-attention { -gtk-icon-effect: highlight; }`.
+- *Inset-glow island* (notscripter): `box-shadow: 0 0 8px 4px alpha(@accent,0.4) inset` on a `border-radius: 999px` pill — a beveled inner glow instead of an outer drop shadow.
+- *Glassmorphism stack* (zen0x00): low-alpha bg + hairline light border + layered outer shadow together — `background: rgba(15,18,25,0.22); border: 1px solid rgba(255,255,255,0.08); box-shadow: 0 8px 32px rgba(0,0,0,0.45), 0 2px 8px rgba(0,0,0,0.25);` (needs `gtk-layer-shell` + the blur layerrule to actually frost).
 
 **Interaction & density.**
 - *Hover-reveal drawer = icon + slider in a group* (saatvik333, gdots, Sudhboi): a `group/audio` whose first child is `pulseaudio` and second is `pulseaudio/slider`; hovering the icon slides out a real GTK slider. Style the parts: `#pulseaudio-slider trough { min-width:8px; border-radius:8px; background: alpha(@bg,0.6); }` · `#pulseaudio-slider highlight { background:@accent; }` · `#pulseaudio-slider slider { background:transparent; box-shadow:none; }`.
@@ -155,6 +206,10 @@ A catalog of concrete, reusable moves pulled from the dotfiles linked off the [W
 - *`custom/spacerN` shim modules* (Lynndroid21, benny-e): `{"format":"  ","tooltip":false}` for precise inter-module gaps when uniform `spacing` isn't enough.
 - *`reload_style_on_change: true`* (gdots, elifouts): a top-level config flag that hot-reloads CSS while you iterate — no `SIGUSR2` needed.
 - *Per-bar CSS via the bar `name`* (Lynndroid21): set `"name":"left"` and target `.left#module` to style multiple bars from one stylesheet.
+- *Collapse stats behind a leader icon* (Anik200, athena, ashish-kus): a `group/stats` with `"drawer": { "transition-duration": 350, "click-to-reveal": true }` whose first child is an icon and the rest (`cpu`/`memory`/`temperature`) reveal on click/hover — frees space on a narrow or vertical bar. Compose pill segments with dedicated `custom/l_end`/`r_end` rounded end-cap modules + transparent `custom/padd` spacers (Anik200).
+- *Analog icon-gauge from glyph ramp* (Anik200): render CPU/RAM as a 9-step circle-fill ramp `format-icons ["󰝦","󰪞",…,"󰪥"]` (optionally `"rotate": 270`) so the module reads as a tiny meter; or a block-element sparkline `["▁","▂",…,"█"]` (Prateek7071).
+- *Dock identity modules* (kamlendras, TheFrankyDoll): `wlr/taskbar` (`icon-size: 36`) **is** the dock/taskbar; `custom/text*` plain-text modules ("File"/"Edit") fake a menu bar; `custom/os_button` is the launcher.
+- *Theme-as-folder / palette stacking* (rocketmike12, arkboix, Harsh-bin): keep one config+CSS and recolor it into N named theme files swapped by a `theme.sh` (often bound to the launcher's right-click); or paste several `@define-color` blocks where the last wins. Mirrors the rice engine's profile system — prefer the engine's `colors.css` + profiles over hand-rolled switchers.
 
 ## Tasteful default recipe
 
@@ -393,12 +448,18 @@ The first listed module is the always-visible leader; the rest reveal on hover (
 - Hyprland blur-on-waybar quirk: https://github.com/hyprwm/Hyprland/issues/6130
 - Hyprland layer rules reference: https://deepwiki.com/hyprwm/hyprland-wiki/3.4-layer-rules
 - Waybar `group`/drawer module (collapsible clusters, sliders): https://github.com/Alexays/Waybar/wiki/Module:-Group
+- Waybar multiple-bars (the JSON array of named bars, per-bar config): https://github.com/Alexays/Waybar/wiki/Configuration
+- Waybar `wlr/taskbar` module (the dock/taskbar in dock-mimic looks): https://github.com/Alexays/Waybar/wiki/Module:-Wlr-Taskbar
+- Vertical-bar discussion (position left/right, rotate, narrow width): https://github.com/Alexays/Waybar/discussions/484
 - Waybar Examples gallery (index of the configs below): https://github.com/Alexays/Waybar/wiki/Examples
 
-**Community config corpus** — the "Battle-tested techniques" section above was harvested from these (each `style.css` + `config.jsonc` read directly). Grouped by what they best demonstrate:
+**Community config corpus** — the techniques above were harvested by reading the `style.css` + `config.jsonc` of **~55 configs** linked off the Examples wiki directly. Grouped by what they best demonstrate:
 
-- *Modern floating glass island*: zen0x00 (`zen0x00/dotfiles` → `themes/waybar`), saibhargav (`gitlab.com/saibhargav/arch-hyprland-custom0`, `border-radius: 7rem` pills), Lynndroid21 (`Lynndroid21/Niri21`, wrapper-styled islands + per-bar `name`).
-- *Catppuccin / per-module hue + glow*: mechabar (`sejjy/mechabar`), soaddevgit (`soaddevgit/WaybarTheme`), HANCORE (`HANCORE-linux/waybar-themes`, `@import` palette + `.empty` collapse + mpris glow), manish12ys (`manish12ys/waybar`, `all: unset` reset + glow + frosted tooltip).
-- *Drawer groups + GTK sliders*: saatvik333 (`saatvik333/niri-dotfiles`), Sudhboi (`Sudhboi/niri-rice-dotfiles`, nested drawers + `.empty` morph), gdots (`niksingh710/gdots`), Harsh-bin (`Harsh-bin/waybar-config`).
-- *Material / elevation / segmented pills*: Prateek7071 (`Prateek7071/dotfiles`, inset-ring active + elevation shadows + segmented pill), kamlendras (`kamlendras/waybar-macos-sequoia`), TheFrankyDoll (`TheFrankyDoll/win10-style-waybar`, collapse-to-zero reveal), Pipshag (`Pipshag/dotfiles_nord`, two-stage blink), benny-e (`benny-e/waybar-config`, `currentColor` underline + spacer modules).
-- *Minimal / capsule sections*: ashish-kus (`ashish-kus/waybar-minimal`), elifouts (`elifouts/Dotfiles`), rocketmike12 (`rocketmike12/.dotfiles`, per-module capsule), Robinhuett (`Robinhuett/dotfiles`, balanced-underline focus), cxOrz (`cxOrz/dotfiles-hyprland`, ChromeOS-shelf dock + dot workspaces).
+- *Modern floating glass island*: zen0x00 (`zen0x00/dotfiles` → `themes/waybar`, glassmorphism stack), saibhargav (`gitlab.com/saibhargav/arch-hyprland-custom0`, `border-radius: 7rem` single-lozenge), Lynndroid21 (`Lynndroid21/Niri21`+`Sway21`, per-zone glowing pills + per-bar `name` + SIGUSR1 toggle), d00m1k (`d00m1k/SimpleBlueColorWaybar`, two-level pill nesting), dpgraham4401 (`dpgraham4401/.dotfiles`, differential island alpha), DerAnsari (`DerAnsari/hyprland-dots`, bracket/pipe separator modules).
+- *Catppuccin / per-module hue + glow*: mechabar (`sejjy/mechabar`, powerline divider modules), soaddevgit (`soaddevgit/WaybarTheme`, inverted candy pills + autohide), HANCORE (`HANCORE-linux/waybar-themes`, `font-size:0` underline + `.empty` collapse + mpris glow + Omarchy inherit), manish12ys (`manish12ys/waybar`, `all: unset` + glow + frosted tooltip), theCode-Breaker (`theCode-Breaker/riverwm`, candy pastel-on-dark), hajosattila (`hajosattila/dotfiles`, gradient workspace fill + split `colors.css`), notscripter (`gitlab.com/notscripter/dotfiles`, inset-glow 999px islands + spring easing).
+- *Drawer groups + GTK sliders*: saatvik333 (`saatvik333/niri-dotfiles`, wallust vertical bar), Sudhboi (`Sudhboi/niri-rice-dotfiles`, vertical, nested drawers + `.empty` morph + left-spine accent), gdots (`niksingh710/gdots`, vertical, GTK color math + rotated modules), Harsh-bin (`Harsh-bin/waybar-config`, countdown/todo widgets + 11-theme cycler), ashish-kus (`ashish-kus/waybar-minimal`, sliders-in-drawers + off-edge radii), Anik200 (`Anik200/dotfiles` super-waybar, icon-gauge ramps + end-cap modules), haikal-hakim (`haikal-hakim/athena`, matugen token-files + growing pill).
+- *Material / elevation / segmented pills*: Prateek7071 (`Prateek7071/dotfiles`, inset-ring active + sparkline cpu + pomodoro), kamlendras (`kamlendras/waybar-macos-sequoia`, macOS dual-bar/dock recipe), TheFrankyDoll (`TheFrankyDoll/win10-style-waybar`, Win10 taskbar + collapse-to-zero reveal), Pipshag (`Pipshag/dotfiles_nord` + `dotfiles_kitties` vertical, two-stage blink + governor module), benny-e (`benny-e/waybar-config`, numbered-CSS cascade + `currentColor` underline), Zilero232 (`Zilero232/arch-install-kit`, colored left-edge tabs), MBestKing (`MBestKing/dotfiles`, gradient-as-brand).
+- *Powerline / segmented & per-module hue*: cjbassi (`cjbassi/config`, triple-clock + 4-arrow powerline), mxkrsv (`mxkrsv/dotfiles-old`, 10-arrow gradient chain), arkboix (`arkboix/sway`, palette stacking + stepped blink), jbauernberger (`gitlab.com/jbauernberger/dotfiles`, 16-shade Nord heatmap + COVID module), oscarcp (`git.sr.ht/~oscarcp/ghostfiles`, directional half-radius weld).
+- *Minimal / mono / flat*: mechakotik (`mechakotik/dots`, pure-black mono + glyph dots), elifouts (`elifouts/Dotfiles`), rocketmike12 (`rocketmike12/.dotfiles`, outlined-chip theme-as-folder), Robinhuett (`Robinhuett/dotfiles`, `.solo` backdrop + balanced underline), Senior-Ori (`Senior-Ori/dotfiles`, CFFI Rust ws-tabs), Egosummiki / sephid86 / Senior-Ori (red-accent transparent).
+- *Dock / dual-bar / OS-mimic*: cxOrz (`cxOrz/dotfiles-hyprland`, ChromeOS shelf + dot workspaces), kamlendras (macOS Sequoia), TheFrankyDoll (Win10), Bwc9876 (`Bwc9876/nix-conf`, dual-bar + `border-color`-as-state + Nix/nushell modules), EviLuci (`EviLuci/dotfiles`, vertical + old dual-bar + gradient border-image), qoheniac (`qoheniac/config`, dual-bar + split-network modules), Jan-Aarela (`Jan-Aarela/dotfiles`, indicator bar + skew tabs).
+- *Not reachable when surveyed* (left here so they aren't re-chased): cowboycodr/dotfiles, abdus/dotfiles, OriginCode/dotfiles (no waybar dir), tim3dman/.dotfiles, lgaboury/Sway-Waybar-Install-Script, DIvan2000 (gitea, auth-walled); genofire/toger5 gists are JSONC-only (no CSS to harvest).

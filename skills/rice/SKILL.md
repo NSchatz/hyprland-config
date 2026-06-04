@@ -75,13 +75,14 @@ organized **one group per component**. Walk every group and ask each of its sub-
 default first, skipping only what `$ARGUMENTS` or an existing config already answers. **`AskUserQuestion`
 accepts at most 4 questions per call**, so groups with more sub-questions than that **split across
 multiple consecutive calls** — do not drop or merge questions to fit. A from-scratch run should produce
-**roughly 19–24 calls** (if you've asked only a handful, you've collapsed groups — go ask the rest). The
+**roughly 21–26 calls** (if you've asked only a handful, you've collapsed groups — go ask the rest). The
 groups: **1** monitors · **2** input · **3** keybinds · **4** default apps · **5** terminal · **6** status
-bar · **7** launcher · **8** notifications · **9** lock screen · **10** window look & feel · **11** palette
-· **12** fonts · **13** wallpaper · **14** autostart & env · **15** companion configs · **16** shell &
-prompt (shell, prompt engine starship/oh-my-posh, fish colors, fetch). Groups 5–9 ask
-**full functional depth** (e.g. bar modules & layout, launcher behavior, notification rules) so the
-generated shell configs are usable, not just colored — don't pick a scheme, bar, or fonts silently. The
+bar **+ waybar design** · **7** launcher · **8** notifications · **9** lock screen · **10** window look &
+feel · **11** palette · **12** fonts · **13** wallpaper · **14** autostart & env · **15** companion configs
+· **16** shell & prompt (shell, prompt engine starship/oh-my-posh, fish colors, fetch). Groups 5–9 ask
+**full functional depth** (e.g. bar modules, **waybar design** — archetype/shape/transparency/workspace
+indicator/accent/motion — launcher behavior, notification rules) so the generated shell configs are
+usable, not just colored — don't pick a scheme, bar look, or fonts silently. The
 same interview serves re-theming (Mode B uses only groups 10–13: look & feel, palette, fonts, wallpaper)
 so the two never drift.
 
