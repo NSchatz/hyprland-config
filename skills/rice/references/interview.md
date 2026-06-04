@@ -46,13 +46,15 @@ if you've asked only a handful, you've collapsed groups incorrectly, go ask the 
 | 16 | Companion configs | ✓ | | 1 call |
 | 17 | **Shell & prompt** | ✓ | | 1–2 calls |
 | 18 | **Utilities & menus** | ✓ | | 1 call |
+| 19 | **Login & boot** | ✓ | | 1 call |
 
 Map every answer to its template: the **Hyprland-config** groups (monitors, input, keybinds, default
 apps, terminal, window look & feel, autostart, companion configs) → `config-templates.md`; the functional
 **bar/launcher/notification** configs → `../../desktop-shell/references/components.md`; the **desktop-widget
 shell** → its `styling/` page + the engine's widget template (`engine.md` → "Widget-shell theming"); the
 **shell/prompt** configs → `../../shell-config/references/shells.md`; the **utilities & menus** → their
-shipped scripts + binds (`utilities.md`); the **palette/fonts/wallpaper** groups
+shipped scripts + binds (`utilities.md`); the **login & boot** chrome → `login.md`; the
+**palette/fonts/wallpaper** groups
 (and the prompt/fish *colors*) → the rice engine's `palette.conf` (`engine.md`) which renders the colors.
 For *why a value looks good*, the styling library (`hyprland-reference/.../styling/`) backs each look
 choice; cite it when explaining.
@@ -530,3 +532,28 @@ watchers, nm-applet) is enabled in group 15. **Wi-Fi/Bluetooth** ship as the tra
 (robust) — don't hand-author fragile nmcli/bluetoothctl rofi parsers; see `utilities.md` for the
 keyboard-driven alternative. Name the package for any missing tool — never install. Validate
 `binds.conf` (`hyprctl reload` + `configerrors`) after writing.
+
+---
+
+## 19. Login & boot  *(dedicated group — generate only, root-side)*
+
+The login screen and boot splash are part of a full rice (HyDE/Omarchy theme them; most generators
+skip them). Unlike per-user configs these live under `/etc` and `/usr`, so changes need **root** — the
+plugin **generates the palette-matched files and hands the user the exact `sudo`/`sudoedit`
+commands**; Claude never sudos. Full recipes per tool: `login.md`. Detect the active manager first:
+`systemctl is-enabled greetd sddm gdm 2>/dev/null` (also surfaced by detection). Skip silently if the
+user only wants the per-user desktop.
+
+**19a. Theme the login screen & boot?** (multi-select; default off unless asked — it's root-side) —
+- **Greeter** *(pre-filled from the detected DM)* — greetd+tuigreet (theme flags), greetd+ReGreet (GTK,
+  matched to the desktop GTK theme), or SDDM (a `theme.conf`-editable theme like `sddm-astronaut` /
+  `sugar-candy` / a Catppuccin theme; SDDM is Qt — name the Qt deps). Generate colors from
+  `palette.conf`; provide the `sudo cp`/`sudoedit` lines.
+- **Plymouth** boot splash — a palette-matched theme in `/usr/share/plymouth/themes/`, set with
+  `plymouth-set-default-theme -R <theme>` (root).
+- **GRUB** theme — a theme in `/boot/grub/themes/` referenced by `GRUB_THEME=` in `/etc/default/grub`,
+  then `grub-mkconfig -o /boot/grub/grub.cfg` (root).
+
+These are coarse (palette-matched backgrounds, not live-regenerated on every re-theme) and entirely
+root-side: **generate the files, print the commands, never run them silently.** Note the package for
+any greeter/theme not installed.

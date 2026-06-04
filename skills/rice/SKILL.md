@@ -359,9 +359,9 @@ Set the wallpaper and optionally re-theme the whole desktop from it — the cano
 
 ## Resources
 
-- **`references/interview.md`** — the one unified question bank, one group per component (18 groups;
+- **`references/interview.md`** — the one unified question bank, one group per component (19 groups;
   re-theming reuses groups 11–14). Groups 5–10 (terminal/bar/widgets/launcher/notifications/lock) ask
-  full functional depth; group 18 (utilities & menus) ships functional scripts.
+  full functional depth; group 18 ships utility scripts, group 19 themes the login/boot chrome.
 - **`references/config-templates.md`** — annotated templates for every generated Hyprland file
   (Mode A): `env`/`monitors`/`input`/`looknfeel`/`binds`/`windowrules`/`autostart` + companion configs.
 - **`../desktop-shell/references/components.md`** — the functional shell-config recipes rice generates
