@@ -36,6 +36,15 @@ This component owns one key: `autostart_env.env`. The sibling keys under `autost
 - The NVIDIA set (`LIBVA_DRIVER_NAME`, `__GLX_VENDOR_LIBRARY_NAME`, `NVD_BACKEND`) is valid only
   when `NVIDIA_PROPRIETARY=1` from `detect-version.sh`. The validator checks the combination;
   see `gotchas.md`.
+- `ELECTRON_OZONE_PLATFORM_HINT` is **not** part of the NVIDIA gate — the Hyprland NVIDIA wiki
+  presents it as a generic Electron-flicker fix, "safe on any GPU". The validator does **not**
+  warn on it under mesa.
+- `XCURSOR_THEME` and `HYPRCURSOR_THEME` must appear **as a pair** if either is present (one
+  half makes XWayland/GTK and native-Hyprland disagree — see `gotchas.md` and `gtk-qt.md`).
+- `GTK_THEME` in this list is a smell: GTK theming should go through `gsettings` (the engine
+  writes that) and the `gtk-4.0/gtk.css` `@define-color` block. The validator flags it but does
+  not reject — Matt-FTW ships `env = GTK_THEME,catppuccin-…` because their rice is a single
+  hand-curated theme; under matugen/wallust the value would be stale on the next palette flip.
 - `GBM_BACKEND`, `WLR_NO_HARDWARE_CURSORS`, `WLR_DRM_NO_ATOMIC`, and `AQ_NO_ATOMIC` must
   **not** appear — they're explicitly out of the 2026 slim NVIDIA set. The `WLR_*` ones are
   no-ops on modern Hyprland (aquamarine, not wlroots). The validator flags them as a warning
