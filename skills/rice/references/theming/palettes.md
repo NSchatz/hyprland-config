@@ -14,6 +14,32 @@ For `color0..15`, Catppuccin Mocha's full mapping is given as the reference patt
 schemes, map `color1..6` = `red green yellow blue magenta cyan`, `color0`=bg-ish, `color7/15`=fg-ish,
 `color8`=`muted`, bright `9..14` ≈ the same hues (mode-aware).
 
+## How the corpus ships schemes
+
+Cross-referenced against the corpus (`.research/corpus.md`), the rices fall into four scheme-supply
+patterns. Knowing which pattern a user came from helps the interview surface a coherent default.
+
+| Pattern | Rices | Default scheme | Fallback bank |
+|---|---|---|---|
+| **Matugen-only (no fallback bank)** | end-4, mylinuxforwork, dusky, Ax-Shell, binnewbs, koeqaife/HyprYou (matugen-like) | derived from wallpaper at install | none — image required (HyprYou ships a default tonal image) |
+| **Matugen + curated theme bank** | HyprPanel (`themes/*.json`), DankMaterialShell (matugen-orchestrated) | matugen (auto) | HyprPanel: catppuccin × {mocha/macchiato/frappe/latte} × {plain/split/vivid}, cyberpunk, dracula, everforest, gruvbox, monochrome, nord, one_dark, rose_pine + rose_pine_moon, tokyo_night + tokyo_night_moon (× 3 variants each ≈ 42 JSONs) |
+| **Wallust (16-color extraction)** | JaKooLit | wallust `dark16` from wallpaper | static kitty-themes bank (hundreds of files: 3024, Catppuccin, Solarized, Dracula, …); GTK/SDDM driven separately |
+| **Hand-rolled scheme JSONs** | noctalia-shell (`Assets/ColorScheme/*.json`), caelestia, HyDE (wallbash `.dcol`) | named | noctalia: Ayu, Catppuccin, Dracula, Eldritch, Gruvbox, Kanagawa, Noctalia-default, Nord, Rosepine, Tokyo-Night. HyDE-gallery: 200+ named themes (Catppuccin Mocha, Dracula, Decay Green, Edge Runner, …) |
+| **Single-theme** | linuxmobile (Rose Pine), Matt-FTW (Catppuccin), flickowoa (theme.conf bank) | one theme | swap by editing `theme.conf` / file include |
+
+Takeaways:
+
+- The 12 schemes we ship cover every named theme the matugen-bank rices ship except `cyberpunk`,
+  `monochrome`, `one_dark`, and the Catppuccin/Rosé Pine/Tokyo Night `_split`/`_vivid`/`_moon`
+  variants. Adding `tokyo-night-moon` and `rose-pine-moon` would line up with HyprPanel's bank — flag
+  for the orchestrator.
+- HyDE's wallbash is **not** a named-scheme system — it derives every theme from a wallpaper using
+  its own HSV-curve engine (`wallbashCustomCurve` in `Configs/.config/hyde/hyde.conf`). Importing a
+  HyDE rice means picking the wallpaper-generated path, not a named scheme.
+- JaKooLit's static kitty bank (`config/kitty/kitty-themes/*.conf`) is **terminal-only** — it does
+  not re-theme the bar/launcher/notification surfaces, so a user who has been "using nord on kitty"
+  via JaKooLit is still wallust-driven everywhere else.
+
 ## Core palette catalog (dark schemes)
 
 | Scheme | bg | fg | surface | muted | cursor | accent | accent2 |
@@ -70,6 +96,79 @@ Notes:
   (`6c71c4`) and orange (`cb4b16`) — a deliberate low-contrast design (Ethan Schoonover). Do not
   rebrighten on the dark variant.
 
+## Mapping richer scheme catalogs onto the 12-key contract
+
+Several upstream scheme systems ship more named tokens than our 12-key contract. The mapping
+strategy below is what the corpus rices actually do (cross-checked against the noctalia /
+DankMaterialShell / HyprPanel JSONs).
+
+### Catppuccin (26 named colors → 12 keys)
+
+Catppuccin's palette is `rosewater sky sapphire blue lavender mauve red maroon peach yellow green
+teal flamingo pink + base mantle crust + text subtext0 subtext1 surface0 surface1 surface2 overlay0
+overlay1 overlay2`. The corpus collapse:
+
+| Catppuccin token | Our key |
+|---|---|
+| `base` | `bg` |
+| `text` | `fg` |
+| `surface0` (or `surface1` for cards) | `surface` |
+| `overlay0` / `overlay1` | `muted` |
+| `rosewater` | `cursor` |
+| `mauve` (or `blue` on accent2 swap) | `accent` |
+| `blue` | `accent2` |
+| `red`/`green`/`yellow`/`blue`/`pink`/`teal` | `red green yellow blue magenta cyan` |
+| `surface1` | `color0` (ANSI black) |
+| `subtext0` | `color7` (ANSI white) |
+| `surface2` | `color8` (ANSI bright-black) |
+| `subtext1` | `color15` (ANSI bright-white) |
+
+Mantle/crust/peach/maroon/flamingo/lavender/sapphire/sky/overlay2 are dropped — apps that want them
+re-derive via CSS `alpha()`/`color-mix()` from the kept tokens (noctalia: `mPrimary` opaqued for
+focus rings; waybar: `alpha(@accent, 0.4)` for hover).
+
+### Material You / Material 3 (40+ M3 roles → 12 keys)
+
+DankMaterialShell's `matugen/templates/*` is the canonical mapping for M3 → our contract (the
+template in our tree, `palette.matugen.tmpl`, already follows it):
+
+| M3 role | Our key |
+|---|---|
+| `surface` (or `surface_container_low`) | `bg` |
+| `on_surface` | `fg` |
+| `surface_container` (or `surface_container_high`) | `surface` |
+| `outline` | `muted`, `color8` |
+| `primary` | `accent`, `cursor` |
+| `secondary` | `accent2`, `yellow` |
+| `tertiary` | `green`, `magenta` |
+| `error` | `red` |
+| `on_surface_variant` | `color7` |
+| `on_surface` | `color15` |
+
+ANSI `color1..6` becomes lossy because M3 has only 3 "named" hues (primary/secondary/tertiary) plus
+error. **DankMaterialShell's workaround**: it injects a separate `dank16` namespace into matugen's
+import data at runtime (`generateDank16Variants` in `core/internal/matugen/`), letting templates
+write `{{dank16.color3.default.hex}}` for ANSI cells and `{{colors.primary.default.hex}}` for
+M3 roles. Our `palette.matugen.tmpl` currently duplicates `error/tertiary/secondary` across the ANSI
+slots — this is the "MD3 → ANSI is **approximate**" caveat (already flagged in `wallpaper.md`).
+If the orchestrator wants terminal-accurate matugen output, the path is to adopt a `dank16`-style
+sidecar generator. **Flagged for theming-architecture.md**, not a key change.
+
+### Wallust / pywal (true 16 colors)
+
+Wallust extracts `color0..15` directly from the wallpaper (palette modes `dark`, `dark16`,
+`harddark`, `harddark16`, `softdark`, `softdark16`, `light`, `light16`, `softlight`, `softlight16`).
+Trivial map: `color0..15` straight through, `bg=background`, `fg=foreground`, `cursor=cursor`,
+`accent=color4` (or `color5`), `accent2=color6`. Named hues are derived (`red=color1`, etc.) — see
+`palette-from-wallpaper.sh` and JaKooLit's `wallust/templates/colors-waybar.css`.
+
+### Noctalia / hand-rolled JSON
+
+Noctalia's JSON shape is M3-flavored (`mPrimary mOnPrimary mSecondary … mOutline mShadow mHover`)
+plus a nested `terminal.{normal,bright}.{black red green yellow blue magenta cyan white}` and
+`terminal.{background,foreground,cursor}` block. That **already separates** UI roles from ANSI cells
+the way DMS's `dank16` does — a clean reference design for any future matugen sidecar work.
+
 ## Catppuccin Mocha — full `color0..15` reference
 
 Use this as the template for the other schemes (map `color1..6` = `red green yellow blue magenta
@@ -116,10 +215,56 @@ SCSS with `sassc` (`themes/build.sh` + `install.sh -d ~/.local/share/themes -c d
 Full recipe + the `GTK_THEME`-env / cursor gotchas → see
 [`theming-architecture.md`](theming-architecture.md) → "GTK gotchas".
 
+## Gaps surfaced by the deep-research pass
+
+These are findings the orchestrator should triage — not changes this doc made unilaterally.
+
+### No high-contrast scheme exists in any corpus rice
+
+The accessibility deep-research agent surveyed all 19 corpus rices and confirmed **none** ships a
+high-contrast palette. The matugen-bank rices (HyprPanel, DMS, end-4, ML4W, dusky) optimize for
+Material You aesthetic contrast (~3.5–4.5:1, AA only for large text); the static-scheme rices ship
+the upstream theme as-published — Catppuccin Mocha hits ~5–6:1 (AA body, not AAA), Gruvbox ~7:1
+(AAA only between the darkest and lightest tokens), Tokyo Night ~4.5:1.
+
+A `high-contrast-dark` / `high-contrast-light` scheme entry would need:
+- Forced **WCAG-AAA** contrast (≥ 7:1 normal text, ≥ 4.5:1 large text) on every `fg`-vs-`bg` and
+  `accent`-vs-`bg` pairing. The other 12 schemes' `muted` token typically drops below 4.5:1 against
+  `bg` — that token would have to be deliberately brightened or removed for the high-contrast
+  variant.
+- A **fixed accent** (e.g. pure `ffff00` for dark, `0000ff` for light) that doesn't drift across
+  wallpapers — i.e. the scheme must **opt out of the matugen path** (`scheme=high-contrast-*` means
+  `rice wallpaper` should skip `palette-from-wallpaper.sh` and keep the fixed palette).
+- A note that GTK4 / libadwaita already exposes its own AccessibleHighContrast preference; setting
+  ours overrides any system one for our rendered components.
+
+**Flagged for orchestrator decision** — adding a new `scheme` enum value ripples into:
+- `_shared/palette-schema.md` (the `scheme=` comment lists the legal values),
+- `palettes.md` (a new row in the catalog table),
+- `components/widgets/interview.md` (the palette-pick AskUserQuestion list),
+- `wallpaper.md` (an `any`-bucket wallpaper for high-contrast, or skip-wallpaper note),
+- `palette-from-wallpaper.sh` (must early-return when `scheme=high-contrast-*`).
+
+### Adjacent: no `font_ui_scale` metadata key
+
+Accessibility agent also noted no rice exposes a shared per-rice font-scale knob (DMS's settings
+.json has one but it's local to DMS). Not a palette key — `font_ui` already carries the size — but
+calling it out here so the next pass on `fonts.md` can decide whether to add `font_ui_scale` as a
+multiplier metadata key alongside `font_ui` / `font_mono`.
+
+### Adjacent: Material 3 motion curves are not colors
+
+Widgets agent observed that M3 ships standard motion curves (standard/emphasized/accel/decel) which
+DMS and noctalia bake into their shells. Not palette keys — but if `palettes.md` ever expands to "what
+comes with each scheme", they belong in [`theming-architecture.md`](theming-architecture.md), not
+here.
+
 ## Cross-references
 
 - Palette key list and `palette.conf` schema → [`_shared/palette-schema.md`](../_shared/palette-schema.md).
 - Per-component colors variable names → [`_shared/colors-contract.md`](../_shared/colors-contract.md).
 - Wallpapers tagged per scheme → [`wallpaper.md`](wallpaper.md) → "Curated theme wallpapers".
+- Matugen MD3 mapping and the `dank16` sidecar pattern → [`wallpaper.md`](wallpaper.md) → "Dynamic
+  theming"; the engine template is [`palette.matugen.tmpl`](palette.matugen.tmpl).
 - The interview asks the palette pick at component 12 (see
   [`_interview-protocol.md`](../_interview-protocol.md) → "Components walked").
