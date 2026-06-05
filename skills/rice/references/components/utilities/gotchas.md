@@ -94,3 +94,61 @@ component already emitted it. Same `hyprsunset` package in the install batch (de
 
 Both are part of the Hyprland project and follow the same release cadence. They are stable across
 the version cliffs documented in `_shared/version-matrix.md`; no branching needed here.
+
+## wlogout: layer-shell namespace is `logout_dialog` (for the blur layerrule)
+
+When wlogout is compiled with `gtk-layer-shell` (the standard Arch package config), it sets the
+layer-shell namespace to **`logout_dialog`** (`ArtsyMacaw/wlogout:main.c` →
+`gtk_layer_set_namespace(win, "logout_dialog")`). To get a translucent backdrop *with* a blurred
+background of the desktop behind it (the corpus default), the `window-rules` component must emit:
+
+```ini
+layerrule = blur, logout_dialog
+layerrule = ignorezero, logout_dialog
+```
+
+The translucency in `style.css` (`alpha(@bg, 0.85)`) alone gives you a frosted-glass *color*; the
+`layerrule` is what actually blurs the pixels of whatever is under wlogout. Without it the
+desktop just shows through, tinted. This is the same pattern `window-rules` already does for
+launcher/notification daemons — extend it to `logout_dialog`. Flag for `window-rules` agent.
+
+If wlogout was compiled without layer-shell support (rare — only some BSDs / minimal builds), it
+falls back to xdg-shell and the layerrule has no effect; CSS `alpha()` is then the only knob.
+Probe with `wlogout --help` — the `--protocol` flag is only present when layer-shell support is
+compiled in.
+
+## wlogout: prefer `hyprctl dispatch exit 0` over `loginctl terminate-user`
+
+The upstream wlogout default `layout` file's logout button runs `loginctl terminate-user $USER`,
+which ends **every session for that user** — including TTY logins and SSH connections. On a
+single-seat desktop this is usually fine, but if the user is debugging Hyprland from a TTY or
+has an SSH session open from another machine, the upstream default kills those too. The corpus
+majority (`hyprctl dispatch exit 0`) exits Hyprland cleanly and leaves other sessions intact —
+that's the default our recipe ships. See `template.md` "wlogout — layout".
+
+## wlogout `layout` is JSON-lines, NOT a JSON array
+
+`man 5 wlogout` specifies the layout as a sequence of bare `{ … }` objects separated by
+whitespace — no surrounding `[ … ]`, no commas between objects. Writers tempted to JSON-encode
+the whole list with `jq -n '[…]'` will produce a file the parser rejects with a cryptic
+"missing key" error on line 1. The shipped recipe's blocks are literal — emit them with a
+heredoc, not a JSON encoder.
+
+## swayosd is NOT in any top-corpus rice as of 2026-06
+
+Searched the top 19 active rices: none ship a `swayosd/` directory at HEAD. HyDE explicitly
+*auto-detects* swayosd at runtime in `Configs/.local/share/bin/volumecontrol.sh` ("Check if
+SwayOSD is installed" — falls back to `notify-send` when absent), but does not ship a config.
+The corpus default for volume/brightness OSDs is still **bar-rendered indicators** (waybar
+`pulseaudio`/`backlight` modules, Quickshell's `OSD.qml`) plus `notify-send`-driven toast
+fallback. If the user wants swayosd, they install it standalone — there is no themed config to
+copy. This is why `swayosd` is in `packages.md` (so the brightness keybind can use
+`swayosd-client`) but NOT in `interview.md` as a selectable utility.
+
+## wlogout.tmpl coherence rule
+
+The four `@define-color` lines in `wlogout.tmpl` (`bg fg accent surface`) are exactly the set
+`_shared/colors-contract.md` declares for wlogout, **and** they are exactly what `template.md`'s
+`style.css` consumes (`@bg`, `@fg`, `@accent`, `@surface`). If you add a new var to either, add
+it to both. v0.13 fixed a class of bug where `.tmpl` exports drifted from `template.md` usage —
+guard against that here by walking the four names whenever you touch either file.

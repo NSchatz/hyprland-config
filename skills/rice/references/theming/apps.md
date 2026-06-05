@@ -20,7 +20,7 @@ per-component `template.md` files. A short index:
 | waybar | `components/waybar/` | `~/.config/waybar/colors.css` (`@import`) | `killall -SIGUSR2 waybar` |
 | wofi / rofi / fuzzel | `components/launcher/` | colors.css / colors.rasi / `[colors]` merge | (launch) |
 | mako / dunst / swaync | `components/notifications/` | colors merge / `colors.css` | `makoctl/dunstctl/swaync-client -rs` |
-| wlogout | `components/lock-screen/` | `~/.config/wlogout/colors.css` (`@import`) | (launch) |
+| wlogout | `components/utilities/` | `~/.config/wlogout/colors.css` (`@import`) | (launch) |
 | gtk4 | `components/look-feel/` | `~/.config/gtk-4.0/gtk.css` (the file itself) | live |
 | btop / cava | `components/utilities/` | merged into app config | restart |
 | starship / oh-my-posh / fish | `components/shell-prompt/` | rice-owned config; `STARSHIP_CONFIG`/init | live |
