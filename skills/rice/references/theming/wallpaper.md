@@ -153,6 +153,17 @@ If no generator is installed, set the wallpaper and pick a **named/manual** pale
 instead; suggest installing `matugen` (or `wallust`) for automatic extraction. Detection:
 `scripts/detect-theme-tools.sh`.
 
+### High-contrast schemes opt out of derivation
+
+When `scheme` is `high-contrast-dark` or `high-contrast-light`,
+`palette-from-wallpaper.sh` **early-returns** — the whole point of high-contrast is a fixed
+WCAG-AAA palette that doesn't drift across wallpapers. The script keeps the fixed palette
+intact and just updates the `wallpaper=` line so the user still sees the wallpaper they
+picked (the matugen path is skipped). `render-templates.sh` still re-applies the existing
+high-contrast palette to all surfaces. To leave high-contrast and resume derivation, switch
+scheme first: `rice scheme catppuccin-mocha && rice wallpaper <img>`. See
+[`palettes.md`](palettes.md) → "High-contrast schemes" for the AAA rationale.
+
 ### matugen 4.x configuration
 
 matugen 4.x **requires** the `[config]` table in `~/.config/matugen/config.toml`; the bare

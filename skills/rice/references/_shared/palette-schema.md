@@ -32,7 +32,11 @@ color8  color9  color10 color11 color12 color13 color14 color15
 ## Metadata keys
 
 ```
-scheme          # "catppuccin-mocha" | "manual" | "wallpaper" | "tokyo-night" | …
+scheme          # "catppuccin-mocha" | "gruvbox" | "nord" | "tokyo-night" | "rose-pine"
+                # | "dracula" | "everforest" | "kanagawa" | "solarized-dark"
+                # | "catppuccin-latte" (light)
+                # | "high-contrast-dark" | "high-contrast-light"  (WCAG-AAA; opt out of matugen)
+                # | "manual" | "wallpaper"
 wallpaper       # absolute path to the current wallpaper (or empty)
 font_ui         # "Inter 11"  (family + size — size is meaningful for hyprlock)
 font_mono       # "JetBrainsMono Nerd Font 11"

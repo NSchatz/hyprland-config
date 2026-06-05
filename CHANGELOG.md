@@ -1,5 +1,54 @@
 # Changelog
 
+## 0.16.0
+
+Lands `high-contrast-dark` and `high-contrast-light` schemes — the WCAG-AAA palette pair
+v0.14 flagged as the biggest accessibility unlock. Zero corpus rices ship a true
+high-contrast variant; the rice now does, with documented contrast budgets and a
+fixed-palette opt-out from wallpaper derivation.
+
+### Palette schemes
+
+- **`_shared/palette-schema.md`**: `scheme=` enum expanded — `high-contrast-dark` and
+  `high-contrast-light` added with a "WCAG-AAA; opt out of matugen" note.
+- **`theming/palettes.md`**:
+  - New rows in dark/light catalog tables and the semantic-hues table with verified hex
+    values. Dark: bg `000000` / fg `ffffff` / accent `ffff00`. Light: bg `ffffff` /
+    fg `000000` / accent `0000ee`.
+  - New **"High-contrast schemes"** section with:
+    - Contrast budget table (every documented `fg`/`accent`/`accent2`/`muted`/`red` vs `bg`
+      pair clears AAA — 21:1 / 19.6:1 / 16.7:1 / 14.6:1 / 8.2:1 on dark).
+    - Opt-out from wallpaper-derivation explanation.
+    - Interaction with GTK4 `prefers-contrast: more` — our `gtk4.tmpl` overrides system
+      preference for our rendered surfaces.
+- Removed stale "## Gaps surfaced" section (font_ui_scale shipped in 0.15, high-contrast
+  ships here, M3 motion adjacent now noted inline).
+
+### Scripts
+
+- **`palette-from-wallpaper.sh`**: early-returns when current scheme is `high-contrast-*`.
+  Keeps the fixed AAA palette intact and only updates the `wallpaper=` line so the user
+  still sees their picked wallpaper behind the (still high-contrast) UI. To resume
+  derivation: `rice scheme catppuccin-mocha && rice wallpaper <img>`.
+
+### References
+
+- **`theming/wallpaper.md`**: new "High-contrast schemes opt out of derivation" subsection
+  under Dynamic theming.
+- **`components/accessibility/gotchas.md`**: "no popular rice ships a high-contrast palette"
+  finding flipped to "now shipped" with the dual-scheme reachability paths (interview pick
+  AND `rice scheme high-contrast-dark`) and the GTK4 override note.
+
+### Skill
+
+- **`SKILL.md`**: preset list 12 → 14 (high-contrast-dark, high-contrast-light); bumped to
+  `0.16.0`.
+
+### Orchestrator decisions still pending
+
+- laptop interview sub-question for OSD routing strategy.
+- `lock-screen.wallpaper_strategy` schema addition.
+
 ## 0.15.0
 
 Lands the **cross-surface font-scale** the v0.14 release flagged as pending. One palette

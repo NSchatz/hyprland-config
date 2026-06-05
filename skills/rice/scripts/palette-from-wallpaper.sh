@@ -13,6 +13,23 @@ case "$img" in "~"*) img="${HOME}${img#\~}";; esac
 [ -f "$img" ] || { echo "ERROR: no such image: $img" >&2; exit 2; }
 pal="$RICE_DIR/palette.conf"
 
+# High-contrast schemes opt out of wallpaper-driven derivation by design — the whole point
+# is a fixed WCAG-AAA palette regardless of the wallpaper's colors. Keep the fixed palette
+# but record the new wallpaper path so re-renders preserve it and the user sees the wallpaper
+# they picked behind the (still high-contrast) UI. To leave high-contrast, switch scheme
+# first (`rice scheme catppuccin-mocha`), then re-pick a wallpaper.
+if [ -f "$pal" ]; then
+    current_scheme="$(awk -F= '$1=="scheme"{print $2; exit}' "$pal" 2>/dev/null)"
+    case "$current_scheme" in
+        high-contrast-*)
+            # Update only the wallpaper= line; everything else stays put.
+            tmp="$pal.new"
+            awk -F= -v wp="$img" 'BEGIN{seen=0} $1=="wallpaper"{print "wallpaper="wp; seen=1; next} {print} END{if(!seen) print "wallpaper="wp}' "$pal" > "$tmp" && mv "$tmp" "$pal"
+            echo "PALETTE=skipped (scheme=$current_scheme — fixed AAA palette; wallpaper recorded)"
+            exit 0 ;;
+    esac
+fi
+
 # --- matugen (Material You): render palette.conf via matugen's own template, then strip '#'. ---
 if command -v matugen >/dev/null 2>&1; then
     tmpl="$RICE_DIR/templates/palette.matugen.tmpl"

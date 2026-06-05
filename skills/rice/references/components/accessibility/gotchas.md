@@ -123,24 +123,34 @@ installed by the palette/theming pipeline. But when the installer copies a theme
 user's home, prefer `~/.local/share/icons/<name>/`. Themes shipped as Arch packages land in
 `/usr/share/icons/<name>/` and that's fine (pacman manages them).
 
-## No popular rice ships a high-contrast palette mode
+## High-contrast palette mode (now shipped: `high-contrast-dark` / `high-contrast-light`)
 
-A corpus survey (HyprPanel themes, noctalia `Assets/ColorScheme/`, HyDE themes, Matt-FTW,
+The corpus survey (HyprPanel themes, noctalia `Assets/ColorScheme/`, HyDE themes, Matt-FTW,
 caelestia, ML4W matugen templates, end-4 matugen templates, dusky theme variants) found **zero**
-rices shipping a true high-contrast / WCAG-AA palette variant. Every named scheme is aesthetic
-(Catppuccin/Dracula/Rose Pine/Tokyo Night/Gruvbox/Material-You-from-wallpaper). HyprPanel ships
-`_vivid` variants but those bump saturation, not contrast.
+rices shipping a true high-contrast / WCAG-AAA palette variant. Every corpus scheme is aesthetic
+(Catppuccin/Dracula/Rose Pine/Tokyo Night/Gruvbox/Material-You-from-wallpaper); HyprPanel's
+`_vivid` variants bump saturation, not contrast.
 
-This means a re-theme with the rice's matugen scheme cannot satisfy a low-vision user the way
-GNOME's Adwaita-Dark high-contrast or KDE's Breeze-HighContrast can. The rice does not currently
-expose a "high-contrast" palette option — see `theming/palettes.md`. **Flag for orchestrator**:
-if the plugin wants to compete on accessibility, adding a `high-contrast` named palette (e.g.
-pure `#000000` / `#ffffff` with desaturated semantic colors at >= 7:1 contrast) is a real
-differentiator — but it has to land as a new entry in `theming/palettes.md` and a new value of
-the `scheme` metadata key, NOT inside this component.
+**Now implemented** (v0.16+): two new `scheme` values — `high-contrast-dark` (pure black bg,
+pure white fg, yellow accent — 21:1 fg/bg, 19.6:1 accent/bg) and `high-contrast-light` (pure
+white bg, black fg, deep blue accent — 21:1 fg/bg, 14.4:1 accent/bg). Every documented pair
+clears WCAG-AAA (≥ 7:1) — see [`theming/palettes.md`](../../theming/palettes.md) →
+"High-contrast schemes" for the full contrast budget.
 
-The `accessibility` interview deliberately does **not** offer a high-contrast switch today,
-because the rice can't fulfil it. Don't promise what we can't deliver.
+Reachable two ways:
+- **Scheme picker** during from-scratch interview (group 12 palette) — high-contrast-dark and
+  high-contrast-light appear as options alongside Catppuccin/Gruvbox/etc.
+- **`rice scheme high-contrast-dark`** as an in-flight switch.
+
+High-contrast opts out of the wallpaper-derived palette path (the fixed AAA accent must not
+drift). Wallpaper still displays — `palette-from-wallpaper.sh` early-returns when scheme is
+`high-contrast-*` and only updates the recorded `wallpaper=` line. See
+[`../../theming/wallpaper.md`](../../theming/wallpaper.md) → "High-contrast schemes opt out
+of derivation".
+
+Complement to system-level high-contrast: GTK4/libadwaita has its own AccessibleHighContrast
+preference (`prefers-contrast: more`). When our scheme is set, `gtk4.tmpl` writes a high-contrast
+`@define-color` block regardless — overriding the system preference for our rendered surfaces.
 
 ## Shared font-scale variable (now exposed: `font_ui_scale`)
 

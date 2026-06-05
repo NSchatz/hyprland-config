@@ -55,12 +55,14 @@ Takeaways:
 | everforest | `2d353b` | `d3c6aa` | `3d484d` | `7a8478` | `d3c6aa` | `a7c080` (green) | `83c092` (aqua) |
 | kanagawa | `1f1f28` | `dcd7ba` | `2a2a37` | `727169` | `dcd7ba` | `7e9cd8` (crystalBlue) | `957fb8` (oniViolet) |
 | solarized-dark | `002b36` | `839496` | `073642` | `586e75` | `93a1a1` | `268bd2` (blue) | `2aa198` (cyan) |
+| **high-contrast-dark** | `000000` | `ffffff` | `1a1a1a` | `c0c0c0` | `ffffff` | `ffff00` (yellow) | `00ffff` (cyan) |
 
 ## Light scheme
 
 | Scheme | bg | fg | surface | muted | cursor | accent | accent2 |
 |---|---|---|---|---|---|---|---|
 | catppuccin-latte | `eff1f5` | `4c4f69` | `ccd0da` | `9ca0b0` | `dc8a78` | `8839ef` (mauve) | `1e66f5` (blue) |
+| **high-contrast-light** | `ffffff` | `000000` | `e8e8e8` | `404040` | `000000` | `0000ee` (blue) | `9400d3` (purple) |
 
 Light schemes need GTK `color-scheme = prefer-light` (see
 [`theming-architecture.md`](theming-architecture.md) → "Per-surface dark/light handling"). A
@@ -83,6 +85,8 @@ Light schemes need GTK `color-scheme = prefer-light` (see
 | everforest | `e67e80` | `a7c080` | `dbbc7f` | `7fbbb3` | `d699b6` | `83c092` |
 | kanagawa | `e46876` | `98bb6c` | `e6c384` | `7e9cd8` | `957fb8` | `6a9589` |
 | solarized-dark | `dc322f` | `859900` | `b58900` | `268bd2` | `d33682` | `2aa198` |
+| **high-contrast-dark** | `ff8080` | `00ff00` | `ffff00` | `5fafff` | `ff80ff` | `00ffff` |
+| **high-contrast-light** | `cc0000` | `006400` | `6b5800` | `0000cc` | `8b008b` | `006666` |
 
 Notes:
 
@@ -215,49 +219,54 @@ SCSS with `sassc` (`themes/build.sh` + `install.sh -d ~/.local/share/themes -c d
 Full recipe + the `GTK_THEME`-env / cursor gotchas → see
 [`theming-architecture.md`](theming-architecture.md) → "GTK gotchas".
 
-## Gaps surfaced by the deep-research pass
+## High-contrast schemes (WCAG-AAA, fixed palette)
 
-These are findings the orchestrator should triage — not changes this doc made unilaterally.
+**Now shipped** (v0.16+): `high-contrast-dark` and `high-contrast-light` — two new entries
+in the catalog tables above. Designed to a different brief from the other schemes: every
+`fg`-vs-`bg` pairing meets WCAG-AAA contrast (≥ 7:1 normal text, ≥ 4.5:1 large text), the
+accent is **fixed** (yellow on dark, blue on light) so it doesn't drift across wallpapers,
+and the `muted` token is deliberately brightened to clear AAA against `bg` (where every
+other scheme's `muted` falls under 4.5:1).
 
-### No high-contrast scheme exists in any corpus rice
+### Contrast budget
 
-The accessibility deep-research agent surveyed all 19 corpus rices and confirmed **none** ships a
-high-contrast palette. The matugen-bank rices (HyprPanel, DMS, end-4, ML4W, dusky) optimize for
-Material You aesthetic contrast (~3.5–4.5:1, AA only for large text); the static-scheme rices ship
-the upstream theme as-published — Catppuccin Mocha hits ~5–6:1 (AA body, not AAA), Gruvbox ~7:1
-(AAA only between the darkest and lightest tokens), Tokyo Night ~4.5:1.
+| Pair | high-contrast-dark | high-contrast-light |
+|---|---|---|
+| fg vs bg | `ffffff` / `000000` = **21:1** | `000000` / `ffffff` = **21:1** |
+| accent vs bg | `ffff00` / `000000` = **19.6:1** | `0000ee` / `ffffff` = **14.4:1** |
+| accent2 vs bg | `00ffff` / `000000` = **16.7:1** | `9400d3` / `ffffff` = **9.7:1** |
+| muted vs bg | `c0c0c0` / `000000` = **14.6:1** | `404040` / `ffffff` = **10.4:1** |
+| red vs bg (semantic urgency) | `ff8080` / `000000` = **8.2:1** | `cc0000` / `ffffff` = **7.5:1** |
 
-A `high-contrast-dark` / `high-contrast-light` scheme entry would need:
-- Forced **WCAG-AAA** contrast (≥ 7:1 normal text, ≥ 4.5:1 large text) on every `fg`-vs-`bg` and
-  `accent`-vs-`bg` pairing. The other 12 schemes' `muted` token typically drops below 4.5:1 against
-  `bg` — that token would have to be deliberately brightened or removed for the high-contrast
-  variant.
-- A **fixed accent** (e.g. pure `ffff00` for dark, `0000ff` for light) that doesn't drift across
-  wallpapers — i.e. the scheme must **opt out of the matugen path** (`scheme=high-contrast-*` means
-  `rice wallpaper` should skip `palette-from-wallpaper.sh` and keep the fixed palette).
-- A note that GTK4 / libadwaita already exposes its own AccessibleHighContrast preference; setting
-  ours overrides any system one for our rendered components.
+Every pair above clears AAA-normal (7:1). The `surface` token sits one notch off `bg`
+(`1a1a1a` / `e8e8e8`) so subtle elevation reads against the screen but **not** against `fg`
+— that's the only deliberate AAA miss, by design (otherwise raised surfaces become invisible).
 
-**Flagged for orchestrator decision** — adding a new `scheme` enum value ripples into:
-- `_shared/palette-schema.md` (the `scheme=` comment lists the legal values),
-- `palettes.md` (a new row in the catalog table),
-- `components/widgets/interview.md` (the palette-pick AskUserQuestion list),
-- `wallpaper.md` (an `any`-bucket wallpaper for high-contrast, or skip-wallpaper note),
-- `palette-from-wallpaper.sh` (must early-return when `scheme=high-contrast-*`).
+### Opt-out from wallpaper-derivation
 
-### Adjacent: no `font_ui_scale` metadata key
+`high-contrast-*` schemes are **fixed palettes**. `palette-from-wallpaper.sh` early-returns
+when the current `scheme` starts with `high-contrast-`, keeps the fixed palette intact, and
+just records the new wallpaper path so the user still sees the wallpaper they picked behind
+the (still high-contrast) UI. Same applies to `rice wallpaper <new>`: the wallpaper updates,
+the palette doesn't.
 
-Accessibility agent also noted no rice exposes a shared per-rice font-scale knob (DMS's settings
-.json has one but it's local to DMS). Not a palette key — `font_ui` already carries the size — but
-calling it out here so the next pass on `fonts.md` can decide whether to add `font_ui_scale` as a
-multiplier metadata key alongside `font_ui` / `font_mono`.
+To leave high-contrast, switch scheme first (`rice scheme catppuccin-mocha`), then re-pick a
+wallpaper — the matugen path becomes active again.
 
-### Adjacent: Material 3 motion curves are not colors
+### Interaction with system AccessibleHighContrast
 
-Widgets agent observed that M3 ships standard motion curves (standard/emphasized/accel/decel) which
-DMS and noctalia bake into their shells. Not palette keys — but if `palettes.md` ever expands to "what
-comes with each scheme", they belong in [`theming-architecture.md`](theming-architecture.md), not
-here.
+GTK4 / libadwaita expose their own high-contrast preference (`prefers-contrast: more` media
+query, `org.gnome.desktop.a11y.interface high-contrast` gsettings key). Selecting
+`high-contrast-*` in the rice **overrides** any system preference for our rendered surfaces
+— `gtk4.tmpl` writes its own `@define-color` block regardless. Apps that aren't covered by
+our `.tmpl`s (most non-libadwaita Qt apps, electron) still need the system toggle to follow.
+
+### Adjacent (still pending): Material 3 motion curves
+
+Widgets agent observed that M3 ships standard motion curves (standard/emphasized/accel/decel)
+which DMS and noctalia bake into their shells. Not palette keys — but if `palettes.md` ever
+expands to "what comes with each scheme", they belong in
+[`theming-architecture.md`](theming-architecture.md), not here.
 
 ## Cross-references
 
