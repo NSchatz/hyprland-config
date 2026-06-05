@@ -16,8 +16,9 @@ two components share the `autostart_env` top-level key in `answers.json` — `en
 |---|---|
 | `interview.md` | Call 2 of group 15 — the env-var multi-select sub-question. Cross-link to `../autostart/interview.md` for call 1. |
 | `schema.md` | The `autostart_env.env` slice (string array of `"NAME,value"` entries). |
-| `template.md` | The full `env.conf` template — cursor, toolkit, Qt theme, session, Firefox-Wayland, the NVIDIA proprietary block. |
-| `gotchas.md` | NVIDIA-driver gating, uwsm `~/.config/uwsm/env` override, fractional-scale → `GDK_SCALE`, the 2026 slim NVIDIA set. |
+| `template.md` | The full `env.conf` template — cursor (size + theme), full toolkit block (GDK/Qt/SDL/Clutter/Java AWT), Qt theme, session (emitted as `envd =`), Firefox-Wayland, Electron-Ozone, the NVIDIA proprietary block. |
+| `styling.md` | Five-rice side-by-side of how the community ships `env.conf`, the cross-toolkit cursor coherence pattern, the seven-line "Wayland-everywhere" toolkit block, the `envd =` portal-handshake pattern, and the uwsm `env`/`env-hyprland` split. |
+| `gotchas.md` | `envd =` vs `env =` (D-Bus push flag), explicit-`VAR=value` vs bare-name `dbus-update-activation-environment` (corpus is split), NVIDIA-driver gating, uwsm `~/.config/uwsm/env` override, fractional-scale → `GDK_SCALE`, the 2026 slim NVIDIA set, `_JAVA_AWT_WM_NONREPARENTING`, `MOZ_DISABLE_RDD_SANDBOX`, `GSK_RENDERER,ngl`, `GTK_THEME`-in-env clash. |
 | `packages.md` | None — env-only. |
 
 ## Where this component lands
@@ -43,4 +44,12 @@ two components share the `autostart_env` top-level key in `answers.json` — `en
 - [`look-feel`](../look-feel/) — when `NVIDIA_PROPRIETARY=1` or `nouveau`, also offers
   `cursor:no_hardware_cursors = true`; coordinated detection but separate file.
 - [`companion-daemons`](../companion-daemons/) — hyprcursor's `HYPRCURSOR_THEME,…` /
-  `XCURSOR_THEME,…` belong here when a non-default theme is picked there.
+  `XCURSOR_THEME,…` belong here when a non-default theme is picked there. The corpus pattern
+  is to set **both** forms in env.conf (caelestia, Matt-FTW) — XCURSOR for XWayland/GTK
+  fallback, HYPRCURSOR for the native cursor plane. Sizes must match.
+- [`../../theming/gtk-qt.md`](../../theming/gtk-qt.md) — `GTK_THEME`, `QT_QPA_PLATFORMTHEME`,
+  `QT_STYLE_OVERRIDE`, `XCURSOR_THEME`/`HYPRCURSOR_THEME` all surface there too. **Cross-doc
+  note:** the env interview-driven values are the *floor*; the gtk-qt doc covers `gsettings`
+  + `gtk-4.0/gtk.css` (the *live* channel and the libadwaita @define-color override). If
+  someone changes the GTK theme via `gsettings` but `GTK_THEME` is still set in `env.conf`,
+  the env wins — see `gotchas.md` "GTK_THEME in env.conf clashes…".
