@@ -66,7 +66,7 @@ utilities, plugins).
 | 15 | [env / autostart-env](components/env/interview.md) | ✓ | | 2 calls |
 | 16 | [companion-daemons](components/companion-daemons/interview.md) | ✓ | | 1 call |
 | 17 | [shell-prompt](components/shell-prompt/interview.md) | ✓ | | 1–2 calls |
-| 18 | [utilities](components/utilities/interview.md) | ✓ | | 1 call |
+| 18 | [utilities](components/utilities/interview.md) | ✓ | | 2 calls |
 | 19 | [login-boot](components/login-boot/interview.md) | ✓ | | 1 call (opt-in gate) |
 | 20 | [gaming](components/gaming/interview.md) | ✓ | | 1–2 calls (opt-in gate) |
 | 21 | [laptop](components/laptop/interview.md) | ✓ | | 1 call (opt-in gate) |

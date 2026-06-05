@@ -181,12 +181,49 @@ bindl = , switch:off:Lid Switch, exec, hyprctl keyword monitor "eDP-1, preferred
 {{/if}}
 
 # ----- Media & brightness (bindel — repeat + works when locked; -l 1 caps at 100%) -----
+# Dispatch shape depends on utilities.osd_route — every option still does the work
+# (`wpctl`/`brightnessctl`), the difference is where the visual feedback comes from. See
+# components/utilities/schema.md → utilities.osd_route and components/utilities/gotchas.md
+# → "OSD-route coherence".
+{{#switch utilities.osd_route}}
+  {{#case "in-shell"}}
+{{!-- end-4/caelestia/DMS pattern — shell IPC. Shell owns the work AND the OSD render. --}}
+bindel = , XF86AudioRaiseVolume,  exec, qs ipc call audio increment
+bindel = , XF86AudioLowerVolume,  exec, qs ipc call audio decrement
+bindel = , XF86AudioMute,         exec, qs ipc call audio mute
+bindel = , XF86AudioMicMute,      exec, qs ipc call mic mute
+bindel = , XF86MonBrightnessUp,   exec, qs ipc call brightness increment
+bindel = , XF86MonBrightnessDown, exec, qs ipc call brightness decrement
+  {{/case}}
+  {{#case "swayosd"}}
+{{!-- swayosd-client owns the visual; swayosd-server must be running (autostart added). --}}
+bindel = , XF86AudioRaiseVolume,  exec, swayosd-client --output-volume raise
+bindel = , XF86AudioLowerVolume,  exec, swayosd-client --output-volume lower
+bindel = , XF86AudioMute,         exec, swayosd-client --output-volume mute-toggle
+bindel = , XF86AudioMicMute,      exec, swayosd-client --input-volume mute-toggle
+bindel = , XF86MonBrightnessUp,   exec, swayosd-client --brightness raise
+bindel = , XF86MonBrightnessDown, exec, swayosd-client --brightness lower
+  {{/case}}
+  {{#case "notification"}}
+{{!-- Notification-as-OSD: wpctl/brightnessctl + notify-send -a OSD. Notification daemon's
+     [app-name=OSD] palette block renders it themed. See components/notifications/template.md. --}}
+bindel = , XF86AudioRaiseVolume,  exec, wpctl set-volume -l 1 @DEFAULT_AUDIO_SINK@ 5%+ && notify-send -a OSD -h int:value:$(wpctl get-volume @DEFAULT_AUDIO_SINK@ | awk '{print int($2*100)}') "Volume"
+bindel = , XF86AudioLowerVolume,  exec, wpctl set-volume @DEFAULT_AUDIO_SINK@ 5%- && notify-send -a OSD -h int:value:$(wpctl get-volume @DEFAULT_AUDIO_SINK@ | awk '{print int($2*100)}') "Volume"
+bindel = , XF86AudioMute,         exec, wpctl set-mute @DEFAULT_AUDIO_SINK@ toggle && notify-send -a OSD "Mute toggled"
+bindel = , XF86AudioMicMute,      exec, wpctl set-mute @DEFAULT_AUDIO_SOURCE@ toggle && notify-send -a OSD "Mic mute toggled"
+bindel = , XF86MonBrightnessUp,   exec, brightnessctl -e4 -n2 set 5%+ && notify-send -a OSD -h int:value:$(brightnessctl -P | awk '{print int($1)}') "Brightness"
+bindel = , XF86MonBrightnessDown, exec, brightnessctl -e4 -n2 set 5%- && notify-send -a OSD -h int:value:$(brightnessctl -P | awk '{print int($1)}') "Brightness"
+  {{/case}}
+  {{#case "none"}}
+{{!-- Silent — bind does the work, no visual. binnewbs partial pattern. --}}
 bindel = , XF86AudioRaiseVolume,  exec, wpctl set-volume -l 1 @DEFAULT_AUDIO_SINK@ 5%+
 bindel = , XF86AudioLowerVolume,  exec, wpctl set-volume @DEFAULT_AUDIO_SINK@ 5%-
 bindel = , XF86AudioMute,         exec, wpctl set-mute @DEFAULT_AUDIO_SINK@ toggle
 bindel = , XF86AudioMicMute,      exec, wpctl set-mute @DEFAULT_AUDIO_SOURCE@ toggle
 bindel = , XF86MonBrightnessUp,   exec, brightnessctl -e4 -n2 set 5%+
 bindel = , XF86MonBrightnessDown, exec, brightnessctl -e4 -n2 set 5%-
+  {{/case}}
+{{/switch}}
 {{#if playerctl}}
 bindl = , XF86AudioNext,  exec, playerctl next
 bindl = , XF86AudioPause, exec, playerctl play-pause

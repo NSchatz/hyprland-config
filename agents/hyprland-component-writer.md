@@ -128,6 +128,22 @@ recipe fill — they're how the rice's surfaces look like they came from the sam
   Use `[urgency=critical]` for the high-priority block.
 - **Astronaut SDDM sub-themes** are `snake_case.conf` (`black_hole.conf`, `hyprland_kath.conf`)
   — not camelCase. Verified against `Keyitdev/sddm-astronaut-theme/Themes/`.
+- **OSD routing** (`utilities.osd_route` answer) determines volume/brightness/capslock OSD
+  emission across multiple surfaces. Honour the chosen route — this is the #1 cross-surface
+  coherence miss in the corpus (Matt-FTW ships swayosd-client binds without a swayosd matugen
+  template; the OSD reverts to stock GTK colors and clashes with the rest of the rice).
+  - `in-shell`: keybinds dispatch via shell IPC (e.g. `qs ipc call audio increment` for
+    Quickshell rices). The shell renders the OSD itself via its own matugen output. Do NOT
+    install swayosd or emit `[app-name=OSD]` blocks — they'd race the shell OSD.
+  - `swayosd`: keybinds dispatch via `swayosd-client`; autostart emits
+    `exec-once = swayosd-server`; utilities packaging installs `swayosd`; the writer ALSO
+    emits the matugen swayosd CSS template so the OSD inherits the rice palette
+    (`{{accent}}`/`{{bg}}`/`{{fg}}`).
+  - `notification`: keybinds combine `wpctl`/`brightnessctl` with
+    `notify-send -a OSD -h int:value:N`; notifications template emits an `[app-name=OSD]`
+    (mako) or `[osd_app]` (dunst) palette override block; the notification daemon's
+    `highlight` / `frame_color` / `border-color` paint the OSD.
+  - `none`: keybinds run silently; no OSD emission anywhere; volume/brightness still WORK.
 - **Font sizes multiply by `{{font_ui_scale}}`** (palette metadata key, default `1.0`).
   Every visual surface scales together — that's the user-facing accessibility/HiDPI knob.
   - **CSS surfaces** (waybar / swaync / wlogout `style.css`, ags `.scss`): emit

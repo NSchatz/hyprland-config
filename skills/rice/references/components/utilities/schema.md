@@ -5,7 +5,8 @@ Keys this component owns under the top-level `utilities` key.
 ```json
 {
   "utilities": {
-    "selected": ["screenshot","clipboard","color-picker","power-menu","screen-record","ocr","emoji","calculator","wifi-applet","bluetooth-applet","night-light"]
+    "selected": ["screenshot","clipboard","color-picker","power-menu","screen-record","ocr","emoji","calculator","wifi-applet","bluetooth-applet","night-light"],
+    "osd_route": "in-shell"
   }
 }
 ```
@@ -14,6 +15,15 @@ Keys this component owns under the top-level `utilities` key.
 
 - `utilities.selected` — **string array**. May be empty (`[]`). The closed set of recognized
   values is below; the validator rejects any string not in this set.
+- `utilities.osd_route` — **string enum**. Where volume/brightness/capslock OSDs appear visually.
+  One of: `in-shell` | `swayosd` | `notification` | `none`. Defaults reordered per detected
+  widget shell (see `interview.md` 18b).
+    - `in-shell`: bind calls a shell IPC method (Quickshell rices). No extra daemon.
+    - `swayosd`: install `swayosd-server`; writer emits a matugen template + autostart line.
+    - `notification`: routes through the notification daemon — `notify-send -a OSD` + an
+      `[app-name=OSD]` palette block in `notifications/template.md`.
+    - `none`: bind scripts run silently; no visual feedback.
+  Multiple downstream components read this — see "Who reads these keys" below.
 
 ### Recognized values
 
@@ -35,10 +45,12 @@ Keys this component owns under the top-level `utilities` key.
 
 | Reader | Use |
 |---|---|
-| `hyprland-component-writer` (`utilities`) | Walks the array; for each value, copies the matching script (if any) into `~/.config/hypr/scripts/` and `chmod +x`. |
-| `hyprland-component-writer` (`keybinds`) | Walks the array; for each value, appends the matching bind line to `binds.conf`. |
-| `hyprland-component-writer` (`autostart`) | Walks the array; appends `cliphist` watchers when `clipboard` is present, `nm-applet --indicator` when `wifi-applet` is present, `blueman-applet` when `bluetooth-applet` is present. |
-| `hyprland-package-installer` | Walks the array; for each value, looks up `packages.md` and appends the dep set to the install batch. |
+| `hyprland-component-writer` (`utilities`) | Walks `.selected`; for each value, copies the matching script (if any) into `~/.config/hypr/scripts/` and `chmod +x`. Renders the swayosd matugen template iff `.osd_route == "swayosd"`. |
+| `hyprland-component-writer` (`keybinds`) | Walks `.selected` for bind appends; reads `.osd_route` for the volume/brightness/capslock bind targets (each route maps to a different dispatch). |
+| `hyprland-component-writer` (`autostart`) | Walks `.selected` for cliphist/nm-applet/blueman-applet appends. Adds `swayosd-server` exec-once iff `.osd_route == "swayosd"`. |
+| `hyprland-component-writer` (`notifications`) | Reads `.osd_route`; iff `notification`, emits the `[app-name=OSD]` palette block in the daemon's template (mako/dunst/swaync). |
+| `hyprland-component-writer` (`laptop`) | Reads `.osd_route` to pick the brightness/volume dispatch shape — `qs ipc call …` (in-shell), `swayosd-client …` (swayosd), `notify-send -a OSD …` (notification), `brightnessctl … >/dev/null` (none). |
+| `hyprland-package-installer` | Walks `.selected` for per-tool deps. Adds `swayosd` iff `.osd_route == "swayosd"`. |
 
 ## Validation
 

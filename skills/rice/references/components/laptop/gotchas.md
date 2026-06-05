@@ -171,13 +171,19 @@ matugen-driven palette, **the OSD routing is what determines whether the brightn
 indicator inherits that palette**. The rice's coherence depends on it. The waybar
 `#battery.critical` CSS is the other touchpoint (see § k).
 
-This component does **not** own OSD routing — that's split across `../notifications/`
-(mako/swaync/dunst CSS), `../widgets/` (if Quickshell/AGS draws the OSD), or `../utilities/`
-(if `swayosd` is shipped as a package). What this component does is **flag** to the
-orchestrator which surface the user's chosen `power_tool` and `lid_action` make most
-coherent. Open question for the orchestrator: should the laptop interview ask for the OSD
-routing strategy too, or should it stay implicit and defer to the notification / widget
-component's choice?
+This component does **not** own OSD routing — `../utilities/` owns the question and the
+schema key (`utilities.osd_route`); `../keybinds/template.md` dispatches the
+volume/brightness keybinds against the chosen route; `../notifications/template.md` emits
+the `[app-name=OSD]` block when `osd_route == "notification"`; `../autostart/template.md`
+launches `swayosd-server` when `osd_route == "swayosd"`. The laptop component just calls
+out (here, and in § k) that the user's `power_tool` and `lid_action` picks compose with
+the OSD route to produce the visible battery/brightness feedback.
+
+**Resolved** (v0.17+): the orchestrator decision flagged above landed as
+`utilities.osd_route ∈ {in-shell, swayosd, notification, none}` with defaults reordered
+per detected widget shell (`in-shell` defaults when a Quickshell-based shell is selected,
+`swayosd` otherwise — Matt-FTW's coherence-miss avoided by also shipping the swayosd
+matugen template).
 
 ## (k) `#battery.critical` is a cross-surface coherence touchpoint
 

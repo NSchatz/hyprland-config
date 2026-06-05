@@ -56,7 +56,8 @@ Emit only the chosen branches — drop the template markers and any branch that'
 | `swww_daemon_bin` | `SWWW_DAEMON_BIN` from `detect-version.sh` — literally `swww-daemon` or `awww-daemon`. **Never hard-code `swww-daemon`** (see `gotchas.md`). |
 | `bar_waybar` | `bar.strategy` is `"waybar"` or `"waybar+widgets"`. |
 | `notif_mako` / `notif_dunst` / `notif_swaync` | `notifications.daemon` matches that string. If a widget shell owns notifications (see `gotchas.md`), set the daemon to `null` upstream — none of these branches fire. |
-| `hypridle` / `hyprsunset` / `swayosd` | Entry present in `autostart_env.autostart`. |
+| `hypridle` / `hyprsunset` | Entry present in `autostart_env.autostart`. |
+| `swayosd` | `utilities.osd_route == "swayosd"`. The swayosd-server daemon must be running before the first volume/brightness keybind fires; emit this exec-once unconditionally for that route (no separate autostart toggle — the route decision is what gates it). |
 | `nm_applet` / `blueman` / `cliphist_text` / `cliphist_image` | Entry present in `autostart_env.autostart`. |
 | `dbus_all` | `true` when `autostart_env.dbus_propagation == "all"` (the HyDE/dusky-style maximum-compat broadcast). Off by default — the explicit-var pair above is enough for screen-share; only flip on when the user reports portal-activated apps missing the rice's `PATH` (see `gotchas.md` for the `--all` vs explicit-var debate). |
 | `has_restore_script` / `restore_script_path` | `true` and the generated path when `theming.engine` is `matugen` / `wallust` / `wallbash` and the engine writes a wallpaper/theme-restore hook. Off when `theming.engine == "none"` or the engine has no restore step. See "Theme-restore on login" below. The line is emitted *after* the wallpaper-daemon line so the daemon is alive when the script calls `swww img <path>`. |

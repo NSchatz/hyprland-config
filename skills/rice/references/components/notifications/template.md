@@ -52,6 +52,20 @@ default-timeout=0                     # critical NEVER auto-dismisses — see st
 format=<b>%s</b>\n%b\n<small>(%g)</small>
 {{/if}}
 
+{{#if (eq utilities.osd_route "notification")}}
+# --- OSD routing (utilities.osd_route == "notification") ---
+# Volume/brightness keybinds fire `notify-send -a OSD …` instead of swayosd-client.
+# This block themes those toasts to match the rest of the rice's palette (dusky pattern;
+# avoids Matt-FTW's coherence-miss where the OSD falls back to stock GTK colors). The
+# `-h int:value:N` hint renders the progress bar mako uses for transient OSDs.
+[app-name=OSD]
+default-timeout=900                    # short — OSD is transient, not actionable
+border-color=#{{accent}}
+background-color=#{{surface}}f2        # slightly more opaque than normal notifications
+progress-color=over #{{accent}}
+ignore-timeout=1
+{{/if}}
+
 [mode=do-not-disturb]
 invisible=1
 ```
@@ -113,6 +127,21 @@ behavior + reads those rendered colors back into the urgency sections.
     foreground = "#{{fg}}"
     frame_color = "#{{red}}"
     timeout = 0                       # critical NEVER auto-dismisses
+
+{{#if (eq utilities.osd_route "notification")}}
+# --- OSD routing (utilities.osd_route == "notification") ---
+# When volume/brightness binds use `notify-send -a OSD`, dunst can target the OSD app via
+# a `[app_name="OSD"]` rule. Keeps the OSD palette coherent with the rest of the rice
+# (avoids stock GTK fallback). The notification body still drives the progress bar via
+# the existing `highlight = #{{accent}}` from `[global]`.
+[osd_app]
+    appname = "OSD"
+    background = "#{{surface}}"
+    foreground = "#{{fg}}"
+    frame_color = "#{{accent}}"
+    timeout = 1                       # transient — short
+    history_ignore = yes              # don't clutter the history with OSD events
+{{/if}}
 ```
 
 `timeout_s` = `answers.timeout` (seconds). `0` for "never". `offset = (12, 12)` is the modern split

@@ -1,5 +1,55 @@
 # Changelog
 
+## 0.17.0
+
+Lands the OSD-routing question (orchestrator decision #4 of 4 originally flagged).
+The laptop batch-2 agent named this **the #1 cross-surface coherence miss across the
+top-19 rices** — Matt-FTW ships `swayosd-client` binds without a swayosd matugen
+template, and the OSD reverts to stock GTK colors that clash with the rest of the
+rice. v0.17 makes the route an explicit interview pick and emits coherent recipes
+for every choice.
+
+### Interview
+
+- **`components/utilities/interview.md`**: new sub-question **18b. OSD routing.**
+  Four options — `in-shell` (Quickshell IPC), `swayosd` (dedicated daemon),
+  `notification` (`notify-send -a OSD` + `[app-name=OSD]` palette block), `none`
+  (silent). Defaults reordered per detected widget shell: `in-shell` when the user
+  picks a Quickshell-based shell, `swayosd` otherwise.
+- **`components/utilities/schema.md`**: `utilities.osd_route` enum added. Documents
+  which downstream component-writer reads it for what emission.
+- **`references/_interview-protocol.md`**: group 18 count `1 call` → `2 calls`.
+
+### Recipes
+
+- **`components/keybinds/template.md`**: media-key bind block (lines 183-189
+  formerly) now switches on `utilities.osd_route`. Four variants — IPC, swayosd,
+  notify-send, silent. Volume/brightness keys still WORK in every branch.
+- **`components/notifications/template.md`** (mako + dunst sections): emits an
+  `[app-name=OSD]` (mako) or `[osd_app]` (dunst) palette override block when
+  `utilities.osd_route == "notification"`. Uses `{{accent}}` for the frame and
+  `{{surface}}` for the bg so the OSD inherits the rice palette.
+- **`components/autostart/template.md`**: the `swayosd` autostart gate is now keyed
+  on `utilities.osd_route == "swayosd"` instead of a separate `autostart_env`
+  entry — the route decision is what gates it.
+- **`components/laptop/gotchas.md`** § (j): "Open question for the orchestrator"
+  flipped to **"Resolved (v0.17+)"** with the schema reference.
+
+### Agents
+
+- **`agents/hyprland-component-writer.md`**: new coherence rule for OSD routing.
+  Explicitly notes the Matt-FTW coherence-miss antipattern and prescribes the
+  coherent recipe per route (don't double-render in-shell + swayosd; ship a
+  swayosd matugen template when `osd_route == swayosd`).
+
+### Skill
+
+- **`SKILL.md`**: bumped to `0.17.0`.
+
+### Orchestrator decisions still pending
+
+- `lock-screen.wallpaper_strategy` schema addition (the last one).
+
 ## 0.16.0
 
 Lands `high-contrast-dark` and `high-contrast-light` schemes — the WCAG-AAA palette pair
