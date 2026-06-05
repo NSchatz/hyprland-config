@@ -47,8 +47,10 @@ does, and any conditional gating.
 | **App as wallpaper — `hyprwinwrap`** | Run any windowed app *as* the wallpaper (animated wallpapers). **Removed from the official repo by PR #663** — use the community fork `gen3vra/hyprwinwrap` (requires Hyprland 0.54+). |
 
 **Do NOT offer `hyprscrolling` / `hyprscroller`.** The scrolling layout is **native core in Hyprland
-0.53+** — it belongs in `../look-feel/` (`general:layout = scrolling` + a `scrolling {}` block), NOT
-here. See `../../_shared/version-matrix.md` → 0.53+ cliff.
+0.54+** (verified in version-matrix; the original plugins are dead — `dawsers/hyprscroller`
+archived 2026-06-02, `hyprscrolling` dropped from `hyprwm/hyprland-plugins` by PR #663). It belongs
+in `../look-feel/` (`general:layout = scrolling` + a `scrolling {}` block), NOT here. See
+`../../_shared/version-matrix.md` → 0.54+ cliff.
 
 ## Record paths
 
@@ -80,6 +82,6 @@ bash "$CLAUDE_PLUGIN_ROOT/scripts/record-answer.sh" "$staging/answers.json" plug
 - Schema slice + types → `schema.md`
 - Per-plugin `plugin {}` blocks + the commented binds → `template.md`
 - Why every plugin-dispatcher bind is commented-out → `../../_shared/dispatchers.md`
-- Why `scrolling` is NOT in this catalog (it's core in 0.53+) → `../../_shared/version-matrix.md`
+- Why `scrolling` is NOT in this catalog (it's core in 0.54+) → `../../_shared/version-matrix.md`
 - The "Claude never runs hyprpm" rule + per-upgrade refresh → `gotchas.md`
 - Packages → `packages.md`
