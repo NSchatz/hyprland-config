@@ -211,7 +211,10 @@ bind = $mainMod, Print, exec, grim - | wl-copy
 # ----- Ecosystem binds (gated on the matching utilities.selected / lock_screen.enabled flag) -----
 {{#if hyprlock}}bind = $mainMod, X,       exec, hyprlock{{/if}}
 {{#if hyprpicker}}bind = $mainMod SHIFT, P, exec, hyprpicker -a{{/if}}
-{{#if wlogout}}bind = $mainMod SHIFT, M, exec, wlogout{{/if}}
+{{#if wlogout}}bind = $mainMod SHIFT, M, exec, wlogout -p layer-shell{{/if}}
+# `-p layer-shell` makes wlogout render as a wlroots layer-shell surface (covers the bar
+# correctly, dismisses on `Esc`); end-4 uses the same invocation
+# (dots-hyprland/dots/.config/hypr/hyprland/keybinds.lua HEAD line 37).
 {{#if cliphist}}bind = $mainMod SHIFT, V, exec, cliphist list | $dmenu -i -p "Clipboard" | cliphist decode | wl-copy{{/if}}
 # Note the cliphist bind uses $dmenu (NOT $menu) — see gotchas.md.
 

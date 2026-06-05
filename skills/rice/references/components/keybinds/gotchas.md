@@ -68,6 +68,23 @@ is the legacy form; `layoutmsg` is what the shipped default config and every tut
 it's what the scrolling-layout binds look like (`layoutmsg, move +col`) so the file reads
 consistently. The validator nudges (warning, not error) on bare `togglesplit`.
 
+> Counter-evidence from the corpus (2026-06-05 deep-research pass): of the rices that bind
+> `togglesplit`, **the majority use the bare form**, not `layoutmsg, togglesplit`:
+>
+> - HyDE — bare (`Configs/.config/hypr/keybindings.conf:159` — `bind = $mainMod, J, togglesplit`)
+> - Matt-FTW — bare (`.config/hypr/configs/binds.conf:137` — `bind = $mainMod, S, togglesplit`)
+> - JaKooLit — bare (`config/hypr/configs/Keybinds.conf:96` — `bindd = $mainMod SHIFT, I, toggle split (dwindle), togglesplit`)
+> - Upstream Hyprland default (`example/hyprland.lua:265`) — `hl.dsp.layout("togglesplit")`, which the Lua API maps to bare in `.conf` form
+> - The `layoutmsg, togglesplit` form does not appear in any corpus rice's bind file as of HEAD.
+>
+> The "prefer `layoutmsg, togglesplit`" recommendation above stands for **consistency with the
+> rest of `layoutmsg, …`** binds (move, colresize, fit, promote — these only exist as
+> `layoutmsg, …`), but the bare form is what the community ships. The validator should treat
+> bare `togglesplit` as **canonical, not legacy** — the next person to update the validator
+> rules should flip this. Tracking as a TODO; not changing the template emit yet because the
+> v0.13 pass intentionally chose `layoutmsg, togglesplit` and the orchestrator may have
+> reasons.
+
 ## Duplicate `MODS, KEY` — last-wins, silently
 
 Hyprland accepts the file and binds the last definition; earlier ones are dropped with no
@@ -152,6 +169,93 @@ suffix-letter mash; instead, each flag is a key in an options table:
 Lua-only flags (0.55+, no `.conf` equivalent) include `click`, `drag`, `long_press`,
 `auto_consuming`, `bypass`, `submap_universal`, `device`. If a user asks for one of those, the
 config has to be Lua.
+
+## Picker stacking — `pkill -x` before launching, or two clicks of the bind opens two pickers
+
+Every rice in the corpus that binds rofi/fuzzel/wofi to a chord (HyDE, JaKooLit, dusky, end-4,
+ML4W) prefixes the `exec` with `pkill -x <picker> ||` (true toggle: kill if running, else
+start) or `pkill <picker>;` (always start fresh). Without it, a second press launches a
+**second** rofi window on top of the first — the second one accepts input, the first sits
+there until the user `ESC`s out.
+
+```ini
+# HyDE pattern (true toggle):
+bind = $mainMod+Shift, T, exec, pkill -x rofi || $scrPath/themeselect.sh
+# dusky pattern (always fresh):
+bindd = $mainMod SHIFT, SPACE, Matugen Theme Config, exec, pkill rofi; ~/user_scripts/rofi/rofi_theme.sh
+# end-4 (Quickshell alive-check + pkill fallback):
+hl.bind("SUPER + V", hl.dsp.exec_cmd(qsIsAlive .. " || pkill fuzzel || cliphist list | fuzzel ..."))
+```
+
+Our template emits the bare `exec, …` form for the theme-switch / cheat-sheet / clipboard
+binds. **A user who mashes `SUPER+SHIFT+T` will stack pickers.** We tolerate it because (a)
+the bare form is what every tutorial uses, (b) `pkill -x` is sensitive to launcher choice (it
+has to be `pkill -x rofi` / `pkill fuzzel` / `pkill wofi` — the `launcher` component picks),
+and (c) adding it across every menu bind doubles the line length. If we later add a "polish
+mode" flag, this is the cheapest single upgrade we can ship.
+
+## Quickshell-IPC fallback double-bind ("end-4 pattern") — Hyprland allows it because the dispatchers differ
+
+end-4 binds every shell action **twice** at the same chord — once as `global, quickshell:foo`
+and once as `exec, qsIsAlive || <fallback shell command>` — so the bind survives the shell
+crashing:
+
+```lua
+-- end-4: dots/.config/hypr/hyprland/keybinds.lua:62-64
+hl.bind("SUPER + V", hl.dsp.global("quickshell:overviewClipboardToggle"))
+hl.bind("SUPER + V", hl.dsp.exec_cmd(qsIsAlive .. " || pkill fuzzel || cliphist list | ..."))
+```
+
+This **looks like** the duplicate-key gotcha (last-wins) but doesn't trip it — Hyprland's
+duplicate detector treats the two as a chain because the dispatcher names differ (`global`
+vs `exec`). Both fire on the chord; the `global` one is a no-op if Quickshell isn't running.
+Worth knowing if you want to add a graceful-degrade fallback for the theme-switch bind to a
+plain rofi list when `rice` isn't installed.
+
+We don't currently emit the fallback form. If we did, the pattern would be:
+
+```ini
+bind = $mainMod SHIFT, T, global, rice:theme-menu   # not real — we don't ship a global dispatcher
+bind = $mainMod SHIFT, T, exec, command -v rice >/dev/null && ~/.config/hypr/scripts/theme-switch.sh || notify-send "rice CLI missing"
+```
+
+## Theme-switch picker MUST use the user's `$dmenu`, not a hard-coded launcher
+
+Five corpus rices bind a theme/wallpaper picker; **each one uses a launcher-specific config
+file** (`config-themeselect.rasi`, `config-wallpaper.rasi`, `theme-rofi.rasi`, …), never a
+naked `rofi` or `fuzzel` call. Reason: the user's actual launcher pick (component 8) might
+be wofi/walker/tofi/vicinae/anyrun, in which case `rofi -dmenu …` is just broken. Our
+`theme-switch.sh` script must pipe through `$dmenu` (the variable from the variables block
+of `hyprland.conf`), which the `launcher` component composes correctly for whatever the user
+picked.
+
+The matching gotcha — never `$menu -dmenu` (it expands to `rofi -show drun -dmenu`, two
+conflicting mode flags) — is at the top of this file.
+
+## "Re-themer plus reload" — theme-switch keystroke must not race the engine
+
+`SUPER+SHIFT+T` → `theme-switch.sh` → `rice apply <profile>` re-renders every component's
+`.tmpl` and reloads each app. The reload chain (see `_shared/reloads.md`) is asynchronous:
+hyprctl reload, `pkill -SIGUSR2 waybar`, `pkill -SIGUSR1 mako`, GTK_THEME env reload, …
+
+Two race conditions to be aware of:
+
+1. If the theme-switch script forgets to wait for `rice apply` to return before reloading
+   surfaces, the user sees the OLD palette in waybar for ~1s before it snaps to the new one.
+   `rice apply` is synchronous — the script should run it in the foreground, not background.
+2. If the user is mid-launcher (rofi/fuzzel is open) when the theme reload fires, the
+   launcher window is still rendering the old `colors.css`/`colors.rasi`. They have to close
+   and re-open. **Not a bug** — every corpus rice has the same behaviour. Cite it in the
+   user's `notes.md` if you want them to know.
+
+## AZERTY / non-US layouts — workspace 1–10 binds need `code:10`–`code:19` OR keysym names
+
+(Already covered in this file under "`code:10`–`code:19` for the number row on non-US
+layouts" above.) ML4W (`dotfiles/.config/hypr/conf/keybindings/default.lua:12-35`) is the
+only corpus rice that handles this inline, by reading `kb_layout` from a sibling lua file
+and substituting the keysym names (`ampersand`, `eacute`, …) for the digits when AZERTY is
+detected. They use **keysym names**, not `code:` scancodes — both work; `code:` is more
+robust to layout changes (it picks the *physical* key) but less self-documenting.
 
 ## `bindd` (described binds) — `.conf` syntax has the description **between key and dispatcher**
 
