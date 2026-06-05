@@ -121,31 +121,180 @@ windowrule {
 {{/each}}
 
 # ------------------------------------------------------------
-# Layer-shell blur (0.54+ block form — see gotchas.md for the hard break)
+# Layer-shell blur (0.54+ block form — see gotchas.md for the hard break,
+# the launcher/notifications namespace map, and the fuzzel/swaync cliffs)
 # ------------------------------------------------------------
 {{#if waybar.enabled}}
 layerrule {
     name = blur-waybar
     match:namespace = waybar
     blur = true
+    blur_popups = true
+    xray = true
+    ignore_alpha = 0.5
 }
 {{/if}}
 {{#if launcher.is_layer}}
+# launcher.namespace must be: rofi→"rofi", fuzzel→"launcher", wofi→"wofi",
+# anyrun→"anyrun". See gotchas.md "Launcher → namespace map".
 layerrule {
     name = blur-{{launcher.namespace}}
     match:namespace = {{launcher.namespace}}
     blur = true
+    ignore_alpha = 0.5
 }
 {{/if}}
-{{#if notifications.namespace}}
+{{#if notifications.tool}}
+# swaync has TWO layer-shell namespaces — emit both.
+# mako / dunst share the generic "notifications" namespace — emit one.
+{{#eq notifications.tool "swaync"}}
 layerrule {
-    name = blur-{{notifications.namespace}}
-    match:namespace = {{notifications.namespace}}
+    name = blur-swaync-control-center
+    match:namespace = swaync-control-center
     blur = true
     ignore_alpha = 0.0
 }
+layerrule {
+    name = blur-swaync-notification-window
+    match:namespace = swaync-notification-window
+    blur = true
+    ignore_alpha = 0.0
+}
+{{/eq}}
+{{#or (eq notifications.tool "mako") (eq notifications.tool "dunst")}}
+layerrule {
+    name = blur-notifications
+    match:namespace = notifications
+    blur = true
+    ignore_alpha = 0.0
+}
+{{/or}}
 {{/if}}
+# wlogout (always emit if utilities.session_picker is wlogout — namespace is
+# "logout_dialog", verified across end-4, dusky, hyprdots, caelestia)
+{{#eq utilities.session_picker "wlogout"}}
+layerrule {
+    name = blur-logout_dialog
+    match:namespace = logout_dialog
+    blur = true
+    ignore_alpha = 0.0
+}
+{{/eq}}
 ```
+
+## Theming-relevant idioms (from the corpus)
+
+These are non-default but **highly recurring** across top rices — surface them in
+interview 11i (per-app rules) as defaults so the user is asked, not silently opted in.
+
+### Per-app opacity ("glassy look") — common values
+
+The rices that lean on the glassy/translucent aesthetic emit per-class `opacity` rules
+in addition to (or instead of) a global blur. Verbatim from the corpus:
+
+| App class | Opacity (active focused) | Rices |
+|---|---|---|
+| `firefox` / `Brave-browser` / `Google-chrome` | `0.90` | prasanthrangan/hyprdots `Configs/.config/hypr/windowrules.conf`; linuxmobile/hyprland-dots `.config/hypr/windowrule.conf` |
+| `kitty` / `Alacritty` / `foot` (terminal tag) | `0.80`–`0.90` | hyprdots, binnewbs, JaKooLit (`tag terminal, opacity 0.9 0.7`) |
+| `[Cc]ode` / `code-oss` / VSCode | `0.80` | hyprdots; JaKooLit (`tag projects, opacity 0.9 0.8`) |
+| `discord` / `vesktop` / `WebCord` (IM tag) | `0.80`–`0.94` | hyprdots `0.80`; JaKooLit `0.94 0.86`; binnewbs `0.85 override 0.7 override 1 override` |
+| `[Ss]potify` (music tag) | `0.70`–`0.80` | hyprdots `0.70`; binnewbs `0.8 override 0.6 override 1 override` |
+| `pavucontrol` / `nm-connection-editor` / `blueman-manager` | `0.80 0.70` | hyprdots, linuxmobile |
+
+Pattern: the corpus uses **two values** (`opacity 0.90 0.80`) — focused / unfocused —
+and binnewbs uses the **three-value override form** (`opacity 0.85 override 0.7 override
+1 override`) to force a value regardless of `decoration:active_opacity`. JaKooLit's
+**tag-based grouping** (`windowrule = tag +browser, match:class …` then `windowrule =
+match:tag browser, opacity 0.99 0.8`) is the cleanest way to reuse one opacity across
+many classes — emit it if the user has more than 3 per-app rules sharing a value.
+
+### Workspace pinning — recurring class→workspace bindings
+
+Across HyDE / JaKooLit / Caelestia / Matt-FTW / linuxmobile / fufexan:
+
+| Workspace | Apps pinned (verbatim class strings) |
+|---|---|
+| 1 | browser (`Brave-browser` linuxmobile, `firefox` ml4w-style) |
+| 2 | dev/IDE (Matt-FTW: `Code\|codium\|VSCodium\|neovide\|zed`) |
+| 3 | comms or telegram (linuxmobile `org.telegram.desktop`) |
+| 4 | code editor or media (Matt-FTW `kdenlive\|obsproject\|krita\|blender`) |
+| 5 | system / spotify (linuxmobile `Spotify`, Matt-FTW `GParted\|virt-manager`) |
+| 6 | gaming (Matt-FTW `steam_app\|gamescope\|atlauncher`) |
+| 7 | chat (Matt-FTW `discord\|vesktop\|WebCord\|legcord` **silent**) |
+| 9 | spotify/discord/music (fufexan `Spotify` silent, hyprdots `Spotify`, caelestia `special:music` instead) |
+| 12 | music (Matt-FTW `Spotify\|tidal-hifi\|YouTube Music` silent + `no_initial_focus`) |
+| `special:music` | media apps (caelestia: `Spotify\|feishin\|Cider\|Plexamp`) |
+| `special:communication` | chat (caelestia: `discord\|equibop\|vesktop\|whatsapp`) |
+| `special:scratchpad` | scratchpads (Matt-FTW per size: large/normal/mini) |
+
+The **`silent`** suffix on the workspace effect is universal for "pin app to ws N but
+don't yank focus" — it is part of the workspace effect value, not a separate effect
+keyword. See `gotchas.md`.
+
+### `idle_inhibit` per class — common gaming/media values
+
+| Class regex | Value | Why | Cited |
+|---|---|---|---|
+| `steam_app_.*` / `gamescope` | `always` | Steam-launched games inhibit always | caelestia, Matt-FTW |
+| `mpv` / `celluloid` / `Brave-browser` (YouTube) | `focus` | Inhibit only while focused | fufexan, linuxmobile, Matt-FTW (`music-app-not-lock`) |
+| `firefox` / `LibreWolf` / `floorp` / `chromium` / `vlc` | `fullscreen` | Inhibit only in fullscreen | Matt-FTW `apps-fullscreen` |
+| `^.*\\.exe$` / `minecraft.*` / `steam_app.*` | `immediate = true` | Allow tearing for games | end-4, Matt-FTW, caelestia |
+
+### Floating dialog rules — common archetypes
+
+Every top rice floats this rough set: file pickers (`Open File`, `Save As`, `Select a
+File`, `Choose Files`), polkit (`org.kde.polkit-kde-authentication-agent-1`,
+`polkit-gnome-authentication-agent-1`), audio/network/bt managers (`pavucontrol`,
+`nm-connection-editor`, `blueman-manager`), GTK settings (`nwg-look`, `qt5ct`, `qt6ct`),
+and the GTK portal (`xdg-desktop-portal-gtk`). The shipped-default `float-utilities` rule
+in the template above covers pavucontrol/nm-connection-editor/blueman-manager; expand it
+when the corpus lookups for the user's per-app picks show more.
+
+### Picture-in-Picture + screen-share sharing-indicator pattern
+
+The **PiP** rule (float + pin) is universal. Several rices also add:
+
+```ini
+# from end-4 rules.lua and Matt-FTW theme/rules.conf
+windowrule = float yes, match:title (Picture-in-Picture)
+windowrule = pin yes, match:title (Picture-in-Picture)
+windowrule = keep_aspect_ratio yes, match:title (Picture-in-Picture)
+windowrule = size (monitor_w*0.25) (monitor_h*0.25), match:title (Picture-in-Picture)
+windowrule = move (monitor_w*0.73) (monitor_h*0.72), match:title (Picture-in-Picture)
+```
+
+The **screen-share indicator** rule throws Firefox/Chrome's "is sharing your screen"
+HUD into a special workspace so it doesn't clutter the bar:
+
+```ini
+# from fufexan rules.lua
+windowrule = workspace special silent, match:title (.* is sharing (your screen|a window)\\.)
+windowrule = workspace special silent, match:title (Firefox — Sharing Indicator)
+```
+
+Emit these from `look_feel.per_app_rules` when the user opts into PiP / video-conf
+handling.
+
+### Waybar layerrule — beyond just `blur = true`
+
+The corpus consensus for a waybar that **really** looks glassy:
+
+```ini
+# dusky source/window_rules.lua
+hl.layer_rule({
+    name = "waybar_blur",
+    match = { namespace = "waybar" },
+    blur = true,
+    blur_popups = true,   # menus that pop from waybar (volume, tray, etc.) also blur
+    xray = true,          # blur shows what's behind the bar, not the bar
+    ignore_alpha = 0.54   # pixels under 54% alpha skip blur — sharper text
+})
+```
+
+The template above adopts this (`blur_popups`, `xray`, `ignore_alpha`) — `xray = true`
+is what end-4 applies globally with `match:namespace = ".*"` to make every layer surface
+"see-through". If a user's waybar style is heavy with translucent inner pills, the
+`blur_popups = true` is what stops its dropdown menus from looking grey-on-grey.
 
 ## Pre-0.53 fallback (target detected as older)
 
