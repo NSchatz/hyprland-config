@@ -11,7 +11,7 @@ this component is just the non-themed default apps.
 | `interview.md` | Sub-questions (browser, file manager). |
 | `schema.md` | The `answers.json` keys this component owns. |
 | `template.md` | Variable definitions injected into `hyprland.conf` (`$browser`, `$fileManager`) — there's no dedicated `.conf` for this component. |
-| `gotchas.md` | Firefox-Wayland status (no-op on 121+, `env` still emits the marker), Chromium/Brave/Electron ozone-hint story, "omit `$fileManager` if not chosen", TUI handling, Dolphin/Nautilus dep weight, `xdg-mime` for default-app wiring. |
+| `gotchas.md` | Firefox-Wayland status (no-op on 121+, `env` still emits the marker), Chromium/Brave/Electron ozone-hint story, "omit `$fileManager` if not chosen", TUI handling, Dolphin/Nautilus dep weight, `xdg-mime` for default-app wiring, **corpus survey** of variable names / picks / theming-by-ricochet patterns across the top ~12 rices. |
 | `packages.md` | The browser + file-manager package map. |
 
 ## Where this component lands
