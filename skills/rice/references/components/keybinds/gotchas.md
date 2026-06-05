@@ -68,6 +68,23 @@ is the legacy form; `layoutmsg` is what the shipped default config and every tut
 it's what the scrolling-layout binds look like (`layoutmsg, move +col`) so the file reads
 consistently. The validator nudges (warning, not error) on bare `togglesplit`.
 
+> Counter-evidence from the corpus (2026-06-05 deep-research pass): of the rices that bind
+> `togglesplit`, **the majority use the bare form**, not `layoutmsg, togglesplit`:
+>
+> - HyDE — bare (`Configs/.config/hypr/keybindings.conf:159` — `bind = $mainMod, J, togglesplit`)
+> - Matt-FTW — bare (`.config/hypr/configs/binds.conf:137` — `bind = $mainMod, S, togglesplit`)
+> - JaKooLit — bare (`config/hypr/configs/Keybinds.conf:96` — `bindd = $mainMod SHIFT, I, toggle split (dwindle), togglesplit`)
+> - Upstream Hyprland default (`example/hyprland.lua:265`) — `hl.dsp.layout("togglesplit")`, which the Lua API maps to bare in `.conf` form
+> - The `layoutmsg, togglesplit` form does not appear in any corpus rice's bind file as of HEAD.
+>
+> The "prefer `layoutmsg, togglesplit`" recommendation above stands for **consistency with the
+> rest of `layoutmsg, …`** binds (move, colresize, fit, promote — these only exist as
+> `layoutmsg, …`), but the bare form is what the community ships. The validator should treat
+> bare `togglesplit` as **canonical, not legacy** — the next person to update the validator
+> rules should flip this. Tracking as a TODO; not changing the template emit yet because the
+> v0.13 pass intentionally chose `layoutmsg, togglesplit` and the orchestrator may have
+> reasons.
+
 ## Duplicate `MODS, KEY` — last-wins, silently
 
 Hyprland accepts the file and binds the last definition; earlier ones are dropped with no
