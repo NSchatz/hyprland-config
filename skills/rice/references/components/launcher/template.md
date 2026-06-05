@@ -99,8 +99,25 @@ configuration {
     show-icons: true;           /* from icons=true; omit when false */
     icon-theme: "Papirus";
     drun-display-format: "{name}";
-    drun-match-fields: "name,generic,exec,categories";
+    drun-match-fields: "name,generic,exec,keywords";  /* dusky: drop "categories"
+                                                         so Firefox stops matching
+                                                         every Network/WebBrowser
+                                                         query */
     kb-cancel: "Escape";
+
+    /* Single-click activation — rofi's default is double-click, which feels
+       broken to anyone reaching for the mouse. Clear me-select-entry first
+       (MousePrimary is bound there by default; rofi refuses to bind the same
+       event twice). Idiom from dusky, ML4W, Matt-FTW. */
+    me-select-entry: "";
+    me-accept-entry: "MousePrimary";
+
+    /* Frecency-aware fuzzy search — rofi maintains ~/.cache/rofi3.druncache
+       launch counts; these three options consult it (sort by match quality,
+       launch history breaks ties; PowerToys/Albert style). Dusky idiom. */
+    sort: true;
+    sorting-method: "fzf";
+    matching: "fuzzy";
 }
 @theme "~/.config/rofi/theme.rasi"
 ```
@@ -125,8 +142,13 @@ entry     { text-color: @fg; placeholder: "Search…"; placeholder-color: @muted
 listview  { lines: 8; columns: 1; spacing: 4px; scrollbar: false; }
 element   { padding: 7px 10px; border-radius: 8px; }
 element-icon { size: 22px; }
-element selected               { background-color: @accent; text-color: @bg; }
-element selected normal.normal { background-color: @accent; text-color: @bg; }
+/* visible-modifier.state syntax per rofi-theme(5) — period (not space)
+   is the dominant community form (HyDE, JaKooLit, ML4W, dusky, Matt-FTW,
+   binnewbs all use this). Cover the three states or the highlight won't
+   apply to drun rows that rofi has marked active/urgent. */
+element selected.normal  { background-color: @accent; text-color: @bg; }
+element selected.urgent  { background-color: @red;    text-color: @bg; }
+element selected.active  { background-color: @green;  text-color: @bg; }
 ```
 
 `colors.rasi` rendered by the engine from `rofi.tmpl`. The `*{}` block exports
@@ -139,10 +161,18 @@ lines: 5; }` + `element { orientation: vertical; }` + `element-icon { size: 72px
 
 ## fuzzel — `~/.config/fuzzel/fuzzel.ini`
 
-Colors live **inside** `fuzzel.ini` (no `include=` for the colors section in stock fuzzel —
-the engine merges them at render time). The colors block exports
+The engine writes the colors **inline** into `fuzzel.ini` `[colors]` (merge-time render).
+Fuzzel does in fact support `include=<abs-path-or-~/relative>` per `fuzzel.ini(5)` and the
+community usually splits colors into a separate file that gets included (end-4 uses
+`include="~/.config/fuzzel/fuzzel_theme.ini"`; catppuccin/fuzzel ships pure `[colors]` files
+intended to be included; caelestia points include at a `current.ini` symlink). The rice's
+current engine wiring merges instead — switch to `include=` is a one-manifest-line change if a
+future engine pass wants the split. The colors block exports
 `background text match selection selection-text selection-match border` per
-`_shared/colors-contract.md`. Hex values are **`RRGGBBAA` without `#`** — see `gotchas.md`.
+`_shared/colors-contract.md` — that's the 7-key subset the rice covers. Fuzzel's full
+upstream set is 11 (`+prompt placeholder input counter`); recipe extension flagged in the
+research report, not added unilaterally. Hex values are **`RRGGBBAA` without `#`** — see
+`gotchas.md`.
 
 ```ini
 [main]

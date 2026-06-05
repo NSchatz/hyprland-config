@@ -164,8 +164,9 @@ entry   { text-color: @fg; placeholder: "Search…"; placeholder-color: @muted; 
 listview { lines: 8; columns: 1; spacing: 4px; scrollbar: false; }
 element  { padding: 7px 10px; border-radius: 8px; }
 element-icon { size: 22px; }
-element selected { background-color: @accent; text-color: @bg; }  /* highlight */
-element selected normal.normal { background-color: @accent; text-color: @bg; }
+element selected.normal  { background-color: @accent; text-color: @bg; }  /* highlight */
+element selected.urgent  { background-color: @red;    text-color: @bg; }
+element selected.active  { background-color: @green;  text-color: @bg; }
 ```
 
 Companion `~/.config/rofi/config.rasi`: `configuration { modi: "drun"; show-icons: true; icon-theme: "Papirus"; }` then `@theme "~/.config/rofi/theme.rasi"`.
@@ -262,7 +263,7 @@ selection-background = #31324480     # {{surface}} + soft alpha
 - **Over-transparent text → unreadable.** Keep `text`/`selection-text` near full alpha (`…ff`). Only the *background* should be translucent; thin text at 60% over a blurred wallpaper disappears.
 - **No padding → cramped.** Always set `horizontal-pad`/`vertical-pad` (fuzzel), `padding` (wofi/rofi), or `padding-*` (tofi). A launcher with zero padding looks broken even with perfect colors.
 - **Missing icon theme.** `show-icons`/`allow-images` with no installed icon theme yields blank or generic squares. Install e.g. Papirus and name it exactly (`icon-theme` is case-sensitive in fuzzel).
-- **rofi `element selected` doesn't take.** rofi splits selection by row state — also set `element selected normal.normal { … }` (and `urgent`/`active` variants if used) or the highlight won't apply to drun rows.
+- **rofi `element selected` alone doesn't take on drun rows.** rofi splits selection by row state using the `{visible-modifier}.{state}` syntax (`rofi-theme(5)`: visible ∈ `normal|selected|alternate`, state ∈ `normal|urgent|active`). The community form is `element selected.normal { … }` (period, not space) — set all three of `selected.normal`/`selected.urgent`/`selected.active` or the highlight won't apply to drun rows that rofi has marked active/urgent.
 
 ## Sources
 

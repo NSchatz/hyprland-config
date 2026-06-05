@@ -115,9 +115,13 @@ fuzzel`. Cross-reference: `../window-rules/`.
   documented in `_shared/version-matrix.md`, and the rice's `window-rules/template.md` already
   branches on version, but call it out specifically for launchers because community templates
   for them are particularly stale.
-- **rofi `element selected` doesn't take by itself.** Rofi splits selection by row state; the
-  highlight needs both `element selected { … }` AND `element selected normal.normal { … }` or
-  the accent doesn't apply to drun rows. Recipe in `template.md` does both.
+- **rofi `element selected` alone doesn't take on drun rows.** Rofi's state syntax is
+  `{visible}.{state}` per `rofi-theme(5)` (visible ∈ `normal|selected|alternate`, state ∈
+  `normal|urgent|active`). Set **all three** of `element selected.normal`,
+  `element selected.urgent`, and `element selected.active` or the highlight won't apply to
+  drun rows rofi has flagged active/urgent. The community form is dot-joined
+  (`selected.normal`), not space-joined — HyDE, JaKooLit, ML4W, dusky, Matt-FTW, binnewbs all
+  use this form. The recipe in `template.md` covers all three states.
 - **fuzzel `width` is in characters, not pixels.** `width=32` is ~32 character columns wide,
   not 32px. Themes pulled from the internet often look weird because of this.
 - **tofi has no app icons.** Text-only by design. `launcher.icons = true` against `tool =
