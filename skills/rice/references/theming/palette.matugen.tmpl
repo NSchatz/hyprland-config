@@ -1,5 +1,19 @@
 # matugen template -> palette.conf (Material You roles). Hex include '#'; the
 # palette-from-wallpaper.sh script strips it. ANSI color0..15 from MD3 is approximate.
+#
+# Contract: this template MUST emit every KEY that any component-level `.tmpl`
+# in `references/components/*/*.tmpl` references as `{{KEY}}`. The current set
+# is 29 keys: accent, accent2, bg, blue, color0..15, cursor, cyan, fg, green,
+# magenta, muted, red, surface, yellow. Plus 3 metadata keys (scheme, font_ui,
+# font_mono) read by the rice CLI itself, not by template substitution — they
+# live in palette.conf so a wallpaper-cycle regen preserves them.
+#
+# Validator (run by `rice apply` and CI): missing-export = component .tmpl
+# references {{KEY}} but this file doesn't emit KEY= → render emits an empty
+# hex `#` and the colors file fails to parse. Orphan-export = this file emits
+# KEY= but no component .tmpl references {{KEY}} → harmless padding (the value
+# never reaches a render output), but flagged so the next contract bump catches
+# it. The three metadata keys above are NOT orphans — they're the rice state.
 scheme=material-you
 bg={{colors.surface.default.hex}}
 fg={{colors.on_surface.default.hex}}
