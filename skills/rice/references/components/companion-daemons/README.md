@@ -33,7 +33,7 @@ before suspend, hyprpaper's IPC socket (on by default since 0.7.x) lets
 | `interview.md` | Group 16 single confirmation call + the hypridle idle-tier ladder sub-question (Balanced / Aggressive / Relaxed / Never). |
 | `schema.md` | The `companion_configs.*` keys this component owns in `answers.json`. |
 | `template.md` | The full `hypridle.conf` template (four listeners parameterized by the ladder choice) + the `hyprpaper.conf` template. Cross-links to `../lock-screen/template.md` for `hyprlock.conf`. |
-| `gotchas.md` | Different config languages, `pidof` guard, `before_sleep_cmd`, lock-before-dpms ordering, desktop-drops-suspend, hyprpaper 0.8 config break, `inhibit_sleep` mode semantics, drop-listener-when-hyprlock-not-chosen. |
+| `gotchas.md` | Config-language differences, `pidof` guard, `before_sleep_cmd` (loginctl-vs-direct-call corpus split), lock-before-dpms ordering, desktop-drops-suspend, hyprpaper 0.8 config break, `inhibit_sleep` mode semantics, corpus disagreement on `inhibit_sleep`/`ignore_*_inhibit`, "popular rices don't ship `hyprpaper.conf`" (they generate or use swww), ML4W's Lua-format dispatchers (`hl.dsp.dpms`) vs the template's classic-string form, adjacent walker `ext-background-effect-v1` is compositor-served (not built-in), adjacent `wl-clip-persist` keeps cliphist alive after source quits, drop-listener-when-hyprlock-not-chosen. |
 | `packages.md` | `hyprlock` / `hypridle` / `hyprpaper`. First-party Hypr ecosystem, all repo packages. |
 
 ## Where this component lands
@@ -64,3 +64,13 @@ before suspend, hyprpaper's IPC socket (on by default since 0.7.x) lets
   + suspend); desktops pick **Balanced** or **Relaxed** and often drop the suspend tier.
 - [`keybinds`](../keybinds/) — emits `bind = $mainMod, X, exec, hyprlock` (manual lock); unrelated
   to the idle path but cross-referenced because both eventually call `hyprlock`.
+- [`launcher`](../launcher/) — adjacent: walker's `ext_background_effect_blur = true` is a
+  Wayland-protocol blur request (compositor-served via `ext-background-effect-v1`, not built-in).
+  Hyprland implemented the server in commit `7d1e481` (May 2026); on older Hyprland it silently
+  no-ops and a `layerrule = blur, walker` block is required instead. See
+  `../launcher/gotchas.md` and `../window-rules/`.
+- [`look-feel`](../look-feel/) — corpus uses two dpms-dispatch forms in `hypridle.conf`: the
+  classic-string `hyprctl dispatch dpms off` (binnewbs, Ax-Shell, JaKooLit, dusky, Matt-FTW —
+  works on every Hyprland version) and the runtime-Lua form `hyprctl dispatch 'hl.dsp.dpms({
+  action = "disable" })'` (ML4W, end-4 — requires Lua-enabled Hyprland). The template emits
+  the classic form by default; see `gotchas.md`.

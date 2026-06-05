@@ -35,6 +35,24 @@ general {
 otherwise it exits non-zero and the second command (`hyprlock`) launches a fresh instance. This is
 the standard idiom — every shipped hypridle example uses it.
 
+## `before_sleep_cmd` — two corpus idioms, both correct
+
+Two patterns appear across the corpus, and both are defensible:
+
+- **`before_sleep_cmd = loginctl lock-session`** (binnewbs, Ax-Shell, JaKooLit, end-4, ML4W).
+  Emits the systemd `Lock` signal; hypridle's own `lock_cmd` then services it. Matches
+  the upstream `hyprwm/hypridle/assets/example.conf`.
+- **`before_sleep_cmd = $lock_cmd`** (Matt-FTW `.config/hypr/hypridle.conf` — `$lock_cmd =
+  $launcher-pass-lock && pidof hyprlock || hyprlock`). Bypasses the systemd round-trip and
+  calls the guarded lock command directly. Useful when a pre-lock side-effect needs to fire
+  (Matt-FTW's `$launcher-pass-lock` flushes a launcher daemon first).
+
+The rice template uses the `loginctl lock-session` form because it composes cleanly with the
+auto-mode `inhibit_sleep = 2` behaviour (auto-mode detects "hyprlock" in either `lock_cmd` OR
+`before_sleep_cmd`; using `loginctl lock-session` means only the `lock_cmd` line carries the
+hyprlock reference, which is fine for detection). Don't switch to the direct-call form
+without a specific reason.
+
 ## `before_sleep_cmd = loginctl lock-session` — lock BEFORE sleep, not after
 
 Use `before_sleep_cmd`, **not** `after_sleep_cmd`, to fire the lock. The kernel suspends the
@@ -119,6 +137,40 @@ nothing to lock with. Two changes to `hypridle.conf`:
 The `before_sleep_cmd = loginctl lock-session` line *can* stay or go; if there's no lock UI it's a
 no-op, but harmless. Lean toward dropping it when `hyprlock == false` to keep the file clean.
 
+## The popular rices rarely ship `hyprpaper.conf` — they generate it or use swww
+
+Verified by direct fetch against HEAD (2026-06): **none** of end-4/dots-hyprland,
+prasanthrangan/hyprdots, mylinuxforwork/dotfiles (recently switched), JaKooLit/Hyprland-Dots,
+Matt-FTW/dotfiles, dusklinux/dusky, caelestia-dots/caelestia, or Axenide/Ax-Shell ship a static
+`hyprpaper.conf` at HEAD. Two patterns dominate:
+
+1. **The rice writes `hyprpaper.conf` on demand** from a wallpaper-engine script: HyDE's
+   `Configs/.local/share/bin/swwwallpaper.sh` (despite the name, it does support hyprpaper as a
+   fallback path); ML4W's `~/.config/ml4w/scripts/ml4w-wallpaper` regenerates it when the user
+   picks a new image.
+2. **The rice uses `swww`/`awww` instead** — HyDE (`swwwall*.sh`), ML4W (`awww img --transition-
+   type ...`), dusky (`awww-daemon` in `.config/hypr/source/autostart.lua`), Matt-FTW
+   (`awww-daemon --format argb &` in `scripts/autostart/services`). swww/awww need no static
+   config — they're stateful daemons driven entirely by `swww img <path>` / `awww img <path>`
+   CLI calls.
+
+For this rice generator, that means the **hyprpaper.conf template lives in this folder, but it's
+load-bearing only when the user picks hyprpaper in group 15**. When `autostart_env.wallpaper_tool
+== "swww"`, no `hyprpaper.conf` is emitted, the wallpaper-tool config is the swww-daemon CLI
+flags in `autostart`, and the rice engine's wallpaper-swap hook calls `swww img` / `awww img`
+instead of `hyprctl hyprpaper wallpaper`.
+
+## ML4W uses Lua-format hyprctl dispatchers — not legacy strings
+
+ML4W's `dotfiles/.config/hypr/hypridle.conf` calls
+`hyprctl dispatch 'hl.dsp.dpms({ action = "disable" })'` for the dpms listener — the **Lua
+dispatcher syntax** added in Hyprland's runtime-Lua support. The classic string form
+(`hyprctl dispatch dpms off`) still works on every supported Hyprland version; the Lua form
+only works when the Hyprland binary was built with Lua support (the upstream Arch build is,
+since ~v0.50). The rice template intentionally emits the **classic string form** for maximum
+back-compat. If a future interview question gates on a runtime-Lua opt-in, the dpms listener
+would be the line to swap; left as a recipe-evolution note, not a current branch.
+
 ## hyprpaper 0.8.0 broke its config format — `preload` is GONE
 
 [hyprpaper v0.8.0](https://github.com/hyprwm/hyprpaper/releases/tag/v0.8.0) (Dec 2025) is "a
@@ -138,6 +190,24 @@ Arch's `extra/hyprpaper` jumped straight to 0.8.4 (Apr 2026), so any rice config
 the legacy syntax **fails to parse** on a freshly-installed system. The writer must default to
 the new block form; see `template.md` for both shapes.
 
+## Corpus disagreement on `inhibit_sleep` — default is right unless the shell owns the lock UI
+
+The default (`2` / auto) is correct for the **vast majority** of rices, and most of the corpus
+leaves it implicit. Two notable exceptions:
+
+- **end-4/dots-hyprland** (`dots/.config/hypr/hypridle.conf`) sets `inhibit_sleep = 3` explicitly
+  because its `lock_cmd` dispatches into Quickshell first (`hyprctl dispatch 'hl.dsp.global(
+  "quickshell:lock")'`) and only falls back to `hyprlock` as the second clause — auto-mode's
+  pattern-match for "hyprlock" still matches the fallback, but the rice pins `3` to make the
+  intent explicit. Safe because Hyprland ≥ 0.42 ships `hyprland-lock-notify-v1`.
+- **mylinuxforwork/dotfiles** (`dotfiles/.config/hypr/hypridle.conf`) sets
+  `ignore_dbus_inhibit = true` AND `ignore_wayland_inhibit = true`. **Footgun for non-power
+  users**: with both inhibitors ignored, hypridle fires its idle ladder during full-screen
+  Firefox video, Steam Big Picture, fullscreen YouTube/Netflix — anywhere an app legitimately
+  asked the compositor not to idle. The rice template intentionally leaves both implicit
+  (their defaults are `false`); only set them if the user explicitly wants to override
+  inhibitors (e.g. a kiosk that ignores misbehaving inhibit requests).
+
 ## `inhibit_sleep` is not a bitfield — it's four coordination modes
 
 A common misreading: `inhibit_sleep` looks like it might be a bitfield over standby/sleep, with
@@ -154,6 +224,34 @@ against `hyprwm/hypridle@main` `src/core/Hypridle.cpp` and the wiki:
 The default (`2`) is almost always correct — the rice template leaves it implicit. Setting `3`
 unconditionally is wrong on compositors without `hyprland-lock-notify-v1` and produces a runtime
 error log.
+
+## Adjacent daemon: walker's `ext_background_effect_blur` is compositor-served, not built-in
+
+The batch-1 launcher research surfaced walker's `ext_background_effect_blur = true` flag. The
+flag is **not a built-in compositor-independent blur path** — it asks the compositor to draw
+blur behind walker's surface via the `ext-background-effect-v1` Wayland protocol (verified in
+`abenz1267/walker@HEAD` `src/wayland_blur.rs` — the source even ships its own copy of
+`ext-background-effect-v1.xml` and binds to `ext_background_effect_manager_v1`).
+
+Hyprland implemented the server side of `ext-background-effect-v1` in
+[`hyprwm/Hyprland@7d1e481`](https://github.com/hyprwm/Hyprland/commit/7d1e481) (**May 2026**;
+`protocols: implement ext-background-effect-v1 protocol (#13211)`). On any Hyprland that ships
+that commit (~v0.50+; certainly the current Arch package), the flag works and replaces a
+`layerrule = blur, walker` block. On older Hyprland it silently no-ops — walker's flag and
+Hyprland's `layerrule = blur, walker` are the **only two** routes to a blurred walker, and
+this is the only place the version cliff matters for companion daemons. Not owned here (it's
+a launcher-component concern, see `../launcher/gotchas.md`) but flagged here because the
+batch-1 finding incorrectly framed the path as compositor-independent.
+
+## Adjacent daemon: `wl-clip-persist` keeps cliphist alive after the source app quits
+
+By default on Wayland, the clipboard contents die when the source application exits — copying
+from Firefox then closing Firefox empties the clipboard before you paste. Several rices
+(dusky `.config/hypr/source/autostart.lua`, HyDE `Scripts/`) layer `wl-clip-persist
+--clipboard regular` on top of the standard `wl-paste --type text --watch cliphist store` /
+`wl-paste --type image --watch cliphist store` pair. The launch lines live in
+[`../autostart/`](../autostart/) — this component's `lock_cmd` and `before_sleep_cmd` do **not**
+interact with the clipboard, so this is documented here only for cross-component coherence.
 
 ## hypridle has no `hyprctl reload` (and hyprpaper's is version-dependent)
 
