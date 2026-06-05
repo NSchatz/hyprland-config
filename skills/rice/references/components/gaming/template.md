@@ -52,6 +52,19 @@ The field name is `immediate` (boolean) — verified against the
 `windowrule = match:class cs2, immediate yes` in its example, which maps 1-to-1 onto the block
 form above.
 
+Corpus form of the per-class regex:
+[**end-4/dots-hyprland**](https://github.com/end-4/dots-hyprland) emits three separate
+`hl.window_rule({...})` calls in `dots/.config/hypr/hyprland/rules.lua` —
+`title = ".*\\.exe"`, `title = ".*minecraft.*"`, `class = "^(steam_app).*"`.
+[**caelestia-dots/caelestia**](https://github.com/caelestia-dots/caelestia) collapses to a
+single regex in `hypr/hyprland/rules.conf`:
+`match:class (steam_app_(default|[0-9]+))|gamescope` — applied to `immediate true`, `opaque
+true`, **and** `idle_inhibit always` together.
+[**fufexan/dotfiles**](https://github.com/fufexan/dotfiles) keeps it minimal in
+`system/programs/hyprland/rules.lua`: `class = "^(osu!|cs2)$"`. Our per-entry one-block-each
+shape is the conservative middle ground — surface the user's input verbatim and don't
+collapse classes into a single regex they can't read later.
+
 Tearing only engages when the matched window is fullscreen and alone on its monitor — a bar or
 notification on the same output suppresses it. See [`gotchas.md`](gotchas.md).
 
@@ -82,8 +95,19 @@ can be done by adding `, vrr, X` where X is the mode from the variables page."*
 
 ## 4. `windowrules.conf` — fullscreen effect-strip + idle inhibit
 
-Owned by `window-rules`. Emit **only** when `gaming.strip_fullscreen_effects == true`. Five
+Owned by `window-rules`. Emit **only** when `gaming.strip_fullscreen_effects == true`. Six
 block-form rules; do not collapse — Hyprland's window-rule processor reads one field per block.
+
+The fullscreen catchall (`match:fullscreen = true`) is the **broad** form. The corpus prefers
+narrower variants — JaKooLit
+([`config/hypr/configs/WindowRules.conf`](https://github.com/JaKooLit/Hyprland-Dots/blob/main/config/hypr/configs/WindowRules.conf))
+tags `gamescope` and `steam_app_\d+` as `+games` and applies `no_blur on, fullscreen 0` to the
+tag; binnewbs/arch-hyprland and JaKooLit both use a parallel `+multimedia_video` tag for
+mpv/vlc with `no_blur on, opacity 1.0`. Our fullscreen-catchall hits more cases (every game,
+every video player, every fullscreen browser tab) at the cost of also stripping decorations
+off fullscreen *terminals* — which is the behaviour the rice wants (no peeking border on a
+fullscreened editor either). See `gotchas.md` for the per-class `idle_inhibit = focus` variant
+that this component intentionally does **not** emit.
 
 ```ini
 windowrule { name = fs-noblur;     match:fullscreen = true; no_blur      = true }

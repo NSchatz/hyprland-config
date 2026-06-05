@@ -49,11 +49,33 @@ default in the `look-feel` template for every user, gamer or not.
 - [`look-feel`](../look-feel/) — owns `looknfeel.conf` (`allow_tearing` lands there; `misc:vfr` is
   its baseline).
 - [`window-rules`](../window-rules/) — owns `windowrules.conf` (per-class tearing + fullscreen
-  effect-strip rules land there).
-- [`monitors`](../monitors/) — owns `monitors.conf` (per-monitor `vrr` field).
+  effect-strip rules land there). The video-player class-based `idle_inhibit = focus` pattern
+  that fufexan and linuxmobile use for `mpv` / browser-YouTube lives in **window-rules**, not
+  here — see `gotchas.md`.
+- [`monitors`](../monitors/) — owns `monitors.conf` (per-monitor `vrr` field). Note: most
+  corpus rices set VRR globally via `misc:vrr = N` in `look-feel`, not per-monitor — see
+  `gotchas.md`. Per-monitor is the safer multi-display form; the global form is the
+  single-monitor shortcut.
 - [`keybinds`](../keybinds/) — owns `binds.conf` (`SUPER+F1` lands there).
 - [`env`](../env/) — owns `env.conf`. This component intentionally emits **nothing** there; see
   the env component's `gotchas.md` for why `WLR_DRM_NO_ATOMIC` / `AQ_NO_ATOMIC` are excluded
   from the slim recommended set.
 - [`utilities`](../utilities/) — the copy-not-render script install pattern is shared with this
   component's `gamemode.sh`.
+
+## What the corpus says about gaming-as-theming
+
+Short version: **gaming is "just don't break the desktop" for every rice in the corpus**. No
+top rice in `/workspace/.research/corpus.md`:
+
+- pins games to a `workspace = special:gaming, on-created-empty:…` — that pattern is not used
+  in any of the 19 surveyed rices,
+- ships a MangoHud config rendered from the theming engine — `mangohud %command%` is a Steam
+  launch option only,
+- ships a themed gamescope wrapper — gamescope is its own micro-compositor so the host rice's
+  blur / colors / decorations don't reach inside it.
+
+The only theming-side moves popular rices make are the same three this component already
+emits: `immediate true` on game classes (end-4, caelestia, fufexan), `idle_inhibit` while
+fullscreen (caelestia, JaKooLit), and decoration-strip on fullscreen (JaKooLit's tag-based
+`no_blur on`). See `gotchas.md` for the per-class regex variants used by each rice.
