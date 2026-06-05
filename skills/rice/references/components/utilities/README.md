@@ -22,9 +22,11 @@ a script copy or just a bind.
 |---|---|
 | `interview.md` | Group 18's single multi-select call, with corpus-frequency ordering and the pre-checked defaults. |
 | `schema.md` | The `utilities.selected` array — recognized string values. |
-| `template.md` | The script → deps → bind map, plus the bind-only tools (clipboard, emoji, calculator, wlogout). Notes the auto-detect runtime behavior. |
-| `gotchas.md` | Wi-Fi/Bluetooth tray-vs-rofi tradeoff, 2025-2026 tool defaults (satty, wl-screenrec, hyprshot/grimblast), cliphist watcher location, OCR language packs. |
+| `template.md` | The script → deps → bind map, the bind-only tools (clipboard, emoji, calculator, wlogout), and the **wlogout `layout` + `style.css` recipe** when the user picked the wlogout flavor. Notes the auto-detect runtime behavior. |
+| `styling.md` | How the corpus styles wlogout (6-button grid, icon source paths, blur layerrule, `logout_dialog` namespace). The only themed surface in this component. |
+| `gotchas.md` | Wi-Fi/Bluetooth tray-vs-rofi tradeoff, 2025-2026 tool defaults (satty, wl-screenrec, hyprshot/grimblast), cliphist watcher location, OCR language packs, wlogout layer-namespace footguns. |
 | `packages.md` | The full utility dependency map walked by the installer agent. |
+| `wlogout.tmpl` | Engine color template — renders `~/.config/wlogout/colors.css` (`@define-color bg/fg/accent/surface`). The user's `style.css` `@import`s it. |
 
 ## Where this component lands
 
@@ -35,6 +37,10 @@ a script copy or just a bind.
 - **Autostart entries:** `~/.config/hypr/autostart.conf` — owned by `autostart`, but several
   picks here require an autostart entry there (cliphist watchers ×2 for clipboard, `nm-applet
   --indicator` for wifi-applet, `blueman-applet` for bluetooth-applet).
+- **wlogout (when picked):** `~/.config/wlogout/layout` + `~/.config/wlogout/style.css` written by
+  the writer agent from `template.md`; `~/.config/wlogout/colors.css` rendered by the engine from
+  `wlogout.tmpl` and `@import`ed by `style.css`. Icons resolve via the upstream
+  `/usr/share/wlogout/icons/` fallback chain in `background-image: image(url("…"))`.
 
 ## Related components
 
@@ -44,6 +50,11 @@ a script copy or just a bind.
   reference `$dmenu` (never `$menu` — see `gotchas.md`).
 - [`accessibility`](../accessibility/) — night-light is offered there too; both groups bind the
   same `hyprsunset` toggle.
+- [`window-rules`](../window-rules/) — owns the `layerrule = blur, logout_dialog` line that lets
+  the wlogout overlay show a translucent backdrop instead of an opaque sheet (see `gotchas.md`).
+- [`waybar`](../waybar/) — when the user picks the rofi power-menu flavor, the rofi prompt reuses
+  waybar's `colors.css` via `@import` in most corpus rices (`JaKooLit/Hyprland-Dots`,
+  `binnewbs/arch-hyprland`); the launcher component handles that wiring.
 
 ## Shipped scripts inventory
 
