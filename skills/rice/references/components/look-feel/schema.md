@@ -33,8 +33,8 @@ Keys this component owns under the top-level `look_feel` key.
 | `animations` | string enum | `smooth` (shipped speeds), `snappy` (~0.6× speeds), `off` (`enabled = false`, drop curves). |
 | `border_color` | string enum | `palette` → emit `$accent $accent2 45deg`; `custom-gradient` → emit `border_gradient` verbatim. |
 | `border_gradient` | string (optional) | Free-text Hyprland gradient. **Required only when `border_color == "custom-gradient"`**; absent otherwise. |
-| `layout` | string enum | `dwindle` / `master` / `scrolling`. `scrolling` is core in 0.53+ (see `_shared/version-matrix.md`); any plugin layout (`hy3`) lives in `plugins`. |
-| `master_orientation` | string enum | `left / right / top / bottom / center`. **Required only when `layout == "master"`**; absent otherwise. |
+| `layout` | string enum | `dwindle` / `master` / `scrolling`. `scrolling` is core in **0.54+** (the rice `_shared/version-matrix.md` says 0.53 — that's wrong; `scrolling:*` config keys absent at v0.53.0 source, present at v0.54.0). Any plugin layout (`hy3`) lives in `plugins`. |
+| `master_orientation` | string enum | `left / right / top / bottom / center`. **Required only when `layout == "master"`**; absent otherwise. When `center`, the template also emits `slave_count_for_center_master = 2` (the default — explicit for clarity); the layout falls back to `center_master_fallback` (default `"left"`) until that many slaves are open. |
 | `groups` | boolean | Emit a `group {}` block + bind `SUPER+G` / `SUPER+TAB` in `keybinds`. |
 | `per_app_rules` | array of `{class, effects[]}` | Effects are any combination of `float`, `pin`, `pseudo`, `tile`, `workspace <n>`, `opacity <a> <i>`. Consumed by `window-rules`. Empty array is the "no extras" answer. |
 | `blur_toggle` | boolean | When true, ships `blur-toggle.sh` and the `SUPER+SHIFT+B` bind. |
@@ -59,6 +59,19 @@ Keys this component owns under the top-level `look_feel` key.
 - `groups` and `blur_toggle` are required booleans (the gate question always runs).
 - `per_app_rules` is required; `[]` is the "no extras" answer (the question still gets asked —
   see `_interview-protocol.md`).
+
+## Derived template flags (no answers.json keys — computed by the writer)
+
+| Flag | True when | Used to emit |
+|---|---|---|
+| `blur_enabled` | `blur_shadows ∈ {both-on, blur-on-shadows-off}` | `decoration:blur:enabled` |
+| `shadow_enabled` | `blur_shadows == both-on` | `decoration:shadow:enabled` |
+| `animations_enabled` | `animations ≠ off` | gate the `animations { … }` block |
+| `master_orientation_center` | `layout == master ∧ master_orientation == center` | emit `slave_count_for_center_master` |
+| `hypr_ge_0_53` | `HYPR_VERSION ≥ 0.53` | emit `rounding_power = 2` |
+| `hypr_ge_0_55` | `HYPR_VERSION ≥ 0.55` | omit `dwindle:pseudotile`, `decoration:shadow:ignore_window`; move `vfr` to `debug {}`; emit `groupbar:middle_click_close` |
+| `hypr_lt_0_55` | inverse of above | emit `dwindle:pseudotile`; `misc:vfr`; allow `decoration:shadow:ignore_window` if desired |
+| `cursor_no_hardware` | env `CURSOR_NO_HARDWARE_RECOMMENDED=1` | emit `cursor { no_hardware_cursors = 1 }` block |
 
 ## Sibling slices NOT owned here
 

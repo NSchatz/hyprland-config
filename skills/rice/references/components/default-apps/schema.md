@@ -6,7 +6,7 @@ Keys this component owns under the top-level `default_apps` key.
 {
   "default_apps": {
     "browser": "firefox | chromium | brave | qutebrowser | <other>",
-    "files":   "nautilus | thunar | dolphin | nemo | pcmanfm | yazi | ranger | null"
+    "files":   "nautilus | thunar | dolphin | nemo | pcmanfm | null"
   }
 }
 ```
@@ -15,8 +15,11 @@ Keys this component owns under the top-level `default_apps` key.
 
 - `default_apps.browser` — string. The browser executable (`command -v $browser` must work after
   install). Always populated.
-- `default_apps.files` — string or `null`. `null` means "no file manager" (user wants a TUI
-  launched in the terminal, or no file-manager bind at all). Downstream code branches on `null`
+- `default_apps.files` — string or `null`. Must be a **GUI** file manager (one that can be
+  `exec`'d as a standalone process). TUI picks (`yazi`, `ranger`) **must be recorded as `null`**
+  so the standard `$fileManager` variable + `bind = $mainMod, E, exec, $fileManager` are
+  suppressed; the TUI bind belongs in `keybinds` as `bind = $mainMod, E, exec, $terminal -e
+  <tui>`. See `gotchas.md` → "TUI file managers" for the why. Downstream code branches on `null`
   rather than checking key presence.
 
 ## Who reads these keys

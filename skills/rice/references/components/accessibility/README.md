@@ -24,10 +24,10 @@ This component doesn't own a `.conf` file of its own. Each selected helper route
 
 | Helper | Lands in |
 |---|---|
-| `magnifier` | `../keybinds/template.md` (`SUPER+=`, `SUPER+-`) + optional one line in `../look-feel/template.md` (`cursor:zoom_rigid`). |
-| `large-cursor` | `../env/template.md` (`XCURSOR_SIZE`, `HYPRCURSOR_SIZE`) + `../autostart/template.md` (`hyprctl setcursor`) + `theming/` GTK `cursor-size`. |
-| `night-light` | `../keybinds/template.md` (`SUPER+SHIFT+N`) — same bind shape as `../utilities/` night-light. |
-| `larger-ui` | `../monitors/template.md` (bumped `scale`) + `theming/` GTK `text-scaling-factor`. |
+| `magnifier` | `../keybinds/template.md` (`SUPER+=`, `SUPER+-` — keysyms `equal` / `minus`) + optional one line in `../look-feel/template.md` (`cursor:zoom_rigid`). |
+| `large-cursor` | `../env/template.md` (`XCURSOR_SIZE`, `HYPRCURSOR_SIZE`) + `../autostart/template.md` (`hyprctl setcursor`) + `theming/` GTK `cursor-size` (settings.ini + `gsettings`). |
+| `night-light` | `../autostart/template.md` (`exec-once = hyprsunset` — daemon) + `../keybinds/template.md` (two binds: `hyprctl hyprsunset temperature 4000` on; `hyprctl hyprsunset identity` off). Overlaps `../utilities/` night-light — see `gotchas.md`. |
+| `larger-ui` | `../monitors/template.md` (bumped `scale`) + `theming/` `gsettings ... text-scaling-factor 1.25`. |
 
 ## Related components
 

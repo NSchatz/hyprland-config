@@ -36,6 +36,15 @@ When `browser == "firefox"`, the `env` component adds:
 env = MOZ_ENABLE_WAYLAND,1
 ```
 
+This is a **no-op on Firefox 121+** (Wayland default since Dec 2023). Kept as a documentation
+marker / safety net for older Firefox builds; do **not** describe it as "required for Wayland
+Firefox" in any user-facing copy. Setting it to `0` (not done here) would force XWayland. See
+[`../env/gotchas.md`](../env/gotchas.md) → "MOZ_ENABLE_WAYLAND".
+
+When `browser` is `chromium` / `brave` (or any Electron app is in scope), the `env` component's
+`env = ELECTRON_OZONE_PLATFORM_HINT,auto` line is what enables native Wayland — no per-browser
+flag in `$browser`.
+
 ## What does NOT belong here
 
 - The terminal emulator. That's `components/terminal/` (themed, gets a colors file).

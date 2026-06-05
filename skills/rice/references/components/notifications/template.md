@@ -11,8 +11,9 @@ battle-tested moves), see `styling.md`.
 ## mako — `~/.config/mako/config`
 
 Single file holds layout + behavior + colors. Colors come from the rice-rendered `mako.tmpl`
-(inline keys + a `[urgency=high]` section). The writer merges this with the user's `position` /
-`timeout` / `behavior` picks.
+(inline keys + `[urgency=low]` and `[urgency=critical]` sections — mako's three urgency criteria
+values are `low`/`normal`/`critical`, **not** `high`). The writer merges this with the user's
+`position` / `timeout` / `behavior` picks.
 
 ```ini
 font={{font_ui}} 11
@@ -144,14 +145,15 @@ Two files. `config.json` is **behaviour + widget array** (the panel layout is da
   "widget-config": {
     "title":   { "text": "Notifications", "clear-all-button": true, "button-text": "Clear All" },
     "dnd":     { "text": "Do Not Disturb" },
-    "mpris":   { "image-size": 96, "image-radius": 8 },
+    "mpris":   { "show-album-art": "always", "autohide": false, "blacklist": [] },
     "volume":  { "label": "" },
     "buttons-grid": {
+      "buttons-per-row": 4,
       "actions": [
-        { "label": "", "command": "nm-connection-editor" },
-        { "label": "", "command": "blueman-manager" },
-        { "label": "", "command": "hyprlock" },
-        { "label": "", "command": "wlogout" }
+        { "label": "", "command": "nm-connection-editor", "type": "toggle" },
+        { "label": "", "command": "blueman-manager",       "type": "toggle" },
+        { "label": "", "command": "hyprlock",              "type": "toggle" },
+        { "label": "", "command": "wlogout",               "type": "toggle" }
       ]
     }
   }

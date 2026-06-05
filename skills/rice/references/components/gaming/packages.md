@@ -1,8 +1,9 @@
 # gaming — packages
 
 Everything this component emits — `allow_tearing`, per-class `immediate` rules, per-monitor
-`vrr`, fullscreen effect-strip rules, the `SUPER+F1` bind, and the kernel-gated env line — is
-**Hyprland-internal**. No package install is required for the component itself.
+`vrr`, fullscreen effect-strip rules, and the `SUPER+F1` bind — is **Hyprland-internal**. No
+package install is required for the component itself. (No env line is emitted; see `template.md`
+§6 and `gotchas.md`.)
 
 The shipped `gamemode.sh` script depends only on `hyprctl` (already installed with Hyprland) and
 optionally `libnotify` for the `notify-send` toasts (almost always already present from the
@@ -12,7 +13,7 @@ notifications component). Neither needs to be added here.
 
 | Pick | Package | Repo / AUR | When | Notes |
 |---|---|---|---|---|
-| feral gamemode (CPU governor / nice tweaks) | `gamemode` | repo | User wants the system service `gamemoded` so they can prefix Steam launch options with `gamemoderun %command%`. | Pure userspace daemon, no kernel module. Not invoked by our `gamemode.sh` — different tool with the same name. Recommend if the user mentioned "Steam launch options" or "max CPU clock". |
+| feral gamemode (CPU governor / nice tweaks) | `gamemode` | repo | User wants the daemon `gamemoded` so they can prefix Steam launch options with `gamemoderun %command%`. | Pure userspace daemon, no kernel module. **D-Bus activated** via `com.feralinteractive.GameMode.service` (`SystemdService=gamemoded.service`) — `gamemoderun` triggers it automatically; manual `systemctl --user enable --now gamemoded.service` is optional. Not invoked by our `gamemode.sh` — different tool with the same name. Recommend if the user mentioned "Steam launch options" or "max CPU clock". |
 
 This is **not** added by default. Surface it only if the interviewer agent picks up an explicit
 ask for the system service. The component's `gamemode.sh` script is independent: it tweaks
@@ -44,7 +45,8 @@ management — the per-class `immediate` rules above are redundant inside a game
 
 ## Cross-references
 
-- The kernel-gated env line (`WLR_DRM_NO_ATOMIC,1`) → [`template.md`](template.md) §6 and
-  [`gotchas.md`](gotchas.md).
+- Why no env line is emitted (Hyprland uses aquamarine, not wlroots, since v0.42 — so
+  `WLR_DRM_NO_ATOMIC` is a no-op, and `AQ_NO_ATOMIC` is upstream "NOT recommended") →
+  [`template.md`](template.md) §6 and [`gotchas.md`](gotchas.md).
 - The shared script-install pattern → [`../utilities/README.md`](../utilities/README.md).
 - Package routing (repo vs AUR auto-resolved by `install.sh`) → `skills/rice/scripts/`.

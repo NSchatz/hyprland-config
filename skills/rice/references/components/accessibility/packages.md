@@ -9,10 +9,10 @@ external dependency.
 
 | Pick | Package | Repo / AUR | Notes |
 |---|---|---|---|
-| `night-light` | `hyprsunset` | repo (`extra`) | The Hypr-ecosystem warm-temp tool. Replaces `gammastep`/`redshift`/`wlsunset` on Wayland. |
+| `night-light` | `hyprsunset` | repo (`extra`) | The Hypr-ecosystem warm-temp daemon, controlled via `hyprctl hyprsunset` IPC. Supported since Hyprland 0.45.0 (per [hyprsunset wiki](https://wiki.hypr.land/Hypr-Ecosystem/hyprsunset/)). Replaces `gammastep`/`redshift`/`wlsunset` on Wayland. |
 | `magnifier` | — | — | Hyprland-internal (`cursor:zoom_factor`). No package. |
-| `large-cursor` | — | — | Env vars + `hyprctl setcursor`. No package; the cursor **theme** itself is handled by the palette/theme pipeline (see `theming/`). |
-| `larger-ui` | — | — | Monitor `scale` + GTK setting. No package. |
+| `large-cursor` | — | — | Env vars + `hyprctl setcursor`. No package; the cursor **theme** itself is handled by the palette/theme pipeline (see `theming/`). Note: `hyprctl setcursor` requires a hyprcursor-format theme (since 0.37); XCursor themes are reached only via env vars. |
+| `larger-ui` | — | — | Monitor `scale` + `gsettings ... text-scaling-factor`. No package. |
 
 ## Assembly rule
 

@@ -45,6 +45,19 @@ Enforcement is at two levels:
    `# WARNING: tlp is installed; you picked ppd — uninstall tlp or stop+disable its service
    before enabling ppd.` line. Removal is the user's call.
 
+Tool-specific conflict notes (all from upstream docs):
+
+- **Arch's `tlp` package conflicts with `power-profiles-daemon`** at the pacman level —
+  installing tlp will prompt to remove PPD
+  (<https://linrunner.de/tlp/installation/arch.html>).
+- **`auto-cpufreq` from the AUR does NOT auto-mask PPD** — its README warns the user must run
+  `sudo systemctl mask power-profiles-daemon.service` manually after install
+  (<https://github.com/AdnanHodzic/auto-cpufreq>). The install output prints this line when
+  `power_tool == "auto-cpufreq"`.
+- **TLP 1.6+ also auto-skips conflicting settings** when it detects PPD at runtime, but only
+  emits a log warning rather than refusing to start — so the user can still end up in a
+  half-broken state if both are enabled.
+
 ## (c) PPD pairs with the waybar `power-profiles-daemon` module
 
 The waybar power-profiles-daemon module talks to PPD over D-Bus (`net.hadess.PowerProfiles`). It
@@ -71,10 +84,13 @@ persistence paths:
 - **Systemd one-shot** (PPD / auto-cpufreq / none users) → generator emits
   `battery-charge-limit.service` to the staging dir and prints the `sudo install …` +
   `sudo systemctl enable --now` commands.
-- **TLP path** (`power_tool == "tlp"`) → `STOP_CHARGE_THRESH_BAT0=80` in `/etc/tlp.conf`. The
-  generator prints the snippet; TLP applies it on its own service start. **Do not emit the
-  one-shot when TLP is the picked tool** — they will write the same attribute on different
-  schedules and TLP will "win" inconsistently, surfacing as the limit "sometimes not sticking".
+- **TLP path** (`power_tool == "tlp"`) → **both** `START_CHARGE_THRESH_BAT0=75` and
+  `STOP_CHARGE_THRESH_BAT0=80` in `/etc/tlp.conf`. TLP rejects the pair entirely if only the stop
+  threshold is set ("You must always specify both charge thresholds … otherwise TLP will reject
+  both thresholds" — <https://linrunner.de/tlp/settings/battery.html>). The generator prints the
+  snippet; TLP applies it on its own service start. **Do not emit the one-shot when TLP is the
+  picked tool** — they will write the same attribute on different schedules and TLP will "win"
+  inconsistently, surfacing as the limit "sometimes not sticking".
 
 The agent never runs `sudo`, never touches `/etc/`, never calls `systemctl`. Its role is: emit the
 unit file to staging, print the exact commands to the user, and stop.

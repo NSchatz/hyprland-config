@@ -11,7 +11,7 @@ this component is just the non-themed default apps.
 | `interview.md` | Sub-questions (browser, file manager). |
 | `schema.md` | The `answers.json` keys this component owns. |
 | `template.md` | Variable definitions injected into `hyprland.conf` (`$browser`, `$fileManager`) — there's no dedicated `.conf` for this component. |
-| `gotchas.md` | The Firefox-Wayland coupling (`MOZ_ENABLE_WAYLAND` belongs in `env`), and "omit `$fileManager` if not chosen". |
+| `gotchas.md` | Firefox-Wayland status (no-op on 121+, `env` still emits the marker), Chromium/Brave/Electron ozone-hint story, "omit `$fileManager` if not chosen", TUI handling, Dolphin/Nautilus dep weight, `xdg-mime` for default-app wiring. |
 | `packages.md` | The browser + file-manager package map. |
 
 ## Where this component lands
@@ -20,7 +20,10 @@ this component is just the non-themed default apps.
   `components/keybinds/template.md` for the variables block).
 - **Keybinds:** the `bind = $mainMod, E, exec, $fileManager` line lives in `components/keybinds/`,
   not here. This component just defines the variables.
-- **env:** if Firefox is the browser, `components/env/` adds `MOZ_ENABLE_WAYLAND,1`.
+- **env:** if Firefox is the browser, `components/env/` still emits `MOZ_ENABLE_WAYLAND,1` as
+  an opt-in marker (no-op on Firefox 121+, which defaults to Wayland — see `gotchas.md`). For
+  Chromium / Brave / Electron, `env`'s `ELECTRON_OZONE_PLATFORM_HINT,auto` is what enables
+  native Wayland.
 
 ## Related components
 

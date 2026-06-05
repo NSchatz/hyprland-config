@@ -7,7 +7,8 @@ the user sees — so catch parse errors at generate-time.
 ## mako — `~/.config/mako/config`
 
 mako uses an INI-like grammar: top-level `key=value` lines, plus `[criteria]` sections (e.g.
-`[urgency=high]`, `[mode=do-not-disturb]`). Validate:
+`[urgency=critical]`, `[mode=do-not-disturb]`). Valid `urgency` values are `low`, `normal`,
+`critical` (the freedesktop spec's three levels — **not** `high`). Validate:
 
 ```bash
 # 1. file exists and is readable
@@ -42,9 +43,14 @@ dunst INI is **section-scoped** with **indented** `key = value` lines under each
 ```bash
 test -r "$HOME/.config/dunst/dunstrc" || die "dunstrc missing"
 
-# 1. dunst has a real parse check
-if command -v dunstctl > /dev/null; then
-  dunst -print > /dev/null 2>&1 || die "dunst parse error"
+# 1. dunst has no standalone --check / --syntax flag. `dunst -print` prints
+#    received notifications, NOT a parse check (common confusion). The reliable
+#    parse path is dunstctl reload — it exits non-zero on a bad config when the
+#    daemon is running. On a fresh install with no daemon yet, fall through to
+#    the awk shape-check below.
+if pgrep -x dunst > /dev/null; then
+  dunstctl reload 2>&1 | tee /tmp/dunst-reload.log
+  ! grep -qiE 'error|invalid|parse' /tmp/dunst-reload.log || die "dunst parse error"
 fi
 
 # 2. every line is either a section header, a comment, blank, or "key = value"

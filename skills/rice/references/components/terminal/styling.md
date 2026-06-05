@@ -11,7 +11,7 @@ The palette is the star — match it to the rest of the desktop and the terminal
 |-------------|--------------------------------------|-------------------|------------------------------------------------------|--------------------------------------------------------------|
 | **kitty**   | `~/.config/kitty/kitty.conf` (+ `include colors.conf`) | `key value` (space-separated) | `foreground`, `background`, `cursor`, `color0`..`color15` | Auto-reloads on save; or `kill -SIGUSR1 $KITTY_PID` / `kitten @ load-config` / `ctrl+shift+f5` |
 | **alacritty** | `~/.config/alacritty/alacritty.toml` | **TOML** (was YAML pre-0.13) | `[colors.primary]`, `[colors.normal]`, `[colors.bright]`, `[colors.cursor]` | Live reload on save (`live_config_reload = true`, default)   |
-| **foot**    | `~/.config/foot/foot.ini`            | **INI** sections  | `[colors]` `foreground=`/`background=`/`regular0..7`/`bright0..7` | `kill -SIGUSR1 $(pidof foot)` reloads; some changes need restart |
+| **foot**    | `~/.config/foot/foot.ini`            | **INI** sections  | `[colors]` `foreground=`/`background=`/`regular0..7`/`bright0..7` (bare RRGGBB, no `#`); or dual `[colors-dark]` / `[colors-light]` | No config-reload signal. `SIGUSR1` swaps to `[colors-dark]`, `SIGUSR2` to `[colors-light]` (existing blocks only). Other changes: restart. |
 | **wezterm** | `~/.config/wezterm/wezterm.lua`      | **Lua** (returns a config table) | `config.colors = { foreground, background, ansi = {…}, brights = {…} }` | Auto-reloads on save (`automatically_reload_config = true`)  |
 | **ghostty** | `~/.config/ghostty/config`           | `key = value`     | `foreground`, `background`, `cursor-color`, `palette = N=#hex` | `ctrl+shift+,` reload, or restart                            |
 
@@ -86,7 +86,7 @@ what they buy you.
 - *wezterm: built-in `color_scheme` by name, no file* — `color_scheme = "Catppuccin Mocha"`; fork one with `wezterm.color.get_builtin_schemes()["Catppuccin Mocha"]`, tweak `background`/`tab_bar`, register under `color_schemes` (the OLED true-black trick), or layer a single `config.colors = { background = … }` override on top of the named scheme.
 
 **Transparency that actually shows (the gotchas).**
-- *alacritty needs `transparent_background_colors = true`* (eulersson) — without it, `[window] opacity` is ignored because cells paint the theme's solid background. Pair `opacity = 0.75` + `decorations = "transparent"` (transparent titlebar) with Hyprland blur. Note `[window] blur` is **macOS-only** — on Wayland the blur comes from the compositor.
+- *alacritty needs `[colors] transparent_background_colors = true`* (eulersson) — without it, `[window] opacity` is ignored because cells paint the theme's solid background. The key lives under **`[colors]`**, not `[window]`. Pair `opacity = 0.75` + `decorations = "Transparent"` (transparent titlebar — note capitalized enum: `Full`/`None`/`Transparent`/`Buttonless`) with Hyprland blur. Note `[window] blur` is **macOS-only** — on Wayland the blur comes from the compositor.
 - *wezterm splits `window_background_opacity` from `text_background_opacity`* — keep text opaque (`1.0`) over a translucent background so glyphs stay crisp.
 - *HyDE leaves kitty `background_opacity` commented* and drives transparency from a Hyprland `windowrule = opacity` instead — one place controls every window's translucency, terminal included. JaKooLit instead sets `background_opacity 0.9` + `dynamic_background_opacity 1` (so it can be changed at runtime) + `cursor_trail 1`.
 

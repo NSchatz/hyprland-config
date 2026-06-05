@@ -1,8 +1,10 @@
 # waybar — reload
 
 Waybar reloads in place via `SIGUSR2` — both `config.jsonc` and `style.css` are re-read with no
-restart and no flash. CSS-only edits don't even need the signal when `reload_style_on_change: true`
-is in `config.jsonc` (the default — see `template.md`).
+restart and no flash. `SIGUSR2`'s "reload" action is the man-page default (`waybar(5)`:
+`on-sigusr2` defaults to `reload`; `on-sigusr1` defaults to `toggle`). CSS-only edits don't even
+need the signal when `reload_style_on_change: true` is in `config.jsonc` — the recipe in
+`template.md` sets it explicitly because waybar's own default is **`false`** (`waybar(5)`).
 
 ## Recipe
 
@@ -27,7 +29,7 @@ If any of these changed, do a hard restart instead:
 |---|---|
 | `position` (`top` ↔ `bottom` ↔ `left` ↔ `right`) | Layer-shell anchor is set at surface creation. |
 | `exclusive` | Surface exclusivity is set at creation. |
-| `mode` (`dock` ↔ `overlay`) | Layer is set at creation. |
+| `mode` (`dock` / `hide` / `invisible` / `overlay` — equivalent to sway-bar(5) modes) | Layer is set at creation. |
 | `gtk-layer-shell` | Initial protocol negotiation only. |
 | Going from one bar to a JSON **array** of named bars (`dual`) | Surface count changes. |
 | Adding `start_hidden` / `on-sigusr1` toggle wiring | Read at startup. |

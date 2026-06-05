@@ -23,10 +23,15 @@ Keys this component owns under the top-level `companion_configs` key.
 
   | Value | dim (s) | lock (s) | dpms-off (s) | suspend (s) |
   |---|---|---|---|---|
-  | `balanced` *(default)* | 150 | 300 | 360 | 1800 |
-  | `aggressive` | 60 | 120 | 180 | 600 |
-  | `relaxed` | 300 | 900 | 1200 | — |
+  | `balanced` *(default)* | 150 | 300 | 330 | 1800 |
+  | `aggressive` | 60 | 120 | 150 | 600 |
+  | `relaxed` | 300 | 900 | 930 | — |
   | `never` | — | — | — | — |
+
+  The lock→dpms-off gap is 30 s in every preset, matching the upstream
+  [hypridle example](https://github.com/hyprwm/hypridle/blob/main/assets/example.conf) — long
+  enough for the lock screen to draw before the displays cut, short enough that an idle user
+  can't see anything sensitive between the two events.
 
   `relaxed` omits the suspend listener entirely; `never` omits **all four** listeners but
   `hypridle.conf` is still emitted (for the `general { before_sleep_cmd = … }` block).

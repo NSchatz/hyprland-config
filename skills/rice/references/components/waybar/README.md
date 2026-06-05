@@ -2,9 +2,9 @@
 
 The status bar — `~/.config/waybar/config.jsonc` (modules + behavior) and `~/.config/waybar/style.css`
 (look) plus the `colors.css` the rice engine writes. This is the **heaviest visual component** in the
-interview: 4 `AskUserQuestion` calls (basics + design·shape + design·color/state + content), strict
-JSON validation, an MDI-glyph foot-gun, and the full ~466-line styling reference lives here in
-`styling.md`.
+interview: 4 `AskUserQuestion` calls (basics + design·shape + design·color/state + content), a
+JSON-parse foot-gun (trailing commas / unbalanced braces silently kill the bar), an MDI-glyph
+foot-gun, and the full ~466-line styling reference lives here in `styling.md`.
 
 This is also where waybar's **design** lives — the archetype, corner, transparency, accent strategy
 and motion are *all asked here*, not in [`look-feel`](../look-feel/). `look-feel` only owns the
@@ -18,7 +18,7 @@ compositor's own decorations (gaps, rounding, blur, animations on **windows**).
 | `schema.md` | The `bar.*` slice of `answers.json` — strategy, form, height, archetype, corner, transparency, workspace indicator, accent strategy/application, motion, modules. |
 | `template.md` | The recipe — the default `config.jsonc` (modules, on-clicks, format strings, the MDI glyph table) and `style.css` archetype-by-archetype. References [`_shared/colors-contract.md`](../../_shared/colors-contract.md) for the 12 `@define-color` names. |
 | `styling.md` | The full design library — bar form (top/bottom/vertical/dual/dock), the 7 archetypes, every harvested technique from ~55 community configs, system-module recipes. This is the source the interview options are drawn from. |
-| `gotchas.md` | Strict JSON, the MDI glyph linter strip, plugin dispatchers in module on-clicks, swaync/mako daemon mutex, backlight-only-when-it-exists, layer-namespace blur cross-dep. |
+| `gotchas.md` | JSONC parses comments but trailing commas / unbalanced braces silently kill the bar; the MDI glyph linter strip; plugin dispatchers in module on-clicks; swaync/mako daemon mutex; backlight-only-when-it-exists; layer-namespace blur cross-dep. |
 | `validation.md` | What the validator runs before reload — `json.load` parse, balanced CSS braces, no plugin dispatchers, layerrule namespace match. |
 | `packages.md` | `waybar` itself plus the on-click tools waybar is responsible for: `pavucontrol`, `nm-connection-editor`, `blueman-manager`. |
 | `reload.md` | `pkill -SIGUSR2 waybar` (only if running, JSON-parse first). With `reload_style_on_change: true`, CSS-only edits also reload. |

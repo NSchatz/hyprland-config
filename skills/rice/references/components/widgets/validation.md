@@ -51,18 +51,21 @@ fi
 
 ## AGS / Astal
 
-The Astal / AGS-v2 CLI compiles + bundles TypeScript on `ags run` / `ags bundle`; a
-parse-only path is `ags bundle --check` (no execution, exits non-zero on TS / SCSS errors). The
-v1 path (`Aylur/ags`) doesn't have a `--check` flag — fall back to `node --check` on the JS
-entrypoint plus a `sassc style.scss /dev/null` SCSS parse.
+The Astal / AGS v3 CLI compiles + bundles TypeScript on `ags run` / `ags bundle`; there is
+**no documented `--check` / parse-only flag** in v3 — `ags bundle` always emits a bundle (with
+an optional `-o /tmp/...` output path), and a TS / SCSS error makes it exit non-zero, which is
+what we use for validation. The v1 path (`Aylur/ags` ≤ v1.x) doesn't have a bundle step at all
+— fall back to `node --check` on the JS entrypoint plus a `sassc style.scss /dev/null` SCSS
+parse.
 
 ```bash
-# AGS v2 (the plugin's installed version — aylurs-gtk-shell)
+# AGS v3 (the plugin's installed version — aylurs-gtk-shell)
 cd "$HOME/.config/ags"
-ags bundle --check >"$staging/ags-validate.log" 2>&1 || {
-  echo "ERROR: ags bundle --check failed; see $staging/ags-validate.log" >&2
+ags bundle -o /tmp/ags-validate.js >"$staging/ags-validate.log" 2>&1 || {
+  echo "ERROR: ags bundle failed; see $staging/ags-validate.log" >&2
   exit 1
 }
+rm -f /tmp/ags-validate.js
 ```
 
 Validator-level checks the rice can run regardless of which generation is installed:
@@ -70,9 +73,10 @@ Validator-level checks the rice can run regardless of which generation is instal
 - **The colors-file `$var` names** in `~/.config/ags/colors.scss` are referenced by `style.scss` —
   any rename silently un-themes the shell. Diff the var-name set against
   `_shared/colors-contract.md` → `ags / astal` row.
-- **GTK3 vs GTK4 mismatch.** GTK4 widgets use `cssClasses`; GTK3 uses `className`. If the project
-  imports `gi://Gtk?version=4.0` but the TSX uses `className`, runtime warnings cascade. The
-  validator can grep `className=` against the gtk import line.
+- **AGS v1 vs v3 class-prop drift.** AGS v1 (GJS / `Widget.*`) used `className`; **AGS v3 (Gnim
+  JSX) renamed it to `class`** (see Aylur/ags migration guide → "className -> class"). If a v1
+  snippet is pasted into a v3 project, the warning cascades on every widget. The validator can
+  grep `className=` against the `ags/gtk4` import line.
 
 ## Quickshell
 
@@ -94,9 +98,10 @@ find "$QML_DIR" -name '*.qml' -print0 | xargs -0 qmllint --strict \
 
 Validator-level checks:
 
-- **`Colors.qml` is a singleton.** Either `pragma Singleton` is on the first non-import line, or
-  `qmldir` contains `singleton Colors Colors.qml`. If neither, every `Colors.accent` reference is
-  an undefined-type error.
+- **`Colors.qml` is a singleton.** Per the Quickshell QML-overview docs the file should have
+  **both** `pragma Singleton` *and* the Quickshell `Singleton` type as its root item; the `qmldir`
+  beside it must contain `singleton Colors Colors.qml`. Missing either leg means every
+  `Colors.accent` reference is an undefined-type error.
 - **Required Quickshell modules.** Greppable imports: `import Quickshell`, `import
   Quickshell.Wayland` (for `WlrLayershell`), `import Quickshell.Io` (for `FileView` /
   `JsonAdapter`). Missing modules raise "module 'X' is not installed" at runtime.

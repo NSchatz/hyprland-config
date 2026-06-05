@@ -12,8 +12,8 @@ component only owns the services it gates directly.
 | Pick | Package | Repo / AUR | Notes |
 |---|---|---|---|
 | hyprpaper | `hyprpaper` | repo | First-party Hypr ecosystem. Static wallpapers only. |
-| swww (upstream) | `swww` | repo | Animated transitions. Binary: `swww-daemon`. |
-| swww (awww fork) | `awww` | AUR | Declares `provides=swww`. Binary: `awww-daemon`. Pick by `SWWW_DAEMON_BIN`, not by both. |
+| swww (pre-rename, Arch repo) | `swww` | repo | Animated transitions. Binary: `swww-daemon`. |
+| awww (post-rename, codeberg.org/LGFae/awww) | `awww-git` | AUR | Same project, renamed by upstream. Binary: `awww-daemon`. May declare `provides=swww` for back-compat — pick by `SWWW_DAEMON_BIN`, not by both. |
 | none | — | — | No `exec-once` wallpaper line emitted. |
 
 ### Polkit agent
@@ -57,7 +57,7 @@ option keeps the install lean and means upstream Hyprland tracks the daemon's co
 # wallpaper
 case "$(jq -r .autostart_env.wallpaper_tool answers.json)" in
   hyprpaper) pkgs+=(hyprpaper) ;;
-  swww)      [ "$SWWW_DAEMON_BIN" = awww-daemon ] && pkgs+=(awww) || pkgs+=(swww) ;;
+  swww)      [ "$SWWW_DAEMON_BIN" = awww-daemon ] && pkgs+=(awww-git) || pkgs+=(swww) ;;
 esac
 
 # polkit

@@ -55,3 +55,19 @@ Dispatcher catalog, bind-flag variants (`bindel`/`bindl`/`bindd`/`bindm`), and t
 rules (plugin-dispatcher gating, `layoutmsg, togglesplit` vs bare `togglesplit`) live in
 [`_shared/dispatchers.md`](../../_shared/dispatchers.md). This component links to it; nothing is
 duplicated.
+
+Quick `.conf` flag-letter map (the full Lua-API equivalents are in `gotchas.md`):
+
+| Letter | `.conf` form | Meaning |
+|---|---|---|
+| `e` | `binde` / `bindel` | repeat while held |
+| `l` | `bindl` / `bindel`  | works while an input inhibitor (lock screen) is active |
+| `r` | `bindr`             | fire on key release |
+| `m` | `bindm`             | mouse bind (used with `mouse:272` / `mouse:273`) |
+| `n` | `bindn`             | non-consuming — also pass the event to the focused app |
+| `d` | `bindd` / `bindeld` | inline description (`bindd = MODS, KEY, <description>, dispatcher, args`) — surfaces in `hyprctl binds -j` as `description` + `has_description: true` |
+| `t` | `bindt`             | transparent — cannot be shadowed by other binds |
+| `i` | `bindi`             | ignore modifiers |
+
+Flags compose in any order: `bindel` = repeat + locked, `bindeld` = repeat + locked +
+described, `binddr` = described + release, etc.

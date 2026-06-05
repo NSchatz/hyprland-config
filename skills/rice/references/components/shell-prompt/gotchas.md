@@ -49,8 +49,9 @@ the user's *login* shell. That's `chsh -s "$(command -v fish)"` and:
 Tell the user the command; never assume it ran. The **lower-risk alternative** that the writer
 can fully execute is **per-terminal**: set the emulator's shell directive (kitty
 `shell /usr/bin/fish` in `kitty.conf`, foot `shell=/usr/bin/fish` in `foot.ini`, alacritty
-`[terminal.shell] program = "/usr/bin/fish"`). This keeps the system login shell unchanged
-(TTY/SSH/display-manager scripts stay POSIX), but every new terminal opens the chosen shell.
+`[terminal] shell = { program = "/usr/bin/fish" }` in `alacritty.toml`). This keeps the system
+login shell unchanged (TTY/SSH/display-manager scripts stay POSIX), but every new terminal
+opens the chosen shell.
 
 Don't point the emulator at a shell binary that isn't installed yet — it'll fail to launch.
 
@@ -65,25 +66,37 @@ shell-prompt edit, tell the user to:
 
 Don't claim a change is "live" in the current shell when it isn't.
 
-## fish `set -U` shadows `set -g`
+## fish `set -U` vs `set -g` — and the `set` (no flag) trap
 
-If the user previously ran `fish_config theme choose <name>` or `set -U fish_color_command …`,
-those values live in fish's **universal-variable store** (`~/.config/fish/fish_variables`) and
-**shadow** the `set -g` snippet rice writes. Symptom: after `rice apply`, the next fish shell
-still uses the old colors.
+Per fish's documented scoping rules
+([language.html "Variable scope"](https://fishshell.com/docs/current/language.html)),
+"the smallest scoped variable of that name will be used" and the hierarchy is
+`local > function > global > universal`. So a `set -g fish_color_command …` snippet **does**
+override a `set -U fish_color_command …` left over from a previous
+`fish_config theme choose <name>`. The two values coexist (`set -g` doesn't delete the
+universal — they're separate variables in separate scopes), but reads inside the session
+resolve to the global.
 
-Fix:
+The real trap is **`set` with no scope flag**: per
+[`cmds/set.html`](https://fishshell.com/docs/current/cmds/set.html), "If the scope of a
+variable is not explicitly set _but a variable by that name has been previously defined_, the
+scope of the existing variable is used." So a snippet that writes `set fish_color_command …`
+(no `-g`, no `-U`) when a universal of that name already exists will silently **update the
+universal**, not create a global. The rice template at
+`~/.config/fish/conf.d/zz-hypr-rice-colors.fish` therefore uses **explicit `set -g`** on every
+line — never bare `set` — so the snippet stays scope-stable across re-runs regardless of
+what's already in `~/.config/fish/fish_variables`.
+
+If a user still reports "fish colors not updating after a re-theme", the likely cause is a
+shell session opened before the re-render (conf.d files only run on shell start) or a custom
+function that explicitly re-sets `-U`. Optional cleanup the user can run by hand to clear any
+stale universals:
 
 ```fish
-# wipe the offending universals so set -g in conf.d wins
-for v in (set -nU | string match 'fish_color_*' 'fish_pager_color_*')
+for v in (set --names -U | string match 'fish_color_*' 'fish_pager_color_*')
     set -e $v
 end
 ```
-
-The rice template at `~/.config/fish/conf.d/zz-hypr-rice-colors.fish` deliberately uses
-`set -g` (per-session global, no `-U`) so re-rendering wins on the next shell — but the writer
-should flag this fix to users who report "fish colors not updating" after a re-theme.
 
 ## fisher is `curl`-installed, NOT a package
 
@@ -105,10 +118,12 @@ so subsequent `fisher update` keeps it pinned.
 The syntax-highlighting colors are **separate** from the managed block in `config.fish`. They go
 in `~/.config/fish/conf.d/zz-hypr-rice-colors.fish` (the `zz-` prefix makes it sort late so it
 overrides any earlier `fish_color_*` set by other `conf.d/` snippets or themes). fish
-auto-sources every `*.fish` in `conf.d/` on each interactive start; no wiring in `config.fish`
-needed. Re-rendering the file = next shell is recolored.
+auto-sources every `*.fish` in `conf.d/` on every shell start (before `config.fish`); no wiring
+in `config.fish` needed. Re-rendering the file = next shell is recolored.
 
-Use `set -g` (not `set -U`) so re-rendering wins (see "universal store" above).
+Always write **explicit `set -g`** in the snippet — never bare `set` — so the snippet stays
+scope-stable even when a `set -U fish_color_*` already exists from a prior
+`fish_config theme choose` (see "`set -U` vs `set -g`" above).
 
 ## `atuin` on bash needs `bash-preexec`
 

@@ -12,49 +12,58 @@ language; see `gotchas.md`.
 
 The four listener timeouts (dim → lock → dpms-off → suspend) are parameterized by
 `companion_configs.hypridle_ladder`. The mapping table below maps the named preset to the four
-listeners that the writer emits in order.
+listeners that the writer emits in order. The lock→dpms-off gap matches the upstream example
+(`hyprwm/hypridle/assets/example.conf`): lock fires at the lock timeout, dpms-off fires 30s later.
 
 | Ladder | dim (s) | lock (s) | dpms-off (s) | suspend (s) |
 |---|---|---|---|---|
-| `balanced` *(default)* | 150 | 300 | 360 | 1800 |
-| `aggressive` | 60 | 120 | 180 | 600 |
-| `relaxed` | 300 | 900 | 1200 | *(omit)* |
+| `balanced` *(default)* | 150 | 300 | 330 | 1800 |
+| `aggressive` | 60 | 120 | 150 | 600 |
+| `relaxed` | 300 | 900 | 930 | *(omit)* |
 | `never` | *(omit)* | *(omit)* | *(omit)* | *(omit)* |
 
 ```ini
 general {
-    lock_cmd        = pidof hyprlock || hyprlock
+    lock_cmd         = pidof hyprlock || hyprlock
     before_sleep_cmd = loginctl lock-session
     after_sleep_cmd  = hyprctl dispatch dpms on
-    inhibit_sleep    = 3
+    # inhibit_sleep default is 2 (auto): hypridle picks lock-notify when it
+    # sees `hyprlock` in lock_cmd/before_sleep_cmd, else falls back to normal
+    # inhibition. Override only if you understand the mode semantics:
+    #   0 = disable, 1 = normal, 2 = auto (default), 3 = lock notify.
 }
 
 # Dim the backlight as a "you're idle" hint.
 {{#if dim_secs}}listener {
-    timeout   = {{dim_secs}}
-    on-timeout = brightnessctl -s set 10%
+    timeout    = {{dim_secs}}
+    on-timeout = brightnessctl -s set 10
     on-resume  = brightnessctl -r
 }{{/if}}
 
 # Lock the session. Fires BEFORE dpms-off (see gotchas).
 {{#if lock_secs}}listener {
-    timeout   = {{lock_secs}}
+    timeout    = {{lock_secs}}
     on-timeout = loginctl lock-session
 }{{/if}}
 
 # Turn the displays off.
 {{#if dpms_secs}}listener {
-    timeout   = {{dpms_secs}}
+    timeout    = {{dpms_secs}}
     on-timeout = hyprctl dispatch dpms off
     on-resume  = hyprctl dispatch dpms on
 }{{/if}}
 
 # Suspend to RAM. Desktops usually drop this tier — see gotchas.
 {{#if suspend_secs}}listener {
-    timeout   = {{suspend_secs}}
+    timeout    = {{suspend_secs}}
     on-timeout = systemctl suspend
 }{{/if}}
 ```
+
+> **`inhibit_sleep` semantics** (verified against `src/core/Hypridle.cpp` and the
+> [wiki](https://wiki.hypr.land/Hypr-Ecosystem/hypridle/)): the int values are **not** a bitfield
+> over standby/sleep — they're four discrete coordination modes. `2` (auto) is the default and is
+> almost always correct; the rice template intentionally leaves it unset.
 
 ### Branches
 
@@ -86,6 +95,50 @@ Emitted only when `companion_configs.hyprpaper == true`. The wallpaper path come
 `wallpaper.path`; if the user skipped the wallpaper question, use the placeholder
 `~/.config/hypr/wall.png` and tell the user to drop an image there.
 
+> **HARD BREAK at hyprpaper 0.8.0** (Dec 2025) — hyprpaper was rewritten on top of hyprtoolkit
+> and the **classic `preload =` / `wallpaper = MON, PATH` syntax was removed**. The new config
+> is anonymous `wallpaper { … }` blocks; `hyprctl hyprpaper preload` / `unload` / `listloaded` /
+> `listactive` are also gone. Arch's `extra/hyprpaper` is on 0.8.x as of v0.8.4 (Apr 2026), so
+> the writer must branch on the installed package version.
+
+### 0.8+ (current, hyprtoolkit rewrite)
+
+Verified against the [official wiki](https://wiki.hypr.land/Hypr-Ecosystem/hyprpaper/) and
+`hyprwm/hyprpaper@main` `src/config/ConfigManager.cpp`.
+
+```ini
+wallpaper {
+    monitor  =                                  # empty = fallback for any output without a target
+    path     = {{wallpaper_path_or_placeholder}}
+    fit_mode = cover                            # cover (default) | contain | tile | fill
+}
+
+# Misc options (set OUTSIDE the wallpaper {} block).
+# Both ipc and splash default to true upstream, so these lines are explicit overrides only:
+splash = false                                  # disable the hyprland splash text overlay
+# ipc  = true                                   # default; leave implicit so a future flip is honored
+```
+
+- `monitor =` (empty) means **fallback** — applies to outputs that have no explicit `wallpaper {}`
+  block targeting them. It is **not** "apply to all outputs" semantically (that's the legacy
+  interpretation); in practice with a single-block config it works for every monitor.
+- `fit_mode` accepts `cover` (default), `contain`, `tile`, `fill`.
+- `ipc` defaults to `true` in 0.8+ — the legacy "off by default, must enable" note is **wrong**
+  for this version. Only set `ipc = false` to opt out (e.g. battery savings; see gotchas).
+- No more `preload` — hyprpaper loads paths on-demand from the `wallpaper {}` blocks.
+
+#### Reload (0.8+)
+
+```bash
+hyprctl hyprpaper wallpaper '[<monitor>], [<path>], [<fit_mode>]'   # fit_mode optional; mon may be empty
+hyprctl hyprpaper reload                                            # reread hyprpaper.conf
+```
+
+The `preload` / `unload` / `listloaded` / `listactive` subcommands **do not exist** in 0.8+.
+A wallpaper-swap reload hook must use the single `wallpaper` IPC line above.
+
+### Legacy (0.7.x and earlier — only if a user pins an older package)
+
 ```ini
 preload   = {{wallpaper_path_or_placeholder}}
 wallpaper = , {{wallpaper_path_or_placeholder}}
@@ -93,23 +146,14 @@ splash    = false
 ipc       = on
 ```
 
-- `{{wallpaper_path_or_placeholder}}` ← `wallpaper.path` from `answers.json`, falling back to
-  `~/.config/hypr/wall.png`.
-- `ipc = on` is **required** so the rice engine can switch wallpapers live via
-  `hyprctl hyprpaper wallpaper ",<path>"` when the user re-themes. See `gotchas.md`.
-- The empty monitor prefix (`,`) on the `wallpaper` line applies the image to every output. To
-  pin a wallpaper to a single monitor, write `wallpaper = DP-1, <path>` (multi-monitor users
-  with different wallpapers per output would extend this; not a default we generate).
+- The empty monitor prefix (`,`) sets the fallback wallpaper. Pin per-monitor with
+  `wallpaper = DP-1, <path>`.
+- `ipc` defaulted to `1` (on) in 0.7.x too, but the legacy README example commented `# ipc = off`,
+  so emitting `ipc = on` explicitly is defensive.
+- Reload commands: `hyprctl hyprpaper preload <path>` then `hyprctl hyprpaper wallpaper ",<path>"`.
 
-### Reload
-
-```bash
-hyprctl hyprpaper preload "<new-path>"
-hyprctl hyprpaper wallpaper ",<new-path>"
-```
-
-Both require `ipc = on`. The rice engine's reload hook for the wallpaper template should run
-these two commands in order (guarded — no-op when hyprpaper isn't running).
+The writer should default to the **0.8+ block form**; only fall back to the legacy form if the
+user has a pinned `hyprpaper` < 0.8.0 (detect via `pacman -Q hyprpaper`).
 
 ## `~/.config/hypr/hyprlock.conf`
 

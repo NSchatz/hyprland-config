@@ -13,7 +13,7 @@ interview flow naturally raises them.
 | `interview.md` | No questions of its own — pointer to the sibling groups (`look-feel` 11i, `monitors` 1e + 1f) that collect everything this component emits. |
 | `schema.md` | The schema slices this component **reads** (it owns no `answers.json` keys itself): `look_feel.per_app_rules`, `monitors.pin_apps`, `monitors.workspace_rules`, plus chosen-tool flags from `waybar`/`launcher`/`notifications`. |
 | `template.md` | The full `windowrules.conf` template — shipped defaults, float-utilities, PiP-pin, idleinhibit-fullscreen, per-app rule iteration, and the `layerrule` blur block. Version-branched (cites `_shared/version-matrix.md`). |
-| `gotchas.md` | The 0.54+ `layerrule` **hard break** (single-line form is rejected at parse and fails the reload), `match:` prefix on matchers, verified 0.54.3 block-form fields, `windowrule` block preferred on 0.53+. |
+| `gotchas.md` | The 0.53+ `layerrule = blur, <ns>` legacy form is **rejected at parse and fails the reload** (`invalid field blur: missing a value`); the modern single-line `layerrule = blur on, match:namespace <ns>` parses, but we emit the block form. Plus: `match:` prefix on matchers, the snake_case rename for matchers (`initial_class`, `float`, `workspace`), verified 0.54.3 block-form fields, `windowrule` block preferred on 0.53+, `windowrulev2` hard-rejected. |
 | `packages.md` | None — window rules are built into Hyprland. |
 
 ## Where this component lands

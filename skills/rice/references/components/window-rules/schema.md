@@ -10,8 +10,8 @@ with their **owning component** so the source of truth is unambiguous.
 {
   "look_feel": {
     "per_app_rules": [
-      { "class": "kitty",   "effects": ["opacity 0.92 0.85"] },
-      { "class": "Spotify", "effects": ["workspace 9 silent"] }
+      { "class": "kitty",   "effects": ["opacity = 0.92 0.85"] },
+      { "class": "Spotify", "effects": ["workspace = 9 silent"] }
     ]
   },
   "monitors": {
@@ -38,7 +38,7 @@ Each element:
 | Field | Type | Notes |
 |---|---|---|
 | `class` | string | The `match:class` regex body (no anchors — the template wraps it in `^( … )$`). E.g. `kitty`, `[Ff]irefox`. |
-| `effects` | array of strings | Rule properties verbatim, one per emitted line inside the `windowrule { … }` block. E.g. `"float = yes"`, `"opacity 0.92 0.85"`, `"workspace 9 silent"`, `"no_blur = true"`. The template trusts these strings and emits them as-is. |
+| `effects` | array of strings | Rule properties verbatim, one per emitted line inside the `windowrule { … }` block. Every line must be `<effect> = <value>` (Hyprlang special-category syntax). E.g. `"float = yes"`, `"opacity = 0.92 0.85"`, `"workspace = 9 silent"`, `"no_blur = true"`. The template trusts these strings and emits them as-is. See `gotchas.md` for the canonical 0.54.3 effect name list (snake_case — `no_blur` not `noblur`, `border_color` not `bordercolor`, etc.). |
 
 May be absent or `[]`; the template just skips the per-app iteration.
 
@@ -53,10 +53,12 @@ May be absent or `{}`.
 
 ### `monitors.workspace_rules.smart_gaps` — bool (owned by `../monitors/schema.md`)
 
-When `true`, the template emits the paired smart-gaps `windowrule`s (`border_size 0` and
-`rounding 0` on `match:floating 0, match:onworkspace w[tv1]`). The companion `workspace = w[tv1],
-gapsout:0, gapsin:0` line is **not** emitted here — it lives in `monitors.conf` because it's a
-workspace rule, not a window rule.
+When `true`, the template emits the paired smart-gaps `windowrule`s (`border_size = 0` and
+`rounding = 0` on `match:float = false; match:workspace = w[tv1]`). **Note:** the matchers are
+`match:float` (not `match:floating`) and `match:workspace` (not `match:onworkspace`) — see
+`gotchas.md` for the canonical matcher list. The companion `workspace = w[tv1], gapsout:0,
+gapsin:0` line is **not** emitted here — it lives in `monitors.conf` because it's a workspace
+rule, not a window rule.
 
 ### Chosen-tool flags (read for `layerrule` blocks)
 

@@ -79,6 +79,35 @@ lock-session` to `hypridle.conf` so a suspend always locks first.
 This rule lives in [`../companion-daemons/`](../companion-daemons/) (which owns `hypridle.conf`);
 flagged here because the failure mode reads as a hyprlock bug, not a hypridle one.
 
+## `grace` is a CLI flag, NOT a config key
+
+A very common mistake from older guides: putting `grace = N` inside `general {}`. Verified against
+`src/main.cpp` and `src/config/ConfigManager.cpp` — `grace` is **only** registered as a CLI option
+(`hyprlock --grace N`, where N is seconds the lock can be dismissed without a password). The
+`general {}` block exposes only: `text_trim`, `hide_cursor`, `ignore_empty_input`,
+`immediate_render`, `fractional_scaling`, `screencopy_mode`, `fail_timeout`. A `grace = …` line
+inside `general {}` is silently dropped and the dismiss-window stays at 0.
+
+To get a brief dismiss window, pass it via every launcher:
+
+```ini
+# binds.conf
+bind = $mainMod, X, exec, hyprlock --grace 2
+
+# hypridle.conf — keep the pidof guard too
+listener {
+    timeout    = 300
+    on-timeout = pidof hyprlock || hyprlock --grace 2
+}
+```
+
+(Apply `--grace` consistently across launchers — otherwise the manual bind and the idle-lock
+behave differently and users notice.)
+
+Same family of pitfall: `no_fade_in`, `no_fade_out`, `disable_loading_bar`, `pam_module` are also
+**not** valid `general {}` keys in current hyprlock — older config snippets that ship them are
+silently ignored. To swap the PAM file, use `auth { pam { module = <name> } }` instead.
+
 ## `path = screenshot` needs portal/perms + a screencopy-capable build
 
 The `blurred-screenshot` background relies on hyprlock's screencopy capture. On some setups it

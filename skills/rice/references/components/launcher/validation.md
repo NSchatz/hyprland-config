@@ -105,10 +105,13 @@ and stop the rice pipeline.
 
 ## tofi / walker / vicinae / anyrun
 
-- **tofi `config`** — INI-lenient; sanity check key/value lines and that the colors block uses
-  leading-`#` hex.
+- **tofi `config`** — INI-lenient; sanity check key/value lines. tofi accepts colors with
+  or without a leading `#` (RGB / RGBA / RRGGBB / RRGGBBAA all valid).
 - **walker `config.toml`** — `python3 -c 'import tomllib; tomllib.load(open(p,"rb"))'`.
-- **vicinae `config.json`** — `jq -e . config.json >/dev/null`.
+- **vicinae `settings.json`** — JSONC (JSON with comments), so plain `jq` rejects valid
+  files. Strip comments before validating, e.g.
+  `sed -E 's://[^"]*$::; /\/\*/,/\*\//d' settings.json | jq -e . >/dev/null`,
+  or use `vicinae config default` to compare keys against the running daemon's schema.
 - **anyrun `config.ron`** — RON syntax. There's no shell-quick checker; on a parse error
   anyrun logs to stderr at launch. The validator can lightly check balanced `()`/`{}`/`[]`.
 

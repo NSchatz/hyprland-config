@@ -21,10 +21,10 @@ helper" — the key still exists; downstream writers branch on length, not prese
 
 | Value | Meaning |
 |---|---|
-| `"magnifier"` | Cursor zoom via Hyprland's `cursor:zoom_factor`, bound to `SUPER+=` / `SUPER+-`. |
-| `"large-cursor"` | Bumped `XCURSOR_SIZE` / `HYPRCURSOR_SIZE` + `hyprctl setcursor` + GTK `cursor-size`. |
-| `"night-light"` | `hyprsunset` toggle bound to `SUPER+SHIFT+N`. |
-| `"larger-ui"` | Bumped monitor `scale` + GTK `text-scaling-factor 1.25`. |
+| `"magnifier"` | Cursor zoom via Hyprland's `cursor:zoom_factor`, bound to `SUPER+=` / `SUPER+-` (keysyms `equal` / `minus`). |
+| `"large-cursor"` | Bumped `XCURSOR_SIZE` **and** `HYPRCURSOR_SIZE` (both required — different surfaces consume different vars; see `gotchas.md`) + `hyprctl setcursor` (hyprcursor only since 0.37) + `gsettings ... cursor-size`. |
+| `"night-light"` | `hyprsunset` daemon (autostart) + IPC binds (`hyprctl hyprsunset temperature 4000` / `hyprctl hyprsunset identity`) — typically on `SUPER+SHIFT+N` / `SUPER+SHIFT+M`. Hyprland 0.45+. |
+| `"larger-ui"` | Bumped monitor `scale` + `gsettings set org.gnome.desktop.interface text-scaling-factor 1.25`. |
 
 Any other value is a validator error.
 
@@ -32,12 +32,12 @@ Any other value is a validator error.
 
 | Reader | Use |
 |---|---|
-| `hyprland-component-writer` (`keybinds`) | Adds the magnifier `SUPER+=` / `SUPER+-` binds and the `SUPER+SHIFT+N` night-light bind when those values are present. |
+| `hyprland-component-writer` (`keybinds`) | Adds the magnifier `SUPER+=` / `SUPER+-` binds (keysyms `equal` / `minus`) and the `SUPER+SHIFT+N` / `SUPER+SHIFT+M` night-light IPC binds when those values are present. |
 | `hyprland-component-writer` (`env`) | Adds `XCURSOR_SIZE,32` + `HYPRCURSOR_SIZE,32` to `env.conf` when `large-cursor` is present (or 48 — see `template.md`). |
-| `hyprland-component-writer` (`autostart`) | Adds `exec-once = hyprctl setcursor <theme> <size>` when `large-cursor` is present. |
+| `hyprland-component-writer` (`autostart`) | Adds `exec-once = hyprctl setcursor <theme> <size>` (hyprcursor-only since 0.37) when `large-cursor` is present, **and** `exec-once = hyprsunset` (no flags — daemon) when `night-light` is present. |
 | `hyprland-component-writer` (`monitors`) | Bumps the picked monitor `scale` when `larger-ui` is present (typically to 1.25 or 1.5). |
 | `hyprland-component-writer` (`look-feel`) | Adds `cursor:zoom_rigid = true` to `looknfeel.conf` when `magnifier` is present and the user opted into the centred-cursor variant. |
-| `theming/` GTK template writer | Sets `cursor-size` (large-cursor) and `text-scaling-factor` (larger-ui) in the GTK 3/4 settings file. |
+| `theming/` GTK template writer | Sets `gtk-cursor-theme-size` in `settings.ini` (large-cursor) and emits a runtime `gsettings set org.gnome.desktop.interface cursor-size <N>` plus `... text-scaling-factor 1.25` (larger-ui). |
 | `hyprland-package-installer` | Adds `hyprsunset` to the package list when `night-light` is present (only). |
 
 ## Validation

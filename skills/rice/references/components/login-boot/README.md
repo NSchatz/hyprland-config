@@ -37,7 +37,7 @@ the end of Mode A. Final destinations on disk:
 | Tool | Generated file(s) | Final path | Install command |
 |---|---|---|---|
 | greetd + tuigreet | `_login/greetd/config.toml` | `/etc/greetd/config.toml` | `sudo install -m 644 …` (or `sudoedit`) |
-| greetd + ReGreet | `_login/greetd/config.toml`, `_login/greetd/regreet.toml`, GTK settings | `/etc/greetd/{config.toml,regreet.toml}`, `/var/lib/greetd/.config/gtk-3.0/settings.ini` | `sudo install …` per file |
+| greetd + ReGreet | `_login/greetd/config.toml`, `_login/greetd/regreet.toml` | `/etc/greetd/{config.toml,regreet.toml}` (ReGreet applies GTK theme via its own `[GTK]` keys — no `/var/lib/greetd/.config/gtk-3.0/settings.ini` is written) | `sudo install …` per file |
 | SDDM | `_login/sddm.conf.d/10-rice.conf`, theme dir | `/etc/sddm.conf.d/10-rice.conf`, `/usr/share/sddm/themes/<name>/theme.conf` | `sudo install …` |
 | Plymouth | `_login/plymouth/<theme>/` | `/usr/share/plymouth/themes/<theme>/`, set via `plymouth-set-default-theme -R <theme>` | `sudo cp -r …` + `sudo plymouth-set-default-theme -R <theme>` |
 | GRUB | `_login/grub/themes/<theme>/`, `_login/grub/default-grub.patch` | `/boot/grub/themes/<theme>/`, `GRUB_THEME=` in `/etc/default/grub`, then `grub-mkconfig -o /boot/grub/grub.cfg` | `sudo cp -r …` + `sudoedit /etc/default/grub` + `sudo grub-mkconfig …` |

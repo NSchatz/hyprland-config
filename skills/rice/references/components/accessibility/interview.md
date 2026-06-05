@@ -11,10 +11,10 @@ don't). Every option is genuinely optional; the user may check zero, one, or all
 
 | Option | What it does |
 |---|---|
-| `magnifier` | Bind `SUPER+=` / `SUPER+-` to Hyprland's built-in `cursor:zoom_factor` (no external tool). |
-| `large-cursor` | Bump `XCURSOR_SIZE` / `HYPRCURSOR_SIZE` to 32 (or 48), call `hyprctl setcursor`, set GTK `cursor-size`. |
-| `night-light` | Bind `SUPER+SHIFT+N` to `hyprsunset` warm-temp toggle. |
-| `larger-ui` | Low-vision preset: bump monitor `scale` + GTK `text-scaling-factor 1.25`. |
+| `magnifier` | Bind `SUPER+=` / `SUPER+-` to Hyprland's built-in `cursor:zoom_factor` (no external tool). Keysyms are `equal` / `minus` (X11/XKB names). |
+| `large-cursor` | Bump `XCURSOR_SIZE` **and** `HYPRCURSOR_SIZE` to 32 (or 48), call `hyprctl setcursor` (hyprcursor only since 0.37) and `gsettings set org.gnome.desktop.interface cursor-size`, plus `gtk-cursor-theme-size` in `settings.ini`. |
+| `night-light` | Autostart the `hyprsunset` daemon and bind keys to its IPC: `hyprctl hyprsunset temperature 4000` (on) / `hyprctl hyprsunset identity` (off). Requires hyprsunset >= 0.45 (Hyprland 0.45+). |
+| `larger-ui` | Low-vision preset: bump monitor `scale` + `gsettings set org.gnome.desktop.interface text-scaling-factor 1.25` (the documented gsettings key). |
 
 Use `multiSelect: true`. **Nothing pre-checked.** Hint text on the question should note that the
 larger-UI option may trigger the fractional-scaling gotcha (see `../monitors/gotchas.md`).

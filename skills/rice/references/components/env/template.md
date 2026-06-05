@@ -8,6 +8,9 @@ processes inherit the env.
 
 ```ini
 # Environment — sourced first so later programs inherit these.
+# Syntax: `env = NAME,value` (the parser splits on the FIRST comma only — values may contain
+# further commas, e.g. `env = GDK_BACKEND,wayland,x11,*`). On Hyprland 0.55+ the equivalent
+# Lua form is `hl.env("NAME", "value")`. Runtime: `hyprctl keyword env NAME,value`.
 {{#if session}}
 env = XDG_CURRENT_DESKTOP,Hyprland     # helps portals pick the Hyprland backend
 {{/if}}
@@ -32,7 +35,9 @@ env = MOZ_ENABLE_WAYLAND,1
 {{#if nvidia_proprietary}}
 env = LIBVA_DRIVER_NAME,nvidia
 env = __GLX_VENDOR_LIBRARY_NAME,nvidia
+{{#if have_libva_nvidia_driver}}
 env = NVD_BACKEND,direct
+{{/if}}
 env = ELECTRON_OZONE_PLATFORM_HINT,auto
 {{/if}}
 {{#if fractional_scale}}
@@ -58,6 +63,7 @@ the corresponding `NAME` (case-sensitive, first segment of each `"NAME,value"` e
 | `kvantum` | `QT_STYLE_OVERRIDE` |
 | `firefox_wayland` | `MOZ_ENABLE_WAYLAND` |
 | `nvidia_proprietary` | `LIBVA_DRIVER_NAME` **and** `__GLX_VENDOR_LIBRARY_NAME` (both required — see `gotchas.md`) |
+| `have_libva_nvidia_driver` | `NVD_BACKEND` (sub-gate inside `nvidia_proprietary`; only emit if `libva-nvidia-driver` is installed — see `gotchas.md`) |
 | `fractional_scale` | `GDK_SCALE` (also see `gotchas.md` — cross-set from monitor picks, not asked here) |
 
 Any `NAME,value` in `autostart_env.env` that doesn't match a gate is **passed through verbatim**
@@ -73,7 +79,12 @@ multi-select but the schema accepts arbitrary entries so power users can hand-ed
 - The portal env-propagation pair (`dbus-update-activation-environment --systemd …` +
   `systemctl --user import-environment …`). Those are runtime `exec-once` calls, not env vars;
   they're in `../autostart/template.md`.
-- `XDG_CURRENT_TYPE` / `XDG_SESSION_TYPE` — set by the login manager / uwsm, never in
-  `env.conf`.
+- `XDG_SESSION_TYPE` / `XDG_SESSION_DESKTOP` — the
+  [Hyprland env-vars wiki](https://wiki.hypr.land/Configuring/Advanced-and-Cool/Environment-variables/)
+  lists them as "not a bad idea to set" alongside `XDG_CURRENT_DESKTOP`, but the login manager
+  (or uwsm) sets them already in every supported flow we target, so the rice generator omits
+  them. (uwsm explicitly notes its users don't need to set XDG vars at all.) If a portal
+  malfunctions and you suspect missing XDG env, hand-add them via the validator's "extra env
+  passthrough" path.
 - GTK theme variables (`GTK_THEME=`). uwsm's `~/.config/uwsm/env` is the authoritative source on
   uwsm systems; see `gotchas.md`.

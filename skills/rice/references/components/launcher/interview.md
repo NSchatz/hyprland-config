@@ -13,7 +13,7 @@ matching behavior.
 **8a. Launcher tool** → `wofi` **(default)**, `rofi`, `fuzzel`, `tofi`, `walker`, `vicinae`,
 `anyrun`. Notes the user sees:
 - `wofi` — GTK-based, fast, simple CSS theming. The defaultable, palette-coherent pick.
-- `rofi` — most themeable (RASI language). Use `rofi-wayland` (AUR) for native layer-shell.
+- `rofi` — most themeable (RASI language). Repo `rofi` ≥ 2.0 has native Wayland (layer-shell); the AUR `rofi-wayland` fork is obsolete.
 - `fuzzel` — INI config, Wayland-native, minimal. Colors merged into `[colors]`.
 - `tofi` — INI, text-only, fast. No app icons by design.
 - `walker` — Wayland-native, runs as a service for instant startup. Ships own config/style format.

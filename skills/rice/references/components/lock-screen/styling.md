@@ -35,8 +35,9 @@ then unlock to exit), or `hyprctl dispatch exec hyprlock`. Edit, save, re-run �
 **Background.** Three idioms:
 
 - *Blurred screenshot* (most common): `path = screenshot` + `blur_passes = 2`–`4`. The defaults
-  already dim and desaturate (`brightness = 0.8172`, `contrast = 0.8916`, `vibrancy = 0.1696`,
-  `noise = 0.0117`), which is why a 2–3 pass blur looks clean out of the box. Lower `brightness`
+  already dim and desaturate (from `src/config/ConfigManager.cpp`: `brightness = 0.8172`,
+  `contrast = 0.8917`, `vibrancy = 0.1686`, `vibrancy_darkness = 0.05`, `noise = 0.0117`,
+  `blur_size = 8`), which is why a 2–3 pass blur looks clean out of the box. Lower `brightness`
   (e.g. `0.6`) to dim further so the clock/pill pop.
 - *Static wallpaper*: `path = ~/.config/hypr/lock.png`, usually with a light blur or none.
 - *Solid color*: `color = rgb(1e1e2e)` and no `path` — minimalist, fast, no GPU blur.
@@ -120,7 +121,7 @@ fill literal hexes from the rice palette. Grouped by what they buy you.
 - *Gradient state colors* (hyprwm upstream): `outer_color`/`check_color`/`fail_color` accept two-stop gradients — `outer_color = rgba(33ccffee) rgba(00ff99ee) 45deg`, `fail_color = rgba(ff6633ee) rgba(ff0066ee) 40deg` — so the ring shifts hue as you type / on failure.
 - *Attempt counter + smooth fail flash* (HyDE, ml4w, Matt-FTW, catppuccin): `fail_text = <i>$FAIL <b>($ATTEMPTS)</b></i>` shows the PAM message and try count; `fail_transition = 300` animates the red flash over 300 ms. Add `capslock_color`/`numlock_color` for lock-key indicators.
 - *`rounding = -1` for a perfect pill/circle* (Matt-FTW, ml4w) — negative rounding means "fully round" on both `input-field` and `image{}`.
-- *Dismiss-friendliness* (omarchy, mahaveergurjar): `general { grace = 1 }` gives a brief no-password window to dismiss, and `ignore_empty_input = true` so pressing Enter on an empty field isn't counted as a failed attempt.
+- *Dismiss-friendliness* (omarchy, mahaveergurjar): `ignore_empty_input = true` in `general {}` so pressing Enter on an empty field isn't counted as a failed attempt. The brief no-password "grace" window is a **CLI flag, not a config key** — pass it via the launcher (`hyprlock --grace 2` in the bind / `lock_cmd`). A `grace = N` line inside `general {}` is silently ignored; see `gotchas.md`.
 
 **Live labels (`cmd[update:N]`).**
 - *Tiered refresh rates* (JaKooLit): poll cheap labels fast and expensive ones slowly — clock `cmd[update:1000]`, uptime `60000`, weather `3600000`, date `43200000` (12 h). Don't run a weather script every second.
@@ -154,7 +155,8 @@ $font = {{font_ui}}            # e.g. Inter — UI family name only, no size
 
 general {
     hide_cursor = true
-    grace = 0                  # seconds before the lock can be dismissed without a password
+    ignore_empty_input = true  # Enter on empty field doesn't count as a failed attempt
+    # `grace` is a CLI flag, NOT a config key — pass `hyprlock --grace N` in the launcher.
 }
 
 background {

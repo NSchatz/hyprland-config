@@ -24,10 +24,13 @@ asked; never silently defaulted (even on desktops where Aggressive is implausibl
 
 | Option | dim | lock | dpms-off | suspend |
 |---|---|---|---|---|
-| **Balanced** *(default)* | 2m 30s | 5m | 6m | 30m |
-| **Aggressive** *(laptop battery)* | 1m | 2m | 3m | 10m |
-| **Relaxed** | 5m | 15m | 20m | — *(no suspend)* |
+| **Balanced** *(default)* | 2m 30s | 5m | 5m 30s | 30m |
+| **Aggressive** *(laptop battery)* | 1m | 2m | 2m 30s | 10m |
+| **Relaxed** | 5m | 15m | 15m 30s | — *(no suspend)* |
 | **Never** | — | — | — | — *(no listeners; hypridle still runs for `before_sleep_cmd`)* |
+
+The dpms-off tier sits **30 s after** the lock tier in every preset — same gap the upstream
+hypridle example uses, so the lock screen has time to draw before the displays cut.
 
 The four columns map 1:1 onto the four `listener {}` blocks in `template.md`. **Desktops**
 typically pick Balanced or Relaxed *and* drop the suspend tier — see `gotchas.md` for the rule.
@@ -68,5 +71,6 @@ bash "$CLAUDE_PLUGIN_ROOT/scripts/record-answer.sh" \
 - The `hyprlock.conf` template → [`../lock-screen/template.md`](../lock-screen/template.md)
 - The `exec-once = hypridle` / `exec-once = hyprpaper` lines → [`../autostart/`](../autostart/)
 - Gotchas (config-language differences, `pidof` guard, `before_sleep_cmd`, dpms ordering,
-  desktop-no-suspend, hyprpaper `ipc = on`) → `gotchas.md`
+  desktop-no-suspend, hyprpaper 0.8 config rewrite, `inhibit_sleep` mode semantics) →
+  `gotchas.md`
 - Packages → `packages.md`

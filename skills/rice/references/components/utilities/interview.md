@@ -28,9 +28,10 @@ Options ordered by corpus frequency. Items marked **(on)** are pre-checked.
 | Night-light toggle | `night-light` | off | `hyprsunset` toggle bind. |
 
 Tool defaults the writer should prefer at install-batch time (see `gotchas.md`): **satty** over
-swappy for annotation, **wl-screenrec** over wf-recorder on AMD/Intel, **hyprshot** / `grimblast`
-for the capture wrapper. The shipped scripts auto-detect, so listing several capture tools in the
-install batch is harmless — the script picks the first one present.
+swappy for annotation, **wl-screenrec** over wf-recorder on AMD/Intel, **grimblast** or `hyprshot`
+for the capture wrapper. The shipped scripts auto-detect (screenshot.sh: grimblast → hyprshot →
+grim+slurp; screenrecord.sh: wl-screenrec → wf-recorder), so listing several tools in the install
+batch is harmless — the script picks the first one present.
 
 ## Record path
 

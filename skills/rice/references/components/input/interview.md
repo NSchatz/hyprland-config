@@ -24,12 +24,15 @@ the user gives two, the writer must add a layout-cycle option in 2b.
 **2c. Key repeat** — Default (rate 25 / delay 600) **(default)** · Fast (rate 40 / delay 300) ·
 Snappy (rate 50 / delay 250) · Custom. Only non-default values are emitted to `input.conf`.
 
-**2d. Focus model** —
+**2d. Focus model** — (option map names from upstream:
+`disabled`/`follow`/`detached`/`separate`)
 - **Focus follows mouse** — moving the pointer over a window focuses it (`follow_mouse = 1`,
-  the Hyprland default) **(default)**.
-- **Click to focus** — focus changes only on click (`follow_mouse = 0`; pointer never refocuses).
-- **Detached / loose** — pointer can scroll the window under it but keyboard focus changes only
-  on click (`follow_mouse = 2`; `3` is the fuller-loose variant).
+  map name `follow`, the Hyprland default) **(default)**.
+- **Click to focus** — focus changes only on click (`follow_mouse = 0`, map name `disabled`;
+  pointer never refocuses).
+- **Detached / loose** — pointer can scroll/click the window under it but **keyboard focus
+  stays put until you click** (`follow_mouse = 2`, map name `detached`; `3` / `separate` is
+  the fuller variant).
 
 Read the answer carefully — `1` (NOT `2`) is the real "focus follows mouse". See
 `gotchas.md`.
@@ -37,9 +40,11 @@ Read the answer carefully — `1` (NOT `2`) is the real "focus follows mouse". S
 ## Call 2 — input baseline + touchpad (3 sub-questions)
 
 **2e. Input baseline** (multi-select, off by default):
-- `accel_profile = flat` — disable mouse acceleration (gamers).
-- `numlock_by_default = true` — NumLock on at session start.
-- Mouse `sensitivity` slider — float `-1.0 … 1.0`, default `0.0`. Record as `mouse_sensitivity`.
+- `accel_profile = flat` — disable mouse acceleration (gamers). Valid values per Hyprland
+  source: `adaptive` / `flat` / `custom` (default unset = libinput's per-device default).
+- `numlock_by_default = true` — NumLock on at session start (Hyprland default `false`).
+- Mouse `sensitivity` slider — float clamped to `-1.0 … 1.0`, default `0.0`. Record as
+  `mouse_sensitivity`.
 
 **2f. Touchpad** (skip on desktop / when `IS_LAPTOP=0` and the user confirms no touchpad):
 - Natural scroll + tap-to-click on **(default on laptops)**.
@@ -54,11 +59,14 @@ keyword API — see `_shared/version-matrix.md`). Default-on: 3-finger horizonta
 - **3-finger horizontal → switch workspace** **(on)**.
 - 4-finger horizontal → move window.
 - 3-finger up → fullscreen.
-- 3-finger pinch → toggle float/tile (HyDE preset).
+- 3-finger pinch → toggle float (the legacy `float, tile` two-arg form is invalid Hyprland
+  syntax; `float` takes an optional single arg).
 - 4-finger up → special/scratchpad.
 
 On pre-0.45 the template falls back to a `gestures { workspace_swipe = true }` block — only the
-first item maps; the rest emit a comment noting the version gate.
+first item maps; the rest emit a comment noting the version gate. On **0.51+** the legacy keys
+`workspace_swipe` / `workspace_swipe_fingers` / `workspace_swipe_min_fingers` are removed and
+emitting them is a hard parse error — see `gotchas.md`.
 
 ## Record paths
 

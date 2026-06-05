@@ -5,12 +5,18 @@ lives in `../keybinds/template.md`, which owns the top-level file).
 
 Version branches are dictated by `_shared/version-matrix.md`:
 
-- **0.53+** → `windowrule` block form (shown below). Single-line `windowrule = …` still parses,
-  but emit the block form on 0.53+ to match the shipped default.
-- **0.54+** → `layerrule` block form is **mandatory**. The single-line `layerrule = blur, waybar`
-  form is rejected at parse time and fails the whole reload — see `gotchas.md`.
-- **pre-0.53** → fall back to single-line `windowrule = …` / `windowrulev2 = …` and single-line
-  `layerrule = blur, <ns>`. Don't mix forms inside one rule.
+- **0.53+** → `windowrule` block form (shown below). The legacy v1 single-line
+  `windowrule = float, class:^(x)$` form **stopped parsing in 0.53** because matchers now require
+  the `match:` prefix and effects must carry an explicit value. The modern single-line form
+  (`windowrule = float, match:class kitty`) still works, but emit the block form on 0.53+ to
+  match the shipped default. `windowrulev2 = …` is hard-rejected with a deprecation error.
+- **0.54+** → `layerrule` block form is the recommended emission. The bare-keyword
+  `layerrule = blur, waybar` form is rejected at parse time (`invalid field blur: missing a
+  value`) and fails the whole reload — see `gotchas.md`. The modern single-line
+  (`layerrule = blur on, match:namespace waybar`) parses, but we emit the block form because
+  that's what the shipped 0.54.3 default uses and it's where the wiki points users.
+- **pre-0.53** → fall back to legacy single-line `windowrule = …` / `windowrulev2 = …` and
+  single-line `layerrule = blur, <ns>`. Don't mix forms inside one rule.
 
 ## Full template (0.53+, with 0.54+ layerrule blocks)
 
@@ -76,14 +82,14 @@ windowrule {
 {{#if monitors.workspace_rules.smart_gaps}}
 windowrule {
     name = smartgaps-bordersize
-    match:floating = false
-    match:onworkspace = w[tv1]
+    match:float = false
+    match:workspace = w[tv1]
     border_size = 0
 }
 windowrule {
     name = smartgaps-rounding
-    match:floating = false
-    match:onworkspace = w[tv1]
+    match:float = false
+    match:workspace = w[tv1]
     rounding = 0
 }
 {{/if}}

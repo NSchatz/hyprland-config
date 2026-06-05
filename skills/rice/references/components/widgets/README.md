@@ -12,8 +12,9 @@ every theme switch.
 
 Pick one of: **eww** (yuck + SCSS — floating widgets next to waybar), **AGS / Astal** (TS/JS + GTK
 + SCSS — batteries-included services), **Quickshell** (QML — the modern, animation-rich shells;
-live window previews), **HyprPanel** (turnkey AGS panel, GUI-configured; archived 2026-04 but
-still usable), or a **turnkey pre-built shell** (end-4, caelestia, Noctalia, DankMaterialShell).
+live window previews), **HyprPanel** (turnkey AGS panel, GUI-configured; **archived 2026-04-27**,
+successor *Wayle* in Rust — but the existing repo still installs and runs), or a **turnkey
+pre-built shell** (end-4, caelestia, Noctalia, DankMaterialShell).
 
 **A full shell replaces waybar.** Quickshell / AGS / HyprPanel / a turnkey shell own their own bar
 — running waybar alongside means two bars fighting for the top edge. The waybar `exec-once` has to

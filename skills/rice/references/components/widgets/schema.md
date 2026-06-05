@@ -33,7 +33,7 @@ Keys this component owns under the top-level `widgets` key.
   stays as the bar (per group 6). The rice engine does not register any widget-template line.
 - `eww` — a floating-widgets toolkit *next to* waybar. Waybar stays. Engine registers the `eww`
   manifest line (template → `~/.config/eww/colors.scss`, reload `eww reload`).
-- `ags` — Astal / AGS v2 shell. **Replaces waybar.** Engine registers `ags` manifest line
+- `ags` — Astal + Gnim / AGS v3 shell. **Replaces waybar.** Engine registers `ags` manifest line
   (template → `~/.config/ags/colors.scss`, reload empty — the shell's file-monitor handles it).
 - `quickshell` — QML shell. **Replaces waybar.** Engine registers `quickshell` manifest line
   (template → `~/.config/quickshell/.../Colors.qml`, reload empty — Quickshell hot-reloads on save).

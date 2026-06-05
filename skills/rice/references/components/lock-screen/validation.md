@@ -61,7 +61,21 @@ fi
 Same warning fires if `outline_thickness = 0` is combined with `fade_on_empty = true` (the
 6 px-sliver pattern).
 
-### 5. Warn: `font_family` carries a size suffix
+### 5. Warn: `grace = …` inside `general {}`
+
+`grace` is a CLI flag (`hyprlock --grace N`), **not** a config key — silently ignored in the file.
+Detection: look for `grace` on the LHS of `=` between `^general` and the matching `}`:
+
+```bash
+if awk '/^general\s*{/,/^}/ { if ($1=="grace" && $2=="=") found=1 } END { exit !found }' "$file"; then
+    warn "hyprlock.conf: 'grace' inside general{} is silently ignored; use 'hyprlock --grace N' in the launcher instead (see gotchas.md)"
+fi
+```
+
+Same pattern catches the other silently-ignored `general {}` keys: `no_fade_in`, `no_fade_out`,
+`disable_loading_bar`, `pam_module`.
+
+### 6. Warn: `font_family` carries a size suffix
 
 `font_family = Inter 11` silently falls back to system default. The trailing space + digits is the
 detection rule:
@@ -72,7 +86,7 @@ if grep -E '^\s*font_family\s*=\s*\S+\s+[0-9]+' "$file" >/dev/null; then
 fi
 ```
 
-### 6. Warn: fingerprint block without `fprintd` in the install batch
+### 7. Warn: fingerprint block without `fprintd` in the install batch
 
 When `lock_screen.fingerprint = true` is recorded but `fprintd` is missing from the resolved
 package list (cross-check `packages.md`):
@@ -84,7 +98,7 @@ if [ "$(jq -r .lock_screen.fingerprint answers.json)" = "true" ] \
 fi
 ```
 
-### 7. Cross-component: hypridle's `lock_cmd` is guarded
+### 8. Cross-component: hypridle's `lock_cmd` is guarded
 
 If [`../companion-daemons/`](../companion-daemons/) generated `hypridle.conf`, the validator also
 checks that `lock_cmd = hyprlock` appears **only** as part of `pidof hyprlock || hyprlock` (or

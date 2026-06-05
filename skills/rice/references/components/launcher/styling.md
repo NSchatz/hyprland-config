@@ -31,7 +31,7 @@ These concepts map across all four; only the key names change.
 - **Entry rows** — per-row padding and spacing. Optional zebra striping (wofi `#entry:nth-child(even)`).
 - **The SELECTION highlight** — *the highest-impact element.* This is the bar (or text) marking the focused result. Make it the accent: a filled accent background with contrasting text, OR accent-colored text on a subtle surface fill. Everything else can be quiet; this should not be.
 - **Icons** — app icons next to entries.
-  - wofi: needs `allow-images=true` + `image_size=` in `config`; `drun` mode supplies icons.
+  - wofi: needs `allow_images=true` + `image_size=` in `config` (underscores — wofi rejects hyphenated keys silently); `drun` mode supplies icons.
   - rofi: `configuration { icon-theme: "Papirus"; show-icons: true; }` and `element-icon { size: 24px; }`.
   - fuzzel: icons on by default (`icons-enabled=yes`, `icon-theme=`, `image-size-ratio=`).
   - tofi: no app icons (text-only by design).
@@ -116,7 +116,7 @@ window {
 #entry:selected #text { color: @bg; }                 /* contrast on accent */
 ```
 
-Companion `~/.config/wofi/config`: `allow-images=true`, `image_size=24`, `location=center`, `width=600`, `height=400`, `insensitive=true`.
+Companion `~/.config/wofi/config`: `allow_images=true`, `image_size=24`, `location=center`, `width=600`, `height=400`, `insensitive=true`. All wofi config keys use **underscores**, never hyphens — `allow-images` is silently ignored.
 
 ### rofi — `~/.config/rofi/theme.rasi`
 
@@ -230,7 +230,7 @@ selection-background = #31324480     # {{surface}} + soft alpha
   }
   ```
   Add matching blocks for `rofi`, `fuzzel`, `tofi` (those are the default layer namespaces). Global blur must be on: `decoration { blur { enabled = true } }`.
-- **rofi-wayland vs classic rofi.** Classic `rofi` is X11; on Hyprland it runs through XWayland (no layer-shell, so blur/anchoring via layerrule won't apply). Use a Wayland-capable build — `rofi-wayland` (lbonn's fork, now merged upstream as rofi ≥ 2.0). Some X-only features (fine monitor selection, certain positioning) are unavailable in Wayland mode.
+- **Use upstream rofi ≥ 2.0 — the rofi-wayland AUR fork is obsolete.** Rofi 2.0.0 (2025-09-01) merged lbonn's Wayland port into mainline; the Arch `extra/rofi` package now `Provides: rofi-wayland` and `Replaces: rofi-wayland`, and auto-selects the xcb or wayland backend at runtime. If you're on a stale rofi (< 2.0) it still runs through XWayland on Hyprland (no layer-shell, so blur/anchoring via layerrule won't apply) — `pacman -Syu rofi` to fix. Some X-only features (fine monitor selection, certain positioning) are still unavailable in Wayland mode.
 - **fuzzel alpha is `RRGGBBAA`, not `RGB`/`#RGB`.** No leading `#`, and you **must** include the two alpha digits — `1e1e2e` is invalid; write `1e1e2eff` (opaque) or `1e1e2eee` (translucent).
 - **Over-transparent text → unreadable.** Keep `text`/`selection-text` near full alpha (`…ff`). Only the *background* should be translucent; thin text at 60% over a blurred wallpaper disappears.
 - **No padding → cramped.** Always set `horizontal-pad`/`vertical-pad` (fuzzel), `padding` (wofi/rofi), or `padding-*` (tofi). A launcher with zero padding looks broken even with perfect colors.

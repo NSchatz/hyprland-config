@@ -110,8 +110,9 @@ Same shape; key differences:
 - Prompt init: `eval "$(starship init zsh)"` or
   `eval "$(oh-my-posh init zsh --config $HOME/.config/hypr-rice/rice.omp.json)"`. Native
   fallback: `PROMPT='%F{blue}%~%f %# '`.
-- `fzf`: `source <(fzf --zsh)` (note: fzf >= 0.48 for the `--zsh` flag; older versions source
-  `/usr/share/fzf/{completion,key-bindings}.zsh` instead).
+- `fzf`: `eval "$(fzf --zsh)"` (upstream's canonical form; `source <(fzf --zsh)` is equivalent
+  via process substitution). fzf >= 0.48 for the `--zsh` flag; older versions source
+  `/usr/share/fzf/{completion,key-bindings}.zsh` instead.
 - `zoxide` **must** init **after** `compinit` — completions break otherwise.
 - `atuin` is standalone on zsh (no preexec shim needed).
 

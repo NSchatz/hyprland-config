@@ -13,24 +13,34 @@ The installer agent reads this file when assembling the global `PKGS` list, keye
 
 ### Build toolchain (added when `plugins.enabled == true`)
 
+The official `wiki/content/Plugins/Using-Plugins.md` lists this exact set:
+
+> Make sure you have the required dependencies: `cpio`, `cmake`, `git`, `meson` and `gcc`.
+
 | Package | Repo | Why |
 |---|---|---|
-| `base-devel` | repo | `gcc`, `make`, etc. The catch-all build group. |
-| `cmake` | repo | Most hyprpm plugins are CMake projects (`hy3`, `hyprexpo`, `hyprbars`, …). |
-| `meson` | repo | A few plugins (and Hyprland's own optional builds) prefer meson. |
 | `cpio` | repo | Required by `hyprpm` itself for extracting upstream Hyprland source tarballs during header sync. **Missing-`cpio` is the single most common "hyprpm update fails" cause.** |
+| `cmake` | repo | Most hyprpm plugins are CMake projects (`hy3`, `hyprexpo`, `hyprbars`, …). |
+| `git` | repo | `hyprpm` clones plugin repos. |
+| `meson` | repo | A few plugins (and Hyprland's own optional builds) prefer meson. |
+| `gcc` | repo | The C++23 compiler. On Arch this is already pulled in by `base-devel`; if the user has only a minimal base, add it explicitly. |
 
-These four are **always** added when `plugins.enabled == true`, regardless of which plugins are in
+These are **always** added when `plugins.enabled == true`, regardless of which plugins are in
 `selected` — the user might later add more plugins via `hyprpm` and the toolchain needs to be there.
+
+> **Note on Fedora / Debian:** the wiki also flags that you may need `-dev` packages of Hyprland's
+> dependencies on distros that split binaries and headers. On Arch this doesn't apply (no header
+> split). On Fedora / Debian the user picks the matching `-devel` / `-dev` packages.
 
 ### pyprland (added when `"pyprland"` is in `selected`)
 
 | Package | Repo / AUR | Notes |
 |---|---|---|
-| `pyprland` | AUR | The Python daemon. Maintained AUR package; tracks upstream `hhmm/pyprland` releases. |
+| `pyprland` | AUR | The Python daemon. Maintained AUR package; tracks upstream `hyprland-community/pyprland` releases (NOT `hhmm/pyprland` — that org doesn't exist; NOT `hyprwm/pyprland` either — that's a 404). Latest stable as of June 2026 is 3.3.1. |
 
 Alternate path (not the package map, but flag in the print-out): `pipx install pyprland` works too,
-but on Arch the AUR package is preferred for consistency with the rest of the install batch.
+but on Arch the AUR package is preferred for consistency with the rest of the install batch. Note
+pyprland requires **Python >= 3.11**.
 
 ### What is NOT a package
 
@@ -48,7 +58,7 @@ publishes one, it would be a "git clone the source and run a custom build script
 
 ```bash
 if [ "$(jq -r .plugins.enabled answers.json)" == "true" ]; then
-  pkgs+=(base-devel cmake meson cpio)
+  pkgs+=(cpio cmake git meson gcc)
   # pyprland is the only plugin-name that maps to a package
   if jq -e '.plugins.selected | index("pyprland")' answers.json > /dev/null; then
     pkgs+=(pyprland)

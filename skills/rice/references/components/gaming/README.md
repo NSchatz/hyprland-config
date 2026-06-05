@@ -7,8 +7,10 @@ the sub-questions. On `no`, only `enabled: false` lands in `answers.json` and no
 folder generates output.
 
 Most of what this component does is *tweak existing files* — it doesn't own its own `.conf`. It
-appends to `looknfeel.conf`, `windowrules.conf`, `monitors.conf`, `binds.conf`, and (kernel-gated)
-`env.conf`, and copies one shell script into `~/.config/hypr/scripts/`.
+appends to `looknfeel.conf`, `windowrules.conf`, `monitors.conf`, and `binds.conf`, and copies
+one shell script into `~/.config/hypr/scripts/`. It **does not** touch `env.conf` (older
+revisions tried to emit a kernel-gated `WLR_DRM_NO_ATOMIC` line, but Hyprland has used
+aquamarine — not wlroots — since v0.42; the var is a no-op and was removed).
 
 The biggest single perf win — `misc:vfr = true` — is **not** gated by this component; it's a
 default in the `look-feel` template for every user, gamer or not.
@@ -19,8 +21,8 @@ default in the `look-feel` template for every user, gamer or not.
 |---|---|
 | `interview.md` | Gate (20a) + four sub-questions (20b–20e) asked only on yes. |
 | `schema.md` | The `gaming.{enabled, tearing_classes, vrr_mode, strip_fullscreen_effects, gamemode_toggle}` slice. |
-| `template.md` | The lines emitted *into other components' files* — `allow_tearing`, per-class `immediate` rules, per-monitor `vrr` field, fullscreen effect-strip rules, the `SUPER+F1` bind, and the kernel-gated `WLR_DRM_NO_ATOMIC` env line. |
-| `gotchas.md` | Kernel gate on `WLR_DRM_NO_ATOMIC`, per-monitor VRR placement, `gamemode.sh` ships as a copy-not-render template, where the fullscreen rules actually go, where to source tearing classes, and the `misc:vfr` non-gate. |
+| `template.md` | The lines emitted *into other components' files* — `allow_tearing`, per-class `immediate` rules, per-monitor `vrr` field, fullscreen effect-strip rules, and the `SUPER+F1` bind. No env line is emitted — Hyprland's aquamarine backend ignores `WLR_*` vars and `AQ_NO_ATOMIC` is upstream-flagged "not recommended". |
+| `gotchas.md` | Why no `WLR_DRM_NO_ATOMIC` is emitted (aquamarine since 0.42), per-monitor VRR placement, `gamemode.sh` ships as a copy-not-render template, where the fullscreen rules actually go (and the `no_border` non-field trap), where to source tearing classes, and the `misc:vfr` non-gate. |
 | `packages.md` | None (Hyprland-internal). Optional `gamemoded` if the user wants the system service. |
 
 ## Where this component lands
@@ -36,8 +38,9 @@ default in the `look-feel` template for every user, gamer or not.
   integer.
 - **`binds.conf`** (owned by `keybinds`): the `bind = $mainMod, F1, exec, ~/.config/hypr/scripts/gamemode.sh`
   line when `gamemode_toggle` is true.
-- **`env.conf`** (owned by `env`): `env = WLR_DRM_NO_ATOMIC,1` — **only on kernels < 6.8**, never
-  on modern kernels.
+- **`env.conf`** (owned by `env`): **nothing** — Hyprland is aquamarine-based since 0.42, so
+  the legacy `WLR_DRM_NO_ATOMIC` is a no-op and the aquamarine equivalent (`AQ_NO_ATOMIC`) is
+  upstream-flagged "not recommended". No kernel gate, no emission.
 - **`~/.config/hypr/scripts/gamemode.sh`**: copy (`cp` + `chmod +x`) of
   `${CLAUDE_PLUGIN_ROOT}/skills/rice/assets/scripts/gamemode.sh`. No template substitution.
 
@@ -49,6 +52,8 @@ default in the `look-feel` template for every user, gamer or not.
   effect-strip rules land there).
 - [`monitors`](../monitors/) — owns `monitors.conf` (per-monitor `vrr` field).
 - [`keybinds`](../keybinds/) — owns `binds.conf` (`SUPER+F1` lands there).
-- [`env`](../env/) — owns `env.conf` (`WLR_DRM_NO_ATOMIC` lands there, kernel-gated).
+- [`env`](../env/) — owns `env.conf`. This component intentionally emits **nothing** there; see
+  the env component's `gotchas.md` for why `WLR_DRM_NO_ATOMIC` / `AQ_NO_ATOMIC` are excluded
+  from the slim recommended set.
 - [`utilities`](../utilities/) — the copy-not-render script install pattern is shared with this
   component's `gamemode.sh`.

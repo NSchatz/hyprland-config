@@ -26,12 +26,15 @@ The corpus has shifted in the last year; pick the modern tool when adding to the
 |---|---|---|---|
 | Screenshot annotation | `swappy` | **`satty`** | Active maintenance, better UI, pen pressure. |
 | Screen recording | `wf-recorder` | **`wl-screenrec`** (on AMD/Intel) | HW-encoded via VAAPI — drastically lower CPU, smaller files. |
-| Capture wrapper | bare `grim`+`slurp` | **`hyprshot`** or `grimblast` | Window-capture honors Hyprland geometry; output dir, edit-arg handling. |
+| Capture wrapper | bare `grim`+`slurp` | **`grimblast`** or `hyprshot` | Window-capture honors Hyprland geometry; output dir, edit-arg handling. |
 
-The shipped `screenshot.sh` / `screenrecord.sh` **auto-detect at runtime** — so listing multiple
-capture tools (e.g. both `hyprshot` and `grim`+`slurp`) in the install batch is harmless. The
-script picks the first present, and a user who removes `hyprshot` later still gets a working
-script via the `grim`+`slurp` fallback.
+`hyprshot` and `satty` moved from AUR to `extra` in 2025-08; `swayosd` moved to `extra` earlier.
+`wl-screenrec`, `wlogout`, `bemoji`, and `grimblast` remain AUR-only.
+
+The shipped `screenshot.sh` auto-detects in the order **grimblast → hyprshot → bare `grim`+`slurp`**;
+`screenrecord.sh` prefers **wl-screenrec → wf-recorder**. Listing multiple capture/recording tools
+in the install batch is harmless — the script picks the first present, and a user who later
+uninstalls one still gets a working script via the fallback chain.
 
 ## Scripts auto-detect — listing multiple tools is fine
 

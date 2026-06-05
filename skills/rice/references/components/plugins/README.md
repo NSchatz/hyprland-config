@@ -1,10 +1,11 @@
 # plugins
 
 The **community-plugin layer** — `hyprpm`-built plugins that bolt onto Hyprland: a workspace
-overview (`hyprexpo`), an i3/sway tree layout (`hy3`), per-monitor workspaces
-(`split-monitor-workspaces`), CSD-style title bars (`hyprbars`), motion trails (`hyprtrails`), an
-extra border ring (`borders-plus-plus`), an app-as-wallpaper hack (`hyprwinwrap`), and pyprland's
-dropdown scratchpads (the pip/AUR exception — **not** hyprpm).
+overview (`hyprexpo`, community fork), an i3/sway tree layout (`hy3`), per-monitor workspaces
+(`split-monitor-workspaces`), CSD-style title bars (`hyprbars`, official), motion trails
+(`hyprtrails`, community), an extra border ring (`borders-plus-plus`, official), an
+app-as-wallpaper hack (`hyprwinwrap`, community fork), and pyprland's dropdown scratchpads (the
+pip/AUR exception — **not** hyprpm).
 
 This component is **OPT-IN**. The interview opens with one yes/no gate (23a); on **No** the rest of
 the component is skipped and `plugins.enabled = false` is recorded. On **Yes** a multi-select (23b)
@@ -19,8 +20,10 @@ names the plugins to wire up. A non-plugin user never sees the catalog.
   component appends it). These stay commented until the user has actually built and enabled the
   plugin — uncommented plugin dispatchers HARD-ERROR the reload.
 - The print-out of exact `hyprpm` install commands the **user** runs in their own terminal. Claude
-  **never runs `hyprpm`** — it needs a TTY for its internal `sudo` prompt to root-owned
-  `/var/cache/hyprpm`.
+  **never runs `hyprpm`** — it shells out to `sudo` (verified in
+  `hyprwm/Hyprland:hyprpm/src/core/PluginManager.cpp` — `install will run as sudo: …`) to write the
+  built artifacts to root-owned `/var/cache/hyprpm/<username>/` (verified in `DataState.cpp` →
+  `getDataStatePath()`), and `sudo` needs a TTY Claude doesn't have.
 
 ## Files in this folder
 
@@ -29,8 +32,8 @@ names the plugins to wire up. A non-plugin user never sees the catalog.
 | `interview.md` | Sub-questions 23a (opt-in gate, always asked) and 23b (multi-select of plugins, only on Yes). Record paths. |
 | `schema.md` | The `plugins.{enabled, selected}` slice of `answers.json` + validation rules. |
 | `template.md` | The `plugins.conf` per-plugin block catalog + the commented binds + the commented `general:layout = hy3` line for hy3. References `_shared/dispatchers.md` for the hard-error rule. |
-| `gotchas.md` | The version-pinning rule (every Hyprland upgrade breaks every plugin), why Claude can't run `hyprpm`, the `scrolling`-is-core-not-a-plugin reminder, the `hyprexpo`/`hyprtrails`/`hyprscrolling` repo-removal, the plugin-dispatcher hard-error rule, the `general:layout = hy3` corollary, the pyprland-is-pip-not-hyprpm exception, the `~/.local/share/hyprpm`-must-exist gotcha, and the no-chained-`enable` rule. |
-| `packages.md` | The build toolchain (`base-devel cmake meson cpio`) + the AUR `pyprland` exception. The plugins themselves are **not** package-manager-installable — `hyprpm` builds them from source. |
+| `gotchas.md` | The version-pinning rule (every Hyprland upgrade breaks every plugin), why Claude can't run `hyprpm`, the `scrolling`-is-core-not-a-plugin reminder, the PR #663 unmaintained-plugin removal (hyprexpo / hyprtrails / hyprscrolling / hyprwinwrap / xtra-dispatchers), the plugin-dispatcher hard-error rule, the `general:layout = hy3` corollary, the pyprland-is-pip-not-hyprpm exception, and the no-chained-`enable` rule. (The `~/.local/share/hyprpm` directory is **not** a real path — hyprpm uses `/var/cache/hyprpm/<user>/` and `$XDG_RUNTIME_DIR/hyprpm/` and creates them itself.) |
+| `packages.md` | The build toolchain (`cpio cmake meson git gcc`) + the AUR `pyprland` exception. The plugins themselves are **not** package-manager-installable — `hyprpm` builds them from source. |
 
 ## Where this component lands
 
@@ -41,12 +44,14 @@ names the plugins to wire up. A non-plugin user never sees the catalog.
   …) land here, **commented-out**. Owned by the `keybinds` component; this component just supplies
   the list.
 - **`looknfeel.conf`** — `# general { layout = hy3 }` lands here, commented. Owned by `look-feel`.
-- **Install batch** — only the build toolchain (`base-devel cmake meson cpio`) and the AUR
-  `pyprland` package (when pyprland is selected). The plugins themselves are not packages.
+- **Install batch** — only the build toolchain (`cpio cmake meson git gcc` — the exact deps the
+  wiki lists at `wiki/content/Plugins/Using-Plugins.md`) and the AUR `pyprland` package (when
+  pyprland is selected). The plugins themselves are not packages.
 - **User-run command print-out** — the rice skill emits a block of `hyprpm` commands the user copies
-  into their terminal (`mkdir -p ~/.local/share/hyprpm`, `hyprpm update`, one `hyprpm add` per repo,
-  one `hyprpm enable` per plugin **on its own line**, `hyprpm reload`). These commands are **not**
-  stored in a file the engine reads — they're a print-out.
+  into their terminal (`hyprpm update`, one `hyprpm add` per repo, one `hyprpm enable` per plugin
+  **on its own line**, `hyprpm reload`). These commands are **not** stored in a file the engine
+  reads — they're a print-out. hyprpm creates its `/var/cache/hyprpm/<user>/` data dir itself on
+  first run (via its internal `sudo`); no `mkdir` is required.
 
 ## Related components
 

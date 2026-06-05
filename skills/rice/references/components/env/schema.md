@@ -36,15 +36,17 @@ This component owns one key: `autostart_env.env`. The sibling keys under `autost
 - The NVIDIA set (`LIBVA_DRIVER_NAME`, `__GLX_VENDOR_LIBRARY_NAME`, `NVD_BACKEND`) is valid only
   when `NVIDIA_PROPRIETARY=1` from `detect-version.sh`. The validator checks the combination;
   see `gotchas.md`.
-- `GBM_BACKEND` and `WLR_NO_HARDWARE_CURSORS` must **not** appear — they're explicitly out of
-  the 2026 slim set. The validator flags them as a warning with a pointer to `gotchas.md`.
+- `GBM_BACKEND`, `WLR_NO_HARDWARE_CURSORS`, `WLR_DRM_NO_ATOMIC`, and `AQ_NO_ATOMIC` must
+  **not** appear — they're explicitly out of the 2026 slim NVIDIA set. The `WLR_*` ones are
+  no-ops on modern Hyprland (aquamarine, not wlroots). The validator flags them as a warning
+  with a pointer to `gotchas.md`.
 
 ## Who reads these keys
 
 | Reader | Use |
 |---|---|
 | `hyprland-component-writer` (env) | Emits one `env = NAME,value` line per entry into `~/.config/hypr/env.conf`. |
-| `hyprland-component-writer` (env, uwsm path) | When `UWSM_SESSION=1`, also writes cursor / GTK / toolkit entries into `~/.config/uwsm/env` as `NAME=value` lines (note the `=`, not `,`). See `gotchas.md`. |
+| `hyprland-component-writer` (env, uwsm path) | When `UWSM_SESSION=1`, also writes cursor / GTK / toolkit entries into `~/.config/uwsm/env` as `export NAME=value` lines (POSIX shell sourced — `=` not `,`, and with the `export` prefix per the Hyprland env-vars wiki and the uwsm README). See `gotchas.md`. |
 | `hyprland-validator` | Checks the NVIDIA gate (`NVIDIA_PROPRIETARY=1`), no-duplicates, no banned `GBM_BACKEND`/`WLR_NO_HARDWARE_CURSORS`. |
 | `hyprland-package-installer` | Reads no keys from this component (env-only — `packages.md` is empty). Reads `autostart_env.polkit` / `.wallpaper_tool` / `.autostart` from the sibling `autostart` component. |
 

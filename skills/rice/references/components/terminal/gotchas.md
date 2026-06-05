@@ -62,12 +62,21 @@ template emits **TOML only** (`alacritty.toml`), and the install step warns if a
 `alacritty.yml` is detected alongside (offer to run `alacritty migrate`).
 
 Other TOML-era gotchas worth flagging:
-- `[cursor].style` is `{ shape = "Beam", blinking = "On" }` — **not** under `[colors]` (a common
-  port mistake).
-- `transparent_background_colors = true` is **required** for `[window].opacity` to actually look
-  transparent — without it, the theme's solid background paints every cell and opacity is dead.
+- `[cursor.style]` is `{ shape = "Beam", blinking = "On" }` (capitalized values: `Block`/
+  `Underline`/`Beam` for shape, `Never`/`Off`/`On`/`Always` for blinking) — **not** under
+  `[colors]` (a common port mistake).
+- `transparent_background_colors = true` lives under **`[colors]`**, not `[window]`. It is
+  required for `[window].opacity` to actually look transparent — without it, the theme's solid
+  background paints every cell and opacity is dead. (alacritty/alacritty docs section is
+  `[colors]`.)
 - `[window].blur` is **macOS-only**; on Wayland the blur comes from Hyprland's decoration block,
   not alacritty. Don't waste a key on it.
+- `import = [...]` and `live_config_reload = true` both live under the `[general]` table in
+  ≥0.13, not at the top level. The 0.13 release was 2023-12-27 (`alacritty/alacritty` v0.13.0).
+- `[font] size` is typed `<float>`; render integer answers as `11.0` (not `11`) so strict TOML
+  parses without an `invalid type: integer` error.
+- Per-terminal shell override lives at `[terminal] shell = "/usr/bin/fish"` or
+  `[terminal] shell = { program = "/usr/bin/fish", args = ["-l"] }`.
 
 ## Opacity below ~0.8 is unreadable
 
@@ -81,6 +90,42 @@ custom value below `0.7` — over a busy wallpaper, text legibility collapses. S
 The rice engine's per-emulator colors writer branches on this. kitty/alacritty/wezterm/ghostty get
 `#1e1e2e`; foot's `[colors]` block takes `1e1e2e` (no `#`, alpha lives in `alpha=` not in the hex).
 Easy to get wrong by reusing kitty's writer for foot — foot then silently rejects every color.
+
+## foot bell config is in `[bell]`, not `[main]`
+
+Stale snippets put `bell=none` under `[main]`; foot silently drops unknown keys, so the bell
+stays on. The real keys live in their own section (`foot.ini(5)`):
+
+```ini
+[bell]
+system=no       # default yes — ring the system bell
+urgent=no       # default no  — signal urgency to the compositor
+visual=no       # default no  — flash the terminal window
+notify=no       # default no  — emit a desktop notification
+command=        # default empty — run a command on BEL
+```
+
+To silence the bell completely, set `system=no` (the others default off). There is **no
+`bell=none`** shortcut.
+
+## foot cursor `style` values
+
+`[cursor] style` accepts `block | beam | underline | hollow` — exactly four values per
+`foot.ini(5)`. `bar` (alacritty/ghostty's name for beam) is **not** a valid foot value.
+
+## Per-emulator `shell` directive vs `chsh`
+
+Each emulator has its own way of overriding the user's login shell. Rice writes **none of these
+by default** — `chsh` is the source of truth and the per-emulator overrides exist only as
+opt-ins for users who want, say, fish in their terminal and bash everywhere else.
+
+| Emulator | Directive | Default behaviour |
+|---|---|---|
+| kitty | `shell /usr/bin/fish` (top-level kitty.conf) | `shell .` → `$SHELL` or login shell |
+| alacritty | `[terminal] shell = "/usr/bin/fish"` or `{ program = "...", args = [...] }` | uses `$SHELL` |
+| foot | `shell=/usr/bin/fish` (top-level / `[main]`) | uses `$SHELL` or login shell |
+| wezterm | `config.default_prog = { '/usr/bin/fish', '-l' }` | uses login shell |
+| ghostty | `command = /usr/bin/fish` | uses login shell |
 
 ## Version branch — none today
 

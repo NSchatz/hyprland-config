@@ -17,7 +17,7 @@ component does the surface that runs *inside* the terminal.
 | `template.md` | The managed-block contents added to each shell's rc: prompt-engine init line, fastfetch line, alias block. Plus the rice-owned prompt config paths (`STARSHIP_CONFIG` / `oh-my-posh init --config`). |
 | `styling.md` | Full TUI + prompt styling guide (btop / cava / fastfetch / starship / oh-my-posh / fish) — palette knobs, design anatomy, tasteful recipes. |
 | `validation.md` | Parse-test commands (`bash -n`, `zsh -n`, `fish --no-execute`). Never `source` to test. |
-| `gotchas.md` | Managed-block convention, parse-only-testing, `chsh` ownership, "new shells only", `set -U` shadowing, fisher is `curl`-installed. |
+| `gotchas.md` | Managed-block convention, parse-only-testing, `chsh` ownership, "new shells only", `set -g` vs `set -U` scoping in fish, fisher is `curl`-installed. |
 | `packages.md` | The shell + prompt-engine + fetch + modern-CLI package map. |
 | `reload.md` | Open a new shell, or `exec <shell>` in place. Live shells keep stale config until restart. |
 

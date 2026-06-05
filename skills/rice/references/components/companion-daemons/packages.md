@@ -20,9 +20,9 @@ upstream tip.
 
 | Need | Package | Notes |
 |---|---|---|
-| Backlight control for the hypridle dim listener | `brightnessctl` | Required for `brightnessctl -s set 10%` / `brightnessctl -r` — install whenever the chosen ladder includes a dim tier (everything except `never`). |
+| Backlight control for the hypridle dim listener | `brightnessctl` | Required for `brightnessctl -s set 10` / `brightnessctl -r` — `-s` saves current state to a tmp file, the `set` operation then drops to the dim value (raw integer; a `%` suffix works too but the upstream hypridle example uses bare `10`). `-r` restores from the saved state on resume. Install whenever the chosen ladder includes a dim tier (everything except `never`). |
 | Fingerprint unlock in hyprlock | `fprintd` (+ matching `libfprint` device support) | Owned by [`../lock-screen/packages.md`](../lock-screen/packages.md), not here. Cross-referenced because hyprlock's `auth { fingerprint {} }` block depends on it. |
-| Wallpaper swap targets the right monitor | (none) | hyprpaper's monitor-scoped `wallpaper = DP-1, <path>` syntax is built-in. |
+| Wallpaper swap targets the right monitor | (none) | hyprpaper's monitor-scoped wallpapers are built-in: on 0.8+ use a `wallpaper { monitor = DP-1; path = … }` block; on 0.7.x use `wallpaper = DP-1, <path>`. |
 
 ## Assembly rule
 

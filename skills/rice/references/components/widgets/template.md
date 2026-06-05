@@ -24,8 +24,9 @@ quickshell  ~/.config/hypr-rice/templates/quickshell.tmpl  ~/.config/quickshell/
 
 Output paths vary per shell layout — an Astal project may want `style/colors.scss`, a Quickshell
 config may want `theme/Colors.qml` next to its `qmldir`. Match the shell's actual layout. The
-reload command is empty for AGS (the shell's own file-monitor recompiles + `resetCss`/`applyCss`)
-and for Quickshell (hot-reloads on file save).
+reload command is empty for AGS (the shell's *user-written* file-monitor — `Utils.monitorFile` in
+v1, a `monitorFile` + `app.apply_css(scss)` pair in v3 — picks up the colors-file write) and for
+Quickshell ("loads changes as soon as they're saved", per the docs).
 
 ## eww — yuck + SCSS
 
@@ -78,8 +79,8 @@ role-agnostic, plus a `@define-color` block (GTK CSS interop with host GTK apps)
 **One-time wiring** depends on the SCSS dialect:
 
 - **AGS v1** (sassc): `@import "colors";` at the top of `style.scss`.
-- **Astal / AGS v2** (dart-sass, built into the `ags` CLI): `@use "colors" as *;` at the top of
-  `style.scss`.
+- **Astal + Gnim / AGS v3** (dart-sass — bundled into the `ags` CLI's import-time transform):
+  `@use "colors" as *;` at the top of `style.scss`.
 
 **Compile + apply:**
 
@@ -97,13 +98,17 @@ Utils.monitorFile(`${App.configDir}/scss`, () => {
 ```
 
 ```ts
-// Astal / AGS v2
+// AGS v3 (Astal + Gnim)
 import app from "ags/gtk4/app"
-app.start({ css: `${SRC}/style.scss`, main: () => Bar() })
+import style from "./style.scss"     // bundler inlines as a string
+app.start({ css: style, main: () => Bar() })
+// optional: a monitorFile that re-reads style.scss and calls app.apply_css()
+// is user-written — there is no built-in on-disk watcher in v3's app surface.
 ```
 
-Either way the shell's file-monitor watches the SCSS dir; the rice engine writes `colors.scss` and
-the next file-system event triggers the recompile — that's why the manifest's reload-cmd is empty.
+The rice engine writes `colors.scss`; the v1 `Utils.monitorFile` watcher (or its v3 user-written
+equivalent calling `app.apply_css()`) picks up the change and re-themes. That's why the
+manifest's reload-cmd is empty — it's the shell's own watcher, not a CLI hook.
 
 **Fonts:** same rule as eww — the family-without-size goes into `style.scss` directly (e.g.
 `font-family: "Inter";`); the template is colors only.
@@ -111,7 +116,7 @@ the next file-system event triggers the recompile — that's why the manifest's 
 **`hyprland.conf` autostart:**
 
 ```ini
-exec-once = ags run                # Astal / v2 — runs the project in $XDG_CONFIG_HOME/ags
+exec-once = ags run                # AGS v3 — runs the project in $XDG_CONFIG_HOME/ags
 # or for v1:
 exec-once = ags
 ```
@@ -121,9 +126,12 @@ exec-once = ags
 **Template:** `skills/rice/templates/quickshell.tmpl` (renders to
 `~/.config/quickshell/<name>/Colors.qml`).
 
-The output **is** a QML singleton — `pragma Singleton`, an `import QtQuick`, and a `QtObject {}`
-with `readonly property color bg: "#..."`, `... accent: "#..."`, a `term[16]` array of the
-color0..color15 hex strings, `fontUi` / `fontMono` strings (bare family), and `radius` /
+The output **is** a QML singleton — `pragma Singleton`, an `import QtQuick` + `import Quickshell`,
+and a `Singleton {}` root (the Quickshell `Singleton` type — per the Quickshell QML-overview
+docs: *"To make a type of a Singleton, put `pragma Singleton` at the top of the file. To ensure
+it behaves correctly with Quickshell, you should also make the Singleton the root item of your
+type."*) with `readonly property color bg: "#..."`, `... accent: "#..."`, a `term[16]` array of
+the color0..color15 hex strings, `fontUi` / `fontMono` strings (bare family), and `radius` /
 `animDuration` int properties.
 
 **One-time wiring** — register the singleton in `qmldir`:
@@ -132,7 +140,8 @@ color0..color15 hex strings, `fontUi` / `fontMono` strings (bare family), and `r
 singleton Colors Colors.qml
 ```
 
-(Or rely on the `pragma Singleton` line and `import "."` from sibling QML files.)
+(With both `pragma Singleton` in the file *and* the `singleton` line in `qmldir`, sibling QML
+files reference it as `Colors.accent` after `import "."`.)
 
 **Reference everywhere** as `Colors.accent`, `Colors.bg`, etc. — never literal hex:
 

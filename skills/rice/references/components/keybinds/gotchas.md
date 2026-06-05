@@ -19,14 +19,17 @@ Same rule for the cheat-sheet, emoji picker, power menu, theme switcher — anyt
 list through a picker. The `launcher` component composes both variables; the variables block at
 the top of `hyprland.conf` documents this inline as well.
 
-## Plugin dispatchers HARD-ERROR the reload — keep them commented
+## Plugin dispatchers fail with "Invalid dispatcher" until the plugin is loaded — keep them commented
 
 Plugin dispatchers (`hyprexpo:expo`, `hy3:makegroup`, `split-workspace:…`, `scroller:…`, pyprland
-dispatchers, …) make the **entire** `hyprctl reload` fail when the plugin isn't loaded — not just
-the one bind. The user notices because window rules, monitors, and every later `source =` line
-stop applying.
-
-Always write these lines **commented**:
+dispatchers, …) are unknown to Hyprland's bind parser until the plugin is actually loaded.
+Hyprland parses binds eagerly, so a config that references them at load time logs
+`Invalid dispatcher, requested '<name>' does not exist` in `hyprctl configerrors`, and **the
+specific bind silently doesn't fire** — the rest of the reload still applies. (Older releases
+were stricter; current behaviour per [hyprwm/hyprland-plugins #204](https://github.com/hyprwm/hyprland-plugins/issues/204)
+and [outfoxxed/hy3 #169](https://github.com/outfoxxed/hy3/issues/169) is "errors in
+`configerrors`, bind dead, no cascade.") Either way the user sees a dead keybind and a noisy
+`configerrors`, so we still ship these **commented**:
 
 ```ini
 # bind = $mainMod, Tab, hyprexpo:expo, toggle
@@ -34,8 +37,12 @@ Always write these lines **commented**:
 ```
 
 The user uncomments them after `hyprpm` builds + loads the plugin (handled by the `plugins`
-component). The validator flags any uncommented plugin dispatcher as an ERROR. Catalog +
-exceptions (e.g. `layoutmsg, move +col` for the core scrolling layout in 0.53+) live in
+component). The validator flags any uncommented plugin dispatcher as a WARNING (not an error —
+the reload still applies). See also the timing issue tracked in
+[hyprwm/Hyprland #5247](https://github.com/hyprwm/Hyprland/issues/5247) (binds load before
+plugins; the cycle is "parse binds → load plugins → unknown dispatchers stay unknown").
+
+Catalog + exceptions (e.g. `layoutmsg, move +col` for the core scrolling layout in 0.53+) live in
 [`../../_shared/dispatchers.md`](../../_shared/dispatchers.md).
 
 ## Vim mode shifts `togglesplit` off `J`
@@ -118,3 +125,57 @@ for the full picture; the gate variable in this template is `filemanager`.
 If `default_apps.files` is `yazi` or `ranger`, the `$fileManager` variable in `hyprland.conf` is
 `$terminal -e yazi` (the `default-apps` writer composes this). The bind line stays the same
 (`exec, $fileManager`); no special branching here.
+
+## 0.55+ — hyprlang `.conf` is "deprecated in favor of Lua" (but still functional)
+
+As of Hyprland 0.55, the shipped default config is `hyprland.lua`, and the wiki's Binds page
+opens with: "Since Hyprland 0.55, hyprlang is deprecated in favor of lua. Looking for the old
+hyprlang syntax? Check the 0.54 wiki pages." The classic `bind = …` `.conf` syntax we emit here
+**still parses and runs on 0.55+** — the wiki explicitly states `.conf` "remains functional for
+several releases." We keep emitting `.conf` because every existing tutorial, rice, and dotfile
+out there does. Track when to migrate via the rice's version detector.
+
+For reference, the Lua-API equivalents of the bind flags compose differently — there's no
+suffix-letter mash; instead, each flag is a key in an options table:
+
+| `.conf` flag letter | Lua option       | Meaning |
+|---|---|---|
+| `e` | `repeating = true`     | repeat while held |
+| `l` | `locked = true`        | works while inhibitor (lock screen) is active |
+| `r` | `release = true`       | fire on release |
+| `m` | `mouse = true`         | mouse-button bind |
+| `n` | `non_consuming = true` | also pass the event to the app |
+| `d` | `description = "…"`    | hyprctl-binds label |
+| `t` | `transparent = true`   | cannot be shadowed |
+| `i` | `ignore_mods = true`   | ignore modifier mask |
+
+Lua-only flags (0.55+, no `.conf` equivalent) include `click`, `drag`, `long_press`,
+`auto_consuming`, `bypass`, `submap_universal`, `device`. If a user asks for one of those, the
+config has to be Lua.
+
+## `bindd` (described binds) — `.conf` syntax has the description **between key and dispatcher**
+
+The d flag (`bindd` / `bindeld` / `binddl` / `binddm` / `binddr`) inserts a description that
+`hyprctl binds -j` exposes via the `description` field (and `has_description: true`). The
+syntax in `.conf` is **not** quoted and **cannot contain commas**:
+
+```ini
+bindd = $mainMod, Q, Open my favourite terminal, exec, $terminal
+#         ^MODS^  ^KEY^  ^^^^^ description ^^^^^  ^dispatcher^  ^args^
+```
+
+The cheat-sheet script (`assets/scripts/keybind-cheatsheet.sh`) parses the JSON shape:
+
+```json
+{"locked": false, "mouse": false, "release": false, "repeat": false,
+ "non_consuming": false, "has_description": true, "modmask": 64,
+ "submap": "", "key": "Q", "keycode": 0, "catch_all": false,
+ "description": "Open my favourite terminal",
+ "dispatcher": "exec", "arg": "kitty"}
+```
+
+`modmask` is the integer bitmap (SUPER = 64, ALT = 8, CTRL = 4, SHIFT = 1 — verify on the live
+system; PR #8607 added human-readable modkeys to a separate field), so the cheat-sheet's jq
+filter has to map bits → mod names. We currently default to the description-less form (plain
+`bind`) and only emit `bindd` if the user opts into the cheat-sheet (3e), because every
+description widens the file and the validator has to learn the longer signature.

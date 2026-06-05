@@ -46,13 +46,17 @@ dispatcher / layout references need gating.
 
 ### `hyprexpo` — workspace overview
 
+Config keys verified against `sandwichfarm/hyprexpo:HyprexpoConfig.hpp` defaults (the original
+`hyprwm` plugin was removed by PR #663).
+
 ```ini
 plugin {
     hyprexpo {
         columns = 3
-        gap_size = 5
+        gaps_in = 5                          # NOT `gap_size` — that key doesn't exist
+        gaps_out = 0
         bg_col = rgb({{bg}})
-        workspace_method = center current   # [center/first] [workspace]
+        workspace_method = center current    # [center/first] [workspace]
     }
 }
 ```
@@ -84,13 +88,21 @@ plugin {
 # general { layout = hy3 }
 ```
 
-**Binds (land in `binds.conf`, COMMENTED):**
+**Binds (land in `binds.conf`, COMMENTED).** Dispatcher names verified against the hy3 README
+"Dispatcher list" section. `hy3:makegroup` takes `h | v | opposite | tab`; `hy3:changegroup`
+takes `h | v | tab | untab | toggletab | opposite`; `hy3:movefocus` / `hy3:movewindow` take
+`l | u | d | r` (or word forms). For full conventional usage, also rebind core
+`movefocus`/`movewindow` to the `hy3:` versions:
 
 ```ini
 # bind = $mainMod, v, hy3:makegroup, v
 # bind = $mainMod, h, hy3:makegroup, h
 # bind = $mainMod, w, hy3:changegroup, toggletab
 # bind = $mainMod, e, hy3:expand, expand
+# bind = $mainMod, left,  hy3:movefocus, l
+# bind = $mainMod, right, hy3:movefocus, r
+# bind = $mainMod, up,    hy3:movefocus, u
+# bind = $mainMod, down,  hy3:movefocus, d
 ```
 
 ### `split-monitor-workspaces` — per-monitor workspaces (multi-monitor only)
@@ -133,10 +145,15 @@ No binds. No layout. Themable straight from the palette (`{{surface}}`, `{{fg}}`
 
 ### `borders-plus-plus` — extra border rings
 
+Config keys verified against `hyprwm/hyprland-plugins:borders-plus-plus/main.cpp` (which registers
+`plugin:borders-plus-plus:add_borders`, `plugin:borders-plus-plus:natural_rounding`,
+`plugin:borders-plus-plus:col.border_<1..9>`, `plugin:borders-plus-plus:border_size_<1..9>`).
+
 ```ini
 plugin {
     borders-plus-plus {
         add_borders = 1
+        natural_rounding = true
         col.border_1 = rgb({{accent}})
         border_size_1 = 2
     }
@@ -155,27 +172,47 @@ plugin {
 }
 ```
 
-No binds, no layout. (Community forks only — flag as eye-candy / unmaintained-risk in `gotchas.md`.)
+No binds, no layout. (**Removed from official repo by PR #663** — community forks only, none
+widely blessed as of June 2026. The user-run print-out does NOT ship a default `hyprpm add` URL
+for this one; flag as eye-candy / unmaintained-risk in `gotchas.md`.)
 
 ### `hyprwinwrap` — app as wallpaper
+
+**Removed from the official repo by PR #663.** Use the maintained community fork
+`gen3vra/hyprwinwrap` (requires Hyprland 0.54+). The fork extends the original `class`-only match
+with optional `title`, `pos_x` / `pos_y`, `size_x` / `size_y` (percentages), and a
+`hyprwinwrap_interactivity` dispatcher for temporary focus.
 
 ```ini
 plugin {
     hyprwinwrap {
+        # `class` is an EXACT match, NOT a regex — use `hyprctl clients` to find your window's class.
         class = wallpaper-term
+        # Optional gen3vra-fork extras:
+        # title = wallpaper-term
+        # pos_x = 0
+        # pos_y = 0
+        # size_x = 100
+        # size_y = 97   # leave room for a bottom waybar
     }
 }
 ```
 
-No binds, no layout. The wallpaper app is launched separately (e.g. `kitty --class wallpaper-term
-mpv --loop /path/to/video.mp4` in `autostart`).
+No binds (or one optional: `bind = $mainMod, F11, exec, hyprctl dispatch
+hyprwinwrap_interactivity` — commented until loaded). The wallpaper app is launched separately
+(e.g. `kitty --class wallpaper-term mpv --loop /path/to/video.mp4` in `autostart`).
 
 ### `pyprland` — NOT hyprpm, NOT in `plugins.conf`
 
-pyprland is a **separate process** (pip / AUR `pyprland`); it does not write a `plugin {}` block. Its
-config lives in its own file `~/.config/hypr/pyprland.toml`:
+pyprland is a **separate process** maintained at `hyprland-community/pyprland` (pip / AUR
+`pyprland`). It does not write a `plugin {}` block. Its config now canonically lives at
+`~/.config/pypr/config.toml` (the **new** path defined as `CONFIG_FILE` in
+`hyprland-community/pyprland:pyprland/constants.py`); the older `~/.config/hypr/pyprland.toml`
+path is still accepted as `LEGACY_CONFIG_FILE` and is what most online tutorials still show.
+Emit to the legacy path for compatibility with existing user docs:
 
 ```toml
+# ~/.config/hypr/pyprland.toml  (legacy path — still supported; new path is ~/.config/pypr/config.toml)
 [pyprland]
 plugins = ["scratchpads"]
 
@@ -208,15 +245,18 @@ repo URLs filled in per `plugins.selected`. It is **not** stored anywhere the en
 copy-paste-into-your-terminal command list, because Claude can't run `hyprpm` (see `gotchas.md`).
 
 ```bash
-# Run these in your own terminal — Claude cannot run hyprpm (it needs TTY sudo).
-mkdir -p ~/.local/share/hyprpm
+# Run these in your own terminal — Claude cannot run hyprpm (it needs TTY sudo to write
+# /var/cache/hyprpm/$USER/, which hyprpm creates itself on first run).
+# Do NOT pre-mkdir anything — hyprpm handles its own dirs (/var/cache/hyprpm via sudo +
+# $XDG_RUNTIME_DIR/hyprpm via plain mkdir).
 hyprpm update
-hyprpm add https://github.com/hyprwm/hyprland-plugins         # if hyprbars / borders-plus-plus / hyprwinwrap
-hyprpm add https://github.com/sandwichfarm/hyprexpo            # if hyprexpo
-hyprpm add https://github.com/outfoxxed/hy3                    # if hy3
-hyprpm add https://github.com/Duckonaut/split-monitor-workspaces  # if split-monitor-workspaces
-# (hyprtrails: community forks only — pick one yourself)
-# One `hyprpm enable` per line — never chain with && (see gotchas).
+hyprpm add https://github.com/hyprwm/hyprland-plugins             # if hyprbars / borders-plus-plus
+hyprpm add https://github.com/sandwichfarm/hyprexpo                # if hyprexpo  (community fork — original removed by PR #663)
+hyprpm add https://github.com/outfoxxed/hy3                        # if hy3
+hyprpm add https://github.com/zjeffer/split-monitor-workspaces     # if split-monitor-workspaces  (Duckonaut/… 301-redirects here)
+hyprpm add https://github.com/gen3vra/hyprwinwrap                  # if hyprwinwrap  (community fork — original removed by PR #663; needs Hyprland 0.54+)
+# hyprtrails: removed from official repo by PR #663, no widely-blessed community fork — pick one yourself if you need it.
+# One `hyprpm enable` per line — never chain with && (see gotchas — partial-state silent failure).
 hyprpm enable hyprexpo
 hyprpm enable hy3
 hyprpm enable split-monitor-workspaces
@@ -224,9 +264,27 @@ hyprpm enable hyprbars
 hyprpm enable borders-plus-plus
 hyprpm enable hyprwinwrap
 hyprpm reload
+# Confirm with: hyprpm list   (or: hyprctl plugin list  — the IPC-side view)
 # After every Hyprland upgrade, re-run:
 #   hyprpm update && hyprpm reload
 ```
+
+### No-root alternative — `hyprctl plugin load <path>`
+
+Once a plugin is built (by the user running `hyprpm`), the wiki documents loading the `.so`
+directly over Hyprland's IPC socket, without root:
+
+```bash
+hyprctl plugin load /var/cache/hyprpm/$USER/hyprland-plugins/hyprbars.so
+hyprctl plugin unload /var/cache/hyprpm/$USER/hyprland-plugins/hyprbars.so
+hyprctl plugin list
+```
+
+> The path has to be absolute. (Verified in `hyprwm/hyprland-wiki:content/Plugins/Using-Plugins.md`.)
+
+This is **non-persistent** (gone on logout) but useful for testing without re-prompting for sudo.
+For persistence, the user still needs `hyprpm enable` + the `exec-once = hyprpm reload -n`
+autostart line.
 
 For pyprland (separate path — pip / AUR):
 

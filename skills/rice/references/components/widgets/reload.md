@@ -51,15 +51,19 @@ The manifest line for AGS:
 ags  ~/.config/hypr-rice/templates/ags.tmpl  ~/.config/ags/colors.scss
 ```
 
-**No reload command** — the running shell watches the SCSS dir and recompiles + re-applies on
-file change. The exact mechanism depends on which generation is installed:
+**No reload command** — but the file-watch is **not free**; the running shell must wire it in
+user code. The exact mechanism depends on which generation is installed:
 
-- **AGS v1** — `Utils.monitorFile(\`${App.configDir}/scss\`, () => { Utils.exec(...); App.resetCss(); App.applyCss(css); })`.
-- **Astal / AGS v2** — the bundled dart-sass watch mode + `App.apply_css` triggered by the shell's
-  own `monitorFile` equivalent. The `ags` CLI's `ags run` development loop wraps this.
+- **AGS v1** — `Utils.monitorFile(\`${App.configDir}/scss\`, () => { Utils.exec("sassc style.scss /tmp/style.css"); App.resetCss(); App.applyCss("/tmp/style.css"); })`.
+- **Astal + Gnim / AGS v3** — the `app.start({ css })` field takes a **string** (the AGS docs:
+  *"any css or scss file ... inlined as a string"*), so the v1-shaped pattern survives:
+  `monitorFile` on the SCSS dir → re-read the file (or shell out to dart-sass) → call
+  `app.apply_css(cssString)` / `app.reset_css()` (lowercase v3 methods). There is no automatic
+  on-disk SCSS watcher in v3's app surface; the shell config wires it.
 
-If the user is *not* running AGS (e.g. they just installed and haven't started it), the file
-write is harmless — `colors.scss` is just a static file until the shell starts and re-reads it.
+In both cases the rice engine relies on the shell's user-written watcher — there is no AGS-side
+hook to fire from `rice apply`. If the user is *not* running AGS, the file write is harmless —
+`colors.scss` is just a static file until the shell starts and re-reads it.
 
 ## Quickshell — hot-reload on save
 

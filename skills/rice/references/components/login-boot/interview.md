@@ -23,12 +23,19 @@ palette, fonts, wallpaper. The login chrome doesn't re-render on `rice apply` (s
 Run before asking 19:
 
 ```bash
-# Active display manager
-ACTIVE_DM=$(systemctl is-enabled greetd 2>/dev/null && echo greetd \
-         || systemctl is-enabled sddm   2>/dev/null && echo sddm \
-         || systemctl is-enabled gdm    2>/dev/null && echo gdm \
-         || systemctl is-enabled lightdm 2>/dev/null && echo lightdm \
-         || echo none)
+# Active display manager. is-enabled prints the state ("enabled", "disabled", "masked", ...)
+# and exits 0 only when enabled, so we test the state string rather than chaining `&&`
+# (which would also fire on "static" units).
+detect_dm() {
+  for u in greetd sddm gdm lightdm; do
+    state=$(systemctl is-enabled "$u.service" 2>/dev/null) || continue
+    case "$state" in
+      enabled|enabled-runtime) echo "$u"; return ;;
+    esac
+  done
+  echo none
+}
+ACTIVE_DM=$(detect_dm)
 
 # Plymouth / GRUB presence
 HAVE_PLYMOUTH=$(command -v plymouth-set-default-theme >/dev/null 2>&1 && echo 1 || echo 0)
@@ -84,9 +91,10 @@ sensible).
 - **greetd + tuigreet** — CLI greeter, in-terminal, themed via flags on the `command =` line
   in `/etc/greetd/config.toml`. Lightest option; no GTK runtime. Colors are named (not hex) —
   the template maps `accent`/`bg`/`fg` to the closest named ANSI color.
-- **greetd + ReGreet** — GTK greeter for greetd, runs inside a nested `cage` compositor. Inherits
-  the user's GTK theme via `/var/lib/greetd/.config/gtk-3.0/settings.ini`. Background image
-  matches the wallpaper.
+- **greetd + ReGreet** — GTK4 greeter for greetd, runs inside a nested `cage` compositor
+  (`dbus-run-session cage -s -mlast -d -- regreet`). Inherits the user's GTK theme via the
+  `[GTK]` block in `/etc/greetd/regreet.toml` (which ReGreet applies through GTK's settings
+  API at runtime). Background image matches the wallpaper.
 - **SDDM** — Qt greeter. Theme via `theme.conf` of `sddm-astronaut` / `sugar-candy` /
   `catppuccin-sddm`. Pulls the Qt runtime as a dep — see `packages.md`.
 - **None** — don't touch the greeter. (Pick this if the user only wants Plymouth or GRUB themed.)

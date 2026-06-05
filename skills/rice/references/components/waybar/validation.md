@@ -15,8 +15,10 @@ python3 -c "import json,sys; json.load(open(sys.argv[1]))" "$out/waybar/config.j
   || { echo "ERROR: config.jsonc is not valid JSON" >&2; exit 1; }
 ```
 
-The renderer must emit **strict JSON** — no `//` comments, no trailing commas. (`.jsonc` is only
-the conventional file extension.) See `gotchas.md` → *Strict JSON only*.
+Waybar's parser actually accepts JSONC (`//` and `/* … */` comments — the shipped default config
+uses them), but the renderer still emits **strict JSON** because `python3 -m json.tool` /
+`json.load` reject comments and trailing commas, giving us a free integrity check at write time.
+See `gotchas.md` → *A bad `config.jsonc` makes the bar silently fail*.
 
 ### 2. No empty `"format*"` fields (MDI-glyph-strip guard)
 

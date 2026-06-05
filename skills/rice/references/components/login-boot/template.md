@@ -11,10 +11,9 @@ end of Mode A.
 <staging>/_login/
 ├── greetd/
 │   ├── config.toml              # tuigreet or ReGreet — exactly one of these branches writes
-│   ├── regreet.toml             # ReGreet only
-│   └── gtk-3.0/settings.ini     # ReGreet only — for /var/lib/greetd/.config/gtk-3.0/
+│   └── regreet.toml             # ReGreet only — lands at /etc/greetd/regreet.toml
 ├── sddm.conf.d/
-│   └── 10-rice.conf             # [Theme] Current=…
+│   └── 10-rice.conf             # [Theme] Current=…  (+ optional [Autologin] block)
 ├── sddm-theme/                  # only when a theme.conf is generated/patched
 │   └── theme.conf
 ├── plymouth/
@@ -46,22 +45,31 @@ vt = 1
 [default_session]
 command = "tuigreet --time --remember --asterisks --user-menu --greeting 'Welcome' \
   --theme 'border={{accent_name}};text=white;prompt={{accent_name}};greet=white;action={{blue_name}};button={{accent_name}}' \
-  --cmd 'uwsm start hyprland.desktop'"
+  --cmd 'uwsm start -- hyprland.desktop'"
 user = "greeter"
 ```
 
 Notes:
 
-- tuigreet's `--theme` takes **named** colors, not hex. The template maps `{{accent}}` →
-  nearest named ANSI bucket (`magenta` for a mauve accent, `cyan` for sky, `blue` for blue,
-  etc.). This is the coarse approximation the component description warns about.
-- `--cmd 'uwsm start hyprland.desktop'` is the current Hyprland-recommended launch path. If
-  the user opted out of UWSM in `env`, fall back to `--cmd Hyprland`.
+- tuigreet's `--theme` takes **named** colors, not hex. Valid keys are
+  `text`, `time`, `container`, `border`, `title`, `greet`, `prompt`, `input`, `action`,
+  `button` (per the tuigreet README). The template maps `{{accent}}` → nearest named ANSI
+  bucket (`magenta` for a mauve accent, `cyan` for sky, `blue` for blue, etc.). This is the
+  coarse approximation the component description warns about.
+- `--theme` has **no short alias**; `-t` is reserved for `--time`. Always use the long form.
+- `--cmd 'uwsm start -- hyprland.desktop'` matches the uwsm README's recommended
+  display-manager invocation (uwsm strips the `--` and forwards the rest to the compositor
+  desktop entry). If the user opted out of UWSM in `env`, fall back to `--cmd Hyprland`.
 - `--remember` + `--asterisks` + `--user-menu` are the three most-asked-for non-defaults.
+- The greetd default user is `greeter` (per `/etc/greetd/config.toml` shipped by
+  upstream); the Arch package's sysusers entry creates this account but with **no explicit
+  home directory** — see "ReGreet caveat" below for why that matters.
 
 ## Recipe — greetd + ReGreet
 
-Triggered by `login_boot.greeter == "greetd-regreet"`.
+Triggered by `login_boot.greeter == "greetd-regreet"`. ReGreet is the GTK4 greeter for greetd
+maintained at <https://github.com/rharish101/ReGreet> (formerly published under other forks;
+`rharish101/ReGreet` is the upstream the AUR `greetd-regreet` package builds from).
 
 **File: `<staging>/_login/greetd/config.toml`**
 
@@ -70,43 +78,59 @@ Triggered by `login_boot.greeter == "greetd-regreet"`.
 vt = 1
 
 [default_session]
-command = "dbus-run-session cage -s -- regreet"
+command = "dbus-run-session cage -s -mlast -d -- regreet"
 user = "greeter"
 ```
 
+The `cage` flags match the ReGreet README:
+
+- `-s` — allow VT switching (so the user can drop to a TTY if something hangs).
+- `-mlast` — restore the last-connected output configuration.
+- `-d` — disable client-side decorations (no titlebar around the greeter window).
+
+`dbus-run-session` gives ReGreet a per-process D-Bus session bus, which the GTK4 stack needs.
+
 **File: `<staging>/_login/greetd/regreet.toml`**
 
+ReGreet reads this file from `/etc/greetd/regreet.toml` (the compile-time default per the
+upstream README). The full key set lives in the upstream `regreet.sample.toml`; the writer
+emits the subset that the rice covers:
+
 ```toml
+# Skip the user/session pickers when last user + last session are known.
+skip_selection = false
+
 [background]
 path = "{{wallpaper_or_palette_background}}"
+# GTK4 ContentFit: "Fill" | "Contain" | "Cover" | "ScaleDown" (only used with GTK >= 4.8)
 fit  = "Cover"
 
 [GTK]
 application_prefer_dark_theme = {{is_dark}}
 cursor_theme_name             = "{{cursor_theme}}"
+cursor_blink                  = true
 font_name                     = "{{font_ui}}"
 icon_theme_name               = "{{icon_theme}}"
 theme_name                    = "{{gtk_theme}}"
+
+[appearance]
+greeting_msg = "Welcome back!"
+
+[commands]
+reboot   = ["systemctl", "reboot"]
+poweroff = ["systemctl", "poweroff"]
 ```
 
-**File: `<staging>/_login/greetd/gtk-3.0/settings.ini`**
-
-```ini
-[Settings]
-gtk-theme-name       = {{gtk_theme}}
-gtk-icon-theme-name  = {{icon_theme}}
-gtk-cursor-theme-name= {{cursor_theme}}
-gtk-font-name        = {{font_ui}}
-gtk-application-prefer-dark-theme = {{is_dark_int}}
-```
-
-This file lands at `/var/lib/greetd/.config/gtk-3.0/settings.ini` (the greeter user is `greeter`
-on Arch; the home is `/var/lib/greetd`). The values come from the **same** GTK theme the user
-picked in `look-feel` so the greeter and desktop match.
+The values come from the **same** GTK theme the user picked in `look-feel` so the greeter and
+desktop match. ReGreet applies these via GTK's settings API at runtime — there is **no**
+separate `gtk-3.0/settings.ini` to write under `/var/lib/greetd/`. (Arch's `greetd` sysusers
+entry creates the `greeter` user with no explicit home, so `${HOME}/.config/gtk-3.0/` is not
+reliably readable anyway.)
 
 The wallpaper for `background.path` is the same image the user picked in the wallpaper component.
-If that's not desktop-friendly as a login background (e.g. an animated wallpaper from `swww`), the
-writer falls back to a solid `{{bg}}` PNG generated from the palette.
+If that's not greeter-friendly (e.g. an animated wallpaper handled by `swww`), the writer falls
+back to a solid `{{bg}}` PNG generated from the palette. The image must be readable by the
+`greeter` user — the install command in the run-these report includes a `chmod a+r` step.
 
 ## Recipe — SDDM
 
@@ -118,12 +142,26 @@ Triggered by `login_boot.greeter == "sddm"`.
 [Theme]
 Current=catppuccin-mocha-mauve
 
-[General]
-DisplayServer=wayland
+# Optional: only emit [Autologin] when the user explicitly asked for it in the
+# interview (not the default). Without it SDDM shows the user picker as usual.
+# [Autologin]
+# User=alice
+# Session=hyprland.desktop
 ```
 
-(Theme name varies — `sddm-astronaut`, `sugar-candy`, or `catppuccin-<flavor>-<accent>`. The
-writer picks one based on `palette.scheme` and the user's accent.)
+(Theme name **must match the directory under `/usr/share/sddm/themes/`** — see the per-theme
+notes below. `Current=` accepts the directory name only, not a path. Per the SDDM man page
+(`sddm.conf(5)`), the active theme key is `Current=` under `[Theme]`; the default-session key
+is `Session=` under `[Autologin]`, not `[Wayland]`.)
+
+Notes on `DisplayServer`:
+
+- `[General] DisplayServer=` defaults to `x11`. The valid values per the upstream man page are
+  `x11`, `x11-user`, and `wayland` (the last is marked **Experimental**). The writer **does
+  not** force `DisplayServer=wayland` — many distros ship an `sddm-wayland-plasma.service` or
+  `sddm-wayland.service` unit that's the supported way to run the Wayland greeter. The user
+  picks a Wayland *session* (`hyprland.desktop` under `/usr/share/wayland-sessions/`) at
+  login regardless of whether the greeter itself is X11 or Wayland.
 
 **File: `<staging>/_login/sddm-theme/theme.conf`** *(patched in place over the upstream theme's
 own `theme.conf`)*
@@ -141,16 +179,26 @@ BlurRadius           = 40
 HaveFormBackground   = true
 ```
 
-For `sddm-astronaut`: sub-themes are selected by editing the theme's `metadata.desktop` →
-`ConfigFile=Themes/<name>.conf`; the writer copies the closest-matching sub-theme over the
-palette and sets that.
+For `sddm-astronaut-theme` (the AUR package and the directory name under
+`/usr/share/sddm/themes/`): the writer sets `Current=sddm-astronaut-theme` in the
+`sddm.conf.d/10-rice.conf` file, and selects one of the bundled sub-themes (`astronaut`,
+`blackhole`, `cyberpunk`, `hyprlandkath`, `jakethedog`, `japaneseaesthetic`, `pixelsakura`,
+`pixelsakurastatic`, `post-apocalyptichacker`, `purpleleaves`) by editing the theme's
+`metadata.desktop` → `ConfigFile=Themes/<name>.conf` to the closest-matching sub-theme for
+the palette. Qt6 deps are required (`qt6-svg`, `qt6-virtualkeyboard`, `qt6-multimedia` /
+`qt6-multimedia-ffmpeg`, `qt6-declarative`); see `packages.md`.
 
-For `catppuccin-sddm`: flavor + accent are baked into the theme dir name; the writer doesn't
-patch `theme.conf` colors, it just picks the right `catppuccin-<flavor>-<accent>` dir name and
-sets `Current=` to that.
+For `catppuccin-sddm`: flavor + accent are baked into the theme dir name (e.g.
+`catppuccin-mocha-mauve`); the writer doesn't patch `theme.conf` colors, it just picks the
+right `catppuccin-<flavor>-<accent>` dir name and sets `Current=` to that. Flavors are
+`latte`, `frappe`, `macchiato`, `mocha`.
 
-The package list adds the Qt runtime (`qt6-svg`, `qt6-declarative`, `qt6-virtualkeyboard`,
-`qt6-multimedia-ffmpeg`) — see `packages.md` and `gotchas.md` → "SDDM is Qt".
+For `sugar-candy` (Kangie fork — upstream-archived, still the most-cited Sugar Candy build):
+this theme is **Qt5** and depends on `qt5-graphicaleffects`, `qt5-quickcontrols2`, `qt5-svg`.
+On Qt6-only systems pick `sddm-astronaut-theme` instead.
+
+The package list adds the matching Qt runtime — see `packages.md` and `gotchas.md` → "SDDM is
+Qt".
 
 ## Recipe — Plymouth
 
@@ -183,15 +231,32 @@ The `.script` is a thin two-tone progress bar over `background.png` using `{{acc
 fill. Plymouth scripts have their own DSL; the writer ships a fixed template with color
 substitutions only.
 
-Command emitted in the run-these report:
+Commands emitted in the run-these report:
 
 ```
+# 1. Stage the theme dir.
 sudo cp -r <staging>/_login/plymouth/hypr-rice-<scheme> /usr/share/plymouth/themes/
+
+# 2. Make sure /etc/mkinitcpio.conf HOOKS has `plymouth` — it must come AFTER `udev` (or
+#    `systemd` if you use the systemd hook) and BEFORE `encrypt` / `sd-encrypt` (so the
+#    graphical password prompt works on encrypted root) and BEFORE `filesystems`.
+#    Example HOOKS lines:
+#      udev-style:    HOOKS=(base udev plymouth autodetect microcode modconf kms keyboard keymap consolefont block encrypt filesystems fsck)
+#      systemd-style: HOOKS=(base systemd plymouth autodetect microcode modconf kms keyboard sd-vconsole block sd-encrypt filesystems fsck)
+sudoedit /etc/mkinitcpio.conf
+
+# 3. Set the theme + rebuild initramfs (the `-R` flag = `--rebuild-initrd`, runs `mkinitcpio
+#    -P` internally).
 sudo plymouth-set-default-theme -R hypr-rice-<scheme>
 ```
 
-The `-R` flag triggers an initramfs rebuild (`mkinitcpio -P`) — that's why this is root-side
-and not part of `rice apply`.
+The `-R` flag triggers an initramfs rebuild — that's why this is root-side and not part of
+`rice apply`. Per the Plymouth `plymouth-set-default-theme` script (freedesktop.org/plymouth),
+`-R` is the short form of `--rebuild-initrd`.
+
+The theme is discovered by `plymouth-set-default-theme` via the glob
+`/usr/share/plymouth/themes/*/*.plymouth` — the descriptor filename **must** match the
+directory name (i.e. `hypr-rice-<scheme>/hypr-rice-<scheme>.plymouth`).
 
 ## Recipe — GRUB
 
@@ -238,17 +303,23 @@ GRUB_THEME="/boot/grub/themes/hypr-rice-{{scheme}}/theme.txt"
 
 (Plus removing any prior `GRUB_THEME=` line.)
 
+`GRUB_THEME` must be an **absolute path** to the theme's `theme.txt`. The writer defaults to
+`/boot/grub/themes/<name>/theme.txt` (rather than `/usr/share/grub/themes/...`) so the path is
+reachable from the GRUB stage that runs before `/usr` is mounted — important on systems with
+a separate `/usr` partition or an encrypted root.
+
 Commands emitted in the run-these report:
 
 ```
 sudo cp -r <staging>/_login/grub/themes/hypr-rice-<scheme> /boot/grub/themes/
 sudoedit /etc/default/grub                                  # apply the patch by hand, or:
-# sudo patch -p1 /etc/default/grub < <staging>/_login/grub/default-grub.patch
+# sudo patch /etc/default/grub < <staging>/_login/grub/default-grub.patch
 sudo grub-mkconfig -o /boot/grub/grub.cfg
 ```
 
 `grub-mkconfig` regenerates `/boot/grub/grub.cfg` from `/etc/default/grub` + the snippets under
-`/etc/grub.d/`. It's the only way the new `GRUB_THEME=` takes effect.
+`/etc/grub.d/`. It's the only way the new `GRUB_THEME=` takes effect. (Debian/Ubuntu users
+have `update-grub` as a wrapper for the same thing; on Arch it doesn't exist.)
 
 ## The `README.run-these-as-root.md` file
 

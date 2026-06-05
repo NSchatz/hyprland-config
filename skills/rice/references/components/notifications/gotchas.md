@@ -84,7 +84,7 @@ When `"dnd-bind" ∈ notifications.behavior`, the `keybinds` component emits one
 |---|---|
 | mako   | `makoctl mode -t do-not-disturb` |
 | dunst  | `dunstctl set-paused toggle` |
-| swaync | `swaync-client -t` |
+| swaync | `swaync-client -d` (note: `-t` toggles the panel, not DND) |
 
 Wiring the mako command to a dunst session (or vice versa) silently no-ops — the CLI talks to
 its own daemon's D-Bus interface, not the freedesktop spec's, so the wrong CLI succeeds with

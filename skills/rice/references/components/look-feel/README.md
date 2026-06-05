@@ -29,9 +29,12 @@ blur, opacity, animations, layout etc. without rebuilding everything else. See
   `togglegroup` and `SUPER+TAB` → `changegroupactive`. When `look_feel.blur_toggle = true`, it adds
   `SUPER+SHIFT+B` → `exec, ~/.config/hypr/scripts/blur-toggle.sh` and the script ships in
   `assets/scripts/`.
-- **Plugins:** the `scrolling` layout is **core** in 0.53+ (see
-  [`_shared/version-matrix.md`](../../_shared/version-matrix.md)). Only the `hy3` / `hyprscroller`
-  layouts are plugin-only and have to be gated through `components/plugins/`.
+- **Plugins:** the `scrolling` layout is **core** in **0.54+** (verified against
+  `src/config/ConfigManager.cpp` source — the `scrolling:*` config keys are absent at v0.53.0
+  and present at v0.54.0). The rice
+  [`_shared/version-matrix.md`](../../_shared/version-matrix.md) currently says 0.53+ — flag in
+  the changes report. Only the `hy3` / `hyprscroller` layouts are plugin-only and have to be
+  gated through `components/plugins/`.
 
 ## Re-theming (Mode B)
 

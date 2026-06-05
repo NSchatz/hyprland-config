@@ -27,9 +27,11 @@ two components share the `autostart_env` top-level key in `answers.json` — `en
 - **uwsm sessions:** mirror cursor / GTK / toolkit vars into `~/.config/uwsm/env` — uwsm
   exports that file **before** the compositor starts, so it overrides `env.conf` for app
   launches. See `gotchas.md`.
-- **Live propagation:** `hyprctl setenv VAR value` **and**
+- **Live propagation:** `hyprctl keyword env NAME,value` (Hyprland's own `env` config keyword
+  applied at runtime — no `hyprctl setenv` in current Hyprland; it was removed when Lua became
+  the default config language in 0.55) **and**
   `dbus-update-activation-environment --systemd VAR=value` (explicit pairs) for already-running
-  apps and portals.
+  apps and portals. See `gotchas.md`.
 
 ## Related components
 

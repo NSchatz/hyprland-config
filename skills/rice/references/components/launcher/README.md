@@ -18,7 +18,7 @@ component just defines the variable and ships the themed config.
 | `styling.md` | Full styling-technique catalog — palette/layout split, three selection idioms, icon-grid vs pill-list, `em`/`%` sizing, blur. Verbatim copy of the styling reference. |
 | `gotchas.md` | `$menu` vs `$dmenu` is a different invocation, fuzzel hex format, rofi-wayland vs X-only rofi. |
 | `validation.md` | Parse checks for wofi `config`, rofi `.rasi`, fuzzel `.ini`; CSS balanced braces. |
-| `packages.md` | The launcher package map (wofi / rofi / rofi-wayland AUR / fuzzel / tofi AUR / walker AUR / vicinae AUR / anyrun AUR). |
+| `packages.md` | The launcher package map (wofi / rofi (repo, Wayland built-in since 2.0) / fuzzel / tofi AUR / walker AUR / vicinae AUR / anyrun AUR). |
 | `reload.md` | Launchers are stateless — config applies on next launch. No signal reload. |
 
 ## Where this component lands
@@ -32,7 +32,7 @@ component just defines the variable and ships the themed config.
   - fuzzel: `~/.config/fuzzel/fuzzel.ini` (colors merged into `[colors]` section)
   - tofi: `~/.config/tofi/config`
   - walker: `~/.config/walker/config.toml` + `style.css`
-  - vicinae: `~/.config/vicinae/config.json` (themes follow vicinae's own format)
+  - vicinae: `~/.config/vicinae/settings.json` (JSONC; themes live inside this same file via vicinae's own schema)
   - anyrun: `~/.config/anyrun/config.ron` + `style.css`
 - **Hyprland blur**: a `layerrule` block for the launcher's namespace lives in
   `components/window-rules/` so frosted-glass works.

@@ -118,7 +118,7 @@ verbatim — swap literal hexes for the rice keys. Grouped by daemon.
 - *Do-Not-Disturb as a mode section* (omarchy themes): `[mode=do-not-disturb] invisible=true` hides everything when DND is toggled via `makoctl mode -t do-not-disturb` — then **whitelist** essential alerts back in with compound criteria: `[mode=do-not-disturb app-name=notify-send] invisible=false`. (mako's analogue of dunst's pause.)
 - *Mute a noisy app by name* (omarchy): `[app-name=Spotify] invisible=1` — drop a single app's toasts without touching the rest.
 - *Progress fill over a muted base* (catppuccin/mako): `progress-color=over #{surface}` — the `over` keyword layers the volume/brightness fill **over** a surface tone instead of replacing the card background.
-- *Per-urgency accent on one line* (catppuccin/mako): keep the base palette and override only `[urgency=high] border-color=#{peach}` — the cheapest priority cue.
+- *Per-urgency accent on one line* (catppuccin/mako): keep the base palette and override only `[urgency=critical] border-color=#{peach}` — the cheapest priority cue. (mako urgency values are `low`/`normal`/`critical` per the freedesktop spec — there is no `high`.)
 - *Margin key moved.* Newer mako uses `outer-margin` (gap from the screen edge) while older mako used `margin`; emit `outer-margin` on current mako and fall back if `makoctl reload` complains.
 
 **dunst.**

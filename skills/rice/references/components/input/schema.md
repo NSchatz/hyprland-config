@@ -20,8 +20,10 @@ Keys this component owns under the top-level `input` key.
 - `input.kb_layout` — string. xkb layout name(s). Single (`"us"`) or comma-separated multi
   (`"us, es"`). Always populated.
 - `input.kb_options` — array of strings. Each element is a literal `kb_options` token (e.g.
-  `caps:swapescape`, `compose:caps`, `grp:win_space_toggle`). Empty array means no options
-  emitted (the template writes `kb_options =` blank — `input.conf` still parses).
+  `caps:swapescape`, `compose:caps`, `grp:win_space_toggle`). The Hyprland default is empty
+  (`STRVAL_EMPTY`). Empty array means no options emitted (the template writes `kb_options =`
+  blank — `input.conf` still parses). Tokens are validated against the xkeyboard-config
+  options list (`man xkeyboard-config`, [OPTIONS]).
 - `input.key_repeat` — object `{ rate: int, delay: int }`. `rate` is keys/sec (Hyprland default
   25). `delay` is ms before repeat starts (Hyprland default 600). Both keys required when the
   object is present. The writer **only emits non-default** values to `input.conf` — if both
@@ -33,12 +35,14 @@ Keys this component owns under the top-level `input` key.
   - `3` — full-loose variant.
 - `input.mouse_sensitivity` — float in `[-1.0, 1.0]`, default `0.0`. Maps to libinput accel
   bias. Only emitted to `input.conf` when non-zero.
-- `input.touchpad_gestures` — array of strings, gesture short-names. Recognized values:
+- `input.touchpad_gestures` — array of strings, gesture short-names. Recognized values
+  (verified against `src/config/legacy/ConfigManager.cpp:handleGesture` action list and
+  `TrackpadGestures::dirForString`):
   - `workspace-swipe` → `gesture = 3, horizontal, workspace`
   - `window-move` → `gesture = 4, horizontal, move`
   - `fullscreen-3up` → `gesture = 3, up, fullscreen`
-  - `float-tile-pinch` → `gesture = 3, pinchin, float, tile`
-  - `special-4up` → `gesture = 4, up, special`
+  - `float-pinch` → `gesture = 3, pinchin, float` (the `float` action takes an optional arg, **not** a second positional like `tile`; the old `float, tile` form is invalid)
+  - `special-4up` → `gesture = 4, up, special` (the `special` action accepts an optional special-workspace name)
 
   Empty array means "no gestures emitted" — also the value to record when 2f said "no
   touchpad / desktop". The template also omits the `touchpad {}` sub-block in that case.

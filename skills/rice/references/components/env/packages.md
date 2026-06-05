@@ -11,7 +11,7 @@ The packages implied by the env lines are owned by the components that introduce
 | `QT_QPA_PLATFORMTHEME,qt6ct` | [`../look-feel/packages.md`](../look-feel/packages.md) (`qt6ct`). |
 | `QT_STYLE_OVERRIDE,kvantum` | [`../look-feel/packages.md`](../look-feel/packages.md) (`kvantum`). |
 | `XCURSOR_SIZE` / `HYPRCURSOR_SIZE` | [`../companion-daemons/packages.md`](../companion-daemons/packages.md) (the cursor theme; hyprcursor ships with Hyprland). |
-| NVIDIA set (`LIBVA_DRIVER_NAME=nvidia`, …) | Out of scope — driver install is a system-level decision, not a rice pick. `NVD_BACKEND,direct` implies `nvidia-vaapi-driver` (AUR), tracked in `_shared/version-matrix.md` notes. |
+| NVIDIA set (`LIBVA_DRIVER_NAME=nvidia`, …) | Out of scope — driver install is a system-level decision, not a rice pick. `NVD_BACKEND,direct` implies the libva → NVDEC bridge package: **`libva-nvidia-driver`** in Arch official repos (upstream project `elFarto/nvidia-vaapi-driver` on GitHub). Tracked in `_shared/version-matrix.md` notes. |
 
 The installer agent does not read this file; it's a stub so the per-component layout stays
 uniform.

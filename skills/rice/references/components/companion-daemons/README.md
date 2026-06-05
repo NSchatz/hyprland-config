@@ -12,12 +12,19 @@ The three daemons in scope:
   we should generate the lock companion at all (mirrors `lock_screen.enabled`).
 - **hypridle** — the idle daemon (dim → lock → dpms-off → suspend ladder; `lock_cmd`,
   `before_sleep_cmd`). Owned **here**.
-- **hyprpaper** — the wallpaper daemon (preload + wallpaper + `ipc = on`). Owned **here**.
+- **hyprpaper** — the wallpaper daemon. On 0.8+ a `wallpaper { … }` block (no more `preload`);
+  on 0.7.x the legacy `preload =` / `wallpaper =` pair. `ipc` is on by default in both. Owned
+  **here**.
 
 This component is the **lifecycle wiring** that ties the three together: hypridle's `lock_cmd`
 launches hyprlock (with a `pidof` guard so it doesn't stack), `before_sleep_cmd` locks the session
-before suspend, hyprpaper's `ipc = on` lets `hyprctl hyprpaper wallpaper` swap the image live when
-the rice engine re-themes.
+before suspend, hyprpaper's IPC socket (on by default since 0.7.x) lets
+`hyprctl hyprpaper wallpaper` swap the image live when the rice engine re-themes.
+
+> **Version note:** hyprpaper **v0.8.0** (Dec 2025) was a complete rewrite onto hyprtoolkit and
+> **broke the config format** — `preload`, `wallpaper = MON, PATH`, and the `preload` / `unload` /
+> `listloaded` / `listactive` IPC commands are all gone. Arch ships 0.8.4. The component's
+> template emits the new `wallpaper { … }` block form by default; see `template.md`.
 
 ## Files in this folder
 
@@ -26,7 +33,7 @@ the rice engine re-themes.
 | `interview.md` | Group 16 single confirmation call + the hypridle idle-tier ladder sub-question (Balanced / Aggressive / Relaxed / Never). |
 | `schema.md` | The `companion_configs.*` keys this component owns in `answers.json`. |
 | `template.md` | The full `hypridle.conf` template (four listeners parameterized by the ladder choice) + the `hyprpaper.conf` template. Cross-links to `../lock-screen/template.md` for `hyprlock.conf`. |
-| `gotchas.md` | Different config languages, `pidof` guard, `before_sleep_cmd`, lock-before-dpms ordering, desktop-drops-suspend, `ipc = on`, drop-listener-when-hyprlock-not-chosen. |
+| `gotchas.md` | Different config languages, `pidof` guard, `before_sleep_cmd`, lock-before-dpms ordering, desktop-drops-suspend, hyprpaper 0.8 config break, `inhibit_sleep` mode semantics, drop-listener-when-hyprlock-not-chosen. |
 | `packages.md` | `hyprlock` / `hypridle` / `hyprpaper`. First-party Hypr ecosystem, all repo packages. |
 
 ## Where this component lands
@@ -35,7 +42,9 @@ the rice engine re-themes.
   reload with `systemctl --user restart hypridle` (or kill + relaunch) — no `hyprctl reload`
   equivalent.
 - **hyprpaper config:** `~/.config/hypr/hyprpaper.conf`. Read by `hyprpaper` at startup; live
-  wallpaper swaps go through `hyprctl hyprpaper wallpaper ",<path>"` and require `ipc = on`.
+  wallpaper swaps go through `hyprctl hyprpaper wallpaper '[mon], [path], [fit_mode]'` on 0.8+
+  (or the legacy `preload` + `wallpaper` pair on 0.7.x). IPC is on by default; `hyprctl
+  hyprpaper reload` rereads the config on 0.8+ (no equivalent on 0.7.x).
 - **hyprlock config:** `~/.config/hypr/hyprlock.conf`. Owned by
   [`lock-screen`](../lock-screen/template.md) — see that template, not this one.
 - **Hyprland config:** nothing direct. The `exec-once` lines that launch these daemons live in

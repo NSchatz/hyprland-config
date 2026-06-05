@@ -1,22 +1,30 @@
 # waybar — gotchas
 
-## Strict JSON only — a bad `config.jsonc` makes the bar silently fail to appear
+## A bad `config.jsonc` makes the bar silently fail to appear
 
-Waybar's parser claims to accept JSONC (with `//` comments), but the real-world failure mode is
-that a malformed `config.jsonc` — a trailing comma, an unmatched brace, an unescaped quote in a
-`format` string — results in **no bar at all** and a one-line stderr message most users never see.
-The icon doesn't render as a placeholder; the surface doesn't appear; waybar logs once and exits.
+Waybar **does** accept JSONC: the man page (`waybar(5)`) opens with *"The configuration uses the
+JSONC file format and is named config or config.jsonc"*, the shipped default
+[`resources/config.jsonc`](https://github.com/Alexays/Waybar/blob/master/resources/config.jsonc)
+is full of `//` comments, and the parser
+([`include/util/json.hpp`](https://github.com/Alexays/Waybar/blob/master/include/util/json.hpp))
+uses jsoncpp's `CharReaderBuilder` with default settings — and jsoncpp defaults `allowComments` to
+`true`. So `//` and `/* … */` are fine; **trailing commas, an unmatched brace, an unescaped quote
+in a `format` string, or a stray non-comment garbage line** are what kill the bar — and they kill
+it *silently*: no surface, no placeholder, just a one-line stderr message most users never see and
+an immediate exit.
 
-**Rule.** Generate `config.jsonc` as **strict JSON** (no `//` comments, no trailing commas) and
-**validate before writing it to disk**:
+**Rule.** Emit `config.jsonc` from a Python `json.dump(…)` (strict-JSON output by construction —
+no trailing commas, no unbalanced braces) and **validate before writing it to disk**:
 
 ```bash
 python3 -c "import json,sys; json.load(open(sys.argv[1]))" "$staging/config.jsonc" \
   || { echo "ERROR: waybar config.jsonc is not valid JSON"; exit 1; }
 ```
 
-If you genuinely need annotations, keep them in `template.md` (the source recipe) — never in the
-emitted file. The `validation.md` step runs this same check before any `pkill -SIGUSR2`.
+`json.load` rejects `//` comments — which is what we want for *our* generated file, even though
+waybar itself would accept them. Hand-authored sibling files (e.g. user overrides) may keep
+comments; only the writer's own output is held to strict-JSON. The `validation.md` step runs the
+same check before any `pkill -SIGUSR2`.
 
 ## MDI glyphs only — a linter silently strips legacy private-use glyphs
 

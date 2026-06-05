@@ -9,7 +9,7 @@ and are added by that component on every install; they are not re-added here.
 | `power_tool` | Package | Repo / AUR | Notes |
 |---|---|---|---|
 | `ppd` | `power-profiles-daemon` | repo | The default. Pairs with the waybar `power-profiles-daemon` module. Conflicts with `tlp`. |
-| `tlp` | `tlp` | repo | Heavier policy engine. Optionally add `tlp-rdw` (repo) for radio/Wi-Fi profile switching, but that's a user choice — the generator does not auto-add it. Conflicts with `power-profiles-daemon` and `auto-cpufreq`. |
+| `tlp` | `tlp` | repo | Heavier policy engine. Optionally add `tlp-rdw` (repo) for radio/Wi-Fi profile switching, but that's a user choice — the generator does not auto-add it. Conflicts with `power-profiles-daemon` (pacman will prompt to remove PPD when installing tlp — see <https://linrunner.de/tlp/installation/arch.html>) and `auto-cpufreq`. |
 | `auto-cpufreq` | `auto-cpufreq` | AUR | Adaptive CPU governor. Conflicts with `power-profiles-daemon` and `tlp`. |
 | `none` | *(no package)* | — | The user opted out of power management. |
 
@@ -47,8 +47,9 @@ sudo systemctl enable --now auto-cpufreq.service
 
 …depending on `power_tool`. See `template.md` → "Root-side: power-tool daemon".
 
-For TLP, if `systemd-rfkill` clashes with TLP's rfkill management on the user's hardware (visible
-as Bluetooth/WiFi blocked at boot), the install output also prints the documented mask:
+For TLP, the install output **always** prints the documented rfkill mask — TLP's own Arch install
+docs (<https://linrunner.de/tlp/installation/arch.html>) recommend it unconditionally to make the
+radio-device-switching options behave reliably:
 
 ```
 sudo systemctl mask systemd-rfkill.service systemd-rfkill.socket

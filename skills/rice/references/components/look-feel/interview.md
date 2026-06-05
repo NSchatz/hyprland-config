@@ -24,8 +24,10 @@ Rhythm: `gaps_out ≈ 2× gaps_in`; rounding tracks `gaps_out`.
 - Subtle — `rounding = 5`
 - Square — `rounding = 0`
 
-On 0.5x targets also emit `rounding_power = 2` (bump to 2.3–4 for a softer "squircle"). See
-[`_shared/version-matrix.md`](../../_shared/version-matrix.md) (0.53+ added `rounding_power`).
+On 0.47+ targets also emit `rounding_power = 2` (bump to 2.3–4 for a softer "squircle"). Verified
+present at `src/config/ConfigManager.cpp` v0.47.0 line 470 (default `2.F`, range `[2, 10]`).
+The rice version matrix [`_shared/version-matrix.md`](../../_shared/version-matrix.md) gates this
+at 0.53+, which is safe but overly conservative — `rounding_power` has been in core since 0.47.
 
 **11c. Blur & shadows.**
 - Both on **(default)**
@@ -48,8 +50,12 @@ Keep content windows opaque; terminals can be translucent per-app via window rul
 - On, snappy/fast — multiply speeds by ~0.6
 - Off — `animations { enabled = false }`, drop the curve lines
 
-Curve families: shipped `easeOutQuint`; the `wind / winIn` slide-overshoot family; Material-3
-`md3_decel` / `md3_accel`.
+Curve families: shipped `easeOutQuint` / `easeInOutCubic` / `linear` / `almostLinear` / `quick`
+(verified against `example/hyprland.conf` at v0.54.3 and `example/hyprland.lua` at v0.55.2); the
+`wind / winIn` slide-overshoot family; Material-3 `md3_decel` / `md3_accel`. Note: **spring
+curves** (0.55+ `hl.curve("name", { type = "spring", ... })`) are **Lua-only** — the hyprlang
+`.conf` `animation =` handler at v0.55.2 still rejects non-bezier curve names with "no such
+bezier". This component emits `.conf`, so stick to bezier.
 
 **11f. Border colour.**
 - From my palette **(default)** → `col.active_border = $accent $accent2 45deg` (the engine's
@@ -60,8 +66,10 @@ Curve families: shipped `easeOutQuint`; the `wind / winIn` slide-overshoot famil
 **11g. Layout.**
 - Dwindle (BSP-like) **(default)**
 - Master / stack — follow-up sub-pick: `orientation = left | right | top | bottom | center`
-- Scrolling (niri/PaperWM-style) — **core in 0.53+, not a plugin** (safe uncommented; see
-  `_shared/version-matrix.md`)
+- Scrolling (niri/PaperWM-style) — **core in 0.54+, not a plugin** (safe uncommented; the rice
+  `_shared/version-matrix.md` currently says 0.53 — that's wrong; verified `scrolling:*` config
+  keys absent at v0.53.0 source and present at v0.54.0). Pre-0.54 the plugin `hyprscrolling` was
+  used and is now deprecated.
 - `hy3` tree-style — *plugin only*, gated through `components/plugins/`; do NOT offer here unless
   the user already enabled the plugins gate
 

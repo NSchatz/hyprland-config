@@ -25,8 +25,11 @@ $font = {{font_ui_family}}            # UI family only, no size suffix
 
 general {
     hide_cursor = true
-    grace = 0                         # seconds the lock can be dismissed without a password
     ignore_empty_input = true         # Enter on empty field doesn't count as a failed attempt
+    # NOTE: `grace` is NOT a config key — it's a CLI flag (`hyprlock --grace N`).
+    # Setting `grace = N` here is silently ignored. Pass it via the launcher
+    # instead (the keybind / hypridle lock_cmd: `hyprlock --grace 2`).
+    # See gotchas.md and: src/main.cpp registers --grace as an argParser option.
 }
 
 # ---------- background ----------
@@ -104,6 +107,8 @@ input-field {
 {{#if input_pill == "hidden"}}
 # "Hidden until typing" — fade_on_empty IS true, BUT once the user types
 # the field is fully visible (real height, accent outline, dots).
+# `fade_timeout` is the ms after the LAST keystroke before it re-fades —
+# default 2000ms in src/config/ConfigManager.cpp.
 input-field {
     monitor =
     size = 280, 50
@@ -166,10 +171,18 @@ label {
 {{/if}}
 
 # ---------- optional fingerprint ----------
+# Verified against src/config/ConfigManager.cpp (auth:pam:* and auth:fingerprint:*
+# are nested categories — write them as `auth { pam {} fingerprint {} }`).
+# The `pam {}` sub-block is optional (defaults to enabled=true, module=hyprlock,
+# which uses /etc/pam.d/hyprlock — a one-liner shipped with the package that
+# `include`s /etc/pam.d/login). Only emit `fingerprint {}` when the user opted in.
 {{#if fingerprint}}
 auth {
     fingerprint {
         enabled = true
+        ready_message   = (Scan fingerprint to unlock)
+        present_message = Scanning fingerprint
+        retry_delay     = 250                # ms between retries on a misread
         # Falls back to password if no reader / no enrolled finger.
         # Requires fprintd + an enrolled finger (see packages.md).
     }

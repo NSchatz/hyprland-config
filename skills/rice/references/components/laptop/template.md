@@ -23,6 +23,11 @@ Branch on `laptop.enabled` and `laptop.lid_action`:
 bindl = , switch:on:Lid Switch, exec, systemctl suspend
   {{/case}}
   {{#case "lock"}}
+{{!-- `loginctl lock-session` only fires the org.freedesktop.login1.Session.Lock D-Bus
+     signal; it does NOT exec hyprlock. The lock-screen component's hypridle config
+     must contain `listener { on-lock = hyprlock; }` (or an equivalent dbus-listen)
+     for this bind to actually lock. If hypridle is disabled (`companion_daemons.hypridle == false`),
+     the generator must substitute `exec, hyprlock` here instead. --}}
 bindl = , switch:on:Lid Switch, exec, loginctl lock-session
   {{/case}}
   {{#case "clamshell"}}
@@ -77,8 +82,8 @@ the daemon is root-side. Branch on `laptop.power_tool`:
 | `power_tool` | Command printed to install output |
 |---|---|
 | `"ppd"` | `sudo systemctl enable --now power-profiles-daemon.service` |
-| `"tlp"` | `sudo systemctl enable --now tlp.service` (and `sudo systemctl mask systemd-rfkill.service systemd-rfkill.socket` if TLP's rfkill conflict bites) |
-| `"auto-cpufreq"` | `sudo systemctl enable --now auto-cpufreq.service` |
+| `"tlp"` | `sudo systemctl enable --now tlp.service` **plus** `sudo systemctl mask systemd-rfkill.service systemd-rfkill.socket` (the TLP Arch docs require both masks to avoid the radio-device-switching conflict). |
+| `"auto-cpufreq"` | `sudo systemctl mask power-profiles-daemon.service` (required — the AUR install does **not** auto-mask PPD; see <https://github.com/AdnanHodzic/auto-cpufreq>) **then** `sudo systemctl enable --now auto-cpufreq.service` |
 | `"none"` / `null` | (no command printed) |
 
 PPD also enables the `power-profiles-daemon` waybar module (see `../waybar/template.md` — that
@@ -93,7 +98,10 @@ If `laptop.charge_limit != null`, the generator writes a one-shot unit to
 ```ini
 [Unit]
 Description=Set battery charge limit to {{charge_limit}}%
-After=multi-user.target
+# No `After=multi-user.target` — that would mean "run only after multi-user is
+# already up", which is wrong for a unit ordered into multi-user.target itself.
+# `WantedBy=multi-user.target` is sufficient.
+ConditionPathExistsGlob=/sys/class/power_supply/BAT*/charge_control_end_threshold
 
 [Service]
 Type=oneshot
@@ -104,6 +112,10 @@ ExecStart=/bin/sh -c 'for f in /sys/class/power_supply/BAT*/charge_control_end_t
 WantedBy=multi-user.target
 ```
 
+`ConditionPathExistsGlob=` is correct — `ConditionPathExists=` does **not** expand
+globs. On a docked desktop or after a battery removal the unit becomes a no-op
+instead of failing.
+
 And prints to the install output:
 
 ```
@@ -112,9 +124,13 @@ sudo systemctl daemon-reload
 sudo systemctl enable --now battery-charge-limit.service
 ```
 
-**TLP override:** when `power_tool == "tlp"`, the preferred path is `STOP_CHARGE_THRESH_BAT0=80`
-in `/etc/tlp.conf`. The generator should print that snippet instead of the one-shot — TLP owns
-the threshold attribute and a separate one-shot will fight it.
+**TLP override:** when `power_tool == "tlp"`, the preferred path is to set **both**
+`START_CHARGE_THRESH_BAT0=75` and `STOP_CHARGE_THRESH_BAT0=80` in `/etc/tlp.conf` —
+TLP's documentation explicitly requires both start *and* stop thresholds per battery
+and will **reject the pair entirely** if only one is set
+(<https://linrunner.de/tlp/settings/battery.html>). The generator prints both lines
+instead of the one-shot — TLP owns the threshold attribute and a separate one-shot
+will fight it.
 
 ## What does NOT land here
 

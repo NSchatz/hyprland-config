@@ -20,9 +20,9 @@ specifics:
 
 | Emulator | Live-reload mechanism | rice behaviour |
 |---|---|---|
-| kitty | `kill -SIGUSR1 $(pidof kitty)` reloads `kitty.conf`; or `kitten @ load-config`. Auto-reloads on save if `allow_remote_control` is on. | rice **does not** send `SIGUSR1` by default. New terminals pick up the new colors. |
+| kitty | `kill -SIGUSR1 $KITTY_PID` reloads `kitty.conf`; or `kitten @ load-config`. Modern kitty also auto-reloads on save (controlled by the `auto_reload_config` option). | rice **does not** send `SIGUSR1` by default. New terminals pick up the new colors. |
 | alacritty | `live_config_reload = true` (default) — re-reads on file save. | Live in already-open windows after save. No action required from rice. |
-| foot | `kill -SIGUSR1 $(pidof foot)` reloads colors and most `[main]` keys. | rice does not send the signal. |
+| foot | **No config-reload signal.** `SIGUSR1` switches to `[colors-dark]` and `SIGUSR2` to `[colors-light]` — both swap **between existing color blocks**, not reload the file from disk. For other key changes, restart. | rice does not send any signal. To live-swap themes, ship dual `[colors-dark]` / `[colors-light]` blocks and use `kill -SIGUSR1/2 $(pidof foot)`. |
 | wezterm | `automatically_reload_config = true` (default). | Live in already-open windows on save. |
 | ghostty | `ctrl+shift+,` in-app reload; otherwise restart. | New windows pick it up. |
 

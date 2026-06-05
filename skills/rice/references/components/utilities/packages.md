@@ -9,18 +9,18 @@ deduplicates (many tools share `grim`, `slurp`, `wl-clipboard`, `jq`), and appen
 
 | Selected value | Required packages | Optional / preferred | Repo / AUR | Notes |
 |---|---|---|---|---|
-| `screenshot` | `grim` `slurp` `jq` `wl-clipboard` | `hyprshot` (AUR), `grimblast`, `satty` (AUR), `swappy` | repo + AUR | Auto-detect at runtime — install the wrapper(s) and annotator(s) the user picked; bare `grim`+`slurp` is the fallback. |
-| `screen-record` | `slurp` | `wl-screenrec` (AUR — preferred on AMD/Intel), `wf-recorder` | repo + AUR | Pick one of `wl-screenrec`/`wf-recorder`; both is harmless (auto-detect). |
-| `ocr` | `tesseract` `tesseract-data-eng` `grim` `slurp` `wl-clipboard` | `tesseract-data-<lang>` per extra language | repo | English is the floor; add per-language data packs as the user requests. |
-| `color-picker` | `hyprpicker` `wl-clipboard` | | repo | |
-| `power-menu` (rofi flavor) | `rofi` `hyprlock` | | repo | systemd is base; no separate package. |
-| `power-menu` (wlogout flavor) | `wlogout` (AUR) `hyprlock` | | AUR | When the user picked `wlogout` upstream, swap to this row. |
-| `clipboard` | `cliphist` `wl-clipboard` | | repo | The two watcher processes go in `autostart` (group 15), not here. |
-| `emoji` | `bemoji` (AUR) | | AUR | Uses whichever menu is installed (`rofi`/`wofi`/`fuzzel`). |
-| `calculator` | `rofi` `rofi-calc` `wl-clipboard` | | repo | Or route to the launcher's built-in math plugin (fuzzel/walker/anyrun) — then no extra package. |
-| `wifi-applet` | `network-manager-applet` `networkmanager` | `nm-connection-editor` (editor UI) | repo | Needs system tray on the bar. |
-| `bluetooth-applet` | `blueman` `bluez-utils` | | repo | Needs system tray on the bar. |
-| `night-light` | `hyprsunset` | | repo | Same package the `accessibility` component pulls. |
+| `screenshot` | `grim` `slurp` `jq` `wl-clipboard` | `hyprshot` (extra), `grimblast` (AUR: `grimblast-git`), `satty` (extra), `swappy` (extra) | repo + AUR | Auto-detect at runtime — install the wrapper(s) and annotator(s) the user picked; bare `grim`+`slurp` is the fallback. As of 2025-08, `hyprshot` and `satty` moved from AUR to `extra`. |
+| `screen-record` | `slurp` | `wl-screenrec` (AUR), `wf-recorder` (extra) | repo + AUR | `wl-screenrec` is HW-encoded (VAAPI) — preferred on AMD/Intel; `wf-recorder` is the software fallback. Both is harmless (auto-detect). |
+| `ocr` | `tesseract` `tesseract-data-eng` `grim` `slurp` `wl-clipboard` | `tesseract-data-<lang>` per extra language | repo (extra) | English is the floor; add per-language data packs as the user requests. |
+| `color-picker` | `hyprpicker` `wl-clipboard` | | repo (extra) | |
+| `power-menu` (rofi flavor) | `rofi` `hyprlock` | | repo (extra) | Repo `rofi` ≥ 2.0 (released 2025-09-01) ships native Wayland — the old AUR `rofi-wayland` is obsolete. systemd is base; no separate package. |
+| `power-menu` (wlogout flavor) | `wlogout` (AUR) `hyprlock` | | AUR | Upstream: `ArtsyMacaw/wlogout`. When the user picked `wlogout` upstream, swap to this row. |
+| `clipboard` | `cliphist` `wl-clipboard` | | repo (extra) | The two watcher processes go in `autostart` (group 15), not here. |
+| `emoji` | `bemoji` (AUR) | | AUR | Upstream: `marty-oehme/bemoji`. Auto-detects the first available picker in `$PATH` from: `bemenu`/`wofi`/`rofi`/`dmenu`/`wmenu`/`ilia`/`fuzzel`. Override with `BEMOJI_PICKER_CMD`. |
+| `calculator` | `rofi` `rofi-calc` `wl-clipboard` | | repo + AUR | `rofi-calc` is AUR. Or route to the launcher's built-in math plugin (fuzzel/walker/anyrun) — then no extra package. |
+| `wifi-applet` | `network-manager-applet` `networkmanager` | `nm-connection-editor` (editor UI) | repo (extra) | Needs system tray on the bar. |
+| `bluetooth-applet` | `blueman` `bluez-utils` | | repo (extra) | Needs system tray on the bar. |
+| `night-light` | `hyprsunset` | | repo (extra) | Same package the `accessibility` component pulls. |
 
 ## Other utility-adjacent packages
 
@@ -29,10 +29,10 @@ writer/installer pull them when the right upstream components are selected:
 
 | Package | Pulled by | Notes |
 |---|---|---|
-| `brightnessctl` | `keybinds` (XF86 keys) | Brightness `bindel` lines. |
-| `playerctl` | `keybinds` (XF86 keys) | Media keys. |
-| `swayosd` (AUR) | `look-feel` / `keybinds` | Volume/brightness OSD overlay. |
-| `pavucontrol` | `waybar` (audio on-click) | Audio mixer launched from the bar. |
+| `brightnessctl` | `keybinds` (XF86 keys) | `extra`. Brightness `bindel` lines (`brightnessctl set 5%+` / `5%-`). |
+| `playerctl` | `keybinds` (XF86 keys) | `extra`. Media keys (`play-pause` / `next` / `previous`). |
+| `swayosd` | `look-feel` / `keybinds` | `extra` (since 2024 — was AUR). Daemon `swayosd-server` + client `swayosd-client --output-volume raise/lower/mute-toggle`, `--brightness raise/lower`. |
+| `pavucontrol` | `waybar` (audio on-click) | `extra`. PulseAudio/PipeWire mixer launched from the bar. |
 
 ## Assembly rule
 

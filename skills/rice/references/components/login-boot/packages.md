@@ -10,17 +10,24 @@ clearly-labelled **commented `sudo` block** the user uncomments and runs deliber
 ### Greeters
 | Pick (`login_boot.greeter`) | Package(s) | Repo / AUR | Notes |
 |---|---|---|---|
-| `greetd-tuigreet` | `greetd`, `greetd-tuigreet` | repo (either for tuigreet) | Lightest. No Qt/GTK runtime needed. |
-| `greetd-regreet` | `greetd`, `greetd-regreet`, `cage` | repo (`greetd`, `cage`), AUR (`greetd-regreet`) | Runs under nested `cage` compositor. Inherits GTK theme. |
-| `sddm` | `sddm`, `qt6-base`, `qt6-declarative`, `qt6-svg` | repo | Add `qt6-virtualkeyboard`, `qt6-multimedia-ffmpeg` for `sddm-astronaut`. Add `qt5-graphicaleffects` for the Qt5 `sugar-candy` fork. Add `qt5-quickcontrols2` for `catppuccin-sddm`. |
+| `greetd-tuigreet` | `greetd`, `greetd-tuigreet` | both repo (extra) | Lightest. No Qt/GTK runtime needed. `greetd` pulls `greetd-agreety` by default — that's fine, the config we write overrides the command. |
+| `greetd-regreet` | `greetd`, `greetd-regreet`, `cage`, `dbus` | repo (`greetd`, `cage`, `dbus`), AUR (`greetd-regreet`) | Runs as `dbus-run-session cage -s -mlast -d -- regreet` per the upstream <https://github.com/rharish101/ReGreet> README. ReGreet config at `/etc/greetd/regreet.toml`. |
+| `sddm` | `sddm` (+ Qt deps based on theme — see below) | repo | Qt deps pulled by theme choice. Base SDDM on Arch already depends on `qt6-base`/`qt6-declarative` so don't double-list. |
 | `none` | — | — | Don't touch the greeter. No package added. |
+
+For the `sddm` row, the Qt deps depend on the theme pick:
+
+- `sddm-astronaut-theme` → `qt6-svg`, `qt6-virtualkeyboard`, `qt6-multimedia`,
+  `qt6-multimedia-ffmpeg` (codec backend for the video backgrounds).
+- `sddm-sugar-candy-git` (Qt5) → `qt5-graphicaleffects`, `qt5-quickcontrols2`, `qt5-svg`.
+- `catppuccin-sddm` (Qt6) → no extras beyond the SDDM base.
 
 ### SDDM themes (when `login_boot.greeter == "sddm"`)
 | Theme | Package | Repo / AUR | Notes |
 |---|---|---|---|
-| `sddm-astronaut` | `sddm-astronaut-theme` | AUR | Qt6. Needs `sddm ≥ 0.21`. Sub-themes via `ConfigFile=`. |
-| `sugar-candy` (Kangie fork) | `sddm-sugar-candy-git` | AUR | **Qt5** — pulls Qt5 deps instead. |
-| `catppuccin-sddm` | `catppuccin-sddm-theme-mocha` (or `-frappe`, `-macchiato`, `-latte`) | AUR | Flavor + accent baked into theme dir. |
+| `sddm-astronaut-theme` | `sddm-astronaut-theme` | AUR | Qt6. Installs to `/usr/share/sddm/themes/sddm-astronaut-theme/`. Sub-themes selected via `metadata.desktop` → `ConfigFile=Themes/<name>.conf`. Bundled sub-themes: `astronaut`, `blackhole`, `cyberpunk`, `hyprlandkath`, `jakethedog`, `japaneseaesthetic`, `pixelsakura`, `pixelsakurastatic`, `post-apocalyptichacker`, `purpleleaves`. |
+| `sugar-candy` (Kangie fork) | `sddm-sugar-candy-git` | AUR | **Qt5**, upstream-archived. Won't render on Qt6-only SDDM builds. |
+| `catppuccin-sddm` | `catppuccin-sddm-theme-mocha` (or `-frappe`, `-macchiato`, `-latte`) | AUR | One package per flavor; the accent variant lives as a sub-dir inside the package (e.g. `/usr/share/sddm/themes/catppuccin-mocha-mauve/`). |
 
 The theme pick comes from the writer, not the interview — based on `palette.scheme` and accent.
 Default to `catppuccin-sddm` when the user picked a Catppuccin scheme, otherwise `sugar-candy`.
@@ -54,17 +61,31 @@ any of `login_boot.greeter != "none"`, `login_boot.plymouth == true`, or
 #
 # Greeter (greetd + tuigreet):
 # sudo pacman -S --needed greetd greetd-tuigreet
-# sudo systemctl enable greetd
 # sudo install -m 644 <staging>/_login/greetd/config.toml /etc/greetd/config.toml
+# sudo systemctl enable --now greetd.service
+#
+# Greeter (greetd + ReGreet) — needs the AUR helper for greetd-regreet:
+# sudo pacman -S --needed greetd cage dbus
+# yay  -S --needed greetd-regreet                                 # or paru, or build from AUR
+# sudo install -m 644 <staging>/_login/greetd/config.toml  /etc/greetd/config.toml
+# sudo install -m 644 <staging>/_login/greetd/regreet.toml /etc/greetd/regreet.toml
+# sudo systemctl enable --now greetd.service
+#
+# Greeter (SDDM + sddm-astronaut-theme):
+# sudo pacman -S --needed sddm qt6-svg qt6-virtualkeyboard qt6-multimedia qt6-multimedia-ffmpeg
+# yay  -S --needed sddm-astronaut-theme
+# sudo install -Dm 644 <staging>/_login/sddm.conf.d/10-rice.conf /etc/sddm.conf.d/10-rice.conf
+# sudo systemctl enable --now sddm.service
 #
 # Plymouth boot splash:
 # sudo pacman -S --needed plymouth
 # sudo cp -r <staging>/_login/plymouth/hypr-rice-<scheme> /usr/share/plymouth/themes/
-# sudo plymouth-set-default-theme -R hypr-rice-<scheme>
+# sudoedit /etc/mkinitcpio.conf                                   # add `plymouth` to HOOKS, before encrypt/filesystems
+# sudo plymouth-set-default-theme -R hypr-rice-<scheme>           # -R == --rebuild-initrd
 #
 # GRUB theme:
 # sudo cp -r <staging>/_login/grub/themes/hypr-rice-<scheme> /boot/grub/themes/
-# sudoedit /etc/default/grub                                    # set GRUB_THEME=…
+# sudoedit /etc/default/grub                                      # set GRUB_THEME="/boot/grub/themes/hypr-rice-<scheme>/theme.txt"
 # sudo grub-mkconfig -o /boot/grub/grub.cfg
 ```
 

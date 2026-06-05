@@ -41,7 +41,7 @@ short-circuit. Options:
 - **Quickshell** — QML / Qt 6. The modern, animation-rich shells; live window previews are a
   Quickshell-only feature. Steepest curve; replaces waybar.
 - **HyprPanel** — turnkey AGS-based panel, GUI-configured (`.json` theme import). Note: archived
-  2026-04 (successor *Wayle* in Rust) but still installs and runs. Replaces waybar.
+  **2026-04-27** (successor *Wayle* in Rust, GTK4 + TOML) but still installs and runs. Replaces waybar.
 - **Turnkey pre-built shell** — install a ready Quickshell desktop (see 7a-bis). Replaces waybar.
 
 ### 7a-bis. Turnkey shell  *(only when 7a == `turnkey`)*

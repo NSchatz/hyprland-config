@@ -35,7 +35,7 @@ Keys this component owns under the top-level `notifications` key.
 |---|---|
 | `hyprland-component-writer` (`notifications`) | Renders mako `config` / dunst `dunstrc` / swaync `config.json`+`style.css` from `template.md`. Branches on `daemon`. |
 | `hyprland-component-writer` (`autostart`) | Adds `exec-once = mako` / `dunst` / `swaync` when `daemon != "none"` (dunst's `exec-once` is optional since it's D-Bus activatable, but rice ships it for explicitness). |
-| `hyprland-component-writer` (`keybinds`) | Emits a DND-toggle bind when `"dnd-bind" ∈ behavior` — `makoctl mode -t do-not-disturb`, `dunstctl set-paused toggle`, or `swaync-client -t`. |
+| `hyprland-component-writer` (`keybinds`) | Emits a DND-toggle bind when `"dnd-bind" ∈ behavior` — `makoctl mode -t do-not-disturb`, `dunstctl set-paused toggle`, or `swaync-client -d` (NOT `-t`; `-t` toggles the panel). |
 | `hyprland-component-writer` (`window-rules`) | When `daemon == "swaync"`, emits a block-form `layerrule` blur for `swaync-control-center` and `swaync-notification-window`. |
 | `hyprland-component-writer` (`waybar`) | When `daemon == "swaync"` AND waybar includes the `custom/notification` module, the module wires to `swaync-client -swb`. Skipped otherwise. |
 | `theming-engine` | Renders the daemon-specific colors file from `palette.conf` per `_shared/colors-contract.md` (mako/dunst inline INI, swaync `colors.css`). |

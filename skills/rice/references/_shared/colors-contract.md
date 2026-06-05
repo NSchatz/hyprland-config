@@ -21,7 +21,7 @@ or removing a name **breaks the component's styling silently** (CSS no-ops on un
 | wlogout | `~/.config/wlogout/colors.css` | CSS `@define-color` | `bg fg accent surface` |
 | gtk4 | `~/.config/gtk-4.0/gtk.css` | libadwaita `@define-color` | `accent_color accent_bg_color accent_fg_color window_bg_color window_fg_color view_bg_color view_fg_color headerbar_bg_color headerbar_fg_color card_bg_color popover_bg_color destructive_color success_color warning_color` |
 | btop | `~/.config/btop/themes/rice.theme` | btop `theme[key]="#hex"` | `main_bg main_fg title hi_fg selected_* inactive_fg graph_text meter_bg proc_misc *_box div_line temp_* cpu_* free_* used_*` |
-| cava | merged into `[color]` of cava config | INI `gradient_color_N = '#hex'` | `gradient_color_1..6 foreground background` |
+| cava | merged into `[color]` of cava config | INI `gradient_color_N = '#hex'` | `gradient_color_1..8 foreground background` (cava supports up to 8 gradient stops; the rice template uses 1..6 by default, leaving 7-8 free for the user to extend) |
 | eww | `~/.config/eww/colors.scss` | SCSS `$var: #hex;` | `bg fg surface muted cursor accent accent2 red green yellow blue magenta cyan color0..color15` |
 | ags / astal | `~/.config/ags/colors.scss` | SCSS `$var: #hex;` + GTK4 `@define-color` interop | `bg fg surface muted cursor accent accent2 red green yellow blue magenta cyan color0..color15` + semantic aliases `window-bg on-window card-bg primary secondary radius anim-duration` |
 | quickshell | `~/.config/quickshell/Colors.qml` | QML singleton `readonly property color name: "#hex"` | `bg fg surface muted cursor accent accent2 red green yellow blue magenta cyan term[16] fontUi fontMono radius animDuration` |

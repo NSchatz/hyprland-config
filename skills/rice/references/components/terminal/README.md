@@ -25,7 +25,7 @@ palette.
 - **Emulator config:** `~/.config/<emulator>/<config>`:
   - kitty → `~/.config/kitty/kitty.conf` (+ `~/.config/kitty/colors.conf`)
   - alacritty → `~/.config/alacritty/alacritty.toml` (+ imported `colors.toml`)
-  - foot → `~/.config/foot/foot.ini` (colors merged in)
+  - foot → `~/.config/foot/foot.ini` (colors merged in; foot does have `include=` but rice merges so dual `[colors-dark]` / `[colors-light]` blocks coexist with user edits)
   - wezterm → `~/.config/wezterm/wezterm.lua` (+ `colors.lua` `require`d)
   - ghostty → `~/.config/ghostty/config` (+ `palette = N=#hex` lines or `theme = …`)
 - **Colors file:** rendered by the rice engine from `palette.conf` — see `_shared/colors-contract.md`

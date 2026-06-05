@@ -29,23 +29,23 @@ general {
 }
 
 decoration {
-    rounding = 10               # corner radius in layout px
-    rounding_power = 2          # corner curve exponent (0.45+); 2 = circle, higher = squircle
+    rounding = 10               # corner radius in layout px (default 0)
+    rounding_power = 2          # corner curve exponent (0.47+); 2 = circle, higher = squircle
     active_opacity = 1.0
     inactive_opacity = 1.0
 
     blur {
-        enabled = true
-        size = 3
-        passes = 1
-        vibrancy = 0.1696
+        enabled = true          # default true
+        size = 8                # default 8 (NOT 3 — that's a stale older-wiki claim)
+        passes = 1              # default 1
+        vibrancy = 0.1696       # default 0.1696
     }
 
     shadow {
-        enabled = true
-        range = 4
-        render_power = 3
-        color = rgba(1a1a1aee)
+        enabled = true          # default true
+        range = 4               # default 4
+        render_power = 3        # default 3
+        color = rgba(1a1a1aee)  # default 0xee1a1a1a
     }
 }
 
@@ -61,7 +61,9 @@ Reload after edits: `hyprctl reload`. Inspect a live value: `hyprctl getoption d
 
 The `blur{}` and `shadow{}` **subcategories** are the modern form (0.40+). The old flat keys
 (`blur = true`, `blur_size`, `drop_shadow`, `shadow_range`, `col.shadow`) are deprecated — see
-`deprecations.md`. `rounding_power` exists only on **0.45+**.
+`deprecations.md`. `rounding_power` exists only on **0.47+** (verified — absent from
+`src/config/ConfigManager.cpp` at v0.46.0, present at v0.47.0 line 470 with default `2.F`).
+The rice version matrix gates it at 0.53+ which is safe but overly conservative.
 
 ## Design anatomy — the knobs that change the look
 
@@ -105,47 +107,84 @@ Small/zero gaps maximize screen real estate for a tiling-purist look.
 
 ### Blur — `decoration:blur{}`
 Kawase background blur, seen through transparent windows and layer surfaces (bars, launchers).
+Defaults verified against `src/config/ConfigManager.cpp` at v0.54.3 (lines 585–600) and
+`src/config/values/ConfigValues.cpp` at v0.55.2 (lines 228–244).
 
 | key | default | range / effect |
 |---|---|---|
-| `size` | 3 | 1–12; blur radius/distance |
-| `passes` | 1 | 1–4; more = smoother but **GPU-heavy** (2 is the sweet spot) |
+| `enabled` | true | master switch |
+| `size` | 8 | 0–100; blur radius/distance (was once 3 in older betas — current default is 8) |
+| `passes` | 1 | 0–10; more = smoother but **GPU-heavy** (2 is the sweet spot) |
 | `vibrancy` | 0.1696 | 0–1; saturation boost of blurred colors (keeps it from going grey) |
-| `vibrancy_darkness` | 0.0 | vibrancy effect on dark areas |
-| `noise` | 0.0117 | film-grain to fight banding |
-| `contrast` | 0.8916 | blurred-layer contrast |
-| `brightness` | 0.8172 | blurred-layer brightness |
+| `vibrancy_darkness` | 0.0 | vibrancy effect on dark areas (0–1) |
+| `noise` | 0.0117 | film-grain to fight banding (0–1) |
+| `contrast` | 0.8916 | blurred-layer contrast (0–2) |
+| `brightness` | 1.0 | blurred-layer brightness (0–2) — NOT 0.8172 (that was an old wiki value) |
 | `new_optimizations` | true | keep on; large speedup |
+| `ignore_opacity` | true | make the blur layer ignore the opacity of the window |
 | `xray` | false | floating windows blur the wallpaper, ignoring tiled windows under them |
 | `popups` | false | also blur right-click menus/popups |
+| `popups_ignorealpha` | 0.2 | if pixel opacity below this, do not blur (0–1) |
 | `special` | false | blur behind the special workspace |
+| `input_methods` | false | blur input methods (e.g. fcitx5) — 0.54+ |
+| `input_methods_ignorealpha` | 0.2 | same as popups_ignorealpha for IMEs — 0.54+ |
 
 Rule of thumb: `size 5–8`, `passes 2` for a rich frosted-glass look; `size 3`, `passes 1` for a
 light touch.
 
 ### Shadow — `decoration:shadow{}`
 Drop shadow that separates floating/rounded windows from the wallpaper.
+Defaults verified against `src/config/ConfigManager.cpp` at v0.54.3 (lines 604–612) and
+`src/config/values/ConfigValues.cpp` at v0.55.2 (lines 203–210).
 
 | key | default | effect |
 |---|---|---|
 | `enabled` | true | |
-| `range` | 4 | shadow size in px; **6–25** for a pronounced lift |
-| `render_power` | 3 | 1–4; falloff steepness (higher = tighter, darker edge) |
+| `range` | 4 | shadow size in px (int, 0–100); **6–25** for a pronounced lift |
+| `render_power` | 3 | int 1–4; falloff steepness (higher = tighter, darker edge) |
 | `sharp` | false | hard-edged shadow instead of soft |
-| `color` | rgba(1a1a1aee) | shadow color+alpha; lower the alpha (`…66`) for subtlety |
+| `color` | rgba(1a1a1aee) | shadow color+alpha (`0xee1a1a1a`); lower the alpha (`…66`) for subtlety |
 | `color_inactive` | unset | separate shadow tint for unfocused windows |
-| `offset` | 0 0 | x/y push (e.g. `0 4` for a "light from above" drop) |
-| `scale` | 1.0 | shadow scale |
+| `offset` | 0 0 | vec2 x/y push (e.g. `0 4` for a "light from above" drop); range ±250 |
+| `scale` | 1.0 | shadow scale (0–1) |
+| `ignore_window` | `1` (≤0.54) → **removed** in 0.55+ | always-on behaviour in 0.55+; don't emit |
+
+### Glow — `decoration:glow{}` (0.55+ only)
+Inner glow on windows — new effect added in 0.55. Verified against
+`src/config/values/ConfigValues.cpp` at v0.55.2 (lines 211–215). Absent in 0.54.3 source.
+
+| key | default | effect |
+|---|---|---|
+| `enabled` | false | master switch |
+| `range` | 10 | int 0–100; glow size in px |
+| `render_power` | 3 | int 1–4; falloff steepness |
+| `color` | rgba(33ccffee) (`0xee33ccff`) | active glow color |
+| `color_inactive` | rgba(33ccff00) (`0x0033ccff`) | inactive glow (alpha 0 = invisible by default) |
+
+Do NOT emit a `glow {}` block on targets `< 0.55` — it would not be a hard error (unknown keys
+are tolerated under some hyprlang error modes) but it does nothing and pollutes parse-error logs.
+
+### Motion blur — `decoration:motion_blur{}` (0.55+ only)
+Motion blur on moving/resizing windows. Verified at v0.55.2 source. Two knobs only:
+`enabled` (false), `samples` (7). Absent in 0.54.
 
 ### Animation feel — `animations:bezier` + `animation`
 - `bezier = NAME, x0, y0, x1, y1` defines a cubic-Bézier curve. **Y values >1 overshoot** (the
-  springy "bounce past then settle" feel); `linear` is `0,0,1,1`.
+  springy "bounce past then settle" feel); `linear` is `0,0,1,1`. Verified `handleBezier` at
+  `src/config/legacy/ConfigManager.cpp` v0.55.2 line 1382 — exactly 4 numeric args.
 - `animation = NAME, ONOFF, SPEED, CURVE [, STYLE]` — **SPEED is in deciseconds** (1 ds = 100 ms),
   so *lower = faster*. `STYLE` is per-item: `popin 87%`, `slide [dir]`, `fade`, `slidefade`, etc.
+  Verified `handleAnimation` at v0.55.2 line 1421.
+- **Spring curves are Lua-only.** The hyprlang `.conf` `animation =` handler at v0.55.2 still only
+  validates `bezierExists(bezierName)` — spring curves require the Lua `hl.curve(..., { type =
+  "spring", ... })` + `hl.animation({ ..., spring = "name" })` API. Don't try to emit
+  `animation = windows, 1, 5, easy` referencing a spring curve in `.conf` — it errors with
+  "no such bezier". On 0.55+ Lua configs this works.
 - Animatable items (children inherit from parents): `global` → `windows`(`windowsIn`/`windowsOut`/
-  `windowsMove`), `layers`(`layersIn`/`layersOut`), `fade`(`fadeIn`/`fadeOut`/`fadeLayersIn`/…),
-  `border`, `borderangle`, `workspaces`(`workspacesIn`/`workspacesOut`), `specialWorkspace`,
-  `zoomFactor`.
+  `windowsMove`), `layers`(`layersIn`/`layersOut`), `fade`(`fadeIn`/`fadeOut`/`fadeSwitch`/
+  `fadeShadow`/`fadeDim`/`fadeLayers`(`In`/`Out`)/`fadePopups`(`In`/`Out`)/`fadeDpms`),
+  `border`, `borderangle`, `workspaces`(`workspacesIn`/`workspacesOut`),
+  `specialWorkspace`(`In`/`Out`), `zoomFactor`, `monitorAdded` (0.55+).
 - **Snappy vs smooth** is mostly the SPEED numbers: low single-digit speeds + an `easeOutQuint`-type
   curve feel quick and modern; larger speeds (7–10) feel relaxed/cinematic.
 - `borderangle` with `, 1, 100, liner, loop` makes the gradient border slowly *rotate* — a popular
@@ -266,7 +305,7 @@ general {
 
 decoration {
     rounding = 10
-    rounding_power = 2          # remove this line on Hyprland < 0.45
+    rounding_power = 2          # remove this line on Hyprland < 0.47 (verified added at v0.47.0)
     active_opacity = 1.0
     inactive_opacity = 0.92
 
@@ -340,8 +379,9 @@ decoration {
   rounding with at least a thin border or a soft shadow so corners read intentionally.
 - **Over-animation feels sluggish.** Long speeds on `windowsMove`/`workspaces` make the desktop feel
   laggy even when it's fast. When in doubt, keep the snappy defaults.
-- **`rounding_power` is 0.45+.** Emitting it on an older target errors. Gate on
-  `hyprctl version`; drop the line for < 0.45.
+- **`rounding_power` is 0.47+.** Emitting it on an older target errors. Gate on
+  `hyprctl version`; drop the line for < 0.47. (Verified: not in `ConfigManager.cpp` at v0.46.0,
+  added at v0.47.0 line 470.) The rice version matrix conservatively gates at 0.53+.
 - **Don't emit deprecated blocks on modern targets.** Use the `blur{}`/`shadow{}` subcategories, not
   `drop_shadow`/`blur_size`/`col.shadow`; don't emit `gestures{}` or `windowrulev2` on new versions.
   Full mappings in `deprecations.md`.

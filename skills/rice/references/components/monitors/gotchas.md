@@ -10,13 +10,20 @@ the exact "fractional scaling is broken" complaint from real-world omarchy build
    ```ini
    monitor = eDP-1, preferred, auto, 1.5
    ```
-2. **`env = GDK_SCALE,N`** — emitted by `../env/`. `N` is the **integer ceiling** of the
-   fractional value (`1.5` → `2`, `1.25` → `2`, `2.0` → `2`). The `env` component reads
-   `monitors.scaling` and gates on `!= 1.0`.
+2. **`env = GDK_SCALE,N`** — emitted by `../env/`. `N` is an integer (GDK has no fractional
+   scaling). The Hyprland XWayland wiki page demonstrates the pattern with an integer pair —
+   `monitor = , highres, auto, 2` paired with `env = GDK_SCALE,2`. For *fractional* monitor scales
+   (`1.25`, `1.5`, `1.75`), the convention this template follows is **integer ceiling** (`1.5` →
+   `2`, `1.25` → `2`, `2.0` → `2`); the wiki does not spell that out explicitly, so users who
+   prefer the next-lower integer (e.g. `GDK_SCALE,1` on a `1.5` monitor for sharper-but-smaller
+   text) can override the env line. The `env` component reads `monitors.scaling` and gates on
+   `!= 1.0`. See <https://wiki.hypr.land/Configuring/XWayland/#hidpi-xwayland>.
 3. **`xwayland { force_zero_scaling = true }`** — emitted into the Hyprland top-level template by
    the writer that owns `hyprland.conf` (see `../keybinds/template.md`). Without it, XWayland apps
    pick up the wrong DPI and render at the wrong size, then get bilinearly upscaled (the
-   "everything is fuzzy" symptom).
+   "everything is fuzzy" symptom). Confirmed at
+   <https://wiki.hypr.land/Configuring/Variables/#xwayland> — variable `xwayland:force_zero_scaling`
+   (bool, default `false`).
 
 The flag for "we pinned a fractional scale" is `monitors.scaling != 1.0`. Every downstream
 writer keys off that single value, not off iterating `monitors.list[*].scale`.
@@ -70,12 +77,22 @@ fixes.
 
 ## Version branch — `windowrule` block form
 
-The smart-gaps block (1e) uses the 0.53+ `windowrule { … }` block form. On targets `< 0.53`, fall
-back to the legacy line form:
+The smart-gaps block (1e) uses the 0.53+ `windowrule { … }` block form (newline-separated fields,
+NOT `;`-separated — `;` is not documented and is unsafe to assume). On targets `< 0.53` the same
+matchers work in the anonymous single-line form:
 
 ```ini
-windowrule = bordersize 0, onworkspace:w[tv1]
-windowrule = rounding 0,   onworkspace:w[tv1]
+windowrule = border_size 0, match:float 0, match:workspace w[tv1]
+windowrule = rounding 0,    match:float 0, match:workspace w[tv1]
 ```
+
+Two field-name traps that bit earlier drafts:
+
+- The workspace matcher is `match:workspace = <selector>` (not `match:onworkspace`). The Hyprland
+  prop is named `workspace` and accepts a workspace selector (`w[tv1]`, `f[1]`, `r[2-4]`, …).
+  Confirmed at <https://wiki.hypr.land/0.54.0/Configuring/Window-Rules/#props>.
+- The effect is `border_size` (underscore), not `bordersize`. The workspace-rule key is
+  `bordersize:` (no underscore) — different scope, different spelling. Verified at
+  <https://wiki.hypr.land/0.54.0/Configuring/Workspace-Rules/#rules>.
 
 See `../../_shared/version-matrix.md` for the full cliff table and the detection invocation.

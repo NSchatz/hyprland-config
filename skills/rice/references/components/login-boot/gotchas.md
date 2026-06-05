@@ -42,18 +42,24 @@ demand (`edit-config login-boot` re-emits the report).
 ## SDDM is Qt — name the runtime deps
 
 SDDM is a Qt application; picking it pulls the whole Qt runtime. The package list under
-`packages.md` lists `qt6-base`, `qt6-declarative`, `qt6-svg`, and (for `sddm-astronaut`)
-`qt6-virtualkeyboard`, `qt6-multimedia-ffmpeg`. The `catppuccin-sddm` theme adds
-`qt5-quickcontrols2`. Don't omit these — the theme silently renders blank when a Qt module is
-missing.
+`packages.md` lists `qt6-declarative`, `qt6-svg`, and (for `sddm-astronaut-theme`)
+`qt6-virtualkeyboard`, `qt6-multimedia` (Arch packages the codec backend separately —
+typically `qt6-multimedia-ffmpeg`). Don't omit these — the theme silently renders blank when a
+Qt module is missing.
 
-`sddm-sugar-candy` (Kangie fork) is **Qt5** and needs `qt5-graphicaleffects` instead. The writer
-picks Qt5 vs Qt6 deps based on which SDDM theme it picked.
+`sddm-sugar-candy-git` (Kangie fork) is **Qt5** and depends on `qt5-graphicaleffects`,
+`qt5-quickcontrols2`, and `qt5-svg`. `QtGraphicalEffects` was dropped upstream in Qt6, so on
+Qt6-only systems pick `sddm-astronaut-theme` instead — Sugar Candy is upstream-archived. The
+writer picks Qt5 vs Qt6 deps based on which SDDM theme it picked.
 
-Preview without logging out:
+The `catppuccin-sddm` theme (different from Sugar-Candy-derived Catppuccin variants) is Qt6.
+
+Preview without logging out (the `--test-mode` flag is the same one SDDM's own test harness
+uses):
 
 ```bash
 sddm-greeter --test-mode --theme /usr/share/sddm/themes/<name>
+# On systems with both Qt5 and Qt6 SDDM builds, the binary is `sddm-greeter-qt6`.
 ```
 
 Tell the user about this in the run-these report — it's the fastest way to validate the theme
@@ -70,25 +76,48 @@ in 19a-i lists **greetd** as the recommended switch-target, not GDM theming. The
 includes the DM swap commands:
 
 ```
-sudo systemctl disable gdm
-sudo systemctl enable greetd
+# Swap display managers. Don't run --now on the disable line if you're currently logged in
+# via GDM — that kills your X/Wayland session. Reboot to land in greetd instead.
+sudo systemctl disable gdm.service
+sudo systemctl enable  greetd.service
+# After verifying greetd works (reboot), you can additionally mask GDM so future GNOME
+# updates can't silently re-enable it:
+#   sudo systemctl mask gdm.service
 ```
 
+Only **one** display-manager unit can be enabled at a time — the symlink at
+`/etc/systemd/system/display-manager.service` is what `display-manager.target` resolves to,
+and `systemctl enable greetd` rewrites that symlink. Re-running `systemctl enable` on a
+second DM after the first will warn about the existing alias.
+
 Note this clearly — switching DM affects auto-login, user-list, and (on GNOME systems) the
-GNOME session boot path. Tell the user to reboot to verify before disabling GDM permanently.
+GNOME session boot path. Tell the user to reboot to verify before masking GDM permanently.
 
 ## Detect first — `systemctl is-enabled` is the source of truth
 
 The active DM determines what the user actually sees at boot:
 
 ```bash
-systemctl is-enabled greetd  sddm  gdm  lightdm 2>/dev/null
+# Check each unit individually — when multiple unit names are passed, the exit code is
+# masked to 0 (systemd issue #11826) and we lose per-unit truth.
+for u in greetd sddm gdm lightdm; do
+  printf '%s\t%s\n' "$u" "$(systemctl is-enabled "$u.service" 2>/dev/null || echo not-installed)"
+done
 ```
 
-Exactly one of those should return `enabled`. If multiple, the user is in an inconsistent state
-and the writer should refuse to emit a greeter file (print a warning to the report instead).
-If none, the user is on text-login → greeter recommendations are advisory and the install
-commands include `sudo systemctl enable <chosen-dm>`.
+Possible output values from `systemctl is-enabled` (per `systemctl(1)`):
+
+- `enabled` / `enabled-runtime` — exit 0, unit is enabled
+- `static` — exit 0, has no `[Install]` section (not what we want for a DM)
+- `disabled` — exit > 0
+- `masked` / `masked-runtime` — exit > 0, any start fails
+- (no such unit) — `is-enabled` writes nothing and exits > 0; we capture that as
+  `not-installed` via the `||` fallback above.
+
+Exactly one of greetd/sddm/gdm/lightdm should return `enabled`. If multiple, the user is in
+an inconsistent state and the writer should refuse to emit a greeter file (print a warning to
+the report instead). If none, the user is on text-login → greeter recommendations are advisory
+and the install commands include `sudo systemctl enable --now <chosen-dm>.service`.
 
 Detection feeds the *order* of options at 19a-i (matching DM first), per `_interview-protocol.md`
 → "Detection is for defaults, not filters". It does not gate the question.

@@ -12,7 +12,7 @@ shell is restarted. There's no live-reload signal a shell rc responds to.
 | Prompt engine init (`STARSHIP_CONFIG`, `oh-my-posh init`) | New shells | Open shells (`PS1`/`PROMPT` is already set; the env var changes are inert) |
 | `fastfetch` / `neofetch` startup line | New shells | Open shells (the fetch only runs on rc-load) |
 | `export EDITOR=…` | New shells **and** any subprocess spawned from a shell that has been restarted | Already-open shells until restart |
-| `~/.config/fish/conf.d/zz-hypr-rice-colors.fish` (palette re-render) | New fish shells | Open fish shells (fish auto-sources `conf.d/` only on interactive start) |
+| `~/.config/fish/conf.d/zz-hypr-rice-colors.fish` (palette re-render) | New fish shells | Open fish shells (fish auto-sources `conf.d/` on shell start, not on signal) |
 | `~/.config/hypr-rice/starship.toml` (palette re-render) | The **next prompt redraw** in any starship shell — instant, no shell restart needed | — |
 | `~/.config/hypr-rice/rice.omp.json` (palette re-render) | The **next prompt redraw** in any oh-my-posh shell — instant | — |
 

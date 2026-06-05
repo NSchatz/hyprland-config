@@ -15,6 +15,11 @@ The `{{font_mono}}` / `{{bg}}` / `{{fg}}` / `{{cursor}}` / `{{color0..15}}` plac
 resolve to keys in `palette.conf` (`_shared/palette-schema.md`); the integer-typed `{{opacity}}`,
 `{{padding}}`, `{{font_size}}` come from `answers.json` (`terminal.*`).
 
+The `{{cursor.shape_capitalized}}`, `{{cursor.wezterm_style}}`, `{{cursor.ghostty_style}}` are
+derived by the writer from `terminal.cursor.shape` + `terminal.cursor.blink` (see `schema.md`
+for the full per-emulator mapping). E.g. `shape=beam, blink=true` resolves to alacritty
+`"Beam"`, wezterm `'BlinkingBar'`, ghostty `bar`.
+
 ## kitty — `~/.config/kitty/kitty.conf` (+ `colors.conf`)
 
 ```conf
@@ -30,12 +35,16 @@ window_padding_width   {{padding}}
 cursor_shape           {{cursor.shape}}
 {{#if cursor.blink}}cursor_blink_interval  0.5{{else}}cursor_blink_interval  0{{/if}}
 
-hide_window_decorations yes
-tab_bar_style          powerline
-{{#if extras.no-confirm-close}}confirm_os_window_close 0{{/if}}
-{{#if extras.bell-off}}enable_audio_bell      no{{/if}}
-{{#if extras.scrollback-10k}}scrollback_lines       10000{{/if}}
-{{#if extras.ligatures}}disable_ligatures      never{{else}}disable_ligatures      always{{/if}}
+hide_window_decorations yes                    # yes | no | titlebar-only | titlebar-and-corners
+tab_bar_style          powerline               # fade | slant | separator | powerline | hidden | custom
+{{#if extras.no-confirm-close}}confirm_os_window_close 0{{/if}}     # 0 = never confirm; >0 = confirm if N+ children alive
+{{#if extras.bell-off}}enable_audio_bell      no{{/if}}             # yes | no
+{{#if extras.scrollback-10k}}scrollback_lines       10000{{/if}}    # int; default 2000
+{{#if extras.ligatures}}disable_ligatures      never{{else}}disable_ligatures      always{{/if}}  # never | cursor | always
+
+# Optional: kitty has a `shell` directive (default `.` = $SHELL). Rice does not write it —
+# the user's chsh / login shell wins. Set explicitly only if the user picks a per-terminal
+# override:  shell /usr/bin/fish
 ```
 
 `~/.config/kitty/colors.conf` — see `templates/kitty.tmpl` (rendered from `palette.conf`).
@@ -49,21 +58,26 @@ live_config_reload = true
 
 [font]
 normal = { family = "{{font_mono}}" }
-size   = {{font_size}}
+size   = {{font_size}}.0    # schema is <float>; render `11` as `11.0` so strict TOML accepts it
 
 [window]
 opacity                     = {{opacity}}
 padding                     = { x = {{padding}}, y = {{padding}} }
 decorations                 = "None"
+
+[colors]
+# Required for `[window].opacity` to actually show through cell backgrounds.
 transparent_background_colors = true
 
-[cursor]
-style                       = { shape = "{{cursor.shape_capitalized}}", blinking = "{{#if cursor.blink}}On{{else}}Off{{/if}}" }
+[cursor.style]
+shape    = "{{cursor.shape_capitalized}}"     # "Block" | "Underline" | "Beam"
+blinking = "{{#if cursor.blink}}On{{else}}Off{{/if}}"  # "Never" | "Off" | "On" | "Always"
 
 [scrolling]
 {{#if extras.scrollback-10k}}history = 10000{{/if}}
 
 [bell]
+# `command = "None"` is the documented sentinel for "no command" (default).
 {{#if extras.bell-off}}command = "None"{{/if}}
 ```
 
@@ -72,21 +86,29 @@ style                       = { shape = "{{cursor.shape_capitalized}}", blinking
 
 ## foot — `~/.config/foot/foot.ini` (colors merged in)
 
-foot has no `include` directive — the rice engine **merges** the `[colors]` block into `foot.ini`
-in-place (similar to `mako`/`fuzzel`). Hex is bare `RRGGBB`, **no `#`**.
+foot **does** support `include=<abs path>` (top-level / [main]; absolute path or `~/`-prefixed,
+nested imports OK — see `foot.ini(5)`). However the rice engine still **merges** the `[colors]`
+block into `foot.ini` in-place (similar to `mako`/`fuzzel`) so that dual `[colors-dark]` /
+`[colors-light]` blocks can coexist with the rest of the user's edits without an extra file.
+Hex is bare `RRGGBB`, **no `#`**.
 
 ```ini
-[main]
+# Top-level `key=value` pairs live in the implicit [main] section.
 font={{font_mono}}:size={{font_size}}
 pad={{padding}}x{{padding}} center
-{{#if extras.bell-off}}bell=none{{/if}}
 
 [scrollback]
 {{#if extras.scrollback-10k}}lines=10000{{/if}}
 
 [cursor]
-style={{cursor.shape}}
+style={{cursor.shape}}            # block | beam | underline | hollow
 {{#if cursor.blink}}blink=yes{{else}}blink=no{{/if}}
+
+[bell]
+# foot has no `bell=none` under [main]; bell lives in its own section.
+{{#if extras.bell-off}}system=no
+urgent=no
+visual=no{{/if}}
 
 [colors]
 alpha={{opacity}}
@@ -139,7 +161,7 @@ cursor-style = {{cursor.ghostty_style}}                 # block | bar | underlin
 cursor-style-blink = {{#if cursor.blink}}true{{else}}false{{/if}}
 
 {{#if extras.bell-off}}audible-bell = false{{/if}}
-{{#if extras.scrollback-10k}}scrollback-limit = 10000000{{/if}}
+{{#if extras.scrollback-10k}}scrollback-limit = 10000000{{/if}}      # bytes (≈10 MB ≈ many thousands of lines)
 {{#if extras.no-confirm-close}}confirm-close-surface = false{{/if}}
 
 # Palette — rice fills these from palette.conf (16 lines + foreground/background/cursor-color):

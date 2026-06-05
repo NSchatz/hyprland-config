@@ -8,11 +8,11 @@ assembling the global `PKGS` list.
 | Pick | Package | Repo / AUR | Notes |
 |---|---|---|---|
 | wofi | `wofi` | repo | GTK3, Wayland-native. Default. |
-| rofi | `rofi-wayland` | AUR | lbonn's Wayland fork (the repo `rofi` is X-only — see `gotchas.md`). |
+| rofi | `rofi` | repo (`extra`) | Upstream rofi ≥ 2.0.0 (Sep 2025) merged lbonn's Wayland fork into mainline; the `extra/rofi` package `Provides: rofi-wayland`, `Replaces: rofi-wayland`. The AUR `rofi-wayland` fork is now obsolete — see `gotchas.md`. |
 | fuzzel | `fuzzel` | repo | INI config, Wayland-native. |
 | tofi | `tofi` | AUR | Text-only fast picker. |
 | walker | `walker` | AUR | Wayland-native, runs as service. |
-| vicinae | `vicinae-bin` | AUR | Qt Raycast-for-Linux (2025). The `-bin` package is the prebuilt; `vicinae` builds from source. |
+| vicinae | `vicinae-bin` | AUR | Qt Raycast-for-Linux (2025). `vicinae-bin` is the prebuilt; `vicinae` builds from source; `vicinae-git` tracks main. |
 | anyrun | `anyrun-git` | AUR | krunner-style plugin runner. The plain `anyrun` AUR name has been flaky; `-git` is more reliable as of 2025. |
 
 The repo/AUR column is informational — `install.sh` auto-routes each name at runtime via
@@ -36,7 +36,7 @@ Pulled in alongside the launcher pick when relevant:
 tool=$(jq -r .launcher.tool answers.json)
 case "$tool" in
   wofi)    pkgs+=(wofi) ;;
-  rofi)    pkgs+=(rofi-wayland) ;;
+  rofi)    pkgs+=(rofi) ;;       # repo rofi ≥ 2.0 has native Wayland; rofi-wayland AUR is obsolete
   fuzzel)  pkgs+=(fuzzel) ;;
   tofi)    pkgs+=(tofi) ;;
   walker)  pkgs+=(walker) ;;

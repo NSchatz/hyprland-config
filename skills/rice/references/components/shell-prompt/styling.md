@@ -73,7 +73,7 @@ Color values accept named (`"blue"`, `"red"`, `"bright_magenta"`), palette indic
 ### fish (`fish_color_*` variables / `.theme` file)
 - **Two independent layers:** the *prompt* (starship/oh-my-posh/tide/native `fish_prompt`) and fish's *syntax highlighting & pager* colors. The latter are ~25 `fish_color_*` vars set with `set -g fish_color_<role> <hex> [--bold|--underline|--background=<hex>]` (fish takes bare hex, no `#`). Roles that carry the look: `command` (the accent), `param`, `quote`, `keyword`, `redirection`, `operator`, `error` (red), `comment`/`autosuggestion` (muted), `selection`/`search_match` (a `--background=` highlight), plus prompt-side `cwd`/`user`/`host`. Pager: `fish_pager_color_prefix`/`_completion`/`_description`/`_selected_background`.
 - **`.theme` files vs `conf.d`:** fish ships themes as `~/.config/fish/themes/<name>.theme` (plain `fish_color_command 89b4fa` lines, no prefix on the value), loaded with `fish_config theme choose <name>` (persists to universal vars) — good for hand-switching, but a re-rendering rice prefers a `conf.d/*.fish` snippet using `set -g` (auto-sourced every interactive start, so a re-render wins over the stale universal-variable store).
-- **Pitfall — `set -U` stickiness:** a value baked into the universal store with `set -U` shadows later `set -g`; rices that re-theme should commit to `set -g` in `conf.d` (or rewrite the `.theme` and re-`choose` it), not mix the two.
+- **Pitfall — bare `set` updates the universal:** an explicit `set -g` in `conf.d` does win over a `set -U` (smaller scope wins per fish's scoping rules), but `set fish_color_command …` with no flag, when a universal already exists, *updates the universal* instead of creating a fresh global. Always write explicit `set -g` in the `conf.d` snippet; don't mix `.theme` choosing and `conf.d` snippets in one rice.
 
 ## How the community styles it
 
@@ -353,10 +353,16 @@ for the prompt itself.*
   name isn't defined in the top-level `palette` (or you're on an oh-my-posh too old for palettes) —
   define every referenced name. Invalid JSON (a trailing comma) makes the whole prompt silently fall
   back; validate the theme file. Don't confuse `p:` palette refs with Go templates (`{{ .Path }}`).
-- **fish colors won't change after a re-theme.** A `set -U fish_color_*` (universal) value shadows your
-  `set -g` snippet. Clear it (`set -e fish_color_command`) or commit to one mechanism — a `conf.d`
-  `set -g` snippet, *or* a `.theme` file re-loaded with `fish_config theme choose`. Also: `.theme`
-  files list values **without** the `fish_color_` prefix and without `#`; `set` lines need the prefix.
+- **fish colors won't change after a re-theme.** Per fish's documented scoping
+  (`local > function > global > universal`), an explicit `set -g fish_color_command …` in a
+  `conf.d` snippet *does* override a `set -U` left by `fish_config theme choose`. The real
+  trap is writing `set fish_color_command …` with **no scope flag** — fish then updates the
+  existing scope (the universal), so re-renders silently re-write the universal store instead
+  of creating a fresh global. Always use explicit `set -g` in the conf.d snippet; if shells
+  still look stale, clear leftover universals with
+  `for v in (set --names -U | string match 'fish_color_*'); set -e $v; end`. Also: `.theme`
+  files list values **without** the `fish_color_` prefix and without `#`; `set` lines need the
+  prefix.
 - **Pure-black btop background over a transparent terminal looks wrong.** If your terminal is
   transparent/blurred, a solid `theme[main_bg]` paints an opaque rectangle. Set `theme[main_bg]=""`
   and `theme_background = False` so the wallpaper/blur shows through — or match `main_bg` to your

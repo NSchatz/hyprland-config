@@ -1,13 +1,30 @@
 # gaming — gotchas
 
-## `WLR_DRM_NO_ATOMIC` is gated on kernel < 6.8 — never blindly emit it
+## Do NOT emit `WLR_DRM_NO_ATOMIC` — Hyprland is aquamarine, not wlroots
 
-The `env = WLR_DRM_NO_ATOMIC,1` line forces the legacy DRM modeset path. On kernels **< 6.8** it
-was needed for tearing to engage at all; on **≥ 6.8** atomic modesetting handles tearing natively
-and forcing the legacy path **regresses VRR, multi-monitor, and HDR**. Read
-`KERNEL_VERSION_MAJOR` / `KERNEL_VERSION_MINOR` from `detect-version.sh` and gate the env emission
-on **`major < 6` OR (`major == 6` AND `minor < 8`)**. The env component is the file owner, but the
-gate condition lives here — make sure both ends agree.
+Older guides (and earlier versions of this file) told the writer to emit
+`env = WLR_DRM_NO_ATOMIC,1` on kernels < 6.8 to coax tearing into working. That advice is
+**stale**: Hyprland moved off wlroots to its own DRM backend (**aquamarine**) in
+**v0.42** (see [the independence post](https://hypr.land/news/independentHyprland/) and
+[PR #6608](https://github.com/hyprwm/Hyprland/pull/6608)). The rice plugin's version-matrix
+floor is 0.53, so every supported target is already on aquamarine — `WLR_*` env vars are
+silently ignored.
+
+The aquamarine equivalent is `AQ_NO_ATOMIC=1`, documented on the
+[Environment-variables wiki page](https://wiki.hypr.land/Configuring/Advanced-and-Cool/Environment-variables/)
+with the explicit caveat "**NOT** recommended". vaxerski's own answer in
+[hyprwm/Hyprland #7186](https://github.com/hyprwm/Hyprland/discussions/7186) is
+*"AQ_NO_ATOMIC, but not recommended as it is not very well supported."* The env component's
+[`gotchas.md`](../env/gotchas.md) "2026 slim NVIDIA set" section keeps both `WLR_DRM_NO_ATOMIC`
+and `AQ_NO_ATOMIC` out of the validator's slim allowlist.
+
+**Practical consequence:** this component emits **no** env line. If a user reports that tearing
+doesn't engage, the
+[Tearing wiki page](https://wiki.hypr.land/Configuring/Advanced-and-Cool/Tearing/) lists the
+real causes (windowrule not matching; another window/bar/notification on the same monitor; or
+GPU driver doesn't support tearing — *"Apps that should tear, freeze ... Almost definitely
+means your GPU driver does not support tearing. Please do not report issues if this is the
+culprit."*).
 
 ## VRR is a per-monitor field, not its own block
 
@@ -37,11 +54,29 @@ the rendered output. Listed in
 
 ## Fullscreen effect-strip rules go in `windowrules.conf`, not `looknfeel.conf`
 
-The four `match:fullscreen = true; no_blur / no_border / no_anim / idle_inhibit` rules are
-**`windowrule` blocks**, not `decoration {}` knobs. They belong in `windowrules.conf` (owned by
+The fullscreen effect-strip rules (`match:fullscreen = true` with `no_blur`, `border_size = 0`,
+`rounding = 0`, `no_anim`, `no_shadow`, `idle_inhibit = fullscreen`) are **`windowrule`
+blocks**, not `decoration {}` knobs. They belong in `windowrules.conf` (owned by
 [`window-rules`](../window-rules/)). A common mistake: dropping them into the `decoration {}`
-block of `looknfeel.conf`, where they silently no-op and the user wonders why blur is still on in
-fullscreen.
+block of `looknfeel.conf`, where they silently no-op and the user wonders why blur is still on
+in fullscreen.
+
+### `no_border` is **not** a valid window-rule field — use `border_size = 0`
+
+Verified against the [0.54 Window-Rules wiki](https://wiki.hypr.land/0.54.0/Configuring/Window-Rules/)
+(effects table) and the
+[main Window-Rules page](https://wiki.hypr.land/Configuring/Basics/Window-Rules/) (Dynamic
+effects table). The effects list contains `no_blur`, `no_anim`, `no_shadow`, `no_dim`,
+`no_focus`, etc., **but not** `no_border`. To strip the border for a class, set
+`border_size = 0` (an int effect, listed on both pages).
+
+### `idle_inhibit` is a string, not a bool
+
+The legal modes are `none`, `always`, `focus`, `fullscreen` — verified against both wiki pages.
+The rule we emit is `idle_inhibit = fullscreen`, which means "inhibit idle only while this
+window is fullscreen". The `window-rules` component already ships an unconditional
+`idleinhibit-fullscreen` block in its defaults; when `strip_fullscreen_effects` is true and
+that default is present, the writer should not emit a second copy.
 
 ## Tearing class regexes come from the user via `hyprctl clients`
 

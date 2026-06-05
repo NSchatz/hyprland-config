@@ -18,8 +18,9 @@ use placeholders (`DP-1`, `HDMI-A-1`, `eDP-1`) and note "adjust after first relo
 - Dual side-by-side → ask both names/res; place the second at `<width>x0`
 - More than two / complex → collect each monitor's name, mode, position, scale
 
-For unknown hardware the `, highrr, auto, 1` / `, highres, auto, 1` "magic" modes pick the
-highest refresh / resolution. Use detected names where possible.
+For unknown hardware the `, highrr, auto, 1` / `, highres, auto, 1` / `, maxwidth, auto, 1`
+"magic" modes pick the highest refresh / highest resolution / widest resolution from the EDID
+mode list. Use detected names where possible.
 
 **1b. Fractional scaling?** (HiDPI / laptop panels)
 - No, scale 1 **(default)**
@@ -31,10 +32,12 @@ A non-1 scale here triggers two downstream emissions (see `gotchas.md`): `env = 
 in `../env/` and `xwayland { force_zero_scaling = true }` in the Hyprland top-level template.
 
 **1c. Per-monitor extras** (multi-select, off by default; **ask only when `MONITOR_COUNT > 1`**)
-- VRR / adaptive sync (`vrr, 2` = fullscreen, `3` = content-aware; needs FreeSync/G-Sync)
-- Rotation (`transform, 1` = 90°, `2` = 180°, `3` = 270°; 4–7 flipped)
+- VRR / adaptive sync (`vrr, 2` = fullscreen-only, `3` = fullscreen with `video`/`game` content
+  type; needs FreeSync/G-Sync hardware + a `misc:vrr` global that permits per-monitor override)
+- Rotation (`transform, 1` = 90°, `2` = 180°, `3` = 270°; `4`–`7` flipped variants)
 - Mirroring (`mirror, <other>`)
-- 10-bit color (`bitdepth, 10`)
+- 10-bit color (`bitdepth, 10` — 8 or 10 only)
+- ICC profile (`icc, /absolute/path.icm` — forces sRGB EOTF; overrides any `cm` preset)
 
 **1d. Dock/undock?**
 - No **(default)**

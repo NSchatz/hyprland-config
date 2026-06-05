@@ -2,14 +2,18 @@
 
 ## `follow_mouse = 1` is focus-follows-mouse — NOT `2`
 
-The single most common misread of the Hyprland input docs. The values:
+The single most common misread of the Hyprland input docs. Verified against the upstream
+source (`src/config/values/ConfigValues.cpp`, the option map for `input:follow_mouse`):
 
-| Value | Behavior |
-|---|---|
-| `0` | **Click to focus.** The pointer never changes focus. |
-| `1` | **Focus follows mouse** — moving the pointer over a window focuses it. The Hyprland default. This is what users mean when they ask for "sloppy focus" / "focus follows mouse." |
-| `2` | **Detached / loose** — the cursor can scroll and click the window it hovers, **but keyboard focus only changes on click**. Hovering does NOT refocus. This is the *opposite* of what most users mean. |
-| `3` | Full-loose variant of `2` (rare). |
+| Value | Map name | Behavior |
+|---|---|---|
+| `0` | `disabled` | **Click to focus.** Cursor movement does not change focus at all. |
+| `1` | `follow` | **Focus follows mouse** — moving the pointer over a window focuses it. The Hyprland default. This is what users mean when they ask for "sloppy focus" / "focus follows mouse." |
+| `2` | `detached` | **Detached / loose** — the cursor can scroll and click the window it hovers, **but keyboard focus only changes on click**. Hovering does NOT refocus. This is the *opposite* of what most users mean. (See `#7677`: "Cursor focus will be detached from keyboard focus. Clicking on a window will move keyboard focus to that window.") |
+| `3` | `separate` | Full-separate variant of `2` (rare). |
+
+Source: option declared at `input:follow_mouse` with
+`OptionMap{{"disabled", 0}, {"follow", 1}, {"detached", 2}, {"separate", 3}}`, default `1`.
 
 When the user says "focus should change as I move the mouse over a window," record
 `follow_mouse = 1`. Do not record `2` unless the user explicitly describes the detached
@@ -19,21 +23,64 @@ The interview question (2d in `interview.md`) presents these in plain English to
 trap; record the integer that matches the prose the user picked, not whatever number "sounds
 higher / more focused."
 
-## The `gesture =` keyword API requires Hyprland 0.45+
+### Related: `mouse_refocus`, `float_switch_override_focus`
 
-The 0.45 release replaced the `gestures { workspace_swipe = … }` block with a per-gesture
-`gesture = FINGERS, DIRECTION, ACTION` keyword form. Branch on `hypr_version` from
+Both default to on. `mouse_refocus = false` is the well-known knob for "only refocus when the
+mouse crosses a window boundary" (paired with `follow_mouse = 1`). `float_switch_override_focus`
+controls whether crossing tiled↔floating refocuses; set to `0` to suppress that case (the
+discussion in #7677 recommends this when `follow_mouse = 2` and floating dialogs are stealing
+focus).
+
+## Gestures: two cliffs (0.45+ adds keyword, 0.51+ removes legacy swipe keys)
+
+There are **two** version cliffs in the gesture story, not one. Branch on `hypr_version` from
 `answers.json` (top-level, seeded by `scripts/detect-version.sh` — see
 `_shared/version-matrix.md`):
 
-- `≥ 0.45` → emit `gesture = …` lines (one per selected gesture). The `gestures {}` block is
-  still accepted as legacy, but new configs should use the keyword form.
-- `< 0.45` → emit a `gestures {}` block. Only `workspace-swipe` maps; the other four short-names
-  in `input.touchpad_gestures` have no pre-0.45 equivalent and are dropped with a comment in
-  `input.conf`. See `template.md` → "pre-0.45 fallback."
+- **`≥ 0.45`** → the `gesture = FINGERS, DIRECTION, ACTION [, ARG]` keyword exists and is the
+  preferred form. The `gestures {}` block also still exists; both forms parse simultaneously
+  on 0.45–0.50.
+- **`≥ 0.51`** → "Gesture Rework." The legacy `gestures:workspace_swipe`,
+  `gestures:workspace_swipe_fingers`, and `gestures:workspace_swipe_min_fingers` are **removed**
+  — leaving them in the config is a hard parse error (see omarchy#1594/1595, HyDE#1306). The
+  other `gestures:workspace_swipe_*` tuning keys (`_distance`, `_invert`, `_cancel_ratio`,
+  `_min_speed_to_force`, `_create_new`, `_direction_lock`, `_forever`, `_use_r`,
+  `_touch`, `_touch_invert`) still exist as tuning for the swipe gesture you register with
+  `gesture = N, horizontal, workspace`.
+- **`< 0.45`** → no `gesture =` keyword; the only path is the legacy
+  `gestures { workspace_swipe = true; workspace_swipe_fingers = 3; … }` block.
+
+Rice rule (matches `template.md`):
+
+| `hypr_version` | Emit | Tuning |
+|---|---|---|
+| `≥ 0.51` | `gesture = …` lines only | optional `gestures { workspace_swipe_distance = … }` for tuning; **do NOT** emit `workspace_swipe`, `workspace_swipe_fingers`, `workspace_swipe_min_fingers` |
+| `0.45 – 0.50` | `gesture = …` lines preferred | legacy `gestures { workspace_swipe = true; workspace_swipe_fingers = N }` still parses |
+| `< 0.45` | `gestures {}` block only | `workspace_swipe = true; workspace_swipe_fingers = 3` |
 
 The validator (`hyprland-config-validator`) flags a `gesture =` line emitted against
-`hypr_version < 0.45` as a parse-time error.
+`hypr_version < 0.45` as a parse-time error, and flags `gestures:workspace_swipe(_fingers|_min_fingers)`
+against `≥ 0.51`.
+
+### Verified `gesture =` syntax (from `src/config/legacy/ConfigManager.cpp:handleGesture`)
+
+```
+gesture = FINGERS, DIRECTION [, mod:MODS] [, scale:F], ACTION [, ARG…]
+```
+
+- **FINGERS**: integer `2..9` (`<= 1` or `>= 10` rejected).
+- **DIRECTION** (via `TrackpadGestures::dirForString`, case-insensitive):
+  `swipe`, `left`/`l`, `right`/`r`, `up`/`u`/`top`/`t`, `down`/`d`/`bottom`/`b`,
+  `horizontal`/`horiz`, `vertical`/`vert`, `pinch`, `pinchin`/`zoomin`,
+  `pinchout`/`zoomout`. (No `swipein`/`swipeout`.)
+- Optional `mod:<MODMASK>` and `scale:<FLOAT 0.1..10>` after DIRECTION.
+- **ACTION** is one of: `dispatcher <name> [args]`, `workspace`, `resize`, `move`,
+  `special [name]`, `close`, `float [arg]`, `fullscreen [arg]`, `cursorZoom <a> <b>`,
+  `scrollMove`, `unset`. Anything else is "Invalid gesture: <name>".
+
+Note `float` and `fullscreen` and `special` take an **optional argument** (not the
+`float, tile` two-word form some blog posts use). The `float` arg toggles modes; pass nothing
+for the default.
 
 ## Omit the `touchpad {}` sub-block entirely on desktops
 
@@ -81,3 +128,63 @@ changes flow through. The template's `non_default_repeat_*` booleans handle this
 
 Same logic: `sensitivity = 0.0` is the libinput default. The template's
 `non_default_sensitivity` boolean drops the line when `mouse_sensitivity == 0.0`.
+
+Source: `input:sensitivity` is `Float`, default `0`, "clamped to the range -1.0 to 1.0".
+
+## `accel_profile` valid values are `adaptive`, `flat`, `custom` (default unset)
+
+Source: `input:accel_profile` is a `String` with validator `strChoice({"adaptive", "flat", "custom"})`
+and default `STRVAL_EMPTY` (i.e. "use libinput's per-device default"). Not "adaptive by default" —
+the empty string lets libinput choose. Only emit the line when the user picked `flat` (or
+`custom`, which the interview does not expose).
+
+## `touchpad` block — verified option names (0.55.x source)
+
+`input:touchpad:` keys, all confirmed in `src/config/values/ConfigValues.cpp`:
+
+| Key | Type | Default | Notes |
+|---|---|---|---|
+| `disable_while_typing` | bool | `true` | |
+| `natural_scroll` | bool | `false` | |
+| `scroll_factor` | float | `1` | range 0..2; **separate** from the input-level `scroll_factor` (which is for external mice). |
+| `middle_button_emulation` | bool | `false` | |
+| `tap_button_map` | string | empty | `lrm` or `lmr` only. |
+| `clickfinger_behavior` | bool | `false` | 1/2/3 finger click → LMB/RMB/MMB. **Default false** — the rice template currently forces `true`; only emit when the user opted in. |
+| `tap-to-click` | bool | `true` | Hyphenated literal — keep the dash. |
+| `drag_lock` | **int 0..2** | `0` | NOT a bool. `0=off`, `1=timeout`, `2=sticky` (per libinput). |
+| `tap-and-drag` | bool | `true` | |
+| `flip_x`, `flip_y` | bool | `false` | invert touchpad axis |
+| `drag_3fg` | int | `0` (`disable`) | `0`/`1`(`3_finger`)/`2`(`4_finger`) |
+
+## Per-device input config — `device {}` special category
+
+For per-keyboard/touchpad overrides, Hyprland accepts a top-level `device {}` special block
+keyed by `name`. Verified keys (from `src/config/legacy/ConfigManager.cpp:512+`):
+`sensitivity`, `accel_profile`, `rotation`, `kb_file`, `kb_layout`, `kb_variant`, `kb_options`,
+`kb_rules`, `kb_model`, `repeat_rate`, `repeat_delay`, `natural_scroll`, `tap_button_map`,
+`numlock_by_default`, `resolve_binds_by_sym`, `disable_while_typing`, `clickfinger_behavior`,
+`middle_button_emulation`, `tap-to-click`, `tap-and-drag`, `drag_lock`, `left_handed`,
+`scroll_method`, `scroll_button`, `scroll_button_lock`, `scroll_points`, `scroll_factor`,
+`transform`, `output`, `enabled`, `keybinds`, `tags` (0.55+), and tablet-only keys
+(`region_*`, `relative_input`, `active_area_*`, `flip_x/y`, `drag_3fg`).
+
+Example:
+
+```ini
+device {
+    name = epic-mouse-v1
+    sensitivity = -0.5
+    accel_profile = flat
+}
+```
+
+Find the device name with `hyprctl devices`. Rice doesn't enumerate devices in the interview
+(out of scope), but the validator should not reject `device {}` blocks the user added by hand.
+
+## 0.55+ device tags for device-specific binds
+
+0.55 added a `tags` field on the `device {}` block — e.g.
+`device { name = my-keeb; tags = +my-tag }` — that lets a `bind` target a specific device by tag
+prefix. Useful for laptop-keyboard-only Fn keys vs external keyboard layouts. Mentioned here
+so the validator does not strip unknown `tags` lines from user configs. The interview does not
+ask about this.

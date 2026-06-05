@@ -17,15 +17,25 @@ $dmenu = {{dmenu_invocation}}    # e.g. wofi --dmenu   — NEVER `$menu --dmenu`
 
 Per-tool invocations:
 
-| tool    | `$menu`                       | `$dmenu`             |
+| tool    | `$menu`                       | `$dmenu`                              |
 |---|---|---|
-| wofi    | `wofi --show drun`            | `wofi --dmenu`       |
-| rofi    | `rofi -show drun`             | `rofi -dmenu`        |
-| fuzzel  | `fuzzel`                      | `fuzzel --dmenu`     |
-| tofi    | `tofi-drun \| sh`             | `tofi`               |
-| walker  | `walker`                      | `walker --dmenu`     |
-| vicinae | `vicinae`                     | `vicinae --dmenu`    |
-| anyrun  | `anyrun`                      | `anyrun --dmenu`     |
+| wofi    | `wofi --show drun`            | `wofi --dmenu`                        |
+| rofi    | `rofi -show drun`             | `rofi -dmenu`                         |
+| fuzzel  | `fuzzel`                      | `fuzzel --dmenu`                      |
+| tofi    | `tofi-drun \| sh`             | `tofi`                                |
+| walker  | `walker`                      | `walker --dmenu` (also `-d`)          |
+| vicinae | `vicinae toggle`              | `vicinae dmenu` (subcommand, no `--`) |
+| anyrun  | `anyrun`                      | `anyrun --plugins libstdin.so`        |
+
+Notes on the less-obvious ones:
+- **walker** needs its service running for the `walker` command to be instant
+  (`walker --gapplication-service` in `companion-daemons`). `--dmenu` / `-d` are first-class
+  flags (verified in walker ≥ 2.3).
+- **vicinae** runs as a persistent daemon (`vicinae server --replace`, typically autostarted).
+  Window control is via the IPC subcommands `vicinae open` / `close` / `toggle`. dmenu mode
+  is invoked as a subcommand (`vicinae dmenu`), not a flag.
+- **anyrun has no dedicated `--dmenu` flag** — its dmenu-style picker is the `libstdin.so`
+  plugin, invoked via `anyrun --plugins libstdin.so` (which then reads stdin).
 
 ## wofi — `~/.config/wofi/`
 
@@ -37,16 +47,21 @@ prompt=Search
 width=600                    ; from layout=centered
 height=400
 location=center              ; layout=compact-top → "top"
-insensitive=true             ; from behavior.fuzzy
+insensitive=true             ; case-insensitive matching (always-on convenience)
 allow_images=true            ; from icons=true
 image_size=24
 hide_scroll=true             ; from behavior.hide-scrollbar
-matching=fuzzy               ; from behavior.fuzzy
+matching=fuzzy               ; from behavior.fuzzy (else "contains" — the default)
 no_actions=true
 gtk_dark=true
 key_expand=Tab
 term=kitty                   ; {{terminal.emulator}} for run-in-terminal entries
+close_on_focus_loss=true     ; from behavior.close-on-focus-loss
 ```
+
+All wofi config keys use **underscores**, never hyphens (e.g. `allow_images`, NOT
+`allow-images`; `close_on_focus_loss`, NOT `close-on-focus-loss`). A hyphenated key is
+silently ignored — wofi just falls back to the default. See `man 5 wofi`.
 
 `style.css` (look; `@import`s the engine-generated colors file):
 
@@ -142,7 +157,7 @@ vertical-pad=12
 inner-pad=8
 layer=overlay                      ; floats above Hyprland layers
 exit-on-keyboard-focus-loss=yes    ; from behavior.close-on-focus-loss
-fuzzy=yes                          ; from behavior.fuzzy
+match-mode=fuzzy                   ; from behavior.fuzzy — valid values: exact|fzf|fuzzy (default fzf)
 
 [colors]
 background={{bg}}f2                ; rendered from fuzzel.tmpl
@@ -189,41 +204,77 @@ selection-color = #{{accent}}
 selection-background = #{{surface}}80
 ```
 
-### walker — `~/.config/walker/config.toml` + `style.css`
+### walker — `~/.config/walker/config.toml` + `themes/<name>/style.css`
 
 Walker runs as a service (`walker --gapplication-service`) for instant startup; `walker`
-launches the picker. Config is TOML; styling is GTK4 CSS. The engine writes a `colors.css`
-the user's `style.css` `@import`s — same shape as wofi.
+launches the picker, and `walker --dmenu` (or `-d`) is the dmenu mode. Config is TOML;
+styling is GTK4 CSS placed in `~/.config/walker/themes/<name>/style.css`. The engine writes a
+sibling `colors.css` the theme's `style.css` `@import`s — same shape as wofi.
+
+The actual top-level sections in upstream `config.toml` (verified against the bundled default
+on `abenz1267/walker`, v2.x) are **`[shell]`, `[columns]`, `[placeholders]`, `[keybinds]`,
+`[providers]`** plus a flat set of top-level keys (`theme`, `close_when_open`,
+`force_keyboard_focus`, `as_window`, `single_click_activation`, …). There is no `[search]`,
+`[ui]`, or `[modules.drun]` section — that is **not** walker's schema.
 
 ```toml
-# config.toml (excerpt)
-[search]
-fuzzy = true
-placeholder = "Search"
+# config.toml (excerpt — real upstream keys)
+theme = "rice"                     # picks ~/.config/walker/themes/rice/style.css
+close_when_open = true             ; from behavior.close-on-focus-loss
+as_window = false                  ; layer-shell vs regular window
+force_keyboard_focus = true
 
-[ui]
-icons = true
-width = 600
-height = 400
-anchor = "center"
-
-[modules.drun]
-show = true
+[providers.default]
+# providers map to the picker's data sources (desktopapplications, calc, websearch, …);
+# their full schema lives in walker's upstream docs.
 ```
 
-### vicinae — `~/.config/vicinae/config.json`
+### vicinae — `~/.config/vicinae/settings.json`
 
-Qt 6 Raycast-for-Linux. Themes follow vicinae's own internal format (not GTK CSS, not rasi);
-the engine writes a minimal `theme.json` mapping `accent`, `bg`, `fg`, `surface` into vicinae's
-schema, and the user picks built-in extensions through vicinae's own UI. **The engine themes
-only what vicinae exposes** — geometry/layout knobs are largely fixed by the app.
+Qt 6 Raycast-for-Linux. Config file is **`settings.json`** (JSONC — JSON with comments
+allowed); the daemon is started via `vicinae server --replace` (typically autostarted), and
+the window is controlled with `vicinae open|close|toggle`. Dmenu mode is the `vicinae dmenu`
+subcommand (not a `--dmenu` flag).
+
+Run `vicinae config default` to dump the fully-annotated default `settings.json` — that's the
+authoritative key reference; the schema evolves between releases. Themes follow vicinae's own
+internal format (not GTK CSS, not rasi); the engine writes a minimal theme block into
+`settings.json` mapping `accent`, `bg`, `fg`, `surface` into vicinae's schema, and the user
+picks built-in extensions through vicinae's own UI. **The engine themes only what vicinae
+exposes** — geometry/layout knobs are largely fixed by the app.
 
 ### anyrun — `~/.config/anyrun/config.ron` + `style.css`
 
-Krunner-style plugin runner. `config.ron` is Rust object notation (`(plugins: [...], width:
-Fraction(0.3), …)`); `style.css` is GTK4 CSS. Engine writes `colors.css` the user `@import`s.
-Plugin selection (`applications`, `shell`, `randr`, `dictionary`, `kidex`, …) is captured by
-`utilities`/`plugins`, not here.
+Krunner-style plugin runner. `config.ron` is Rust Object Notation; `style.css` is GTK4 CSS.
+Engine writes `colors.css` the user `@import`s. Plugin selection (`applications`, `shell`,
+`randr`, `dictionary`, `kidex`, …) is captured by `utilities`/`plugins`, not here.
+
+The actual top-level `Config` struct keys (verified against
+`anyrun-org/anyrun/examples/config.ron`) are **`snake_case`** — `x`, `y`, `width`, `height`
+(all wrapped in `Fraction(_)` or `Absolute(_)`), `hide_icons`, `ignore_exclusive_zones`,
+`layer` (`Background|Bottom|Top|Overlay`), `hide_plugin_info`, `close_on_click`,
+`show_results_immediately`, `max_entries` (Option), `plugins` (list of plugin paths). Example:
+
+```ron
+Config(
+  x: Fraction(0.5),
+  y: Absolute(0),
+  width: Absolute(800),
+  height: Absolute(1),
+  hide_icons: false,
+  ignore_exclusive_zones: false,
+  layer: Overlay,
+  hide_plugin_info: false,
+  close_on_click: false,
+  show_results_immediately: false,
+  max_entries: None,
+  plugins: ["libapplications.so", "libshell.so"],
+)
+```
+
+**Anyrun has no `--dmenu` flag.** The dmenu-style picker is the `libstdin.so` plugin —
+invoke as `anyrun --plugins libstdin.so` (which reads newline-separated entries from stdin
+and prints the selection). That's the right value for `$dmenu` when `launcher.tool=anyrun`.
 
 ## Colors contract
 

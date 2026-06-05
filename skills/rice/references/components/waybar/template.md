@@ -38,7 +38,7 @@ linters (see `gotchas.md`).
   "modules-center": ["mpris", "clock"],
   "modules-right":  ["cpu", "memory", "temperature", "pulseaudio", "network", "bluetooth", "idle_inhibitor", "tray"],
 
-  "hyprland/workspaces": { "on-click": "activate", "format": "{id}", "sort-by-number": true },
+  "hyprland/workspaces": { "format": "{id}", "sort-by": "number" },
   "hyprland/window":     { "max-length": 60, "separate-outputs": true },
 
   "mpris": {

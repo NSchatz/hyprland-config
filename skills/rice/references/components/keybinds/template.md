@@ -83,14 +83,18 @@ bind = $mainMod, D, exec, $menu
 {{/if}}
 
 # ----- Window management -----
+# `exit` dispatcher is still valid; the shipped 0.55 default has switched to
+# `exec, command -v hyprshutdown >/dev/null 2>&1 && hyprshutdown || hyprctl dispatch exit`
+# to give a logout screen when available. We emit bare `exit` because the writer doesn't
+# guarantee hyprshutdown is installed; users can swap the line in post.
 {{#if flavor_official}}
 bind = $mainMod, C, killactive,
 bind = $mainMod, M, exit,
 bind = $mainMod, V, togglefloating,
 bind = $mainMod, F, fullscreen,
-bind = $mainMod, P, pseudo,                          # dwindle
+bind = $mainMod, P, pseudo,                          # dwindle: toggles pseudotile on focused window
 {{#unless vim}}
-bind = $mainMod, J, layoutmsg, togglesplit           # dwindle — bare togglesplit is the legacy form
+bind = $mainMod, J, layoutmsg, togglesplit           # dwindle — needs `dwindle:preserve_split = true` (set by look-feel)
 {{else}}
 bind = $mainMod, T, layoutmsg, togglesplit           # vim mode: J is focus-down, so togglesplit -> T
 {{/unless}}
@@ -123,6 +127,10 @@ bind = $mainMod SHIFT, up,    movewindow, u
 bind = $mainMod SHIFT, down,  movewindow, d
 
 # ----- Workspaces 1-10 (emit all ten explicitly; 0 = workspace 10) -----
+# Workspace arg forms (per wiki): absolute `1` / `~3`; open relative `e+1` `e-10` `e~2`;
+# any (incl. empty) relative `+1` `-1`; per-monitor `m+1` `m~3`; per-monitor incl. empty
+# `r+1` `r~3`; `previous` / `previous_per_monitor`; `empty` (suffix `m` = on monitor, `n` =
+# next free, combinable: `emptynm`); named `name:web`; special `special` / `special:magic`.
 bind = $mainMod, 1, workspace, 1
 bind = $mainMod, 2, workspace, 2
 bind = $mainMod, 3, workspace, 3
@@ -243,6 +251,28 @@ submap = reset
 # the reload. See _shared/dispatchers.md.
 {{#if plugin_hyprexpo}}# bind = $mainMod, Tab, hyprexpo:expo, toggle{{/if}}
 {{#if plugin_hy3}}# bind = $mainMod, G, hy3:makegroup, h{{/if}}
+```
+
+## Scrolling layout — when `look_feel.layout == "scrolling"`
+
+Core layout in 0.53+ (NOT a plugin). When emitted, append these binds at the top of the
+focus/move block. All use `layoutmsg, <message>` so they read identically to dwindle's
+`togglesplit`. Available messages (per wiki): `move`, `colresize`, `fit`, `focus`, `promote`,
+`swapcol`, `inhibit_scroll`, `expel`, `consume`, `consume_or_expel`. No `movewindowto`.
+
+```ini
+# Move the layout one column left/right
+bind = $mainMod, period, layoutmsg, move +col
+bind = $mainMod, comma,  layoutmsg, move -col
+# Cycle column widths from `scrolling:explicit_column_widths`
+bind = $mainMod, bracketright, layoutmsg, colresize +conf
+bind = $mainMod, bracketleft,  layoutmsg, colresize -conf
+# Fit the active column to screen
+bind = $mainMod, F,      layoutmsg, fit active
+# Promote / consume / expel
+bind = $mainMod SHIFT, Return, layoutmsg, promote
+bind = $mainMod SHIFT, period, layoutmsg, expel
+bind = $mainMod SHIFT, comma,  layoutmsg, consume
 ```
 
 ## Branch reference (gate → answers.json source)

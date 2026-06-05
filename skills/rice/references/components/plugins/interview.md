@@ -37,14 +37,14 @@ does, and any conditional gating.
 
 | Plugin | Notes |
 |---|---|
-| **Workspace overview — `hyprexpo`** | Grid exposé, `SUPER+\`` toggle. **Removed from the official `hyprwm/hyprland-plugins` repo** — now the community fork `sandwichfarm/hyprexpo`. Skip if a full widget shell (group 7) already provides an overview. |
-| **i3/sway tree tiling — `hy3`** | Manual split tree with tabbed groups (`outfoxxed/hy3`, still maintained). Sets `general:layout = hy3` and adds `hy3:` dispatchers. Both the layout and the binds are emitted **commented-out** until the user builds + enables the plugin. |
-| **Per-monitor workspaces — `split-monitor-workspaces`** | Each monitor gets its own 1–10. Offer **only when `monitors.list | length > 1`**. Rebinds the workspace keys (`split-workspace, N` / `split-movetoworkspacesilent, N`), again commented-out until loaded. |
+| **Workspace overview — `hyprexpo`** | Grid exposé, `SUPER+\`` toggle. **Removed from the official `hyprwm/hyprland-plugins` repo by PR #663 (2026-05-12)** — now the community fork `sandwichfarm/hyprexpo`. Skip if a full widget shell (group 7) already provides an overview. |
+| **i3/sway tree tiling — `hy3`** | Manual split tree with tabbed groups (`outfoxxed/hy3`, still maintained). Sets `general:layout = hy3` and adds `hy3:` dispatchers (`hy3:makegroup`, `hy3:changegroup`, `hy3:movefocus`, `hy3:movewindow`, `hy3:setephemeral`, etc.). Both the layout and the binds are emitted **commented-out** until the user builds + enables the plugin. |
+| **Per-monitor workspaces — `split-monitor-workspaces`** | Each monitor gets its own 1–10. Offer **only when `monitors.list | length > 1`**. Repo: `zjeffer/split-monitor-workspaces` (the original `Duckonaut/split-monitor-workspaces` repo is now a 301 redirect to this transfer). Rebinds the workspace keys (`split-workspace, N` / `split-movetoworkspacesilent, N`), again commented-out until loaded. |
 | **Window title bars — `hyprbars`** | Per-window CSD-like title bars with min/close buttons. Themable from the palette. (Official `hyprwm/hyprland-plugins`.) |
-| **Dropdown scratchpads — `pyprland`** | Quake terminal + `expose` / `magnify`. **pip / AUR, not hyprpm** — has its own `pyprland.toml` and needs `exec-once = pypr`. Core Hyprland's `special:` workspace already covers a single scratchpad; offer pyprland when the user wants **multiple named** dropdowns. |
-| **Extra border ring — `borders-plus-plus`** | A second / third window border ring. Pure decoration, no binds. |
-| **Motion trails — `hyprtrails`** | Smooth motion trail behind moving windows (eye-candy, GPU cost). **Removed from the official repo**; community forks only — flag as optional / unmaintained-risk. |
-| **App as wallpaper — `hyprwinwrap`** | Run any windowed app *as* the wallpaper (animated wallpapers). (Official `hyprwm/hyprland-plugins`.) |
+| **Dropdown scratchpads — `pyprland`** | Quake terminal + `expose` / `magnify`. **pip / AUR, not hyprpm** — has its own config file and needs `exec-once = pypr`. Repo: `hyprland-community/pyprland` (NOT `hyprwm/pyprland` — that's a 404). Core Hyprland's `special:` workspace already covers a single scratchpad; offer pyprland when the user wants **multiple named** dropdowns. |
+| **Extra border ring — `borders-plus-plus`** | A second / third window border ring. Pure decoration, no binds. (Official `hyprwm/hyprland-plugins`.) |
+| **Motion trails — `hyprtrails`** | Smooth motion trail behind moving windows (eye-candy, GPU cost). **Removed from the official repo by PR #663**; community forks only — flag as optional / unmaintained-risk and do not ship a default URL. |
+| **App as wallpaper — `hyprwinwrap`** | Run any windowed app *as* the wallpaper (animated wallpapers). **Removed from the official repo by PR #663** — use the community fork `gen3vra/hyprwinwrap` (requires Hyprland 0.54+). |
 
 **Do NOT offer `hyprscrolling` / `hyprscroller`.** The scrolling layout is **native core in Hyprland
 0.53+** — it belongs in `../look-feel/` (`general:layout = scrolling` + a `scrolling {}` block), NOT

@@ -19,8 +19,8 @@ Lands at `~/.config/hypr/autostart.conf`, `source =`d from `hyprland.conf`. Ever
 {{#if swww}}exec-once = {{swww_daemon_bin}}{{/if}}
 
 # --- Portal env propagation (always emitted — the "screen-share is black" fix) ---
-exec-once = dbus-update-activation-environment --systemd WAYLAND_DISPLAY XDG_CURRENT_DESKTOP=Hyprland
-exec-once = systemctl --user import-environment WAYLAND_DISPLAY XDG_CURRENT_DESKTOP
+exec-once = systemctl --user import-environment DISPLAY WAYLAND_DISPLAY XDG_CURRENT_DESKTOP
+exec-once = dbus-update-activation-environment --systemd DISPLAY WAYLAND_DISPLAY XDG_CURRENT_DESKTOP
 
 # --- Bar (read from bar.strategy in answers.json — owned by ../waybar/) ---
 {{#if bar_waybar}}exec-once = waybar{{/if}}
@@ -63,6 +63,8 @@ Emit only the chosen branches — drop the template markers and any branch that'
    that might call `pkexec`.
 2. Wallpaper second — first paint before the bar layers on.
 3. Portal env propagation third — must run before any client that opens a Pipewire stream.
+   Emit `systemctl --user import-environment` first, then `dbus-update-activation-environment
+   --systemd` second, so the dbus update observes the already-imported systemd user environment.
 4. Bar / notifications fourth.
 5. Idle / sunset / OSD next.
 6. Trays + clipboard last — they're fast and order-independent.

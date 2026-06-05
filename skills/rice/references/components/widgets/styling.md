@@ -319,22 +319,26 @@ AGS (Aylur's GTK Shell) and **Astal** are how the Hyprland community builds *ful
 
 > **Scope note.** This is the *styling* surface. The widget logic (signals, bindings, GObject services) is a programming topic; here we focus on the CSS/SCSS and the visual archetypes the styling produces.
 
-### What you're styling — AGS v1 vs Astal/v2
+### What you're styling — AGS v1 vs Astal + Gnim (AGS v2 / v3)
 
-The single most important thing to get right: **there are two incompatible generations**, and most old tutorials describe v1.
+The single most important thing to get right: **there are two incompatible generations** (v1
+vs. v2-and-later), and most old tutorials describe v1. The CLI moved to v2 in Nov 2024 and to
+**v3 (Gnim JSX runtime, `Accessor` / `createState` / lifecycle hooks)** in 2025 — v3 keeps the
+v2 entry-point shape (`app.start`) but renames a handful of props (`className` → `class`) and
+replaces `astalify` with Gnim's JSX intrinsics.
 
-| | **AGS v1** (`Aylur/ags`, ≤ v1.x) | **Astal / AGS v2** (current) |
+| | **AGS v1** (`Aylur/ags`, ≤ v1.x) | **Astal + Gnim / AGS v3** (current — v3.1.x as of mid-2026) |
 |---|---|---|
-| What it is | A standalone GJS app: a runtime + builtin Services + a `Widget.*` API | `Aylur/astal` = Vala/C **libraries**; `ags` = a scaffolding/bundler **CLI** |
-| Language | GJS (JavaScript), TypeScript via types | TS/JS (JSX via "Gnim"), **Lua**, **Python** — anything with GObject introspection |
-| Toolkit | **GTK3** only | **GTK3 or GTK4** (you pick the import: `gtk3`/`gtk4`) |
-| Entry | `App.config({ style, windows })` | `app.start({ css, main })` |
+| What it is | A standalone GJS app: a runtime + builtin Services + a `Widget.*` API | `Aylur/astal` = Vala/C **libraries** (consumable via GObject introspection); `Aylur/ags` = a scaffolding/bundler **CLI** that wires Astal + Gnim (JSX-for-GJS) for a TS/JS workflow |
+| Language | GJS (JavaScript), TypeScript via types | **TypeScript / JavaScript** (the AGS CLI's documented surface); the underlying Astal libs are GIR-bindable so Lua / Python / Vala work too, but the `ags` CLI itself only scaffolds TS/JS |
+| Toolkit | **GTK3** only | **GTK3 or GTK4** (you pick the import: `ags/gtk3/app` or `ags/gtk4/app`) |
+| Entry | `App.config({ style, windows })` | `app.start({ css, main })` — `css` is a string (the bundler inlines a `.scss` import as a string) |
 | Services | Builtin (`Battery`, `Mpris`, `Audio`…) | External libs: `import Battery from "gi://AstalBattery"` |
-| Status | **Deprecated.** Rewritten from scratch Nov 2024; "you will have to rewrite your projects from the ground up." | Recommended path. `astal` ~960★, `ags` CLI ~3k★ (June 2026) |
+| Status | **Deprecated.** Rewritten from scratch Nov 2024; "you will have to rewrite your projects from the ground up." | Recommended path. v3.0.0 migrated the JSX runtime to **Gnim** (replacing `astalify`), introduced `Accessor` / lifecycle hooks, `createState` / `createBinding` / `createMemo` / `createEffect`. |
 
 The community migration: through ~2023 everyone used AGS v1 (end-4's illogical-impulse, HyprPanel, kotontrion all started here). In **November 2024** Aylur rewrote the core into Astal (Vala/C libs) and demoted `ags` to a CLI that scaffolds + bundles TS projects. The `astal` namespace was then folded back into `ags`. Two notable post-migration moves: **HyprPanel** ported v1→Astal (its `getting_started/astal.html` guide), and **end-4 left the GTK ecosystem entirely** — illogical-impulse is now **Quickshell** (QML/Qt6), not AGS. The old AGS version survives only on end-4's `ii-ags` branch and is unmaintained.
 
-**The styling itself is GTK CSS either way** — the same subset caveats as Waybar (`../waybar/styling.md`): no flexbox/`gap`/`calc()`, limited `box-shadow`, color helpers `alpha()`/`shade()`/`mix()`/`lighter()`/`darker()`. The win over Waybar is that AGS/Astal **compile SCSS** (nesting, `$variables`, `@mixin`, `@use`, `color.adjust()`), so configs are organized like a real frontend codebase. **GTK4 differs from GTK3**: some node names and properties change (e.g. the CSS class prop is `class`/`className` on GTK3 widgets but **`cssClasses`** on GTK4), and GTK4 drops a few CSS features while adding others — test, don't assume.
+**The styling itself is GTK CSS either way** — the same subset caveats as Waybar (`../waybar/styling.md`): no flexbox/`gap`/`calc()`, limited `box-shadow`, color helpers `alpha()`/`shade()`/`mix()`/`lighter()`/`darker()`. The win over Waybar is that AGS/Astal **compile SCSS** (nesting, `$variables`, `@mixin`, `@use`, `color.adjust()`), so configs are organized like a real frontend codebase. **GTK4 differs from GTK3**: some node names and properties change (the underlying `GtkWidget` GTK3 → GTK4 prop is `style-class`/`class-names` → `css-classes`), and GTK4 drops a few CSS features while adding others — test, don't assume. In **AGS v3's Gnim JSX** the attribute name is just **`class`** for both `gtk3` and `gtk4` imports (the v1 attribute name was `className`; the migration guide is explicit: "className -> class").
 
 ### How it's launched (and how SCSS gets compiled)
 
@@ -354,9 +358,9 @@ Utils.monitorFile(`${App.configDir}/scss`, () => {  // hot reload
 ```
 Runtime CSS knobs: `App.applyCss('/path.css')` or `App.applyCss('window{background:transparent;}')`, `App.resetCss()`, and a per-widget inline `css:` prop (`Widget.Label({ css: 'color: blue; padding: 1em;' })`).
 
-**Astal / AGS v2** — `ags init` scaffolds a TS project (with `app.scss`, `tsconfig`, types); **dart-sass is built in**, so a top-level `app.start({ css: style })` where `style` is a `.scss` path just works. CLI: `ags run`, `ags bundle` (build), and crucially `ags inspect` (the **GTK inspector** — your devtools for finding the CSS node name of any widget). Per-widget styling uses the `class`/`className`/`cssClasses` prop and an inline `css` prop; `App.apply_css(css, true)` re-applies at runtime.
+**Astal + Gnim / AGS v3** — `ags init` scaffolds a TS project (with `style.scss`, `tsconfig`, types); the `css` field of `app.start({ css, main })` is the **string contents** of a stylesheet (the AGS docs are explicit: *"You can import any css or scss file which will be inlined as a string"*). The dart-sass step is the bundler's import-time `.scss`-to-string transform, **not** an on-disk hot-recompile loop. CLI: `ags init`, `ags run`, `ags bundle`, `ags types` — **there is no `ags inspect` subcommand in v3**; open the GTK inspector with `GTK_DEBUG=interactive ags run` (or the GtkInspector keybind). Per-widget styling uses the **`class`** prop (Gnim renamed v1's `className`) and an inline `css` prop; runtime CSS is applied with `app.apply_css(cssString)` / `app.reset_css()` (lowercase methods, not v1's `App.applyCss`).
 
-**Reload loop in practice:** `ags inspect` to find a node's name → edit SCSS → save (hot reload recompiles + `resetCss`/`applyCss`) → repeat. There is no `SIGUSR2`; reload is in-process.
+**Reload loop in practice:** edit SCSS → `ags run` re-bundles + re-applies on every restart. There is no built-in file-watch in v3's app surface — running configs that auto-reload on save wire their own `monitorFile` watcher and call `app.apply_css()` themselves (the v1 `Utils.monitorFile` pattern). There is no `SIGUSR2`; reload is in-process or via `ags request` / `ags quit`.
 
 ### Widget archetypes (what the community actually builds)
 
@@ -387,7 +391,7 @@ Harvested by reading the SCSS/TSX of the canonical repos. Drop them in and swap 
 **Quick-settings toggle buttons.**
 - *Accent-filled toggle* (HyprPanel, matshell `@mixin toggle-switch`, `.system-menu .toggle button`): a round/pill button that is `background: $accent; color: $bg` when **active** and `background: $surface; color: $fg` when **inactive**, with `@include animate` for the transition. The defining control-center gesture. Give the toggle group a `min-width` (matshell uses `20rem`) so the grid doesn't reflow.
 
-**Sliders (volume/brightness).** GTK `scale` widgets expose styleable sub-nodes — names differ by toolkit, find them with `ags inspect`:
+**Sliders (volume/brightness).** GTK `scale` widgets expose styleable sub-nodes — names differ by toolkit, find them with the GTK Inspector (`GTK_DEBUG=interactive ags run`):
 - *GTK4 slider* (matshell `.system-menu .sliders`): style `trough` (the track) and `block`/`filled` (the fill) — `filled { border-radius: 1.5rem; background-color: $fg; }`, `block { min-height: $spacing-sm; }`. Hide/shrink the knob via the `slider`/`highlight` node.
 - *GTK3 slider* (AGS v1 era, same idea as Waybar's `pulseaudio/slider`): node names are `trough`, `highlight` (fill), `slider` (knob) — `trough { min-height: 8px; border-radius: 8px; background: alpha($bg,0.6); }`, `highlight { background: $accent; }`, `slider { background: transparent; box-shadow: none; }`.
 
@@ -405,7 +409,7 @@ Harvested by reading the SCSS/TSX of the canonical repos. Drop them in and swap 
     min-height: 13rem; min-width: 13rem; opacity: 0.9;
 }
 ```
-The TSX uses an `<image cssClasses={["cover"]} contentFit={Gtk.ContentFit.COVER} file={…coverArt…}/>`. Key tactic (matshell, verbatim comment): **force light text on the player** regardless of theme — `label, .title, image { color: $background; }` (in light mode) — "Dark almost never works on top of most cover arts." A CAVA visualizer is layered behind at `opacity: 0.2`.
+The TSX uses an `<image class="cover" contentFit={Gtk.ContentFit.COVER} file={…coverArt…}/>` (AGS v3 Gnim JSX — `class` not `cssClasses`; matshell uses GTK4 underneath but the AGS attribute is `class` for both `gtk3` and `gtk4` imports). Key tactic (matshell, verbatim comment): **force light text on the player** regardless of theme — `label, .title, image { color: $background; }` (in light mode) — "Dark almost never works on top of most cover arts." A CAVA visualizer is layered behind at `opacity: 0.2`.
 
 **Workspaces & per-monitor accent** (matshell `@mixin hypr-workspace-style`): `background: $bg-color; box-shadow: inset -2px -2px 2px <bg darkened 25%>;` with a `:hover` variant — an inset bevel instead of a flat fill. Each monitor gets its own hue mixed from Material You containers (`color.mix($primary_container, $on_primary_container, 70%)`).
 
@@ -433,8 +437,8 @@ For this plugin's rice engine, the natural integration is a matugen (or wallust)
 
 ### Pitfalls (AGS / Astal)
 
-- **Following v1 tutorials on a v2 setup (or vice-versa).** `App.config` vs `app.start`, builtin `Service` vs `gi://Astal*` imports, `Variable` vs `createState`, `className` vs `class`/`cssClasses` — the APIs are mutually incompatible. Check which generation a repo targets *before* copying.
-- **GTK3 vs GTK4 CSS drift.** Slider/scale node names, the class prop name (`cssClasses` on GTK4), and supported properties differ. `transform`/`filter` work in GTK4 but not GTK3. Always confirm a node's name and styleable parts with `ags inspect` rather than guessing from web CSS.
+- **Following v1 tutorials on a v3 setup (or vice-versa).** `App.config` vs `app.start`, builtin `Service` vs `gi://Astal*` imports, `Variable` vs `createState`, **`className` (v1) vs `class` (v3 Gnim JSX)** — the APIs are mutually incompatible. Check which generation a repo targets *before* copying (the migration guide is explicit: "className -> class").
+- **GTK3 vs GTK4 CSS drift.** Slider/scale node names and supported CSS properties differ (the underlying GTK prop went from `style-class` to `css-classes`, but the AGS-JSX attribute is just `class` on both). `transform`/`filter` work in GTK4 but not GTK3. Confirm a node's name with the GTK Inspector (`GTK_DEBUG=interactive ags run` — there is **no** `ags inspect` subcommand in v3) rather than guessing from web CSS.
 - **GJS / GObject quirks (v1).** Memory management leaned on GTK3's cascading-destroy; this changed in GTK4 and was a major reason for the rewrite. Long-lived widgets that aren't cleaned up leak.
 - **Notification daemon conflicts.** AGS/Astal's `Notifd` *is* the notification daemon — running mako/dunst/swaync alongside it means duplicate or swallowed notifications. Disable the others.
 - **Unreadable text over album art.** Cover-art backgrounds vary wildly; don't rely on theme `fg`. Force a fixed light (or dark) text color on the whole player and dim the art (`opacity: 0.8`) — matshell's explicit lesson.
@@ -445,9 +449,10 @@ For this plugin's rice engine, the natural integration is a matugen (or wallust)
 
 - AGS CLI (Astal+Gnim scaffolder): https://github.com/Aylur/ags and docs https://aylur.github.io/ags/
 - Astal libraries (Hyprland, Notifd, Mpris, Battery, WirePlumber, Bluetooth, Network, Tray, Apps, Brightness, PowerProfiles, Cava, Greet, River): https://github.com/Aylur/astal and https://aylur.github.io/astal/
-- AGS v1→v2 migration guide (Service removal, `app.start`, `createState`, `class`): https://aylur.github.io/ags/guide/migration-guide.html
+- AGS v1→v2/v3 migration guide (Service removal, `app.start`, `createState`, **`className → class`**): https://aylur.github.io/ags/guide/migration-guide.html
 - AGS v1 theming API (`App.config({style})`, `App.applyCss`/`resetCss`, inline `css`, `sassc`, `Utils.monitorFile`): https://aylur.github.io/ags-docs/config/theming/
-- AGS v2.0.0 release notes (rewrite, Vala/C core, dart-sass, GTK4): https://github.com/Aylur/ags/releases/tag/v2.0.0
+- AGS v2.0.0 release notes (initial rewrite — Vala/C Astal core, dart-sass, GTK4 import path): https://github.com/Aylur/ags/releases/tag/v2.0.0
+- AGS v3 release notes (Gnim JSX runtime replaces `astalify`; `Accessor`, lifecycle hooks): https://github.com/Aylur/ags/releases (current line v3.1.x, mid-2026)
 - matugen (Material You / base16 color generation, SCSS + `@define-color` templates): https://github.com/InioX/matugen
 - GTK3 CSS overview (the styleable subset): https://docs.gtk.org/gtk3/css-overview.html · GTK4 `Gtk.Overlay` (blurred-art layering): https://docs.gtk.org/gtk4/class.Overlay.html
 
@@ -463,7 +468,7 @@ For this plugin's rice engine, the natural integration is a matugen (or wallust)
 
 **Flagged / unverified.**
 - **Soramane** is associated with **caelestia** (`soramanew/caelestia*`), which is **Quickshell-based, not AGS/Astal** — out of scope for this section; included only to correct the attribution.
-- The GTK4 slider sub-node names (`trough`/`block`/`filled`) are confirmed from matshell's SCSS; GTK3's (`trough`/`highlight`/`slider`) from the Waybar/AGS-v1 era. Confirm the exact node for *your* toolkit version with `ags inspect`.
+- The GTK4 slider sub-node names (`trough`/`block`/`filled`) are confirmed from matshell's SCSS; GTK3's (`trough`/`highlight`/`slider`) from the Waybar/AGS-v1 era. Confirm the exact node for *your* toolkit version with the GTK Inspector (`GTK_DEBUG=interactive ags run`).
 - Blur on the album-art layer: matshell sets the art via `background-image` + low opacity; the actual Gaussian blur is applied in-widget (GTK4 effect / pre-blurred image), not via a plain CSS `filter: blur()` (GTK3 has no `filter`). Verify the mechanism against the toolkit you target.
 
 ---
@@ -591,12 +596,16 @@ Concrete, reusable moves harvested from the canonical configs. Swap literal colo
 
 The palette lives in a **QML singleton**, the direct analog of waybar's `@define-color` block, and the single most important structural choice. Every widget references `Theme.accent` / `Colors.md3.primary` instead of a literal, so a re-theme is one file changing and the bindings repaint live.
 
-A minimal hand-written singleton (`Theme.qml`, registered `singleton Theme` in a `qmldir`, or `pragma Singleton`):
+A minimal hand-written singleton (`Theme.qml`, registered `singleton Theme Theme.qml` in a `qmldir`,
+*and* `pragma Singleton` in the file — Quickshell's QML-overview docs are explicit: *"To make a
+type of a Singleton, put `pragma Singleton` at the top of the file. To ensure it behaves correctly
+with Quickshell, you should also make the [Singleton] the root item of your type."*):
 
 ```qml
 pragma Singleton
 import QtQuick
-QtObject {
+import Quickshell
+Singleton {
     readonly property color bg:      "#1e1e2e"
     readonly property color fg:      "#cdd6f4"
     readonly property color surface: "#313244"

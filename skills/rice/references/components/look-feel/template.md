@@ -6,14 +6,21 @@ scope. Per-app rules collected in 11i are emitted by `window-rules`, not here.
 
 Version branches (cite [`_shared/version-matrix.md`](../../_shared/version-matrix.md)):
 
-- `rounding_power` — **0.5x+**; emit unconditionally on `HYPR_VERSION ≥ 0.53`.
+- `rounding_power` — **0.47+** in upstream source; the rice version matrix gates it at `HYPR_VERSION ≥ 0.53`,
+  which is safe (rounding_power has been present continuously since 0.47). Verified against
+  `src/config/ConfigManager.cpp` at tags v0.47.0 (added), v0.54.3, v0.55.2.
 - `dwindle { pseudotile = true }` — **omit on 0.55+** (the key was removed; the `pseudo`
-  dispatcher still works).
+  dispatcher and `windowrule = pseudo` still work). Verified: present at v0.54.3, gone at v0.55.0.
 - `decoration:shadow:ignore_window` — **never emit on 0.55+** (removed; behaviour is always on).
+  Verified: present at v0.54.3 (default 1), gone at v0.55.0.
 - `misc:vfr` → `debug:vfr` — **on 0.55+ move `vfr = true` into a top-level `debug {}` block**.
-- `scrolling { … }` and `general:layout = scrolling` — **core in 0.53+**, safe uncommented.
-- `cursor { no_hardware_cursors = true }` — emit when `CURSOR_NO_HARDWARE_RECOMMENDED=1` (see
-  `gotchas.md`).
+  Verified: `misc:vfr` registered at v0.54.3, `debug:vfr` registered at v0.55.2 (default `true`).
+- `scrolling { … }` and `general:layout = scrolling` — **core in 0.54+** (NOT 0.53 — the
+  `scrolling:*` config keys do not exist at v0.53.0 source). The rice version matrix says 0.53+;
+  see the cross-component flag in the changes report. Safe to emit uncommented on any target ≥ 0.54.
+- `cursor { no_hardware_cursors = 1 }` — emit when `CURSOR_NO_HARDWARE_RECOMMENDED=1` (see
+  `gotchas.md`). Note `no_hardware_cursors` is an **int** in source (0 disable / 1 enable / 2 auto),
+  not a bool; the hyprlang parser also accepts `true`/`false` but the canonical form is the int.
 
 ## Preset substitution table
 
@@ -72,7 +79,8 @@ general {
 decoration {
     rounding = {{rounding}}
     {{#if hypr_ge_0_53}}
-    rounding_power = 2          # 0.5x+ — corner curve exponent; 2.3–4 for a softer "squircle"
+    rounding_power = 2          # 0.47+ in source — corner curve exponent; default 2.0 (range [2, 10]);
+                                # bump to 2.3–4 for a softer "squircle" / iOS-style corner
     {{/if}}
 
     active_opacity   = {{opacity.active}}
@@ -80,17 +88,21 @@ decoration {
 
     blur {
         enabled = {{blur_enabled}}
-        size    = {{blur_size}}     # frosted preset: 6
-        passes  = {{blur_passes}}   # frosted preset: 2
-        vibrancy = 0.1696
+        size    = {{blur_size}}     # default 8; light preset: 3; frosted preset: 6
+        passes  = {{blur_passes}}   # default 1; frosted preset: 2
+        vibrancy = 0.1696           # default 0.1696
+        # other knobs (omitted, see styling.md): vibrancy_darkness=0.0, noise=0.0117,
+        # contrast=0.8916, brightness=1.0, new_optimizations=true, xray=false,
+        # popups=false, special=false, ignore_opacity=true, popups_ignorealpha=0.2
     }
 
     shadow {
         enabled       = {{shadow_enabled}}
-        range         = 4
-        render_power  = 3
-        color         = rgba(1a1a1aee)
+        range         = 4               # default 4
+        render_power  = 3               # default 3
+        color         = rgba(1a1a1aee)  # default rgba(1a1a1aee) == 0xee1a1a1a
         # NOTE: decoration:shadow:ignore_window REMOVED in 0.55+ — do not emit on those targets.
+        # Pre-0.55 default was 1 (skip the window's own area); 0.55+ this behaviour is always on.
     }
 }
 
@@ -126,8 +138,10 @@ animations { enabled = false }
 {{#if cursor_no_hardware}}
 # Software-cursors workaround — emitted only when detect-version reports
 # CURSOR_NO_HARDWARE_RECOMMENDED=1 (GPU_DRIVER nouveau or nvidia). See gotchas.md.
+# Note: no_hardware_cursors is an int (0/1/2 = disable/enable/auto) in 0.54+; the parser
+# also accepts true/false, but the int form is what the source registers (default = 2).
 cursor {
-    no_hardware_cursors = true
+    no_hardware_cursors = 1
     inactive_timeout    = 0
 }
 {{/if}}
@@ -153,17 +167,21 @@ misc {
 
 {{#if groups}}
 # Window groups / tabs — opted in via 11h. Themed from the palette like waybar.
+# All keys verified against src/config/values/ConfigValues.cpp at v0.55.2 (lines 384–436).
 group {
-    col.border_active   = $accent
-    col.border_inactive = $muted
+    col.border_active   = $accent       # default 0x66ffff00 (gradient field)
+    col.border_inactive = $muted        # default 0x66777700
     groupbar {
-        enabled    = true
-        font_size  = 11
-        height     = 18
-        gradients  = true
-        text_color = $fg
-        col.active   = $accent
-        col.inactive = $surface
+        enabled    = true               # default true
+        font_size  = 11                 # default 8 — bumped for legibility
+        height     = 18                 # default 14 — bumped for legibility
+        gradients  = true               # default false
+        text_color = $fg                # default 0xffffffff
+        col.active   = $accent          # default 0x66ffff00 (gradient field)
+        col.inactive = $surface         # default 0x66777700
+        {{#if hypr_ge_0_55}}
+        middle_click_close = true       # 0.55+; default true upstream — set explicitly for clarity
+        {{/if}}
     }
 }
 # Binds emitted by `keybinds`: SUPER+G togglegroup; SUPER+TAB changegroupactive.
@@ -187,32 +205,47 @@ dwindle {
 
 ```ini
 master {
-    new_status  = master
-    mfact       = 0.55
-    orientation = {{master_orientation}}    # left | right | top | bottom | center
+    new_status  = master            # replaced bool master:new_is_master in 0.42.0 (verified v0.41 vs v0.42 source);
+                                    # accepted values: "master" / "slave" / "inherit"; default "slave"
+    mfact       = 0.55              # 0.0–1.0; default 0.55
+    orientation = {{master_orientation}}    # left | right | top | bottom | center; default "left"
+    {{#if master_orientation_center}}
+    slave_count_for_center_master = 2       # center mode falls back to center_master_fallback (default "left")
+                                            # until this many slaves are open; verified default 2
+    {{/if}}
 }
 ```
 
-### scrolling — CORE in 0.53+ (not a plugin)
+### scrolling — CORE in 0.54+ (not a plugin)
 
-`scrolling` was merged into Hyprland core in 0.53. The old `hyprscrolling` / `hyprscroller`
-plugins are deprecated/superseded — see [`_shared/version-matrix.md`](../../_shared/version-matrix.md).
-**Safe to emit uncommented** on any target ≥ 0.53. Only plugin layouts (`hy3`) need to be
+`scrolling` was merged into Hyprland core in **0.54** — verified: the `scrolling:*` config keys
+are absent from `src/config/ConfigManager.cpp` at v0.53.0 and present at v0.54.0 (added at
+lines 651–657 there). The old `hyprscrolling` / `hyprscroller` plugins are deprecated/superseded.
+**Safe to emit uncommented** on any target ≥ 0.54. Only plugin layouts (`hy3`) need to be
 commented out until the plugin is loaded — see [`../plugins/`](../plugins/).
+
+> Cross-component flag: `_shared/version-matrix.md` currently says 0.53+; the correct cliff is
+> 0.54+. Tracked in the changes report.
 
 ```ini
 scrolling {
-    column_width             = 0.5      # default column = fraction of monitor width
-    fullscreen_on_one_column = true     # a lone column fills the screen
-    focus_fit_method         = 1        # 0 center / 1 fit the focused column into view
-    follow_focus             = true
-    explicit_column_widths   = 0.333, 0.5, 0.667, 1.0   # cycled by colresize +conf / -conf
+    column_width             = 0.5      # 0.1–1.0; default 0.5
+    fullscreen_on_one_column = true     # a lone column fills the screen; default true
+    focus_fit_method         = 1        # 0 center / 1 fit; default 1
+    follow_focus             = true     # default true
+    explicit_column_widths   = 0.333, 0.5, 0.667, 1.0   # string default "0.333, 0.5, 0.667, 1.0"
+                                                         # cycled by colresize +conf / -conf
 }
 ```
 
+Defaults verified against `src/config/values/ConfigValues.cpp` at v0.55.2 (lines 661–672) and
+`src/config/ConfigManager.cpp` at v0.54.3 (lines 651–657).
+
 Scrolling binds use `layoutmsg` (`move +col`, `move -col`, `colresize +conf`, `colresize -conf`,
-`fit active`, `movewindowto <dir>`); they're core dispatchers in 0.53+ and the validator allows
-them uncommented. See [`_shared/dispatchers.md`](../../_shared/dispatchers.md).
+`fit active`, `movewindowto <dir>`); they're core dispatchers in 0.54+ and the validator allows
+them uncommented. See [`_shared/dispatchers.md`](../../_shared/dispatchers.md). 0.55+ adds
+`expel`, `consume`, `consume_or_expel`, `promote`, `swapcol l/r`, and `inhibit_scroll` — see the
+[Scrolling-Layout wiki](https://wiki.hypr.land/Configuring/Layouts/Scrolling-Layout/).
 
 ## Speed multiplier (animations = `snappy`)
 

@@ -32,10 +32,13 @@ old `.so` is loaded, Hyprland is new, the next `hyprctl reload` rolls back. Only
 ## Claude never runs `hyprpm` — it needs TTY sudo
 
 This is **non-negotiable**. `hyprpm` writes built artifacts to root-owned
-`/var/cache/hyprpm/<username>/` and internally shells out to `sudo` / `doas` / `run0` for the writes.
-That internal sudo prompts for the user's password on a **TTY** — Claude doesn't have one. Trying
-to run `hyprpm` from an agent leaves the process hanging on a password prompt that never gets
-typed; eventually it times out and nothing is built.
+`/var/cache/hyprpm/<username>/` (verified in `hyprwm/Hyprland:hyprpm/src/core/DataState.cpp` →
+`getDataStatePath()` returns `/var/cache/hyprpm/ + m_szUsername`) and internally shells out to
+`sudo` for the writes (verified in `hyprwm/Hyprland:hyprpm/src/core/PluginManager.cpp` —
+`progress.printMessageAbove(verboseString("install will run as sudo: {}", cmd))`). That internal
+sudo prompts for the user's password on a **TTY** — Claude doesn't have one. Trying to run
+`hyprpm` from an agent leaves the process hanging on a password prompt that never gets typed;
+eventually it times out and nothing is built.
 
 The rice skill therefore **prints** the `hyprpm` command block (see `template.md` → "The user-run
 `hyprpm` print-out") and asks the user to run it in their own terminal. Do **not** wrap it in `bash
@@ -44,12 +47,18 @@ write to `/var/cache/hyprpm` directly" — the directory is root-owned for a rea
 
 ### No-root alternative — `hyprctl plugin load`
 
-Once a plugin is built (by the user running `hyprpm`), its `.so` lives at
-`/var/cache/hyprpm/<user>/<repo>/<plugin>.so` and is **world-readable**. The running compositor can
-be told to load it over its IPC socket — **no root needed**:
+Once a plugin is built (by the user running `hyprpm`), its `.so` lives under
+`/var/cache/hyprpm/<user>/…` and is world-readable. The running compositor can be told to load it
+over its IPC socket — no root needed. Verified in the official `Using-Plugins` wiki:
+
+> To load plugins manually, use `hyprctl plugin load path`.
+> You can unload plugins with `hyprctl plugin unload path`.
+> Path has to be absolute!
 
 ```bash
 hyprctl plugin load /var/cache/hyprpm/$USER/hyprland-plugins/hyprbars.so
+hyprctl plugin unload /var/cache/hyprpm/$USER/hyprland-plugins/hyprbars.so
+hyprctl plugin list
 ```
 
 This is **non-persistent** (gone on logout) but useful for testing / demoing without re-prompting
@@ -72,27 +81,38 @@ This component's catalog (`interview.md` 23b) **must not** list it. The validato
 `plugins.selected` containing `scrolling` / `hyprscrolling` / `hyprscroller`. See
 `../../_shared/version-matrix.md` → 0.53+ cliff.
 
-## `hyprexpo` / `hyprtrails` / `hyprscrolling` were removed from the official repo
+## `hyprexpo` / `hyprtrails` / `hyprscrolling` / `hyprwinwrap` were removed from the official repo
 
-The official `hyprwm/hyprland-plugins` repo now ships **only** four plugins:
+PR #663 ("all: drop unmaintained plugins", merged 2026-05-12,
+`https://github.com/hyprwm/hyprland-plugins/pull/663`) dropped five subdirs at once: `hyprexpo`,
+`hyprscrolling`, `hyprtrails`, `hyprwinwrap`, and `xtra-dispatchers`. The official
+`hyprwm/hyprland-plugins` repo now ships **only four** plugins (verified via
+`gh api repos/hyprwm/hyprland-plugins/contents/`):
 
 - `borders-plus-plus`
 - `csgo-vulkan-fix`
 - `hyprbars`
 - `hyprfocus`
 
-`hyprexpo`, `hyprtrails`, and `hyprscrolling` were **removed**. The community pickup:
+(`hyprfocus` is the flashfocus replacement that landed *with* the drop; previously the repo had
+~9 plugins.) Community pickup:
 
-- **`hyprexpo`** → use the maintained community fork `https://github.com/sandwichfarm/hyprexpo`
-  (alternate: `colonelpanic8/hyprexpo`). Config and dispatcher names are unchanged from the
-  upstream version, only the `hyprpm add` URL changes.
-- **`hyprtrails`** → community forks only. Treat as optional / unmaintained-risk; flag it for the
-  user in the print-out.
+- **`hyprexpo`** → the maintained community fork
+  `https://github.com/sandwichfarm/hyprexpo` (the README literally says "After [the upstream
+  plugin was retired] from official plugins, this fork signaled continuation"). Confirmed
+  active — pushed 2026-05-30. The repo name in `hyprpm.toml` is `hyprexpo`, so
+  `hyprpm enable hyprexpo` still works. Alternate fork: `colonelpanic8/hyprexpo`.
+- **`hyprtrails`** → community forks only (no widely-blessed maintained one as of June 2026).
+  Treat as optional / unmaintained-risk; flag it for the user in the print-out, do **not** ship
+  a default URL.
+- **`hyprwinwrap`** → maintained community fork `https://github.com/gen3vra/hyprwinwrap`
+  (pushed 2026-05-29, requires Hyprland 0.54+; its README adds `pos_x`/`pos_y`/`size_x`/`size_y`
+  percentage args and a `hyprwinwrap_interactivity` dispatcher beyond the original `class`).
 - **`hyprscrolling`** → **don't** — use the core layout (see the previous gotcha).
 
-Don't blindly emit `hyprpm add https://github.com/hyprwm/hyprland-plugins` for hyprexpo — that
-repo no longer has it, and `hyprpm enable hyprexpo` will fail with "plugin not found in any
-enabled repo".
+Don't blindly emit `hyprpm add https://github.com/hyprwm/hyprland-plugins` for hyprexpo or
+hyprwinwrap — that repo no longer has them, and `hyprpm enable hyprexpo` will fail with
+"plugin not found in any enabled repo".
 
 ## Plugin dispatchers HARD-ERROR the reload — emit binds COMMENTED-OUT
 
@@ -171,17 +191,20 @@ So `pyprland` in `plugins.selected` triggers a *different* code path from every 
 - `autostart` adds `exec-once = pypr`.
 - The user-run print-out has a separate `pyprland` section.
 
-## `~/.local/share/hyprpm` must exist — don't chain enables
+## Don't chain `hyprpm enable` calls — and don't pre-mkdir the cache
 
-Two operational footguns the user *will* hit unless the print-out warns them:
+Two operational footguns:
 
-1. **The data dir must exist before the first `hyprpm update`.** `hyprpm update` errors with
-   `✖ Failed to write plugin state` if `~/.local/share/hyprpm/` doesn't exist. The print-out's
-   **first line** is always:
+1. **Do NOT pre-`mkdir ~/.local/share/hyprpm`.** That path is **not** a hyprpm directory. Verified
+   in `hyprwm/Hyprland:hyprpm/src/core/DataState.cpp`: hyprpm's actual data root is
+   `/var/cache/hyprpm/<username>/` (root-owned, created via `NSys::root::createDirectory` on first
+   run — hyprpm runs `sudo` and makes it itself) and its temp state lives in
+   `$XDG_RUNTIME_DIR/hyprpm/` (user-owned, created with plain `mkdir` by hyprpm itself). The user
+   should not pre-create either; hyprpm handles it.
 
-   ```bash
-   mkdir -p ~/.local/share/hyprpm
-   ```
+   The legacy print-out that emitted `mkdir -p ~/.local/share/hyprpm` was wrong: the resulting
+   empty `~/.local/share/hyprpm/` is **unused** by hyprpm and the user still hits the same first-run
+   sudo prompt for `/var/cache/hyprpm`. Drop the `mkdir` line entirely.
 
 2. **Never chain `hyprpm enable` calls with `&&`.** If `hyprpm enable A` fails (a plugin that didn't
    build, a typo'd name), `&&` aborts the rest:
@@ -204,16 +227,19 @@ Two operational footguns the user *will* hit unless the print-out warns them:
 
 ## `ecosystem:enforce_permissions` may gate hyprpm
 
-On Hyprland 0.45+ with `ecosystem:enforce_permissions = true`, plugin loading is permission-gated.
-If the user has turned this on (or a future default flips it), `hyprpm reload` may be silently
-refused. The user needs a permission line in `hyprland.conf`:
+`ecosystem:enforce_permissions` is **default `false`** (verified in
+`hyprwm/Hyprland:src/config/values/ConfigValues.cpp` — `MS<Bool>("ecosystem:enforce_permissions",
+…, false)`). If the user has turned it on, the official `Using-Plugins` wiki advises:
 
-```ini
-permission = /usr/(bin|local/bin)/hyprpm, plugin, allow
-```
+> If you are using permission management, you should allow hyprpm to load plugins by adding this
+> to your config:
+> ```ini
+> permission = /usr/(bin|local/bin)/hyprpm, plugin, allow
+> ```
+> otherwise you'll get a popup asking for permission every time hyprpm tries to load a plugin.
 
-The rice skill doesn't enable `enforce_permissions` by default, so this rarely fires — but if the
-user reports "I ran `hyprpm enable` but the plugin isn't loading", check this setting.
+The rice skill doesn't set `enforce_permissions = true` by default, so this rarely fires — but if
+the user reports "I ran `hyprpm enable` but the plugin isn't loading", check this setting.
 
 ## Cross-references
 

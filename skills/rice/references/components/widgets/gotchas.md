@@ -106,14 +106,16 @@ See `styling.md` → `## eww` → "Pitfalls" for the full list.
 ## AGS / Astal — v1 vs v2 incompatibility
 
 `App.config` vs `app.start`, builtin `Service` vs `gi://Astal*` imports, `Variable` vs
-`createState`, `className` vs `class` / `cssClasses`, `sassc` vs dart-sass — the two generations
-are **mutually incompatible**. Most existing tutorials and the older famous configs (end-4's
-`ii-ags` branch, kotontrion's main config, the v1-era HyprPanel docs) describe **v1**, which is
-deprecated. The plugin's `packages.md` installs **AGS v2 (Astal)** via `aylurs-gtk-shell` — copy
-v2-shape code, not v1.
+`createState`, `className` (v1) vs `class` (v3 Gnim JSX), `sassc` vs dart-sass — the two
+generations are **mutually incompatible**. Most existing tutorials and the older famous configs
+(end-4's `ii-ags` branch, kotontrion's main config, the v1-era HyprPanel docs) describe **v1**,
+which is deprecated. The plugin's `packages.md` installs **AGS v3 (Astal + Gnim)** via
+`aylurs-gtk-shell` — copy v3-shape code, not v1.
 
-Check which generation a repo targets *before* copying SCSS or TS snippets. v2's CLI (`ags inspect`
-for the GTK inspector, `ags run`, `ags bundle`) is the reload loop now.
+Check which generation a repo targets *before* copying SCSS or TS snippets. v3's CLI is
+`ags init`, `ags run`, `ags bundle`, `ags types` (no `ags inspect` subcommand — open the GTK
+Inspector with the `GTK_DEBUG=interactive` env var or via GtkInspector keybind). See Aylur/ags
+migration guide for the full delta.
 
 ## Quickshell — heavy build, transparent-window gotchas
 

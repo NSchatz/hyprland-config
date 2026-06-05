@@ -6,8 +6,10 @@ yes. The gate itself is **always asked** (per the strict-no-defaulting rule in
 "doesn't sound like a gamer".
 
 Detection is informational only: nothing here is reordered or hidden by `GPU_DRIVER`,
-`HAS_GAMEPAD`, or anything else. `KERNEL_VERSION` from `detect-version.sh` only affects whether
-the `WLR_DRM_NO_ATOMIC` env line gets emitted later — it does not change the questions.
+`HAS_GAMEPAD`, or anything else. `KERNEL_VERSION` is **not** read by this component — older
+revisions of this file used it to gate a `WLR_DRM_NO_ATOMIC` env emission, but that variable
+is wlroots-only and Hyprland's aquamarine backend (since 0.42) ignores it. See
+[`gotchas.md`](gotchas.md) and [`../env/gotchas.md`](../env/gotchas.md).
 
 ## Sub-questions
 
@@ -35,9 +37,11 @@ this; VRR capability isn't reliably queryable from Hyprland).
 - Fullscreen only (`2`)
 - Content-aware (`3`, smartest — avoids desktop/browser flicker)
 
-**20d. Strip effects on fullscreen + inhibit idle?** — emits the four `no_blur` / `no_border` /
-`no_anim` / `idle_inhibit` fullscreen rules in `windowrules.conf`. Broadly desirable; safe even
-for non-gamers who turned this group on for VRR alone.
+**20d. Strip effects on fullscreen + inhibit idle?** — emits six `match:fullscreen = true`
+window rules in `windowrules.conf`: `no_blur`, `border_size = 0`, `rounding = 0`, `no_anim`,
+`no_shadow`, `idle_inhibit = fullscreen`. (`no_border` is **not** a valid windowrule field —
+the border is stripped via `border_size = 0`; see `template.md` §4 and `gotchas.md`.) Broadly
+desirable; safe even for non-gamers who turned this group on for VRR alone.
 - Yes **(default)**
 - No
 
@@ -100,7 +104,8 @@ bash "$CLAUDE_PLUGIN_ROOT/scripts/record-answer.sh" "$staging/answers.json" gami
 
 - Schema → [`schema.md`](schema.md)
 - Where each answer lands (file by file) → [`template.md`](template.md)
-- Kernel gate on `WLR_DRM_NO_ATOMIC`, VRR-per-monitor caveats, `misc:vfr` non-gate →
-  [`gotchas.md`](gotchas.md)
+- Why no env line is emitted (aquamarine since 0.42, `AQ_NO_ATOMIC` "not recommended"
+  upstream), VRR-per-monitor caveats, `misc:vfr` non-gate, and the `no_border`-isn't-a-field
+  trap → [`gotchas.md`](gotchas.md)
 - Packages (none, possibly `gamemoded`) → [`packages.md`](packages.md)
 - Strict-no-defaulting rule → [`../../_interview-protocol.md`](../../_interview-protocol.md)

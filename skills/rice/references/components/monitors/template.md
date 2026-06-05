@@ -45,14 +45,18 @@ pick fractional values on its own when sensible).
 
 ## Per-monitor extra fields (1c)
 
-Appended **after** the scale, comma-separated. Multiple extras chain on the same line.
+Appended **after** the scale, comma-separated. Multiple extras chain on the same line. Form is
+`KEY, VALUE` pairs (no `=`); see the wiki "Extra args" section.
 
 ```ini
-monitor = DP-1, 2560x1440@165, 0x0, 1, vrr, 2          # adaptive sync (0 off,1 on,2 fullscreen,3 content)
-monitor = DP-2, 1920x1080@60, auto, 1, transform, 1    # rotate 90° (1=90,2=180,3=270; 4-7 flipped)
+monitor = DP-1, 2560x1440@165, 0x0, 1, vrr, 2          # adaptive sync (0 off, 1 on, 2 fullscreen-only, 3 fullscreen with video/game content)
+monitor = DP-2, 1920x1080@60, auto, 1, transform, 1    # rotate (0 none, 1=90°, 2=180°, 3=270°; 4-7 flipped variants)
 monitor = HDMI-A-1, preferred, auto, 1, mirror, DP-1   # mirror another output
-monitor = DP-1, 3840x2160@120, 0x0, 1, bitdepth, 10    # 10-bit color
+monitor = DP-1, 3840x2160@120, 0x0, 1, bitdepth, 10    # 10-bit color (only 8 or 10)
+monitor = DP-1, 3840x2160@120, 0x0, 1, icc, /absolute/path/to/profile.icm   # per-output ICC profile (absolute path)
 ```
+
+Disable a monitor with `monitor = NAME, disable` (no other fields).
 
 ## Dock/undock (1d)
 
@@ -95,19 +99,48 @@ workspace = special:magic, on-created-empty:$terminal
 {{#if smart_gaps}}
 # Smart gaps — no gaps/border when a workspace holds a single tiled window
 workspace = w[tv1], gapsout:0, gapsin:0
-windowrule { name = smartgaps-noborder; match:onworkspace = w[tv1]; match:float = false; border_size = 0 }
-windowrule { name = smartgaps-norounding; match:onworkspace = w[tv1]; match:float = false; rounding = 0 }
+workspace = f[1], gapsout:0, gapsin:0
+windowrule {
+  name = smartgaps-noborder
+  match:float = 0
+  match:workspace = w[tv1]
+  border_size = 0
+}
+windowrule {
+  name = smartgaps-norounding
+  match:float = 0
+  match:workspace = w[tv1]
+  rounding = 0
+}
 {{/if}}
 ```
 
-The `windowrule { … }` block form is the **0.53+ shipped default**. On older targets fall back to
-the line form (`windowrule = bordersize 0, onworkspace:w[tv1]`); see `../../_shared/version-matrix.md`
-for the cliff.
+The `windowrule { … }` block form is the **0.53+ shipped default** (newline-separated fields, not
+`;`). On older targets fall back to the anonymous line form:
+
+```ini
+windowrule = border_size 0, match:float 0, match:workspace w[tv1]
+windowrule = rounding 0,    match:float 0, match:workspace w[tv1]
+```
+
+Note `match:workspace` (not `match:onworkspace`) — the property name is `workspace`, taking a
+workspace selector like `w[tv1]` as the value. See `../../_shared/version-matrix.md` for the
+version cliff and the canonical [smart-gaps recipe in the wiki][wiki-smart-gaps].
+
+[wiki-smart-gaps]: https://wiki.hypr.land/0.54.0/Configuring/Workspace-Rules/#smart-gaps
 
 ## What does NOT belong here
 
-- `windowrule = workspace 1 silent, class:^(firefox)$` (the pin-apps emissions from 1f). Lives in
-  `../window-rules/template.md`; collected here, rendered there.
+- `windowrule = workspace 1 silent, match:class ^(firefox)$` (the pin-apps emissions from 1f).
+  Lives in `../window-rules/template.md`; collected here, rendered there. The 0.53+ named-block
+  equivalent uses one field per line:
+  ```ini
+  windowrule {
+    name = pin-firefox
+    match:class = ^(firefox)$
+    workspace = 1 silent
+  }
+  ```
 - `env = GDK_SCALE,N` and `xwayland { force_zero_scaling = true }`. Live in `../env/template.md`
   and the Hyprland top-level template respectively.
 - The kanshi/shikane daemon config. See `gotchas.md`.

@@ -37,18 +37,22 @@ fuzzel theme, remember to append the two-digit alpha.
 The other launchers wrap differently — `_shared/colors-contract.md` lists the per-tool wrap
 rules in one place.
 
-## rofi-wayland (AUR) for native Wayland; the repo `rofi` is X-only
+## Use repo `rofi` (≥ 2.0) — the `rofi-wayland` AUR fork is now obsolete
 
-The package `rofi` in the Arch repos is the classic X11 build — on Hyprland it runs through
-XWayland, so it gets no layer-shell, no `layerrule` blur, and no native Wayland anchoring.
-For native Wayland use **`rofi-wayland`** (lbonn's fork, AUR), or upstream rofi ≥ 2.0 once a
-new repo build lands.
+Historically `rofi` in the Arch repos was X-only and the AUR `rofi-wayland` (lbonn's fork)
+was required for native layer-shell on Hyprland. **That changed with rofi 2.0.0 (released
+2025-09-01)**: the lbonn Wayland port was merged into mainline, and the Arch `extra/rofi`
+package now `Provides: rofi-wayland` and `Replaces: rofi-wayland`. Install **`rofi`** from
+the official repo — it auto-selects xcb or wayland backend at runtime.
 
-Symptoms of the wrong build: the rofi window doesn't blur even with a correct `layerrule`
-block; positioning is slightly off on multi-monitor; some monitor-selection flags fail.
+`packages.md` now points the `rofi` answer at the repo `rofi` package. If you still have
+`rofi-wayland` from AUR installed, the repo rofi will pull it out via the `Replaces:`
+metadata on next upgrade.
 
-The `packages.md` map points the `rofi` answer at `rofi-wayland` (AUR), and the installer agent
-routes accordingly. Don't install both — they conflict on `/usr/bin/rofi`.
+Symptoms of the *old* X-only rofi (pre-2.0, no longer applicable on a current Arch system):
+no blur even with a correct `layerrule` block, off positioning on multi-monitor, some
+monitor flags failing. If you see these on Hyprland today, you're probably on a stale
+rofi — `pacman -Syu rofi` to get ≥ 2.0.
 
 ## Other tool quirks
 
@@ -67,9 +71,23 @@ routes accordingly. Don't install both — they conflict on `/usr/bin/rofi`.
 - **walker as a service.** Walker is fastest when its background service is autostarted —
   `companion-daemons` should include `walker --gapplication-service` when the launcher pick is
   walker. The picker bind then opens instantly.
-- **vicinae themes only what it exposes.** The engine writes a small `theme.json` for vicinae's
-  internal colors; geometry/extension layout is largely fixed by the app. Don't promise full
-  palette coherence on every surface.
+- **vicinae themes only what it exposes.** The engine writes a small theme block inside
+  `~/.config/vicinae/settings.json` (JSONC — JSON with comments) for vicinae's internal
+  colors; geometry/extension layout is largely fixed by the app. Don't promise full palette
+  coherence on every surface. The daemon is `vicinae server --replace`; window control is
+  `vicinae open|close|toggle`; dmenu mode is the `vicinae dmenu` subcommand, not a `--dmenu`
+  flag.
 - **anyrun plugins live in `~/.config/anyrun/`.** Selecting plugins is a separate step
   (`utilities`/`plugins` components); the launcher template just installs anyrun and writes the
-  base `config.ron`.
+  base `config.ron`. Anyrun has **no `--dmenu` flag** — the dmenu picker is the `libstdin.so`
+  plugin (`anyrun --plugins libstdin.so`). All anyrun config keys are `snake_case`
+  (`hide_icons`, `close_on_click`, `show_results_immediately`, …).
+- **wofi config keys are underscore-only.** `allow_images`, `close_on_focus_loss`,
+  `image_size`, `hide_scroll`, `gtk_dark`, `key_expand`. A hyphenated key (`allow-images`,
+  `close-on-focus-loss`) is silently ignored and the option falls back to the default —
+  every released wofi-styling guide that hyphenates is wrong, see `man 5 wofi`.
+- **walker config has its own schema.** Top-level sections are `[shell]`, `[columns]`,
+  `[placeholders]`, `[keybinds]`, `[providers]` plus flat keys (`theme`, `close_when_open`,
+  `as_window`, `force_keyboard_focus`, …). It does **not** use `[search]`/`[ui]`/`[modules.*]`
+  — anything written under those names is silently ignored. The picker dmenu flag is
+  `walker --dmenu` (also `-d`).

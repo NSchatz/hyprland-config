@@ -28,8 +28,11 @@ theming concern.
 
 The chassis detector's result reorders the option list — it does **not** answer the gate:
 
-- If `IS_LAPTOP=1` (detected from `/sys/class/dmi/id/chassis_type ∈ {8,9,10,14}` or
-  `/proc/acpi/button/lid/*` present) → list **Yes** first.
+- If `IS_LAPTOP=1` (detected from `/sys/class/dmi/id/chassis_type ∈ {8,9,10,14,31,32}` —
+  Portable / Laptop / Notebook / Sub Notebook / Convertible / Detachable per the SMBIOS
+  System Enclosure / Chassis enumeration — or `/sys/class/power_supply/BAT*` present as
+  fallback when DMI is missing / unreliable, matching `scripts/detect-version.sh`) → list
+  **Yes** first.
 - If `IS_LAPTOP=0` (detected as desktop / not laptop / unknown) → list **No** first.
 
 Options:
@@ -48,7 +51,7 @@ Single-select. Each option lands as a `bindl = , switch:on:Lid Switch, …` line
 | Option | Default | What the bind does |
 |---|---|---|
 | **Suspend** | yes | `bindl = , switch:on:Lid Switch, exec, systemctl suspend` |
-| **Lock (hyprlock)** | | `bindl = , switch:on:Lid Switch, exec, loginctl lock-session` (hyprlock listens via the lock-screen component's `hypridle` config). |
+| **Lock (hyprlock)** | | `bindl = , switch:on:Lid Switch, exec, loginctl lock-session`. `loginctl lock-session` only emits the `org.freedesktop.login1.Session.Lock` D-Bus signal — it does **not** run hyprlock directly. The lock-screen component's `hypridle` config must contain a `listener { on-lock = hyprlock; }` (or equivalent `dbus-listen`) for this to actually lock; without it the bind is a no-op. If the user did not enable hypridle, the template falls back to `exec, hyprlock` directly. |
 | **Clamshell — blank the internal panel, keep externals** | | `bindl = , switch:on:Lid Switch, exec, hyprctl keyword monitor "eDP-1, disable"` + a `bindl = , switch:off:Lid Switch, exec, hyprctl keyword monitor "eDP-1, preferred, auto, 1"` to restore on open. Good when docked. |
 | **Nothing** | | No bind emitted. The desktop ignores the lid; logind may still act unless `HandleLidSwitch*=ignore` is set. |
 

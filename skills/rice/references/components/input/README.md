@@ -31,5 +31,6 @@ top-level configs.
   (`scripts/detect-version.sh` → `IS_LAPTOP`) seeds the default ordering but does **not**
   filter the question — see `_interview-protocol.md`.
 - [`keybinds`](../keybinds/) — owns `hyprland.conf` (including the `source = ~/.config/hypr/input.conf` line).
-- [`_shared/version-matrix.md`](../../_shared/version-matrix.md) — the 0.45+ cliff for the
-  `gesture =` keyword API.
+- [`_shared/version-matrix.md`](../../_shared/version-matrix.md) — two cliffs touch this
+  component: **0.45+** added the `gesture =` keyword, **0.51+** removed
+  `gestures:workspace_swipe`, `workspace_swipe_fingers`, and `workspace_swipe_min_fingers`.
