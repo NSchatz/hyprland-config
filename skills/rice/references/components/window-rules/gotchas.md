@@ -174,6 +174,141 @@ operation. Inherit it verbatim — don't try to "simplify" the matchers.
 the `border_size = 0` / `rounding = 0` windowrules that pair with the smart-gaps workspace rule).
 See `template.md` "What does NOT belong here".
 
+## Layer-shell namespace cliffs (the theming-relevant ones)
+
+The `layerrule blur` block is what makes a translucent waybar/launcher/notification look
+right. It only fires when `match:namespace = X` matches the actual layer-shell namespace the
+app sets on its surface. Most cross-rice copy-paste breakage in this component is one of
+these surfaces being targeted by the wrong name.
+
+### fuzzel's namespace is `launcher`, **not** `fuzzel`
+
+Verified against fuzzel upstream (`doc/fuzzel.ini.5.scd`, key `namespace`):
+
+> **namespace**
+> Namespace for the spawned layer shell surface. … Default: _launcher_
+
+So the correct blur rule for a stock fuzzel install is:
+
+```ini
+layerrule {
+    name = blur-launcher
+    match:namespace = launcher
+    blur = true
+}
+```
+
+end-4/dots-hyprland (`dots/.config/hypr/hyprland/rules.lua`) and
+caelestia-dots/caelestia (`hypr/hyprland/rules.conf`) both blur fuzzel as
+`namespace = launcher`. Older HyDE-derived / community configs that pasted in
+`layerrule = blur, fuzzel` blur **nothing** — fuzzel never broadcasts that namespace. If
+the user overrode fuzzel's `namespace =` in `fuzzel.ini` (e.g. `namespace = fuzzel`),
+emit that override instead — but never assume `fuzzel` as the default.
+
+### swaync exposes TWO namespaces — blur BOTH
+
+Verified against SwayNotificationCenter upstream:
+`src/controlCenter/controlCenter.vala`:
+
+```vala
+GtkLayerShell.set_namespace (this, "swaync-control-center");
+```
+
+`src/notificationWindow/notificationWindow.vala`:
+
+```vala
+GtkLayerShell.set_namespace (this, "swaync-notification-window");
+```
+
+The control-center panel and the individual notification popups are **separate layer
+surfaces** with separate namespaces. A rule that blurs only one looks like a half-applied
+theme: the popup is glassy and the panel is opaque (or vice versa). Both prasanthrangan/
+hyprdots (`Configs/.config/hypr/windowrules.conf`) and binnewbs/arch-hyprland
+(`.config/hypr/configs/windowrules.conf`) emit paired rules for both. JaKooLit/
+Hyprland-Dots ships swaync but blurs only the generic `notifications` namespace (dunst's
+name) — verified gap in `config/hypr/configs/WindowRules-config-v3.conf`, so a swaync
+user gets no blur from that template.
+
+Recipe: when `notifications.tool == "swaync"`, emit **two** layerrule blocks —
+`blur-swaync-control-center` and `blur-swaync-notification-window`. When the tool is
+`mako`/`dunst`, emit one block on `match:namespace = notifications` (that's both
+daemons' shared default).
+
+### `layer-shell-cover-screen` is the backdrop alternative
+
+Matt-FTW/dotfiles (`.config/swaync/config.json`) sets:
+
+```jsonc
+"layer-shell": true,
+"layer-shell-cover-screen": true,
+```
+
+swaync's `configSchema.json` documents this key as:
+
+> Whether or not the windows should cover the whole screen when layer-shell is used …
+> Fixes animations in compositors like Hyprland.
+
+The side-effect: the control-center surface stretches to the full output, so a tap
+outside the panel still hits the layer, giving a free click-outside-to-dismiss backdrop
+without a `dim_around` layerrule. If a user picks `layer-shell-cover-screen: true` in
+notifications interview, the `dim_around = true` line is redundant — flag it
+non-fatally in validation, but don't insert it.
+
+### Launcher → namespace map (per chosen tool)
+
+`launcher.tool` answer | layer-shell namespace | source
+:---|:---|:---
+`rofi` (`rofi-wayland`) | `rofi` | rofi-wayland source `source/wayland/display.c` line 1589: `zwlr_layer_shell_v1_get_layer_surface(…, "rofi")`. Used by HyDE / JaKooLit / dusky / linuxmobile / binnewbs.
+`fuzzel` | `launcher` | `fuzzel.ini(5)` default (see above). Used by end-4 and caelestia.
+`wofi` | `wofi` | Community-standard string; widely cited but not verified against wofi source in this pass.
+`anyrun` | `anyrun` | Community-standard string; end-4's `rules.lua` uses `namespace = "anyrun"`.
+`walker` | `walker` | end-4's `rules.lua` uses `namespace = "walker"`.
+
+`launcher.namespace` in the schema slice MUST be one of these strings — there is no
+"guess from the tool". If the user customized it (rare), capture the override at
+interview time.
+
+### `decoration:blur:enabled = false` makes every `layerrule blur` a no-op
+
+Verified against `src/render/OpenGL.cpp`:
+
+```cpp
+static auto PBLUR = CConfigValue<Config::INTEGER>("decoration:blur:enabled");
+…
+if (!*PBLURNEWOPTIMIZE || !pMonitor->m_blurFBDirty || !*PBLUR)
+    return;
+```
+
+The master blur switch is the look-feel "Blur on/off" toggle (group 11 in
+`../look-feel/interview.md`). If the user picks **Blur: off**, every `layerrule { blur =
+true }` we emit silently does nothing — the bar/launcher/notifications fall back to
+their raw alpha. That's intentional (the master toggle is a master toggle), but it means
+the "translucent panel" look the visual-component agents tuned for is **only** as good
+as the user's blur answer. The recipe still emits the `layerrule` blocks unconditionally
+(so flipping blur back on later just works) — there's nothing for this component to
+gate.
+
+Likewise, `windowrule = no_blur` per-class always overrides the layer master — that's
+how gaming/video apps opt out of the FBO bloom (HyDE, caelestia, fufexan all do this
+for steam_app, gamescope, krita/blender, mpv).
+
+### Modern single-line `layerrule = blur on, match:namespace waybar` parses on 0.54+
+
+Verified against `v0.54.3/src/config/ConfigManager.cpp::handleLayerrule` — tokens are
+comma-split, then each token space-split. A token starting with `match:` is a matcher
+(field after `match:` looked up in `MATCH_PROP_STRINGS`); any other token is treated as
+`<effect> <value>`. So `layerrule = blur on, match:namespace waybar` parses cleanly,
+because `blur on` → effect `blur` value `on`, and `match:namespace waybar` →
+matcher `namespace` = `waybar`.
+
+JaKooLit's `config/hypr/configs/WindowRules-config-v3.conf` uses this modern single-line
+form (`layerrule = match:namespace rofi, blur on`); caelestia's `hypr/hyprland/rules.conf`
+uses it for windowrules too. The rice templates emit the **block form** because the
+shipped Hyprland default does and that is where the wiki points users, but if a user
+hand-edits `windowrules.conf` to drop in a single-line modern rule, it parses on the
+same 0.54+ targets the block form does. Pre-0.53 / pre-0.54 fall back to the legacy
+form per `_shared/version-matrix.md`.
+
 ## 0.55+ additions
 
 The following windowrule effects only exist on `HYPR_VERSION >= 0.55` (verified absent in
