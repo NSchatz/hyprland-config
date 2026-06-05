@@ -3,7 +3,7 @@ name: rice
 description: This skill should be used when the user runs "/hyprland-config:rice" or asks to build, theme, or restyle their Hyprland desktop — i.e. (1) GENERATE a config from scratch ("generate/create my hyprland.conf", "set up Hyprland from scratch", "make me a new config", "build a hyprland config"); (2) THEME/recolor/set fonts ("theme my desktop", "apply Catppuccin/Gruvbox/Nord/Tokyo Night/Dracula/Everforest/Kanagawa/Solarized/Rosé Pine", "change my color scheme/accent", "match my colors to my wallpaper", "set up matugen/wallust", "change my font"); (3) manage named theme PROFILES / "rices" ("save my theme as X", "switch to nord", "list my themes", "load my <name> rice", "pin my accent"); or (4) set/change/cycle the WALLPAPER ("set my wallpaper", "random wallpaper", "make my theme match my wallpaper"). It runs one interactive interview, generates a modular version-matched config, and drives a self-contained rice engine (~/.config/hypr-rice/ — one palette.conf + templates + a `rice` CLI + profiles + a user-override cascade) that themes Hyprland, hyprlock, waybar, notifications, launcher, terminal, GTK/Qt/cursor/icons/fonts and the wallpaper consistently — backing up, live-testing, and reloading after every change.
 argument-hint: "[what you want, e.g. 'set up from scratch', 'catppuccin mocha', 'switch to nord', 'wallpaper ~/x.png and theme from it']"
 allowed-tools: AskUserQuestion, Bash, Read, Write, Edit, Glob, Grep, Agent
-version: 0.13.0
+version: 0.14.0
 ---
 
 # Rice — Build & Theme the Hyprland Desktop
@@ -168,6 +168,16 @@ syntax to the detected version; wire ecosystem keybinds per `components/keybinds
 `col.active_border` defaults to `$accent $accent2 45deg` — those vars come from the engine in A4,
 so the look stays in sync with a later re-theme.
 
+**v0.14 cross-surface coherence rules the writer agent enforces** (see
+`agents/hyprland-component-writer.md` → "Cross-surface coherence" for the full list with
+upstream citations): pill `border-radius` references `{{rounding}}`; active/highlight colors
+reuse `{{accent}}`/`{{accent2}}`; `env` emits `envd =` (not `env =`) for `XDG_CURRENT_DESKTOP`
+so D-Bus-activated apps inherit it; `window-rules` emits a per-tool layerrule map that picks
+the correct upstream namespace per chosen tool (fuzzel→`launcher`, swaync→two blocks for
+`swaync-control-center` + `swaync-notification-window`, walker gated on the
+`HYPR_HAS_EXT_BG_EFFECT_V1` capability flag from `detect-version.sh`). The validator agent
+flags the legacy/incorrect forms in A5 step 1.
+
 ### A3b. Generate the functional shell configs — in parallel via writer agents
 
 rice is all-in-one, so also stage the **functional** configs for the shell components chosen during
@@ -328,6 +338,13 @@ The colors/fonts from the `look-feel` component (palette, fonts, wallpaper sub-q
 4. **Only after a successful install** (A5 returns `ok`/`installed-untested`), run
    `bash ~/.config/hypr-rice/rice apply` so any already-present apps pick up the palette. **Skip it on
    `rolled-back`/`install-failed`** — it would re-render outside the safe-apply harness.
+
+**Restore-on-login script (v0.14+).** When the rice uses a dynamic engine (matugen/wallust/wallbash),
+invoke `render-templates.sh` with `RICE_THEMING_ENGINE=<engine>` in env so it writes
+`~/.config/hypr/scripts/restore-theme.sh`. The autostart component's `template.md` adds the matching
+`exec-once = …/restore-theme.sh` line (ordered immediately after the wallpaper-daemon line). Script
+body per engine is in `theming/engine.md` → "Theme-restore on login". On `theming.engine == none`,
+omit both the env var and the `exec-once` line.
 
 ### A5. Validate, install packages, back up, install configs, live-test, auto-rollback
 

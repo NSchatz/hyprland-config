@@ -90,6 +90,45 @@ NOTES:
     needs a Nerd Font for the chosen theme")>
 ```
 
+## Cross-surface coherence (apply to every surface)
+
+The 3-batch deep-research pass codified these rules from the corpus. Honour them in EVERY
+recipe fill — they're how the rice's surfaces look like they came from the same designer.
+
+- **Pill radius / `border-radius`** must reference `{{rounding}}` (canonical: look-feel's
+  `decoration:rounding`). waybar pills, launcher windows, notification cards, widget cards
+  all share this value. Do NOT hardcode `8px` / `12px` — that breaks re-theme coherence.
+- **Active/highlight color** must reference `{{accent}}`. Shared by: waybar active-workspace
+  pill, launcher selection background, mako/dunst/swaync border, hyprbars title bar, Hyprland
+  `general:col.active_border`. If a recipe asks for a *second* accent (gradient endpoint, hover
+  state) use `{{accent2}}`.
+- **`hyprbars` plugin block** reuses `{{surface}}/{{fg}}/{{muted}}/{{red}}/{{yellow}}/{{font_ui_family}}`
+  — the same palette keys waybar and look-feel use. Don't invent new keys for the title bar.
+- **`#battery.critical` / `#battery.warning`** must bind to `{{red}}` / `{{yellow}}`. Do NOT
+  emit literal hex (the ML4W/binnewbs `#f53c3c` anti-pattern silently un-themes on every
+  re-theme).
+- **`window-rules` surface specifically**: emit a per-tool `layerrule` map driven by the
+  interview answers. Verified upstream against `fuzzel.ini(5)` + swaync source:
+  - fuzzel → `match:namespace = launcher` (NOT `fuzzel` — common stale form across community
+    configs)
+  - swaync → TWO blocks: `swaync-control-center` AND `swaync-notification-window`
+  - walker → conditional on `HYPR_HAS_EXT_BG_EFFECT_V1` from `detect-version.sh`. If `1`,
+    emit nothing here (walker handles its own blur via `ext_background_effect_blur`). If `0`,
+    emit a `layerrule = blur, walker` block.
+  - mako/dunst → single block on `notifications`
+  - wlogout → `logout_dialog` namespace (only when `utilities.session_picker == wlogout`)
+- **`env` surface specifically**: emit `envd =` (D-Bus push variant) for `XDG_CURRENT_DESKTOP`
+  — not `env =`. The `envd` form pushes the value into the D-Bus activation environment so
+  GTK/portal apps that launch from notification clicks pick it up. Plain `env =` doesn't.
+- **`autostart` surface specifically**: schedule the engine-written restore script with
+  `exec-once = ~/.config/hypr/scripts/restore-theme.sh` (gated on `theming.engine != none` and
+  ORDERED after the wallpaper daemon's `exec-once`). The script body is engine-owned —
+  rendered by `scripts/render-templates.sh`, see `theming/engine.md` → "Theme-restore on login".
+- **mako gotcha**: `urgency=high` is INVALID — mako urgencies are `low|normal|critical` only.
+  Use `[urgency=critical]` for the high-priority block.
+- **Astronaut SDDM sub-themes** are `snake_case.conf` (`black_hole.conf`, `hyprland_kath.conf`)
+  — not camelCase. Verified against `Keyitdev/sddm-astronaut-theme/Themes/`.
+
 ## Rules
 
 - **Do not install packages**, run a daemon, or write outside `<STAGING>`. The caller (the rice

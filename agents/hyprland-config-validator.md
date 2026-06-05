@@ -101,7 +101,42 @@ is available, assume the latest stable syntax and say so in the report.
      `config.jsonc` strict-JSON parse, layerrule block form, hyprlock required-block list). Apply
      each one for the surface(s) present in the config under test.
 
-6. **Ecosystem / companion checks.** Read
+6. **Cross-surface coherence checks (from the v0.14 3-batch research pass).** These catch
+   real-world breakage observed across the corpus. All cite the upstream evidence; check
+   against the per-component `validation.md` / `gotchas.md` for the full rationale.
+   - **fuzzel layerrule namespace** — `layerrule = blur, fuzzel` and `layerrule { match:namespace = fuzzel; … }`
+     are stale. Upstream `fuzzel.ini(5)` sets the default layer namespace to **`launcher`**.
+     Flag as WARNING with the corrected line. (Common in older HyDE-derived configs.)
+   - **swaync needs TWO blur blocks** — `swaync-control-center` AND `swaync-notification-window`.
+     Each is a different layer surface; a single block leaves one un-blurred. Flag any swaync
+     config that has fewer than 2 blocks as WARNING.
+   - **Blur master-gate dependency** — if `decoration:blur:enabled = false` (or `blur { enabled = false }`
+     in the block form) AND any `layerrule blur` lines exist, INFO-note that every blur layerrule
+     is silently a no-op. Hyprland's `OpenGL.cpp::preRender` gates per-surface blur on the master
+     decoration flag.
+   - **hyprbars literal-hex anti-pattern** — if a `plugin:hyprbars` block emits a literal `#hex`
+     for `bar_color`/`bar_text_color`/etc. instead of an `$accent`/`$fg` style variable, WARN.
+     The corpus convention (ml4w, Matt-FTW) is to reuse `$surface`/`$fg`/`$muted`/`$red`/`$yellow`
+     so re-themes carry through.
+   - **kitty chrome export** — if `~/.config/kitty/colors.conf` (or the included colors file)
+     is missing any of `cursor_text_color`, `url_color`, `active_tab_*`, `inactive_tab_*`,
+     `tab_bar_background`, `*_border_color`, INFO-note that the tab bar and window borders fall
+     back to kitty's hardcoded gray defaults which always clash. Skip if `tab_bar_style = none`.
+   - **`env = XDG_CURRENT_DESKTOP,...`** — flag as WARNING and recommend `envd =` (D-Bus push)
+     so D-Bus-activated apps (notification clicks, portals) see the value. Plain `env =` only
+     reaches direct compositor-spawned children.
+   - **mako `urgency=high` invalid** — mako only knows `low|normal|critical`. `[urgency=high]`
+     silently parses to nothing. Flag as ERROR. Verified against `emersion/mako` mako(5).
+   - **walker `layerrule` only valid pre-v0.50** — if `layerrule = blur, walker` is present AND
+     `HYPR_HAS_EXT_BG_EFFECT_V1=1`, INFO-note that walker now handles its own blur via
+     `ext_background_effect_blur` (commit `7d1e481`, May 2026). The layerrule is redundant but
+     not broken.
+   - **Astronaut SDDM sub-theme filename** — `~/.config/sddm.conf.d/*.conf` referencing an
+     Astronaut sub-theme: filenames are `snake_case.conf` (`black_hole.conf`, `hyprland_kath.conf`).
+     A camelCase name silently falls back to the base theme. Verified against
+     `Keyitdev/sddm-astronaut-theme/Themes/`.
+
+7. **Ecosystem / companion checks.** Read
    `${CLAUDE_PLUGIN_ROOT}/skills/hyprland-reference/references/ecosystem.md` for tool/command
    reference, and
    `${CLAUDE_PLUGIN_ROOT}/skills/rice/references/components/companion-daemons/gotchas.md` +

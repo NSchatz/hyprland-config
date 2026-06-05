@@ -15,6 +15,8 @@ mapfile -t docs < <(
         -not -path '*/.git/*' \
         -not -path '*/tests/*' \
         -not -path '*/examples/*' \
+        -not -path '*/.claude/worktrees/*' \
+        -not -path '*/.research/*' \
     | sort
 )
 

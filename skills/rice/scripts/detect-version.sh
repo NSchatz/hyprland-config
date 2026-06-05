@@ -30,6 +30,26 @@ else
     echo "HYPR_SOURCE=none (hyprctl/Hyprland not found — assume latest stable syntax)"
 fi
 
+# Protocol-capability flags downstream branches on (better than parsing the version string
+# again per-consumer). Currently emitted: HYPR_HAS_EXT_BG_EFFECT_V1 — true at the May-2026
+# implementation of ext-background-effect-v1 (commit 7d1e481, ~v0.50+). Walker uses this
+# protocol for `ext_background_effect_blur`; on older Hyprland the flag silently no-ops,
+# leaving a `layerrule = blur, walker` line as the only path. See
+# `references/theming/engine.md` → "walker blur via ext-background-effect-v1".
+emit_capabilities() {
+    local v="$1" major minor
+    [ -z "$v" ] || [ "$v" = "unknown" ] && { echo "HYPR_HAS_EXT_BG_EFFECT_V1=unknown"; return; }
+    # v is x.y.z; treat anything ≥ 0.50.x OR ≥ 1.0 as supporting the protocol.
+    major="${v%%.*}"; minor="${v#*.}"; minor="${minor%%.*}"
+    if [ "${major:-0}" -ge 1 ] 2>/dev/null || \
+       { [ "${major:-0}" -eq 0 ] 2>/dev/null && [ "${minor:-0}" -ge 50 ] 2>/dev/null; }; then
+        echo "HYPR_HAS_EXT_BG_EFFECT_V1=1"
+    else
+        echo "HYPR_HAS_EXT_BG_EFFECT_V1=0"
+    fi
+}
+emit_capabilities "$version"
+
 # Probe common ecosystem packages so the install batch (A3d) can annotate already-present packages
 # with `# installed` and the safe-apply step can skip work that's already done. The interview does
 # NOT use these flags to filter options — every user sees the same menu.
