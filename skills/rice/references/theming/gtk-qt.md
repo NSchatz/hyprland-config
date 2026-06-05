@@ -223,9 +223,15 @@ same for legacy Qt5 apps.
   apps use that theme and **ignore gsettings / `settings.ini` / `gtk.css` entirely** — so a re-theme
   appears to "not take" on GTK apps. Find it (`env | grep GTK_THEME`, check `~/.config/uwsm/env`,
   `~/.config/environment.d/`, `~/.profile`), update it to the new theme, then live-propagate:
-  `hyprctl setenv GTK_THEME <name>` + `dbus-update-activation-environment --systemd GTK_THEME=<name>`
-  (explicit `VAR=value` — bare names re-read the calling shell's stale value). Apps pick it up on
-  next launch. Likewise `XCURSOR_THEME`/`HYPRCURSOR_THEME` live in that env file.
+  `hyprctl keyword env GTK_THEME,<name>` + `dbus-update-activation-environment --systemd GTK_THEME=<name>`
+  (explicit `VAR=value` — bare names re-read the calling shell's stale value, though end-4 and
+  koeqaife both use the bare-name form successfully under uwsm; both work but explicit is safer).
+  `hyprctl setenv` was the pre-0.55 spelling; modern Hyprland exposes only `hyprctl keyword env`
+  — see `components/env/gotchas.md`. Apps pick it up on next launch. Likewise
+  `XCURSOR_THEME`/`HYPRCURSOR_THEME` live in that env file. If the rice's env writer emits
+  `XDG_CURRENT_DESKTOP,Hyprland` as `envd =` (Matt-FTW pattern, pre-0.55 hyprlang's D-Bus push
+  flag — see `components/env/gotchas.md`), portals see the value without the live-propagate
+  dance above.
 - **`~/.config/gtk-4.0/gtk.css` is sometimes a symlink** to a system theme (Catppuccin-GTK and other
   full-theme packages link the whole `gtk-4.0/` dir). Writing your own `@define-color` overrides
   through it fails with **"Permission denied"** (root-owned target under `/usr/share/themes`). Delete
