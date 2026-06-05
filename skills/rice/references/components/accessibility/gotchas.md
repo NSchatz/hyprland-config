@@ -123,6 +123,70 @@ installed by the palette/theming pipeline. But when the installer copies a theme
 user's home, prefer `~/.local/share/icons/<name>/`. Themes shipped as Arch packages land in
 `/usr/share/icons/<name>/` and that's fine (pacman manages them).
 
+## No popular rice ships a high-contrast palette mode
+
+A corpus survey (HyprPanel themes, noctalia `Assets/ColorScheme/`, HyDE themes, Matt-FTW,
+caelestia, ML4W matugen templates, end-4 matugen templates, dusky theme variants) found **zero**
+rices shipping a true high-contrast / WCAG-AA palette variant. Every named scheme is aesthetic
+(Catppuccin/Dracula/Rose Pine/Tokyo Night/Gruvbox/Material-You-from-wallpaper). HyprPanel ships
+`_vivid` variants but those bump saturation, not contrast.
+
+This means a re-theme with the rice's matugen scheme cannot satisfy a low-vision user the way
+GNOME's Adwaita-Dark high-contrast or KDE's Breeze-HighContrast can. The rice does not currently
+expose a "high-contrast" palette option — see `theming/palettes.md`. **Flag for orchestrator**:
+if the plugin wants to compete on accessibility, adding a `high-contrast` named palette (e.g.
+pure `#000000` / `#ffffff` with desaturated semantic colors at >= 7:1 contrast) is a real
+differentiator — but it has to land as a new entry in `theming/palettes.md` and a new value of
+the `scheme` metadata key, NOT inside this component.
+
+The `accessibility` interview deliberately does **not** offer a high-contrast switch today,
+because the rice can't fulfil it. Don't promise what we can't deliver.
+
+## No shared font-scale variable across surfaces
+
+Same survey: no rice in the corpus exposes a shared font-scale variable that every visual
+surface's font config derives from. waybar font-size, rofi/fuzzel font-size, kitty `font_size`,
+hyprlock `font_size`, btop are all set per-app, independently. `text-scaling-factor` (the
+gsettings key `larger-ui` flips) only reaches xsettings-aware GTK apps — waybar's GTK CSS reads
+`font-size: 13px` directly from `style.css` and ignores the bridge; rofi sets `font` in `*{}`;
+fuzzel sets `font=` in its INI.
+
+Result: the `larger-ui` helper realistically only scales the **monitor** (via `scale`) and
+**libadwaita / xsettings-mediated GTK apps**. waybar text stays the size it was. The user is
+told this in the interview hint (`see ../monitors/gotchas.md`); see
+`../../theming/fonts.md` for the broader font-handling story.
+
+**Flag for orchestrator**: if a future "font-scale" answer ever lands in `palette-schema.md`
+(e.g. a `font_ui_scale: 1.0|1.25|1.5` metadata key), then waybar/launcher/notifications/widgets
+`template.md` files would each need to multiply their default font-size by it, and the
+respective `.tmpl` files would need to emit a derived size. Today none of them do.
+
+## No popular rice ships a "vestibular" / motion-off accessibility profile
+
+Same survey: no rice in the corpus ships a one-switch toggle that disables animations
+(`animations:enabled = false`) or blur (`decoration:blur:enabled = false`) for users with
+vestibular sensitivity, photophobia, or migraine. Every animation block is unconditionally
+enabled. `binnewbs`, `Matt-FTW`, `caelestia`, `HyDE`, `ML4W`, `JaKooLit`, `end-4`, `dusky` all
+ship animations on by default.
+
+The `accessibility` interview does not currently surface a "motion-off" pick. **Flag for
+orchestrator**: a future `motion-reduced` (or `disable-animations`) helper here would land in
+`../look-feel/template.md` (set `animations:enabled = false`, `decoration:blur:enabled = false`,
+zero out `gestures:*`) and would need a per-helper output map entry parallel to the four
+existing ones. Today this gap is documented but not filled.
+
+## Night-light: the community default is a wrapper script, not two IPC binds
+
+The on-disk corpus is unanimous: both [ML4W](https://github.com/mylinuxforwork/dotfiles)
+(`.config/ml4w/scripts/ml4w-toggle-hyprsunset`) and [JaKooLit](https://github.com/JaKooLit/Hyprland-Dots)
+(`config/hypr/scripts/Hyprsunset.sh`) bind **one** key to a wrapper script that maintains state
+(JaKooLit uses `~/.cache/.hyprsunset_state`; ML4W uses `pgrep -x hyprsunset`). The two-bind
+shape (`hyprctl hyprsunset temperature 4000` on one key, `... identity` on another) appears in
+no popular rice as the primary surface — only as inline documentation.
+
+This was a real correction to the v0.13 template, which originally instructed a two-bind shape
+and a note "no toggle dispatcher — bind a second key". The corpus says: ship the wrapper.
+
 ## Version note
 
 - `cursor:zoom_factor` — core (documented at [Variables § cursor](https://wiki.hypr.land/Configuring/Basics/Variables/);
