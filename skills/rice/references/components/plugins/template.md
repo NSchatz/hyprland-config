@@ -19,7 +19,7 @@ From `../../_shared/dispatchers.md` → "Dispatcher rules the validator enforces
 > until the user has actually built + loaded the plugin.
 
 The corollary: `general:layout = hy3` follows the same rule. An unloaded layout name fails the
-reload the same way an unloaded dispatcher does. The lone exception is `scrolling` (core in 0.53+,
+reload the same way an unloaded dispatcher does. The lone exception is `scrolling` (core in 0.54+,
 see `../../_shared/version-matrix.md`) — but scrolling is not in this component's catalog.
 
 An unused `plugin {}` block is **harmless** — Hyprland ignores config for a plugin it didn't load.
@@ -46,20 +46,32 @@ dispatcher / layout references need gating.
 
 ### `hyprexpo` — workspace overview
 
-Config keys verified against `sandwichfarm/hyprexpo:HyprexpoConfig.hpp` defaults (the original
-`hyprwm` plugin was removed by PR #663).
+Config keys verified against `sandwichfarm/hyprexpo:PluginConfig.cpp` registered values and
+`docs/configuration/options.md` (the original `hyprwm` plugin was removed by PR #663).
 
 ```ini
 plugin {
     hyprexpo {
         columns = 3
-        gaps_in = 5                          # NOT `gap_size` — that key doesn't exist
+        gaps_in = 5                          # NOT `gap_size` — that key doesn't exist on the fork
         gaps_out = 0
         bg_col = rgb({{bg}})
         workspace_method = center current    # [center/first] [workspace]
+        # New theming surfaces the sandwichfarm fork added beyond the original Vaxry plugin —
+        # reuse the same accent the waybar/border use for coherence:
+        border_width = 2
+        border_color_current = rgb({{accent}})        # default rgb(66ccff)
+        border_color_focus   = rgb({{accent}})        # default rgb(ffcc66)
+        border_color_hover   = rgb({{accent2}})       # default rgb(aabbcc)
     }
 }
 ```
+
+> **Stale `gap_size` warning:** the original Vaxry hyprexpo used `gap_size` (singular). The fork
+> renamed it to `gaps_in` / `gaps_out` (matches Hyprland's own gap naming). `Matt-FTW/dotfiles`'s
+> `plugins/hyprexpo.conf` HEAD still writes `gap_size = 6`, which on the sandwichfarm fork is
+> silently a parse error (unknown key) — community configs lifted from Matt-FTW will need the
+> rename.
 
 **Bind (lands in `binds.conf`, COMMENTED):**
 
@@ -126,22 +138,44 @@ plugin {
 
 ### `hyprbars` — per-window title bars
 
+Config keys verified against `hyprwm/hyprland-plugins:hyprbars/main.cpp` registered values (HEAD
+2026-05-19, including the new `bar_text_weight` key added by PR #669):
+
 ```ini
 plugin {
     hyprbars {
-        bar_height = 24
-        bar_color = rgb({{surface}})
-        col.text = rgb({{fg}})
+        # Geometry
+        bar_height = 24                                # upstream default 15 — 20-24 reads better on HiDPI
+        bar_padding = 7                                # left/right inner padding around title text
+        bar_button_padding = 5                         # padding around buttons
+
+        # Theming — reuse the SAME palette keys waybar uses, so the desktop reads coherent
+        bar_color = rgb({{surface}})                   # = waybar background
+        col.text  = rgb({{fg}})                        # = waybar foreground
+        inactive_button_color = rgb({{muted}})         # 0.00000000 means "unset" upstream — set explicitly
         bar_text_font = {{font_ui_family}}
+        bar_text_size = 13                             # upstream default 10; integer only (hyprbars has no Family-Size descriptor)
+        bar_text_weight = 400                          # 0.55+ — supports "bold" or 100-1000
+
+        # Behavior
+        bar_part_of_window = true                      # reserves space — default true
+        bar_precedence_over_border = false             # default false; flip for "bar above border" look
+        bar_blur = false                               # pairs with the waybar layerrule blur if true
+
+        # Buttons — palette-driven, NOT literal hex (see gotchas → cross-surface coherence)
         hyprbars-button = rgb({{red}}), 14, , hyprctl dispatch killactive
         hyprbars-button = rgb({{yellow}}), 14, , hyprctl dispatch fullscreen 1
     }
 }
 ```
 
-No binds. No layout. Themable straight from the palette (`{{surface}}`, `{{fg}}`, `{{red}}`,
-`{{yellow}}`, `{{font_ui_family}}` are substituted from `palette.conf` — see
-`../../_shared/palette-schema.md`).
+No binds. No layout. Themable straight from the palette — every color comes from a
+`../../_shared/palette-schema.md` key (`surface`, `fg`, `muted`, `red`, `yellow`,
+`font_ui_family`), so a wallpaper-cycle re-theme repaints the title bars in step
+with the rest of the chrome. **Do NOT** substitute literal `rgb(ff4040)` / `rgb(eeee11)` for the
+buttons — see `gotchas.md` → "Cross-surface coherence — hyprbars must reuse the
+waybar/look-feel palette". (Matt-FTW's `plugins/hyprbars.conf` hard-codes those hexes; that's
+the anti-pattern.)
 
 ### `borders-plus-plus` — extra border rings
 
@@ -302,7 +336,7 @@ dispatcher binds in `binds.conf` and the `general { layout = hy3 }` line in `loo
 ## Cross-references
 
 - The hard-error-on-unloaded-dispatcher rule → `../../_shared/dispatchers.md`
-- Why `scrolling` is NOT here → `../../_shared/version-matrix.md` (0.53+ cliff)
+- Why `scrolling` is NOT here → `../../_shared/version-matrix.md` (0.54+ cliff)
 - Palette substitutions used by `hyprbars`, `borders-plus-plus`, `hyprtrails` →
   `../../_shared/palette-schema.md` + `../../_shared/colors-contract.md`
 - `hyprpm` failure modes + the "Claude never runs hyprpm" rule → `gotchas.md`
