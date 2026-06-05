@@ -18,7 +18,7 @@ their lock entries. Done.
 If **Yes**, continue with 10b–10d in one `AskUserQuestion` call (3 sub-qs), then 10e in a second
 call (so the gate question and the styling questions stay in two clean batches):
 
-**10b. Background** → **Blurred screenshot (default)** · The wallpaper · Solid palette color.
+**10b. Background** → **Blurred screenshot (default)** · The wallpaper · Pre-baked blur (ML4W; cheaper unlocks) · Solid palette color.
 
 **10c. Clock** → **Large time + date (default)** · Time only · None.
 
@@ -58,7 +58,7 @@ bash "$CLAUDE_PLUGIN_ROOT/scripts/record-answer.sh" "$staging/answers.json" lock
 
 Allowed string values mirror `schema.md`:
 
-- `background` ∈ `blurred-screenshot` | `wallpaper` | `solid`
+- `background` ∈ `blurred-screenshot` | `wallpaper` | `pre-baked-blur` | `solid`
 - `clock` ∈ `large` | `time-only` | `none`
 - `input_pill` ∈ `accent-outlined` | `underline` | `hidden`
 - `fingerprint` is a boolean.

@@ -51,6 +51,20 @@ background {
     blur_size = 5
 }
 {{/if}}
+{{#if background == "pre-baked-blur"}}
+# ML4W pattern: the rice engine pre-blurs the wallpaper into a cache file on every
+# `rice apply` / wallpaper-pick (see `render-templates.sh` + `engine.md` → "Pre-baked
+# lock-screen blur"). hyprlock then points at that file with `blur_passes = 0`, so the
+# blur cost is paid once at wallpaper-change time instead of every unlock. Requires
+# ImageMagick (`magick` or `convert`); if the binary isn't found at render time, the
+# engine falls back to the `blurred-screenshot` strategy and warns.
+background {
+    monitor =
+    path = ~/.cache/hypr-rice/lock-blur.png
+    blur_passes = 0
+    brightness = 0.85
+}
+{{/if}}
 {{#if background == "solid"}}
 background {
     monitor =

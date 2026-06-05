@@ -144,6 +144,18 @@ recipe fill — they're how the rice's surfaces look like they came from the sam
     (mako) or `[osd_app]` (dunst) palette override block; the notification daemon's
     `highlight` / `frame_color` / `border-color` paint the OSD.
   - `none`: keybinds run silently; no OSD emission anywhere; volume/brightness still WORK.
+- **Lock-screen background** (`lock_screen.background` answer) — four valid forms:
+  - `blurred-screenshot`: `path = screenshot` + `blur_passes = 3`, `blur_size = 7`. Auto-
+    follows the desktop. Default.
+  - `wallpaper`: `path = {{wallpaper_path}}` + `blur_passes = 1`. Points at the rice's
+    current wallpaper path.
+  - `pre-baked-blur`: `path = ~/.cache/hypr-rice/lock-blur.png` + `blur_passes = 0`. ML4W
+    pattern — `render-templates.sh` writes the cache when `RICE_LOCK_BLUR=pre-baked` is
+    set in env AND ImageMagick is installed. Append `imagemagick` to the install batch
+    when this option is picked.
+  - `solid`: no `path`, `color = rgb({{bg}})`.
+  Verify cache-file existence at validate-time when the answer is `pre-baked-blur` —
+  hyprlock errors visibly if the file is missing.
 - **Font sizes multiply by `{{font_ui_scale}}`** (palette metadata key, default `1.0`).
   Every visual surface scales together — that's the user-facing accessibility/HiDPI knob.
   - **CSS surfaces** (waybar / swaync / wlogout `style.css`, ags `.scss`): emit

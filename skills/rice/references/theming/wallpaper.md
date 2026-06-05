@@ -403,11 +403,16 @@ desktop wallpaper**. Three corpus patterns:
   cost of the blur is paid once (at wallpaper-pick) instead of every unlock.
 
 The rice engine's hyprlock template (in `../components/lock-screen/`) defaults to `path =
-screenshot` (option 1) so it auto-follows the desktop. Switching to option 2 is a
-`lock_screen.wallpaper_strategy` answer; option 3 is an opt-in that only matugen / wallust
-engines can drive (needs the pre-blur step in the restore script). See
-`../components/lock-screen/styling.md` → "Battle-tested techniques → Background depth → Bake the
-blur offline" for the ML4W recipe.
+screenshot` (option 1) so it auto-follows the desktop. The picks live in the
+**`lock_screen.background`** answer (`blurred-screenshot` | `wallpaper` | `pre-baked-blur` |
+`solid`) — `interview.md` 10b. Option 3 (`pre-baked-blur`) is the ML4W pattern: the rice
+engine pre-blurs the wallpaper to `~/.cache/hypr-rice/lock-blur.png` whenever the wallpaper
+changes (`render-templates.sh` writes it when `RICE_LOCK_BLUR=pre-baked` is set in env and
+ImageMagick is installed), and hyprlock points at that file with `blur_passes = 0`. GPU
+cost paid once per wallpaper-pick instead of every unlock. If ImageMagick isn't installed,
+the engine falls back to `blurred-screenshot` with a warning. See
+`../components/lock-screen/styling.md` → "Battle-tested techniques → Background depth → Bake
+the blur offline" for the ML4W recipe.
 
 ## Cycling
 

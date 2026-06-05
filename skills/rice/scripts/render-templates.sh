@@ -105,4 +105,29 @@ EOF
 }
 write_restore_script
 
+# Pre-baked lock-screen blur (ML4W pattern). When the user picked
+# `lock_screen.background == "pre-baked-blur"` and RICE_LOCK_BLUR=pre-baked is set, we
+# pre-blur the current wallpaper to ~/.cache/hypr-rice/lock-blur.png so hyprlock can
+# render with blur_passes=0 (GPU cost paid once per wallpaper-pick, not every unlock).
+# Soft-fails if ImageMagick isn't installed — caller can fall back to blurred-screenshot.
+write_lock_blur() {
+    [ "${RICE_LOCK_BLUR:-}" = "pre-baked" ] || return 0
+    local wp out im
+    wp="$(awk -F= '$1=="wallpaper"{print $2; exit}' "$palette" 2>/dev/null)"
+    [ -n "$wp" ] && [ -f "$wp" ] || { echo "LOCK_BLUR_SKIPPED no wallpaper in $palette"; return 0; }
+    out="$HOME/.cache/hypr-rice/lock-blur.png"
+    if command -v magick >/dev/null 2>&1;   then im=magick
+    elif command -v convert >/dev/null 2>&1; then im=convert
+    else echo "LOCK_BLUR_SKIPPED ImageMagick not installed (install 'imagemagick'); hyprlock will see a missing file" >&2; return 0; fi
+    mkdir -p "$(dirname "$out")"
+    # 0x12 sigma matches hyprlock blur_passes=3,blur_size=7 perceptually. -resize caps work to
+    # the largest panel width we expect; hyprlock renders to monitor anyway.
+    if "$im" "$wp" -resize '2560x>' -blur 0x12 "$out" 2>/dev/null; then
+        echo "LOCK_BLUR=$out ($im)"
+    else
+        echo "LOCK_BLUR_FAILED $im exited non-zero — keep the previous cache" >&2
+    fi
+}
+write_lock_blur
+
 echo "RENDER=done"
