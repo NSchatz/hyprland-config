@@ -1,0 +1,142 @@
+# waybar — gotchas
+
+## Strict JSON only — a bad `config.jsonc` makes the bar silently fail to appear
+
+Waybar's parser claims to accept JSONC (with `//` comments), but the real-world failure mode is
+that a malformed `config.jsonc` — a trailing comma, an unmatched brace, an unescaped quote in a
+`format` string — results in **no bar at all** and a one-line stderr message most users never see.
+The icon doesn't render as a placeholder; the surface doesn't appear; waybar logs once and exits.
+
+**Rule.** Generate `config.jsonc` as **strict JSON** (no `//` comments, no trailing commas) and
+**validate before writing it to disk**:
+
+```bash
+python3 -c "import json,sys; json.load(open(sys.argv[1]))" "$staging/config.jsonc" \
+  || { echo "ERROR: waybar config.jsonc is not valid JSON"; exit 1; }
+```
+
+If you genuinely need annotations, keep them in `template.md` (the source recipe) — never in the
+emitted file. The `validation.md` step runs this same check before any `pkill -SIGUSR2`.
+
+## MDI glyphs only — a linter silently strips legacy private-use glyphs
+
+A formatter/linter (in the user's editor, in `prettier`, in a pre-commit hook — anything that
+re-encodes the file) **strips 3-byte legacy-PUA glyphs** in the range **U+E000–U+F8FF** (the classic
+FontAwesome / Devicons set used by countless old waybar configs) and leaves the `"format"` string
+**empty**. The bar then renders modules with no icon, no error, no log line — the user just sees
+text-only modules and assumes the font is broken.
+
+**Rule.** Use **4-byte Material Design Icons (U+F0000+)** for module icons and **plain Unicode**
+(filled `●` U+25CF, hollow `○` U+25CB, U+25xx Geometric Shapes generally) for workspace dots — see
+`template.md` for the verified glyph table. **Author `config.jsonc` via Python:**
+
+```python
+import json
+json.dump(obj, open(path, "w"), ensure_ascii=False, indent=2)
+```
+
+Heredocs and `echo > file` mangle UTF-8 sequences across locales. Re-verify after writing:
+
+```bash
+# fail if any "format" landed empty after lint
+python3 -c '
+import json, re, sys
+d = json.load(open(sys.argv[1]))
+def walk(o):
+  if isinstance(o, dict):
+    for k, v in o.items():
+      if k.startswith("format") and isinstance(v, str) and not v.strip(): yield (k, v)
+      if k.startswith("format") and isinstance(v, str) and re.search(r"[-]", v): yield (k, v)
+      yield from walk(v)
+  elif isinstance(o, list):
+    for x in o: yield from walk(x)
+for k, v in walk(d): print("BAD", k, repr(v))
+' "$staging/config.jsonc"
+```
+
+Confirm the chosen Nerd Font actually covers each codepoint with:
+
+```bash
+fc-query --format='%{charset}\n' /usr/share/fonts/.../JetBrainsMonoNerdFont-Regular.ttf | head
+```
+
+## Plugin dispatchers in `on-click` — same hard-error rule as `binds.conf`
+
+A waybar module's `on-click` (or `on-click-right` / `on-scroll-up` / …) is an arbitrary shell
+command, but if the user puts a Hyprland dispatcher there — e.g.
+`"on-click": "hyprctl dispatch hyprexpo:expo toggle"` — it will fail every time `hyprexpo` isn't
+loaded. The validator's plugin-dispatcher rule
+([`_shared/dispatchers.md`](../../_shared/dispatchers.md)) applies here too: keep plugin
+dispatchers **out** of `on-click` unless the plugin is enabled in
+[`components/plugins/`](../plugins/). If a user wants a workspace-overview button, gate it on
+`plugins.enabled && "hyprexpo" in plugins.selected`.
+
+## swaync overlap — the daemon must match the module
+
+If `bar.modules` contains `custom/notification`, the chosen `notifications.daemon` **must** be
+`swaync`. The module shells out to `swaync-client -swb` for its JSON state; with `mako` or `dunst`
+running instead, the module shows a permanent zero badge and the toggle does nothing. The schema
+validator asserts this; the writer drops the module silently if the daemon is wrong. Cross-ref:
+[`components/notifications/schema.md`](../notifications/schema.md).
+
+D-Bus-wise only **one** notification daemon can own `org.freedesktop.Notifications` at a time —
+that's enforced by the `notifications` component, not here, but it's why this mutex matters.
+
+## `backlight` module only when a backlight device exists
+
+Including `"backlight"` in `modules-right` on a desktop with no monitor backlight (or on a laptop
+where the kernel driver isn't exposing one) makes the module render `N/A` and log a warning
+forever. Gate it on `/sys/class/backlight/*` being non-empty:
+
+```bash
+if compgen -G "/sys/class/backlight/*" > /dev/null; then
+  bar_modules+=("backlight")
+fi
+```
+
+Same shape applies to `battery` (gate on `/sys/class/power_supply/BAT*`) — though the laptop-detect
+already drives that pick upstream.
+
+## Translucency requires the `layerrule` blur block — and the namespace must match
+
+Any `bar.transparency` other than `opaque` looks **muddy** without compositor blur. The blur lives
+in [`window-rules`](../window-rules/) (not here), but this component's chosen transparency is the
+trigger. On Hyprland **0.54+** the `layerrule` is the **block form** (the single-line `layerrule =
+blur, waybar` is rejected at parse and fails the entire reload — see
+[`_shared/version-matrix.md`](../../_shared/version-matrix.md)):
+
+```conf
+layerrule {
+  name = blur-waybar
+  match:namespace = waybar
+  blur = true
+  ignore_alpha = 0.1
+}
+```
+
+The `match:namespace` must equal waybar's own layer namespace. Confirm with `hyprctl layers` (look
+for `namespace: waybar`). Known quirk: blur sometimes doesn't apply until the first window opens on
+that workspace (Hyprland #6130). The validator (`validation.md`) cross-checks that **if**
+`bar.transparency != opaque`, **then** a matching `layerrule` block exists in `window-rules`'s
+emitted file.
+
+## Wrong active-workspace class — `.active`, not `.focused`
+
+Hyprland uses `button.active`. Sway uses `button.focused`. Many community styles copied from Sway
+configs use `.focused`; on Hyprland that selector silently no-ops and the active workspace looks
+unstyled. The recipe in `template.md` uses `.active`; if you adapt from a Sway example, swap it.
+
+## Editing through a symlink (HyDE / JaKooLit / ml4w)
+
+If the user's existing `~/.config/waybar/config.jsonc` is a **symlink** into a dotfiles manager's
+layouts directory (HyDE, JaKooLit, ml4w all do this), overwriting it edits the dotfile in place and
+gets clobbered on the next theme-switch. Detect with `[ -L ~/.config/waybar/config.jsonc ]`; if
+true, write to `user-style.css` / a sibling theme dir, or surface the conflict to the user before
+overwriting.
+
+## Reload, don't restart, for CSS edits
+
+`pkill -SIGUSR2 waybar` re-reads both `config.jsonc` and `style.css` in place. A full restart is
+only needed when `position` / `exclusive` / `gtk-layer-shell` changes. With
+`reload_style_on_change: true` in `config.jsonc`, CSS edits also re-trigger on save without the
+signal. See `reload.md` for the exact recipe (JSON-parse first, signal second).

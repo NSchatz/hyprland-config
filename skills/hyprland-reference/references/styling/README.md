@@ -1,46 +1,45 @@
 # Styling Reference Library
 
-How to make a Hyprland desktop **look good** — not the config *syntax* (that's the rest of
-`hyprland-reference`), but the *visual design* of every surface the eye touches. Each page surveys
-how the community actually styles a component (HyDE, end-4/dots-hyprland, JaKooLit, ml4w, the
-Catppuccin/Gruvbox/Nord/Tokyo Night/Rosé Pine ecosystems, r/unixporn) and distills it into a
-palette-driven, copy-pasteable recipe.
+How to make a Hyprland desktop **look good** — the cross-cutting design layer (coherence, accent
+discipline, spacing, shape, transparency, typography) that makes a configured desktop add up to a
+single designed system instead of a pile of independently-pretty windows.
 
-**Read [`design-principles.md`](design-principles.md) first** — it's the cross-cutting layer
-(coherence, accent discipline, spacing, shape, transparency, typography) that makes the per-app
-pages add up to a single designed system instead of a pile of independently-pretty windows.
-
-Every recipe is built on the plugin's **rice palette contract** (`~/.config/hypr-rice/palette.conf`,
-see `rice/references/engine.md`): keys `bg fg surface muted cursor accent accent2 red green
-yellow blue magenta cyan color0..color15`, plus `font_ui` / `font_mono`. Recipes show colors as
-`{{key}}` placeholders (so they drop straight into the rice templates) **and** as a worked
-Catppuccin Mocha example.
+**Per-surface styling moved to the component folders** under
+`rice/references/components/<x>/styling.md`. Each visual component (waybar, launcher,
+notifications, terminal, lock-screen, widgets, shell-prompt, look-feel) now owns its own styling
+recipe alongside its interview slice, template, gotchas, and packages. The styling library here
+shrinks to just the cross-cutting principles below.
 
 ## Pages
 
 | Page | Covers |
 |------|--------|
-| [`design-principles.md`](design-principles.md) | **Start here.** Coherence rules, the aesthetic archetypes, wallpaper-driven theming, a coherence checklist. |
-| [`hyprland-decoration.md`](hyprland-decoration.md) | The compositor look: gaps, borders, gradient `col.active_border`, rounding, blur, shadow, animations/beziers. |
-| [`waybar.md`](waybar.md) | The status bar: `config.jsonc` layout + `style.css`, the floating-island vs edge-to-edge looks, pill modules, states. |
-| [`widgets.md`](widgets.md) | **Desktop widgets beyond the bar.** Choosing a widget system (decision matrix), the common widget archetypes, turnkey panels (HyprPanel/nwg-shell), the cross-toolkit theming flow. Read before the per-toolkit pages. |
-| [`eww.md`](eww.md) | eww (ElKowar's Wacky Widgets): yuck + SCSS, dashboards/sidebars/OSDs/music, sliders & circular-progress, reveal animations, layer-namespace blur. |
-| [`ags-astal.md`](ags-astal.md) | AGS / Astal (JS/TS over GTK): the v1-vs-v2 split, material cards, quick-settings toggles, blurred album-art player, matugen Material You. |
-| [`quickshell.md`](quickshell.md) | QtQuick/QML shells (caelestia, end-4, Noctalia): styling via QML properties (not CSS), widget archetypes, the `Theme`/`Colors` singleton + matugen, layer-namespace blur. |
-| [`launchers.md`](launchers.md) | wofi / rofi / fuzzel / tofi: the centered floating panel, the selection highlight, blur. |
-| [`notifications.md`](notifications.md) | mako / dunst / swaync: the accent-bordered card, urgency colors, the control center. |
-| [`terminals.md`](terminals.md) | kitty / alacritty / foot / wezterm / ghostty: the 16-color palette, font, padding, opacity + blur. |
-| [`hyprlock.md`](hyprlock.md) | The lock screen: blurred background, clock label, the accent-outlined input pill (literal hex — no `$vars`). |
-| [`gtk-qt.md`](gtk-qt.md) | App windows: GTK/libadwaita + Qt themes, icons, cursors, fonts, Kvantum — toolkit consistency. |
-| [`tui-and-prompt.md`](tui-and-prompt.md) | btop / cava / fastfetch / starship: matching the scheme inside the terminal; Nerd Font glyphs. |
+| [`design-principles.md`](design-principles.md) | **Start here.** Coherence rules, the aesthetic archetypes, wallpaper-driven theming, a coherence checklist. The cross-cutting layer every per-component styling.md assumes. |
+
+## Per-component styling pointers
+
+| Surface | Where the styling reference now lives |
+|---|---|
+| Hyprland decoration (gaps, borders, blur, shadow, animations) | [`../../../rice/references/components/look-feel/styling.md`](../../../rice/references/components/look-feel/styling.md) |
+| Status bar (waybar) | [`../../../rice/references/components/waybar/styling.md`](../../../rice/references/components/waybar/styling.md) |
+| Launcher (wofi / rofi / fuzzel) | [`../../../rice/references/components/launcher/styling.md`](../../../rice/references/components/launcher/styling.md) |
+| Notifications (mako / dunst / swaync) | [`../../../rice/references/components/notifications/styling.md`](../../../rice/references/components/notifications/styling.md) |
+| Terminal (kitty / alacritty / foot / wezterm / ghostty) | [`../../../rice/references/components/terminal/styling.md`](../../../rice/references/components/terminal/styling.md) |
+| Lock screen (hyprlock) | [`../../../rice/references/components/lock-screen/styling.md`](../../../rice/references/components/lock-screen/styling.md) |
+| Widget shells (eww / AGS-Astal / Quickshell — design + per-toolkit) | [`../../../rice/references/components/widgets/styling.md`](../../../rice/references/components/widgets/styling.md) |
+| Shell & prompt (btop / cava / fastfetch / starship — Nerd Font glyphs) | [`../../../rice/references/components/shell-prompt/styling.md`](../../../rice/references/components/shell-prompt/styling.md) |
+| GTK / Qt / icons / cursors / fonts (toolkit consistency) | [`../../../rice/references/theming/gtk-qt.md`](../../../rice/references/theming/gtk-qt.md) |
+
+Every recipe is built on the plugin's **rice palette contract** — see
+[`../../../rice/references/_shared/palette-schema.md`](../../../rice/references/_shared/palette-schema.md)
+for the canonical keys (`bg fg surface muted cursor accent accent2 red green yellow blue magenta
+cyan color0..color15`, plus `font_ui` / `font_mono`).
 
 ## Who reads this
 
-- **`rice`** — for tasteful structural + palette defaults when building from scratch, and for how to
-  color each surface (the recipes assume its rice palette contract).
-- **`edit-config`** — for the *layout/structure* of the bar, launcher, and notifications when editing
-  an existing surface (recipes live in `rice/references/components.md`).
+- **`rice`** — for tasteful structural + palette defaults when building from scratch.
+- **`edit-config`** — for the *layout/structure* of any surface when editing an existing config.
 
 These are design references, not syntax authorities — for the exact, current option names defer to
 the sibling `hyprland-reference` files (`sections.md`, `window-rules.md`, `deprecations.md`,
-`ecosystem.md`).
+`ecosystem.md`, `keybindings.md`).

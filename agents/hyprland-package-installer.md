@@ -17,7 +17,17 @@ One of:
 
 - An **`install.sh` path** (the rice-generated script — most common). Run it as-is. The script is
   idempotent (`--needed`), routes packages between pacman and an AUR helper at runtime, and prints
-  a `Done` line on success.
+  a `Done` line on success. The rice skill assembles the script by walking every
+  `${CLAUDE_PLUGIN_ROOT}/skills/rice/references/components/*/packages.md` (each component owns its
+  install slice — picks from waybar's `packages.md` only land in the script if the user chose
+  waybar) and emitting `install.sh` into staging. You read the script, not the per-component
+  slices; the source split is only relevant when diagnosing where a package came from.
+  - `components/login-boot/packages.md` documents the **root-side** packages (greeters, TLP,
+    `/etc/` chrome) — those end up in the commented `sudo` block of `install.sh`, not the
+    auto-run pacman call. Surface them but do not run them.
+  - `components/plugins/packages.md` documents the plugin build toolchain (`cmake`, `meson`,
+    headers) plus the `hyprpm update / add / enable / reload` sequence — that's what runs under
+    `INSTALL_PLUGINS=1` (see step 5 below).
 - A **bare package list** (`PKGS=(…)`) for an ad-hoc install (e.g. edit-config wants `rofi` to unblock
   an edit). Apply the same routing logic the script uses.
 
@@ -45,7 +55,8 @@ summary.
    ```bash
    bash <install.sh>
    ```
-   When given a list, do the auto-route inline (mirror packages.md's script):
+   When given a list, do the auto-route inline (mirror the `install.sh` partition logic the rice
+   skill emits from each `components/<x>/packages.md`):
    - Partition with `pacman -Si <p>` (returns 0 → repo).
    - `sudo pacman -S --needed <repo_pkgs>` for the repo bucket.
    - `paru -S --needed <aur_pkgs>` (or `yay`) for the AUR bucket.
@@ -58,7 +69,8 @@ summary.
      the rest of the batch (`pacman -S --needed` already does this for the repo bucket).
    - **murrine-dependent AUR GTK themes** (`gtk-engine-murrine` → AUR `gtk2` → builds GTK2 from source
      and rolls back on HTTP/2) — known to fail. If it appears in the AUR bucket, skip it and tell the
-     user to either build the theme from SCSS (per `palettes.md` caveat) or use the rice `gtk.css`
+     user to either build the theme from SCSS (per the murrine caveat in
+     `${CLAUDE_PLUGIN_ROOT}/skills/rice/references/theming/gtk-qt.md`) or use the rice `gtk.css`
      overrides instead.
 
 5. **hyprpm plugins (group 23).** If the script's commented hyprpm section needs to run (the caller
@@ -68,9 +80,9 @@ summary.
    stop — the user has to upgrade Hyprland first.
 
 6. **Verify.** For each requested binary the install was meant to land, `command -v <bin>` (use the
-   package→binary map from `packages.md`; e.g. `swww` → `swww-daemon` or `awww-daemon`,
-   `hyprpolkitagent` → check `pacman -Qq hyprpolkitagent` since it has no binary on PATH). Confirm a
-   reasonable majority is present.
+   package→binary map in each `components/<x>/packages.md`; e.g. `swww` → `swww-daemon` or
+   `awww-daemon`, `hyprpolkitagent` → check `pacman -Qq hyprpolkitagent` since it has no binary on
+   PATH). Confirm a reasonable majority is present.
 
 ## Output
 

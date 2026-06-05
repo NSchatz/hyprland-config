@@ -244,9 +244,19 @@ hyprland-config/
 │   └── record-answer.sh                   # jq setpath into <staging>/answers.json
 ├── skills/
 │   ├── rice/              (generate + theme + profiles + wallpaper + shell/desktop-shell)
-│   │   ├── references/   (interview, config-templates, components, shells, theming, palettes,
-│   │   │                  templates, fonts, engine, apps, login, gaming, utilities, plugins,
-│   │   │                  wallpaper, packages)
+│   │   ├── references/
+│   │   │   ├── _interview-protocol.md          (asking discipline, components walked, no-defaulting)
+│   │   │   ├── _shared/                        (palette-schema, colors-contract, dispatchers, version-matrix)
+│   │   │   ├── components/                     (one folder per component — README, interview, schema,
+│   │   │   │                                    template, gotchas, +styling/validation/packages/reload
+│   │   │   │                                    for visual surfaces. 22 components: monitors, input,
+│   │   │   │                                    keybinds, default-apps, env, look-feel, window-rules,
+│   │   │   │                                    autostart, companion-daemons, plugins, terminal,
+│   │   │   │                                    waybar, widgets, launcher, notifications, lock-screen,
+│   │   │   │                                    shell-prompt, utilities, login-boot, gaming, laptop,
+│   │   │   │                                    accessibility)
+│   │   │   └── theming/                        (engine, palettes, fonts, wallpaper, apps,
+│   │   │                                        theming-architecture, gtk-qt)
 │   │   ├── scripts/      (detect-version, detect-theme-tools, rice-init, render-templates,
 │   │   │                  apply-theme, set-wallpaper, palette-from-wallpaper, safe-apply,
 │   │   │                  install-config, verify-config, verify-shell, backup-config,
@@ -257,7 +267,8 @@ hyprland-config/
 │   ├── edit-config/       (read + change ANY existing surface, test after every change)
 │   ├── dotfiles/          (git version control of the configs)
 │   └── hyprland-reference/  (auto-triggered: syntax, ecosystem, testing knowledge)
-│       └── references/styling/  (per-package styling guides + design principles, researched)
+│       └── references/styling/  (design-principles only — per-surface styling now lives in
+│                                  rice/references/components/<x>/styling.md)
 └── README.md
 ```
 

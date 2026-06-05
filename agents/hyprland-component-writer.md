@@ -29,31 +29,48 @@ don't read recipes for other surfaces.
 
 ## Recipes (read only the one(s) you need)
 
-- Hyprland topic files → `${CLAUDE_PLUGIN_ROOT}/skills/rice/references/config-templates.md`
-- waybar → `${CLAUDE_PLUGIN_ROOT}/skills/rice/references/components.md` (waybar section)
-  + styling: `${CLAUDE_PLUGIN_ROOT}/skills/hyprland-reference/references/styling/waybar.md`
+Each surface owns ONE component folder under
+`${CLAUDE_PLUGIN_ROOT}/skills/rice/references/components/<x>/`. Read just the files that exist for
+your component — `template.md` is always there; `gotchas.md`, `styling.md`, `validation.md`,
+`reload.md`, `packages.md` are present per component type. Do NOT load other components' folders.
+
+- Hyprland topic files (env / monitors / input / look-feel / keybinds / window-rules / autostart /
+  companion-daemons) → `components/<topic>/{template,gotchas}.md`
+- waybar → `components/waybar/{template,gotchas,styling,validation,reload}.md`
 - launcher (wofi / rofi / fuzzel / tofi / walker / vicinae / anyrun) →
-  `${CLAUDE_PLUGIN_ROOT}/skills/rice/references/components.md` (launcher section) + styling
-  `launchers.md`
-- notifications (mako / dunst / swaync) → `components.md` + styling `notifications.md`
-- terminal (kitty / alacritty / foot / wezterm / ghostty) → styling `terminals.md`
-- lock screen (hyprlock) → styling `hyprlock.md` + `config-templates.md` (hyprlock section)
-- widget shells (eww / AGS / Quickshell) →
-  `${CLAUDE_PLUGIN_ROOT}/skills/hyprland-reference/references/styling/{eww,ags-astal,quickshell}.md`
-  + `${CLAUDE_PLUGIN_ROOT}/skills/rice/references/engine.md` ("Widget-shell theming")
+  `components/launcher/{template,gotchas,styling,validation,reload}.md`
+- notifications (mako / dunst / swaync) →
+  `components/notifications/{template,gotchas,styling,validation,reload}.md`
+- terminal (kitty / alacritty / foot / wezterm / ghostty) →
+  `components/terminal/{template,gotchas,styling,reload}.md`
+- lock screen (hyprlock) →
+  `components/lock-screen/{template,gotchas,styling,validation,packages,reload}.md`
+- widgets (eww / AGS / Quickshell) →
+  `components/widgets/{template,gotchas,styling,validation,reload}.md`
+- shell-prompt (starship / oh-my-posh / pure / p10k) →
+  `components/shell-prompt/{template,gotchas,styling,validation,reload}.md`
 
 ## Workflow
 
 1. **Read the matching recipe.** Don't load other surfaces' references.
 2. **Cross-check syntax against the Hyprland version** (only relevant for Hyprland topic files and
-   hyprlock/hypridle). Read `${CLAUDE_PLUGIN_ROOT}/skills/hyprland-reference/references/deprecations.md`
-   for the surface you're writing and avoid any line marked deprecated for `HYPR_VERSION`.
+   hyprlock/hypridle). Read
+   `${CLAUDE_PLUGIN_ROOT}/skills/rice/references/_shared/version-matrix.md` for the version
+   branches and
+   `${CLAUDE_PLUGIN_ROOT}/skills/hyprland-reference/references/deprecations.md` for the surface
+   you're writing — avoid any line marked deprecated for `HYPR_VERSION`. The component's own
+   `gotchas.md` flags real-world bugs for that surface.
 3. **Author the file(s).** Use `Write` (single file) or several `Write` calls. Follow the recipe's
    structure exactly — preserve key names and order; don't restyle.
 4. **Reference colors through the engine, not literal hex** — `style.css` starts with
    `@import "colors.css";`, rofi theme `@import "colors.rasi"`, hyprland `source =
-   ~/.config/hypr/colors.conf`. The two exceptions where literal hex is required: **hyprlock**
-   (can't read Hyprland `$vars` — fill from PALETTE) and **fuzzel** (`fuzzel.ini` `[colors]` merge).
+   ~/.config/hypr/colors.conf`. The per-app color-variable contracts (which CSS vars each app
+   reads, which formats it needs) live in
+   `${CLAUDE_PLUGIN_ROOT}/skills/rice/references/_shared/colors-contract.md`; the palette key
+   names the engine writes from live in
+   `${CLAUDE_PLUGIN_ROOT}/skills/rice/references/_shared/palette-schema.md`. The two exceptions
+   where literal hex is required: **hyprlock** (can't read Hyprland `$vars` — fill from PALETTE)
+   and **fuzzel** (`fuzzel.ini` `[colors]` merge).
 5. **Validate the output** before returning:
    - waybar `config.jsonc`: `python3 -c "import json,sys; json.load(open(sys.argv[1]))" <file>` —
      strict JSON, comment-free. A broken `config.jsonc` makes the bar silently fail to appear.

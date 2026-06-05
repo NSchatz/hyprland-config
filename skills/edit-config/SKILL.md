@@ -15,10 +15,11 @@ Test after **every** change so a broken edit never silently persists.
 
 This skill owns *editing*; from-scratch generation is the **rice** skill. For Hyprland syntax read
 the **hyprland-reference** skill (`testing.md`, `deprecations.md`, `sections.md`,
-`keybindings.md`, `window-rules.md`). For the per-surface recipes (waybar/launcher/notifications,
-shells) read **`../rice/references/components.md`** and **`../rice/references/shells.md`** — the same
-files rice uses when generating. For coloring any surface, drive the rice engine
-(`../rice/references/engine.md`) rather than hardcoding hex.
+`keybindings.md`, `window-rules.md`). For the per-surface recipes, read each component's folder
+under **`../rice/references/components/<x>/`** — `waybar/`, `launcher/`, `notifications/`,
+`terminal/`, `lock-screen/`, `widgets/`, `shell-prompt/` — the same `template.md` (+ `gotchas.md`,
+`styling.md`, `validation.md`, `reload.md`) files rice uses when generating. For coloring any
+surface, drive the rice engine (`../rice/references/theming/engine.md`) rather than hardcoding hex.
 
 ## What scope are you in?
 
@@ -69,12 +70,16 @@ target.
 - **Hyprland modular set:** put the change in the right sourced file (new bind → `binds.conf`; gap
   tweak → `looknfeel.conf`; rule → `windowrules.conf`). Monolithic config: edit in place. Avoid
   introducing a duplicate `MODS, KEY` bind — grep the bind files first.
-- **Waybar/launcher/notifications:** edit per `../rice/references/components.md`. Don't hardcode
-  theme colors anywhere — `@import`/include the rice colors file (the engine owns colors).
+- **Waybar/launcher/notifications:** edit per the matching component's `template.md` (and its
+  `gotchas.md` / `validation.md`) — `../rice/references/components/waybar/`,
+  `../rice/references/components/launcher/`, `../rice/references/components/notifications/`. Don't
+  hardcode theme colors anywhere — `@import`/include the rice colors file (the engine owns colors).
 - **Shell rc:** put additions in the managed block (`# >>> hyprland-config managed >>>` …
   `# <<< hyprland-config managed <<<`) so re-runs replace rather than duplicate. Guard every
-  external tool with `command -v`. Never hand-pick *colors* — drive the prompt/fish colors from the
-  rice engine (`../rice/references/engine.md` → "Shell & prompt theming").
+  external tool with `command -v`. The managed-block recipe + parse-test live in
+  `../rice/references/components/shell-prompt/template.md` (and `gotchas.md`). Never hand-pick
+  *colors* — drive the prompt/fish colors from the rice engine
+  (`../rice/references/theming/engine.md` → "Shell & prompt theming").
 - For all surfaces: write the new syntax correctly for the detected version; cross-check
   `deprecations.md`.
 
@@ -135,17 +140,38 @@ applies immediately and is reverted by the next reload — handy for "show me be
 - Never `source`/execute a shell rc to "test" it — parse only.
 - Don't hardcode hex colors — drive coloring through the rice engine so re-themes stay coherent.
 - If a missing package blocks the edit (e.g. user asks to switch to rofi and rofi isn't installed),
-  install it via the package install flow (see `../rice/references/packages.md`) after asking the
-  user once for permission.
+  install it via the package install flow (look up the relevant
+  `../rice/references/components/<x>/packages.md` slice) after asking the user once for permission.
 
 ## Resources
 
-- **`../rice/references/components.md`** — full waybar / wofi / rofi / mako / dunst recipes.
-- **`../rice/references/shells.md`** — per-shell rc locations, prompt engines, aliases/env/history.
-- **`../rice/references/engine.md`** — rice engine (palette + render + reload), incl. shell/prompt
-  color templates.
-- **`../rice/references/packages.md`** — package install map for the "install a tool to unblock an
-  edit" path.
+Recipes are organized per-component under `../rice/references/components/<x>/`. Each folder owns its
+`template.md` (the recipe), `gotchas.md`, and for visual components `styling.md` / `validation.md` /
+`reload.md`. Look up the surface you're editing:
+
+- **`../rice/references/components/waybar/`** — `config.jsonc` + `style.css` recipes, modules,
+  signals, the JSON-strictness gotcha.
+- **`../rice/references/components/launcher/`** — wofi / rofi / fuzzel / tofi recipes.
+- **`../rice/references/components/notifications/`** — mako / dunst / swaync recipes.
+- **`../rice/references/components/terminal/`** — kitty / alacritty / foot / wezterm recipes.
+- **`../rice/references/components/lock-screen/`** — hyprlock styling (companion daemon config
+  itself lives in `companion-daemons/`).
+- **`../rice/references/components/companion-daemons/`** — `hyprlock.conf` / `hypridle.conf` /
+  `hyprpaper.conf` recipes.
+- **`../rice/references/components/widgets/`** — eww / AGS-Astal / Quickshell / HyprPanel recipes.
+- **`../rice/references/components/shell-prompt/`** — per-shell rc locations, the managed block,
+  prompt engines (starship/oh-my-posh), aliases/env/history, parse-test recipe.
+- **`../rice/references/components/keybinds/`** — bind syntax, dispatchers, the bind catalog.
+- **`../rice/references/components/window-rules/`** — `windowrulev2` syntax + recipes.
+- **`../rice/references/components/look-feel/`** — gaps / borders / rounding / blur / animations.
+- **`../rice/references/components/<x>/packages.md`** — the install slice for the "install a tool
+  to unblock an edit" path (use the component matching the surface).
+- **`../rice/references/theming/engine.md`** — rice engine (palette + render + reload), incl.
+  shell/prompt color templates.
+- **`../rice/references/_shared/colors-contract.md`** — per-app color variable contracts (which
+  names the rendered colors file exports for each surface).
+- **`../rice/references/_shared/dispatchers.md`** — the Hyprland dispatcher catalog (handy for any
+  keybind edit).
 - **`${CLAUDE_PLUGIN_ROOT}/skills/hyprland-reference/references/`** — `testing.md`, `deprecations.md`,
   `sections.md`, `keybindings.md`, `window-rules.md`, `ecosystem.md`.
 - **`${CLAUDE_PLUGIN_ROOT}/skills/rice/scripts/verify-config.sh`** — Hyprland live test;

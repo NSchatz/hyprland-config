@@ -29,9 +29,9 @@ in the main loop instead. If the probe succeeds, continue normally.
 explicitly does not want the interview collapsed to a few presses with "the rest" auto-picked. A
 short interview is a failed interview.
 
-- **Every sub-question in `interview.md` gets asked via `AskUserQuestion`.** No exceptions for
-  "obvious" or "common" picks. The `(default)` annotation on an option means "list this option
-  FIRST" — it does **not** authorize skipping the question.
+- **Every sub-question in each `components/<x>/interview.md` gets asked via `AskUserQuestion`.** No
+  exceptions for "obvious" or "common" picks. The `(default)` annotation on an option means "list
+  this option FIRST" — it does **not** authorize skipping the question.
 - **`$ARGUMENTS` and `EXISTING_CONFIG` pre-fill the recommended option of the matching
   question — they do not answer the question for the user.** If `$ARGUMENTS` contains "catppuccin
   mocha", you still run the palette question; you just put `Catppuccin Mocha` as the first option.
@@ -79,9 +79,14 @@ bash "${CLAUDE_PLUGIN_ROOT}/scripts/record-answer.sh" "$STAGING/answers.json" hy
 
 ### 2. Read the question bank
 
-Read **`${CLAUDE_PLUGIN_ROOT}/skills/rice/references/interview.md`** — it has the schema (the
-exact key names to use under each group), the 23-group structure, the sub-questions, and the
-4-questions-per-call cap rule. Treat that file as authoritative; don't paraphrase or skip.
+Read **`${CLAUDE_PLUGIN_ROOT}/skills/rice/references/_interview-protocol.md`** first — it has the
+asking discipline (the strict no-defaulting rule, the 4-questions-per-call cap, how detection feeds
+defaults) and the **components-walked table** that fixes the order of the 23 groups. Then walk
+**`${CLAUDE_PLUGIN_ROOT}/skills/rice/references/components/<x>/interview.md`** for each component
+in that order — each file holds that component's sub-questions. The schema (exact key names) lives
+in each component's sibling **`schema.md`** — read it alongside the component's `interview.md` so
+your `record-answer.sh` keys match what downstream steps `jq` for. Treat these files as
+authoritative; don't paraphrase or skip.
 
 ### 3. Parse `ARGUMENTS` and `EXISTING_CONFIG` into option-reordering hints (do NOT record yet)
 
@@ -101,8 +106,8 @@ question.
 
 For each group, present its sub-questions via `AskUserQuestion` (split across calls when there are
 >4 sub-questions), then **immediately record each answer** with `record-answer.sh` before moving
-on. The key paths come from the schema in `interview.md` ("How downstream steps use it" table +
-the schema JSON). Examples:
+on. The key paths come from each component's own **`schema.md`** ("How downstream steps use it"
+table + the schema JSON in `components/<x>/schema.md`). Examples:
 
 - Group 12 palette → ask the palette-source question, then the scheme question, then the accent
   question via three sub-questions. After the user picks: `record-answer.sh "$STAGING/answers.json"
@@ -121,8 +126,8 @@ or the equivalent shape, then move on without asking the rest of that group.
 
 Don't try to "remember" each answer in your own context for later — once it's in the JSON file,
 it's safe; you can `jq` the file at any time. After every ~5 groups, run
-`jq . "$STAGING/answers.json"` and confirm the shape matches `interview.md`'s schema so you catch
-a typo'd key path early.
+`jq . "$STAGING/answers.json"` and confirm the shape matches each component's `schema.md` so you
+catch a typo'd key path early.
 
 **Check your call count.** Running totals: groups 1–5 should be ~6–8 calls; through group 10
 ~14–18; through group 17 ~22–28; through group 23 **28–38**. If you're consistently low — e.g.
@@ -203,8 +208,8 @@ Next: caller reads <STAGING>/answers.json with jq for every downstream step (A3,
 
 - **Always record before moving on.** Never batch several questions, then "remember to record" — by
   the third group you'll have garbled something. Record → move on; record → move on.
-- **Use the exact schema keys from `interview.md`.** A typo creates a sibling key downstream code
-  won't read. After every group, `jq` the file shape to confirm.
+- **Use the exact schema keys from each component's `schema.md`.** A typo creates a sibling key
+  downstream code won't read. After every group, `jq` the file shape to confirm.
 - **Don't filter options by what's installed.** Detection results are *defaults*, not filters
   (see `rice/SKILL.md` Safety rules). Every user sees the full menu; the install batch handles
   whatever's missing.
@@ -213,4 +218,5 @@ Next: caller reads <STAGING>/answers.json with jq for every downstream step (A3,
 - **Don't write files outside `<STAGING>`.** You own `answers.json`; that's it.
 - **Don't run installs, validators, or generation.** Your job ends when the file is approved.
 - **If something is genuinely ambiguous after one clarification**, pick the documented default
-  from `interview.md`, record it, and flag it in the summary so the caller surfaces it.
+  from the matching `components/<x>/interview.md`, record it, and flag it in the summary so the
+  caller surfaces it.

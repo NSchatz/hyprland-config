@@ -1,0 +1,52 @@
+# lock-screen — answers.json slice
+
+Keys this component owns under the top-level `lock_screen` key.
+
+```json
+{
+  "lock_screen": {
+    "enabled":     true,
+    "background":  "blurred-screenshot | wallpaper | solid",
+    "clock":       "large | time-only | none",
+    "input_pill":  "accent-outlined | underline | hidden",
+    "fingerprint": false
+  }
+}
+```
+
+When `enabled = false`, the four styling keys are recorded as `null` (background/clock/input_pill)
+or `false` (fingerprint). Downstream code branches on `enabled` rather than checking presence.
+
+## Types
+
+| Key | Type | Required | Meaning |
+|---|---|---|---|
+| `lock_screen.enabled`     | boolean        | yes | Master gate. `false` → no `hyprlock.conf` written; the lock bind and `lock_cmd` are dropped. |
+| `lock_screen.background`  | string or null | yes when enabled | `blurred-screenshot` → `path = screenshot` + 2–3 blur passes. `wallpaper` → `path = {{wallpaper_path}}`. `solid` → no `path`, `color = rgb({{bg}})`. |
+| `lock_screen.clock`       | string or null | yes when enabled | `large` → big `$TIME` label (font_size ≈ 96) + date label. `time-only` → `$TIME` only. `none` → no clock label. |
+| `lock_screen.input_pill`  | string or null | yes when enabled | `accent-outlined` → centered pill, `outer_color = rgb(accent)`, `outline_thickness = 2`, height ≈ 55. `underline` → still a **visible** thin pill (height ≈ 50, `outline_thickness = 1`, accent `outer_color`); see `gotchas.md`. `hidden` → renders only when the user starts typing — implemented as `fade_on_empty = true` **plus** a visible-on-type size; never as a 6 px sliver. |
+| `lock_screen.fingerprint` | boolean        | yes | When `true`, emit `auth { fingerprint { enabled = true } }` in `hyprlock.conf`. Requires the `fprintd` package; the lock falls back to password if no reader is present. |
+
+## Who reads these keys
+
+| Reader | Use |
+|---|---|
+| `hyprland-component-writer` (`lock-screen`) | Generates `hyprlock.conf` from `template.md`, substituting the styling picks and palette literals. |
+| `hyprland-component-writer` (`companion-daemons`) | If `lock_screen.enabled` is `false`, drops `lock_cmd` and the lock-class listener from `hypridle.conf`. If `true`, emits `lock_cmd = pidof hyprlock || hyprlock`. |
+| `hyprland-component-writer` (`keybinds`) | Emits the `bind = $mainMod, X, exec, hyprlock` line only when `enabled = true`. |
+| `hyprland-package-installer` | Adds `hyprlock` when `enabled`; adds `fprintd` when `fingerprint`. |
+| `hyprland-config-validator` | Cross-checks that when `enabled = true`, `hyprlock.conf` exists and contains `background {}` and `input-field {}` (see `validation.md`). |
+
+## Validation
+
+- `enabled` is required (boolean).
+- When `enabled = true`, the four styling keys must be present and within the allowed string set
+  (or `fingerprint` must be a boolean).
+- When `enabled = false`, the four styling keys may be `null` or absent; downstream readers treat
+  both identically.
+
+## Cross-references
+
+- Palette literals (`accent`, `surface`, `fg`, `green`, `red`) the template fills → `_shared/palette-schema.md`.
+- UI font family the template fills (`font_ui` minus its size suffix) → `_shared/palette-schema.md`.
+- `hypridle` integration → `../companion-daemons/`.

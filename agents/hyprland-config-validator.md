@@ -62,17 +62,20 @@ is available, assume the latest stable syntax and say so in the report.
      A bind to a dispatcher provided by a plugin that isn't loaded (e.g. `hyprexpo:expo`, `hy3:…`,
      `split-workspace:…`, `scroller:…`, `pyprland`'s `…`) makes `hyprctl configerrors` report
      "Invalid dispatcher" and **fails the whole reload** (rolling back under `safe-apply.sh`). The same
-     goes for a non-core `general:layout = <plugin>` (e.g. `layout = hy3`). Do NOT wave these through as
-     "known-intentional / inert just like the plugin{} blocks" — a `plugin {}` *config* block for an
-     unloaded plugin IS harmless, but a *dispatcher bind or layout line* is NOT. Require them
-     COMMENTED-OUT unless the report explicitly confirms the plugin is already loaded. (Exception: the
-     **`scrolling`** layout + its `layoutmsg` binds — `move ±col`, `colresize ±conf`, `fit active` — are
-     NATIVE core in 0.53+, so those are fine uncommented.)
+     goes for a non-core `general:layout = <plugin>` (e.g. `layout = hy3`). Use
+     `${CLAUDE_PLUGIN_ROOT}/skills/rice/references/_shared/dispatchers.md` for the dispatcher
+     catalog (which are core vs. plugin-supplied). Do NOT wave plugin dispatchers through as
+     "known-intentional / inert just like the plugin{} blocks" — a `plugin {}` *config* block for
+     an unloaded plugin IS harmless, but a *dispatcher bind or layout line* is NOT. Require them
+     COMMENTED-OUT unless the report explicitly confirms the plugin is already loaded. (Exception:
+     the **`scrolling`** layout + its `layoutmsg` binds — `move ±col`, `colresize ±conf`, `fit
+     active` — are NATIVE core in 0.53+, so those are fine uncommented.)
    - Color values are valid `rgba()/rgb()/0x` forms; border gradients are well-formed.
    - Every `source=` path resolves.
 4. **Deprecation checks.** Compare options against
-   `${CLAUDE_PLUGIN_ROOT}/skills/hyprland-reference/references/deprecations.md`. Read that file.
-   Flag deprecated/removed options and give the modern replacement. Common offenders:
+   `${CLAUDE_PLUGIN_ROOT}/skills/hyprland-reference/references/deprecations.md` and the version
+   branches in `${CLAUDE_PLUGIN_ROOT}/skills/rice/references/_shared/version-matrix.md`. Read
+   both. Flag deprecated/removed options and give the modern replacement. Common offenders:
    `decoration:drop_shadow`/`shadow_range`/`col.shadow` (→ `shadow {}`), `blur = true` bool
    (→ `blur {}`), `master:new_is_master` (→ `new_status`), cursor options under `general`/`input`
    (→ `cursor {}`), `general:sensitivity` (→ `input:sensitivity`), `windowrulev2` (→ unified
@@ -93,10 +96,17 @@ is available, assume the latest stable syntax and say so in the report.
    - `allow_tearing` window rule `immediate` present while `general:allow_tearing = false`.
    - Missing essentials worth warning about: no `bind` to launch a terminal, no `exit` bind, no
      monitor catch-all (`monitor = , preferred, auto, 1`).
+   - Per-component validation rules live in
+     `${CLAUDE_PLUGIN_ROOT}/skills/rice/references/components/<x>/validation.md` (e.g. waybar
+     `config.jsonc` strict-JSON parse, layerrule block form, hyprlock required-block list). Apply
+     each one for the surface(s) present in the config under test.
 
 6. **Ecosystem / companion checks.** Read
    `${CLAUDE_PLUGIN_ROOT}/skills/hyprland-reference/references/ecosystem.md` for tool/command
-   reference. Then:
+   reference, and
+   `${CLAUDE_PLUGIN_ROOT}/skills/rice/references/components/companion-daemons/gotchas.md` +
+   `${CLAUDE_PLUGIN_ROOT}/skills/rice/references/components/lock-screen/gotchas.md` for the
+   bind↔companion coherence rules. Then:
    - **Companion configs use different config languages.** `hyprlock.conf`, `hypridle.conf`,
      and `hyprpaper.conf` are read by their own daemons, not Hyprland. Do **not** flag them for
      not being `source=`d, and do **not** lint their options against Hyprland keywords. Sanity

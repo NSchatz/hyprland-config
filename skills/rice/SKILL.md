@@ -3,7 +3,7 @@ name: rice
 description: This skill should be used when the user runs "/hyprland-config:rice" or asks to build, theme, or restyle their Hyprland desktop — i.e. (1) GENERATE a config from scratch ("generate/create my hyprland.conf", "set up Hyprland from scratch", "make me a new config", "build a hyprland config"); (2) THEME/recolor/set fonts ("theme my desktop", "apply Catppuccin/Gruvbox/Nord/Tokyo Night/Dracula/Everforest/Kanagawa/Solarized/Rosé Pine", "change my color scheme/accent", "match my colors to my wallpaper", "set up matugen/wallust", "change my font"); (3) manage named theme PROFILES / "rices" ("save my theme as X", "switch to nord", "list my themes", "load my <name> rice", "pin my accent"); or (4) set/change/cycle the WALLPAPER ("set my wallpaper", "random wallpaper", "make my theme match my wallpaper"). It runs one interactive interview, generates a modular version-matched config, and drives a self-contained rice engine (~/.config/hypr-rice/ — one palette.conf + templates + a `rice` CLI + profiles + a user-override cascade) that themes Hyprland, hyprlock, waybar, notifications, launcher, terminal, GTK/Qt/cursor/icons/fonts and the wallpaper consistently — backing up, live-testing, and reloading after every change.
 argument-hint: "[what you want, e.g. 'set up from scratch', 'catppuccin mocha', 'switch to nord', 'wallpaper ~/x.png and theme from it']"
 allowed-tools: AskUserQuestion, Bash, Read, Write, Edit, Glob, Grep, Agent
-version: 0.12.0
+version: 0.13.0
 ---
 
 # Rice — Build & Theme the Hyprland Desktop
@@ -17,9 +17,10 @@ interactive shell (prompt engine + fish colors + fetch), and **installs the pack
 (Arch + AUR; the user confirms the batch once, then `install.sh` ships as a reviewable artifact so the
 dotfiles travel to a new machine cleanly), so the user gets a working, themed desktop in one pass. They are one skill because they share one source of truth — the **rice engine** at
 `~/.config/hypr-rice/` (`palette.conf` → templates → every app's colors, driven by the `rice` CLI). Read
-`references/engine.md` for the engine contract before touching it. The functional shell-config recipes
-live in `references/components.md` and the terminal-shell recipes in `references/shells.md` (used by
-rice for both generation and for `edit-config`'s later edits — one source per surface).
+`references/theming/engine.md` for the engine contract before touching it. The functional shell-config
+recipes live under `references/components/<x>/template.md` (one folder per surface — `waybar/`,
+`launcher/`, `notifications/`, `terminal/`, `lock-screen/`, `widgets/`, `shell-prompt/`, …) — used by
+rice for both generation and for `edit-config`'s later edits, one source per surface.
 
 Treat `$ARGUMENTS` as the request (a scheme name, an image path, "set up from scratch", "switch to
 nord", freeform setup hints). Use it to pick the **mode** (A/B/C/D). Use it to **reorder option
@@ -96,7 +97,8 @@ Then call the Agent tool with `subagent_type: hyprland-interviewer` passing:
 - `EXISTING_CONFIG=~/.config/hypr/hyprland.conf` (if present)
 - `DETECT_VERSION=<the detect-version.sh kv dump>` / `DETECT_THEME=<detect-theme-tools.sh kv dump>`
 
-The agent walks the question bank in `references/interview.md`, **asks every sub-question**
+The agent walks the question bank in `references/_interview-protocol.md` (protocol + the
+components-walked table) plus each `references/components/<x>/interview.md`, **asks every sub-question**
 (see the agent's "STRICT — ASK EVERY QUESTION" rules: `(default)` only reorders the option list,
 it doesn't authorize skipping; `ARGUMENTS` / `EXISTING_CONFIG` reorder, they don't answer),
 records every answer to `<staging>/answers.json` as it goes (via `scripts/record-answer.sh`),
@@ -106,22 +108,23 @@ The 23 groups stay in the agent's context; your main loop only sees the summary 
 **Fallback — `AskUserQuestion` may be disabled inside subagents.** Some harnesses block
 `AskUserQuestion` in subagents (the agent errors on its first probe and returns
 `INTERVIEW=blocked`). When that happens the agent **cannot** run the interview, so **run it inline in
-the main loop yourself**: read `references/interview.md`, ask each group's sub-questions with
-`AskUserQuestion`, and persist every answer with `scripts/record-answer.sh` into the same
+the main loop yourself**: read `references/_interview-protocol.md` for the order and each
+`references/components/<x>/interview.md` for the sub-questions, ask them with `AskUserQuestion`,
+and persist every answer with `scripts/record-answer.sh` into the same
 `<staging>/answers.json` (the agent already seeded `version`/`staging_dir`/`hypr_version`). The
 context-isolation benefit is lost, but a real interview beats a fabricated one — **never invent
 answers the user didn't see.** This is the *expected* path in this environment, not an error.
 
 **Verify the call count before accepting the agent's report.** If the agent returns
-`groups_recorded` ≪ 23 or a summary that suggests fewer than ~28 `AskUserQuestion` calls were
+`components_recorded` ≪ 22 or a summary that suggests fewer than ~28 `AskUserQuestion` calls were
 made, the interview was collapsed — re-spawn the agent (or fall back to the inline question bank
 in the main loop, asking each question yourself).
 
-For **re-theming (Mode B)** you don't need the full interviewer — Mode B only asks groups 11–14
-(look & feel · palette · fonts · wallpaper) inline; running the heavy agent for four groups is
-overkill. Same `answers.json` schema applies though, so a Mode B run can also persist its picks
-into the rice engine for later replay. The same no-defaulting rule applies: each of the 4 groups'
-sub-questions still gets an `AskUserQuestion`.
+For **re-theming (Mode B)** you don't need the full interviewer — Mode B only walks the `look-feel`
+component (palette · fonts · wallpaper sub-questions) inline; running the heavy agent for one
+component is overkill. Same `answers.json` schema applies though, so a Mode B run can also persist
+its picks into the rice engine for later replay. The same no-defaulting rule applies: each of the
+component's sub-questions still gets an `AskUserQuestion`.
 
 ### A2. Pre-load context for the interviewer
 
@@ -133,11 +136,13 @@ not edited in place).
 ### A3. Generate into the staging dir (reading answers.json, not memory)
 
 Build the file set in the same `<staging>` the interviewer wrote `answers.json` into (not
-`~/.config/hypr`) using **`references/config-templates.md`** as the structure. **Read every pick
-from `<staging>/answers.json` with `jq`** — never from memory or chat history. The schema is the
-canonical map between answers and files (see `interview.md` → "Recording answers" → "How
-downstream steps use it"). If the template needs a value that isn't in the file, that's a missing
-question — go back through the interviewer rather than inventing.
+`~/.config/hypr`) using each **`references/components/<x>/template.md`** as the structure (one per
+Hyprland topic file — `monitors`, `input`, `keybinds`, `env`, `look-feel`, `window-rules`,
+`autostart`, `companion-daemons`, `plugins`). **Read every pick from `<staging>/answers.json` with
+`jq`** — never from memory or chat history. The component schemas (each `components/<x>/schema.md`)
+are the canonical map between answers and files (see `_interview-protocol.md` → "Recording
+answers" → "How downstream steps use it"). If a template needs a value that isn't in the file,
+that's a missing question — go back through the interviewer rather than inventing.
 
 The actual file authoring is **delegated to `hyprland-component-writer` agents in parallel** (see
 A3b for the spawn pattern — the same agent handles Hyprland topic files via
@@ -157,17 +162,18 @@ The main loop is responsible for:
 The writer agents produce the rest in parallel: `env.conf`, `monitors.conf`, `input.conf`,
 `looknfeel.conf`, `binds.conf`, `windowrules.conf`, `autostart.conf`, plus the **companion configs**
 (`hyprlock.conf`/`hypridle.conf`/`hyprpaper.conf`) for any tool the user chose (these are read by
-their own daemons — NOT `source=`d — but stage them so they install + back up together). Match syntax
-to the detected version; wire ecosystem keybinds per `config-templates.md`. `hyprland.conf` must
-`source = ~/.config/hypr/colors.conf` early, and `looknfeel.conf`'s `col.active_border` defaults to
-`$accent $accent2 45deg` — those vars come from the engine in A4, so the look stays in sync with a
-later re-theme.
+their own daemons — NOT `source=`d — but stage them so they install + back up together). Match
+syntax to the detected version; wire ecosystem keybinds per `components/keybinds/template.md`.
+`hyprland.conf` must `source = ~/.config/hypr/colors.conf` early, and `looknfeel.conf`'s
+`col.active_border` defaults to `$accent $accent2 45deg` — those vars come from the engine in A4,
+so the look stays in sync with a later re-theme.
 
 ### A3b. Generate the functional shell configs — in parallel via writer agents
 
-rice is all-in-one, so also stage the **functional** configs for the shell components chosen in
-interview groups 5–10, using **`references/components.md`** as the recipe source. These live under
-their own `~/.config/<app>/` dirs (not in `~/.config/hypr/`), so stage them in a parallel tree, e.g.
+rice is all-in-one, so also stage the **functional** configs for the shell components chosen during
+the interview (terminal, waybar, widgets, launcher, notifications, lock-screen), using each
+**`references/components/<x>/template.md`** as the recipe source. These live under their own
+`~/.config/<app>/` dirs (not in `~/.config/hypr/`), so stage them in a parallel tree, e.g.
 `<staging>/_shell/<app>/`.
 
 **Spawn one `hyprland-component-writer` agent per surface**, in parallel (one message with several
@@ -194,62 +200,68 @@ The per-surface notes the writers follow:
   comment-free JSON**) + `waybar/style.css` (the archetype/transparency look, starting with
   `@import "colors.css";`). Validate the JSON before install (`python3 -c "import json…"`); a malformed
   `config.jsonc` makes the bar silently fail to appear.
-- **Desktop widgets** (group 7): only if a widget system was chosen. For **eww** stage `eww/eww.yuck` +
-  `eww/eww.scss` (`@import "colors";` → the engine's `eww.tmpl`); for an **AGS/Astal** or **Quickshell**
-  shell, scaffold per its tooling and wire its colors file (`ags.tmpl`/`quickshell.tmpl`) — recipes in
-  `styling/{eww,ags-astal,quickshell}.md`, wiring in `engine.md` → "Widget-shell theming". A **full shell
-  replaces waybar** (drop the waybar `exec-once`) and may **own notifications** (then skip the group-9
-  daemon). **HyprPanel / Material-You** shells: drive via matugen, don't hand-theme. Heavy shells
-  (Quickshell/AGS) take real time to compile — warn the user about that at install time (A5) so they
-  know the batch will be slow.
-- **Launcher** (group 8): `wofi/config` + `wofi/style.css` (`@import "colors.css";`), or
+- **Desktop widgets** (`widgets`): only if a widget system was chosen. For **eww** stage
+  `eww/eww.yuck` + `eww/eww.scss` (`@import "colors";` → the engine's `eww.tmpl`); for an **AGS/Astal**
+  or **Quickshell** shell, scaffold per its tooling and wire its colors file
+  (`ags.tmpl`/`quickshell.tmpl`) — recipes in `components/widgets/template.md` and
+  `components/widgets/styling.md`, wiring in `theming/engine.md` → "Widget-shell theming". A **full
+  shell replaces waybar** (drop the waybar `exec-once`) and may **own notifications** (then skip the
+  notifications component). **HyprPanel / Material-You** shells: drive via matugen, don't hand-theme.
+  Heavy shells (Quickshell/AGS) take real time to compile — warn the user about that at install time
+  (A5) so they know the batch will be slow.
+- **Launcher** (`launcher`): `wofi/config` + `wofi/style.css` (`@import "colors.css";`), or
   `rofi/config.rasi` (+ a theme that `@import`s `colors.rasi`), or fuzzel/tofi `.ini` — per the chosen
-  tool/mode/layout.
-- **Notifications** (group 9): `mako/config` / `dunst/dunstrc` / `swaync/config.json`+`style.css` — per
-  the chosen daemon/position/timeout/behavior. Leave color keys to the engine (don't hardcode hex). Skip
-  if a full widget shell (group 7) owns notifications — only one daemon can hold the D-Bus name.
-- **Terminal** (group 5): the emulator's config (e.g. `kitty/kitty.conf`, `alacritty/alacritty.toml`,
-  `foot/foot.ini`) with opacity/padding/cursor/font-size from the interview, including its colors file
-  the engine themes (`include`/`source`).
+  tool/mode/layout, recipe in `components/launcher/template.md`.
+- **Notifications** (`notifications`): `mako/config` / `dunst/dunstrc` / `swaync/config.json`+
+  `style.css` — per the chosen daemon/position/timeout/behavior (recipe in
+  `components/notifications/template.md`). Leave color keys to the engine (don't hardcode hex). Skip
+  if a full widget shell owns notifications — only one daemon can hold the D-Bus name.
+- **Terminal** (`terminal`): the emulator's config (e.g. `kitty/kitty.conf`, `alacritty/alacritty.toml`,
+  `foot/foot.ini`) with opacity/padding/cursor/font-size from the interview (recipe in
+  `components/terminal/template.md`), including its colors file the engine themes
+  (`include`/`source`).
 
 Keep module on-clicks aligned to installed tools (network → `nm-connection-editor`, audio →
 `pavucontrol`). Don't hardcode theme colors anywhere — every shell config reads the engine's colors
 file. These get backed up + installed alongside the Hyprland config in A5.
 
-### A3c. Set up the shell & prompt (group 17)
+### A3c. Set up the shell & prompt (shell-prompt component)
 
 Read the shell pick from `answers.json` (`jq -r .shell_prompt.shell answers.json` → `fish`/`zsh`/
 `bash`/`keep-current`; same for `.shell_prompt.prompt`, `.shell_prompt.fetch`,
 `.shell_prompt.fish_colors`, `.shell_prompt.fisher`, `.shell_prompt.modern_cli`). Then configure
-the interactive shell, leaning on **`references/shells.md`** (managed block, guarded inits,
-parse-test) for *behavior* and the rice engine (A4) for *colors*:
+the interactive shell, leaning on **`references/components/shell-prompt/template.md`** (managed
+block, guarded inits, parse-test) and **`components/shell-prompt/gotchas.md`** for *behavior* and
+the rice engine (A4) for *colors*:
 
-- **Prompt engine** (starship default / oh-my-posh): register its manifest line so the engine renders a
-  rice-owned config (`~/.config/hypr-rice/starship.toml` / `rice.omp.json`), and add the guarded init to
-  the shell's managed block — starship with `export STARSHIP_CONFIG=…` first, oh-my-posh with
-  `oh-my-posh init <shell> --config …`. See `engine.md` → "Shell & prompt theming" for the exact lines.
+- **Prompt engine** (starship default / oh-my-posh): register its manifest line so the engine
+  renders a rice-owned config (`~/.config/hypr-rice/starship.toml` / `rice.omp.json`), and add the
+  guarded init to the shell's managed block — starship with `export STARSHIP_CONFIG=…` first,
+  oh-my-posh with `oh-my-posh init <shell> --config …`. See `theming/engine.md` → "Shell & prompt
+  theming" for the exact lines.
 - **fish colors** (if fish): register the `fish` manifest line → `conf.d/zz-hypr-rice-colors.fish`
   (auto-sourced; themes fish's syntax highlighting from the palette).
-- **Startup fetch & aliases**: add the chosen fetch (fastfetch default) + guarded modern-CLI aliases to
-  the managed block per `shells.md`.
+- **Startup fetch & aliases**: add the chosen fetch (fastfetch default) + guarded modern-CLI
+  aliases to the managed block per `components/shell-prompt/template.md`.
 
-Editing rc files mid-generation is delicate (parse-test after each change, never source). If the shell
-work is substantial, it's fine to finish the Hyprland install (A5/A6) first, then do the shell pass —
-but the prompt/fish *colors* must go through the engine so they re-theme. Back up rc files before
-editing (`backup-path.sh`).
+Editing rc files mid-generation is delicate (parse-test after each change, never source). If the
+shell work is substantial, it's fine to finish the Hyprland install (A5/A6) first, then do the
+shell pass — but the prompt/fish *colors* must go through the engine so they re-theme. Back up rc
+files before editing (`backup-path.sh`).
 
 ### A3d. Generate the package install script (for review + replication)
 
 The interview selects many tools (terminal, bar, launcher, notification daemon, fonts, palette
 generator, utilities, shell/prompt, widget shell, plugins). Stage a reviewable **`install.sh`** so
 the user can see exactly what will be installed and so the script ships with the dotfiles to a new
-machine (idempotent on re-run). Read **`references/packages.md`** for the selection→package map and
-the script shape.
+machine (idempotent on re-run). **Each component owns its own install slice** at
+**`references/components/<x>/packages.md`** — walk every component the user picked something from
+and concatenate. The installer agent (A5) assembles `install.sh` from these slices.
 
 **Walk `answers.json` deterministically — don't recall picks.** Iterate the answer keys, look up
-each pick's package name(s) in the `packages.md` map, collect into **one `PKGS` list** (Arch + AUR
-target — repo and AUR names mixed), de-dupe shared deps, and annotate already-present packages
-(`HAVE_*` from detection) with `# installed`. A reference shape:
+each pick's package name(s) in the relevant `components/<x>/packages.md` slice, collect into **one
+`PKGS` list** (Arch + AUR target — repo and AUR names mixed), de-dupe shared deps, and annotate
+already-present packages (`HAVE_*` from detection) with `# installed`. A reference shape:
 
 ```bash
 pkgs=()
@@ -270,28 +282,30 @@ for u in "${utils[@]}"; do …; done
 …
 ```
 
-(The actual mapping table lives in `packages.md` — iterate the JSON, look up the table, emit names.)
-The emitted script **auto-routes at runtime** — it loops over `PKGS`, sends whatever `pacman -Si`
-knows to `pacman` and the rest to a detected `paru`/`yay` helper — so you never have to classify
-repo-vs-AUR (drift-proof), and `--needed` makes it idempotent (non-pacman systems just get the name
-list). Group-19 login/boot packages go in a commented `sudo` block; group-23 hyprpm plugins go in
-the separate commented hyprpm section (never inline) with the build toolchain added to `PKGS`.
-Stage it at `<staging>/install.sh` (installs to `~/.config/hypr/install.sh`, travels with the
-config + its backup, version-controls with the dotfiles skill) and `chmod +x` it.
+(The actual mapping tables live in each `components/<x>/packages.md` — iterate the JSON, look up
+the right slice, emit names.) The emitted script **auto-routes at runtime** — it loops over `PKGS`,
+sends whatever `pacman -Si` knows to `pacman` and the rest to a detected `paru`/`yay` helper — so
+you never have to classify repo-vs-AUR (drift-proof), and `--needed` makes it idempotent (non-pacman
+systems just get the name list). The `login-boot` component's `packages.md` slice goes in a
+commented `sudo` block; the `plugins` component's hyprpm entries go in the separate commented
+hyprpm section (never inline) with the build toolchain added to `PKGS`. Stage it at
+`<staging>/install.sh` (installs to `~/.config/hypr/install.sh`, travels with the config + its
+backup, version-controls with the dotfiles skill) and `chmod +x` it.
 
 The script is **also what A5 runs** to do the actual install — once written, you don't author a
 separate install path.
 
 ### A4. Establish the palette via the rice engine
 
-The colors/fonts from interview groups 12–14 (palette, fonts, wallpaper) live in `answers.json`
-under `.palette` / `.fonts` / `.wallpaper`. Read them with `jq`; the engine's `palette.conf` is the
-materialized form. Read `references/engine.md`. Then:
+The colors/fonts from the `look-feel` component (palette, fonts, wallpaper sub-questions) live in
+`answers.json` under `.palette` / `.fonts` / `.wallpaper`. Read them with `jq`; the engine's
+`palette.conf` is the materialized form (key contract in `_shared/palette-schema.md`). Read
+`references/theming/engine.md`. Then:
 
 1. Scaffold (idempotent — never clobbers an existing palette):
    `bash "${CLAUDE_PLUGIN_ROOT}/skills/rice/scripts/rice-init.sh"`
 2. Write `~/.config/hypr-rice/palette.conf` from `answers.json` — resolve the chosen source:
-   - `.palette.source == "named"` → look up `.palette.scheme` in `references/palettes.md`,
+   - `.palette.source == "named"` → look up `.palette.scheme` in `references/theming/palettes.md`,
    - `.palette.source == "wallpaper"` → `scripts/palette-from-wallpaper.sh "$(jq -r .wallpaper.path answers.json)"`
      (override the scheme type/mode/prefer with `MATUGEN_TYPE`/`MATUGEN_MODE`/`MATUGEN_PREFER` env vars
      if needed — `scheme-tonal-spot`/`dark`/`saturation` by default). **matugen 4.x note:** the script
@@ -307,10 +321,10 @@ materialized form. Read `references/engine.md`. Then:
    from `palette.conf`, and `Write` the result. Likewise fill any companion-config color placeholders
    **and the staged shell configs' colors files** (`_shell/<app>/colors.css`/`.rasi` etc.) by rendering
    the matching `templates/*.tmpl` so the bar/launcher/notifications install already themed. If a
-   **widget shell** was chosen (group 7), **register its manifest line** (`eww`/`ags`/`quickshell` →
-   its colors file) so `rice apply` re-themes it on every switch, and render its colors file into the
-   staged shell tree — see `engine.md` → "Widget-shell theming" (HyprPanel/Material-You shells are
-   driven by matugen instead, not the manifest).
+   **widget shell** was chosen (`widgets` component), **register its manifest line**
+   (`eww`/`ags`/`quickshell` → its colors file) so `rice apply` re-themes it on every switch, and
+   render its colors file into the staged shell tree — see `theming/engine.md` → "Widget-shell
+   theming" (HyprPanel/Material-You shells are driven by matugen instead, not the manifest).
 4. **Only after a successful install** (A5 returns `ok`/`installed-untested`), run
    `bash ~/.config/hypr-rice/rice apply` so any already-present apps pick up the palette. **Skip it on
    `rolled-back`/`install-failed`** — it would re-render outside the safe-apply harness.
@@ -347,12 +361,12 @@ materialized form. Read `references/engine.md`. Then:
    - **GTK dark theming needs settings.ini, not just gsettings.** Also stage + install
      `~/.config/gtk-3.0/settings.ini` and `~/.config/gtk-4.0/settings.ini` (+ `~/.gtkrc-2.0`) — without
      them GTK3 apps (nm-connection-editor, etc.) render in the default *light* theme on Wayland. See the
-     four GTK gotchas under Mode B and `references/theming.md` → GTK.
+     four GTK gotchas under Mode B and `references/theming/gtk-qt.md`.
    - **Plugin daemons started live by `exec-once` don't run on a `hyprctl reload`** — a reload re-reads
      settings but does NOT launch `autostart.conf` programs (bar, wallpaper daemon, notifications,
      widgets, `pypr`, trays). After `ok`, either start them now (`hyprctl dispatch exec <cmd>` mirroring
      each `exec-once`) or tell the user they appear next login — see A6.
-   - **Dynamic-wallpaper cycle (optional, group 14):** if the user wants periodic re-theming, install a
+   - **Dynamic-wallpaper cycle (optional, from `look-feel`):** if the user wants periodic re-theming, install a
      **systemd user timer** (`OnCalendar=…` + a small `cycle-wallpaper.sh` that runs `rice random <dir>`
      and re-points the hyprlock `current-wallpaper.png` symlink) rather than an `exec-once` loop. The
      matugen path (A4) must be fixed for 4.x or every cycle silently keeps the old palette.
@@ -379,27 +393,29 @@ conflict** (only one can own `org.freedesktop.Notifications`; stop the stray wit
 first), and a **wrong wallpaper binary** (use `SWWW_DAEMON_BIN`, not a hard-coded `swww-daemon`). Two
 more env gotchas keyed off `detect-version.sh` — the nouveau/NVIDIA `no_hardware_cursors` block and
 uwsm's `~/.config/uwsm/env` override — are in the Safety rules below (full detail in
-`config-templates.md`).
+`components/env/gotchas.md` and `components/look-feel/gotchas.md`).
 
 ---
 
 ## Mode B — Theme every surface from one palette
 
 Apply one coherent palette across the whole desktop: **one normalized palette → render per-app color
-files → reload each app** (see `references/theming.md`). Use only current syntax (defer to
-hyprland-reference). For *how* each surface should look — where the accent goes, contrast,
-transparency, the archetypes — read the styling library (`design-principles.md` + the per-app pages).
+files → reload each app** (see `references/theming/theming-architecture.md`, and the per-app contracts
+in `references/_shared/colors-contract.md`). Use only current syntax (defer to hyprland-reference).
+For *how* each surface should look — where the accent goes, contrast, transparency, the archetypes —
+read each visual component's `styling.md` plus `hyprland-reference/references/styling/design-principles.md`.
 
 ### B1. Choose the palette source & fonts (always ask)
 
-Run interview **groups 11–14** (look & feel, palette, fonts, wallpaper) from `references/interview.md`
-(palette source → scheme/wallpaper/manual, accent, light/dark; UI font; monospace/Nerd font). Four
-groups is light enough to run inline, but **still record each answer** via `record-answer.sh` into
-`~/.config/hypr-rice/answers.json` — that way a later A-mode build (or a profile save) can replay
-exactly what was chosen. The named-scheme catalog is `references/palettes.md`; for the wallpaper
-source, `scripts/palette-from-wallpaper.sh` produces the palette when matugen/wallust is present.
-Resolve every answer into the **palette contract** (`theming.md`) as bare `RRGGBB`. Don't pick a
-scheme or fonts silently — present them.
+Run the `look-feel` component's interview inline (`references/components/look-feel/interview.md`
+— palette source → scheme/wallpaper/manual, accent, light/dark; UI font; monospace/Nerd font; plus
+the wallpaper sub-questions). One component is light enough to run inline, but **still record each
+answer** via `record-answer.sh` into `~/.config/hypr-rice/answers.json` — that way a later A-mode
+build (or a profile save) can replay exactly what was chosen. The named-scheme catalog is
+`references/theming/palettes.md`; for the wallpaper source, `scripts/palette-from-wallpaper.sh`
+produces the palette when matugen/wallust is present. Resolve every answer into the **palette
+contract** (`references/_shared/palette-schema.md`) as bare `RRGGBB`. Don't pick a scheme or fonts
+silently — present them.
 
 ### B2. Choose surfaces (default: all installed)
 
@@ -409,7 +425,7 @@ wofi/rofi, kitty/terminal, GTK (3+4), Qt, cursor/icons/fonts. Skip (and note) ab
 ### B3. Prefer the engine (reproducible)
 
 For a real rice, drive the **engine** rather than writing each file ad hoc — it makes the theme
-reproducible, re-applyable, and version-controllable (see `references/engine.md`):
+reproducible, re-applyable, and version-controllable (see `references/theming/engine.md`):
 
 1. `bash "${CLAUDE_PLUGIN_ROOT}/skills/rice/scripts/rice-init.sh"` (scaffold/refresh, idempotent).
 2. Resolve the palette and write `~/.config/hypr-rice/palette.conf` (the source of truth).
@@ -417,7 +433,7 @@ reproducible, re-applyable, and version-controllable (see `references/engine.md`
 4. Back up first: `bash "${CLAUDE_PLUGIN_ROOT}/scripts/backup-path.sh" <paths being changed>`.
 5. `bash ~/.config/hypr-rice/rice apply` (renders every template + reloads running apps). Apply fonts
    across `gsettings` (`font-name`/`monospace-font-name`), GTK `settings.ini`, kitty `font_family`,
-   waybar `font-family` per `fonts.md`. For the cursor, also `hyprctl setcursor <Cursor> <size>`.
+   waybar `font-family` per `theming/fonts.md`. For the cursor, also `hyprctl setcursor <Cursor> <size>`.
 
 **GTK theming has four engine-breaking gotchas** — (1) a session `GTK_THEME=` (default under uwsm —
 `~/.config/uwsm/env`) that silently defeats the re-theme until the env is fixed and live-propagated;
@@ -429,11 +445,11 @@ etc.) on Wayland — they fall back to the default *light* theme unless you also
 `gtk-application-prefer-dark-theme=1`, `gtk-icon-theme-name`, `gtk-font-name`, `gtk-cursor-theme-name/size`)
 plus `~/.gtkrc-2.0` for GTK2. (libadwaita follows `color-scheme=prefer-dark` via the portal but still
 wants the settings.ini; changes apply only to newly-launched apps.) Full detail, the propagation
-commands, and the murrine-needs-`sassc` build note live in **`references/theming.md` → GTK** and
-`styling/gtk-qt.md`.
+commands, and the murrine-needs-`sassc` build note live in **`references/theming/gtk-qt.md`**.
 
-For one-off, non-engine theming the per-app templates in `references/templates.md` and
-`scripts/apply-theme.sh` (reloads running apps + cursor) remain valid.
+For one-off, non-engine theming, each visual component's `template.md` plus the per-app color
+contracts in `references/_shared/colors-contract.md` and `scripts/apply-theme.sh` (reloads running
+apps + cursor) remain valid.
 
 ### B4. Verify & report
 
@@ -475,7 +491,7 @@ captures every saved rice and the current state.
 ## Mode D — Wallpaper (+ dynamic theming)
 
 Set the wallpaper and optionally re-theme the whole desktop from it — the canonical rice front door
-("change wallpaper, the desktop follows"). Read `references/wallpaper.md`.
+("change wallpaper, the desktop follows"). Read `references/theming/wallpaper.md`.
 
 1. Ensure the engine exists: `bash "${CLAUDE_PLUGIN_ROOT}/skills/rice/scripts/rice-init.sh"`.
 2. Resolve the image. If the user has a file, use it (common dir `~/Pictures/wallpapers`). If they
@@ -492,7 +508,7 @@ Set the wallpaper and optionally re-theme the whole desktop from it — the cano
    named/manual palette and suggest `matugen` (recommended) or `wallust`. matugen's Material-You →
    ANSI `color0..15` mapping is approximate; wallust/pywal give a true 16-color scheme.
 3. **Cycling (optional):** `rice random [dir]` (random pick + re-theme). To automate without Claude,
-   set up a **systemd user timer** or a Hyprland `exec-once` loop — see `wallpaper.md`; tell the user
+   set up a **systemd user timer** or a Hyprland `exec-once` loop — see `theming/wallpaper.md`; tell the user
    the cadence and how to stop it. Set the transition look once via `SWWW_TRANSITION_TYPE`/`_FPS` env.
 4. Verify (`verify-config.sh`) and report: wallpaper + backend, whether/how the palette regenerated,
    apps reloaded, backups, any package to install. The wallpaper path is recorded in `palette.conf`,
@@ -532,40 +548,103 @@ Set the wallpaper and optionally re-theme the whole desktop from it — the cano
 
 ## Resources
 
-- **`references/interview.md`** — the one unified question bank, one group per component (23 groups;
-  re-theming reuses groups 11–14). Groups 5–10 (terminal/bar/widgets/launcher/notifications/lock) ask
-  full functional depth; 18 ships utility scripts, 19 themes the login/boot chrome, 20 is the opt-in
-  gaming/performance bundle, 21 (laptop) opt-in (chassis answer is just the default), 22 (accessibility) and 23 (Hyprland
-  plugins / hyprpm) are opt-in.
-- **`references/plugins.md`** — group-23 hyprpm community plugins: the version-pinned install flow
-  (runs after one confirmation, with the "re-run after every Hyprland upgrade" warning) + catalog
-  (hyprexpo overview, hyprscrolling/hy3 layouts, split-monitor-workspaces, hyprbars,
-  borders-plus-plus/hyprtrails/hyprwinwrap, pyprland scratchpads) → `plugins.conf`.
-- **`references/config-templates.md`** — annotated templates for every generated Hyprland file
-  (Mode A): `env`/`monitors`/`input`/`looknfeel`/`binds`/`windowrules`/`autostart` + companion configs.
-- **`references/components.md`** — the functional shell-config recipes (waybar `config.jsonc`+
-  `style.css`, wofi/rofi/fuzzel, mako/dunst/swaync) used by Mode A3b and by `edit-config` for later
-  edits.
-- **`references/shells.md`** — per-shell rc locations, prompt engines, aliases/env/history, parse-test
-  command. Used by Mode A3c and by `edit-config` for later shell tweaks.
-- **`references/packages.md`** — the selection→package map (repo vs AUR) and the `install.sh` shape the
-  skill generates in A3d. A5 runs that script via the **hyprland-package-installer** agent after one
-  user confirmation; the script itself remains the reviewable, replication-friendly artifact (Arch +
-  AUR; idempotent).
-- **`references/theming.md`** — theming architecture, palette contract, per-surface mechanics, reloads.
-- **`references/templates.md`** — per-app **color** templates the rendered colors files use.
-- **`references/palettes.md`** — named schemes → contract hex (+ matching GTK/cursor/icons).
-- **`references/engine.md`** — the rice engine: `palette.conf` source of truth, render manifest, the
-  `rice` CLI, matugen/wallust integration, adding apps, the override cascade, reproducibility.
-- **`references/fonts.md`** — font roles, the catalog to present, detection, applying UI + Nerd fonts.
-- **`references/apps.md`** — shipped long-tail templates (btop/cava/starship/swaync/wlogout/fuzzel) +
-  reaching matugen's 50+ app library.
-- **`references/login.md`** — login/display-manager theming (greetd/tuigreet/ReGreet, SDDM) + boot.
-- **`references/utilities.md`** — group-18 utilities & menus: screenshot/record/OCR/color-picker/power
-  scripts (shipped in `assets/scripts/`), clipboard/emoji/calc binds, Wi-Fi/BT applet recipe.
-- **`references/gaming.md`** — group-20 opt-in tweaks: tearing (`allow_tearing`+`immediate`), VRR
-  modes, fullscreen effect-stripping, `misc:vfr`, the shipped `gamemode.sh` toggle.
-- **`references/wallpaper.md`** — backends, dynamic theming, cycling automation.
+The reference tree is **per-component** — one folder per interview component, plus a small set of
+shared contracts and the theming engine docs. Each component folder owns its sub-interview, schema,
+template, gotchas, install slice, and (for visual components) styling/validation/reload notes:
+
+```
+references/
+├── _interview-protocol.md       # interview protocol + components-walked table
+├── _shared/
+│   ├── palette-schema.md        # palette.conf key contract
+│   ├── colors-contract.md       # per-app color var contracts
+│   ├── dispatchers.md           # Hyprland dispatcher catalog
+│   └── version-matrix.md        # Hyprland version branches & syntax gates
+├── components/<x>/              # one folder per component (22 total)
+│   ├── README.md
+│   ├── interview.md             # sub-questions for the interviewer
+│   ├── schema.md                # answers.json keys this component owns
+│   ├── template.md              # what gets emitted (Mode A)
+│   ├── gotchas.md
+│   ├── packages.md              # this component's install slice
+│   ├── styling.md               # visual components only
+│   ├── validation.md            # visual components only
+│   └── reload.md                # visual components only
+└── theming/                     # the rice engine + cross-surface theming
+    ├── engine.md                # palette.conf, render manifest, rice CLI
+    ├── theming-architecture.md  # the overall theming model
+    ├── palettes.md              # named schemes → contract hex
+    ├── fonts.md                 # font roles + catalog + apply
+    ├── wallpaper.md             # backends, dynamic theming, cycling
+    ├── apps.md                  # long-tail per-app templates
+    └── gtk-qt.md                # GTK/Qt gotchas + theming
+```
+
+**Protocol & shared contracts**
+
+- **`references/_interview-protocol.md`** — the interview protocol (order, no-defaulting rule,
+  `answers.json` recording, components-walked table). Used by the **hyprland-interviewer** agent.
+- **`references/_shared/palette-schema.md`** — the `palette.conf` key contract (accent/accent2,
+  bg/fg, ANSI 0..15, scheme, font_ui, font_mono, wallpaper). A4 fills this; B/C/D rewrite it.
+- **`references/_shared/colors-contract.md`** — per-app color variable contracts (the names each
+  rendered colors file exports for waybar/wofi/mako/kitty/eww/…).
+- **`references/_shared/dispatchers.md`** — the Hyprland dispatcher catalog (keybinds component
+  and component-writer agents lean on this).
+- **`references/_shared/version-matrix.md`** — Hyprland version branches and syntax gates.
+
+**Components (one folder each — 22 total)**
+
+Walked in interview order:
+
+- **`components/monitors/`** — display layout, resolution, scale, transforms.
+- **`components/input/`** — kbd layout/variant/options, mouse/touchpad, gestures.
+- **`components/keybinds/`** — mod, app launchers, window/workspace dispatchers, custom binds.
+- **`components/default-apps/`** — browser/file-manager/terminal/editor defaults + handlers.
+- **`components/env/`** — toolkit env, NVIDIA gates, uwsm `~/.config/uwsm/env`.
+- **`components/look-feel/`** — gaps/borders/rounding/blur/animations **plus** the palette,
+  fonts, and wallpaper sub-questions (also re-used by Mode B).
+- **`components/window-rules/`** — `windowrulev2` recipes (workspaces, float, size, opacity).
+- **`components/autostart/`** — `exec-once` lineup (bar, wallpaper daemon, notif daemon, polkit, …).
+- **`components/companion-daemons/`** — `hyprlock.conf` / `hypridle.conf` / `hyprpaper.conf`.
+- **`components/plugins/`** — hyprpm community plugins (hyprexpo, hyprscrolling, hy3,
+  split-monitor-workspaces, hyprbars, borders-plus-plus, hyprtrails, hyprwinwrap, pyprland).
+- **`components/terminal/`** — kitty / alacritty / foot / wezterm config + colors include.
+- **`components/waybar/`** — `config.jsonc` + `style.css` (full functional depth).
+- **`components/widgets/`** — eww / AGS-Astal / Quickshell / HyprPanel scaffold + colors wiring.
+- **`components/launcher/`** — wofi / rofi / fuzzel / tofi config + colors.
+- **`components/notifications/`** — mako / dunst / swaync config + colors.
+- **`components/lock-screen/`** — hyprlock styling (the lock surface; the daemon config is in
+  `companion-daemons/`).
+- **`components/shell-prompt/`** — interactive shell (bash/zsh/fish) + prompt engine
+  (starship/oh-my-posh) + fetch + modern-CLI aliases; managed-block recipe lives here.
+- **`components/utilities/`** — screenshot / screenrecord / OCR / color-picker / power-menu scripts
+  (shipped in `assets/scripts/`), clipboard / emoji / calc binds, Wi-Fi/BT applets.
+- **`components/login-boot/`** — greetd/tuigreet/ReGreet + SDDM + boot chrome.
+- **`components/gaming/`** — tearing (`allow_tearing` + `immediate`), VRR, fullscreen
+  effect-stripping, `misc:vfr`, the shipped `gamemode.sh` toggle.
+- **`components/laptop/`** — battery/lid/backlight/touchpad-gesture sub-questions (opt-in; chassis
+  is the default, not an answer).
+- **`components/accessibility/`** — opt-in a11y tweaks.
+
+Each component's `packages.md` is the install slice for A3d/A5 (the installer agent concatenates
+them into `install.sh`). Each visual component's `styling.md` is the design-principles guide for
+that surface.
+
+**Theming**
+
+- **`references/theming/engine.md`** — the rice engine: `palette.conf` source of truth, render
+  manifest, the `rice` CLI, matugen/wallust integration, the user-override cascade, reproducibility,
+  shell-and-prompt theming, widget-shell theming.
+- **`references/theming/theming-architecture.md`** — the overall theming model (palette → per-app
+  colors → reload), how the contract files compose.
+- **`references/theming/palettes.md`** — named schemes → contract hex (+ matching GTK/cursor/icons).
+- **`references/theming/fonts.md`** — font roles, the catalog to present, detection, applying UI +
+  Nerd fonts.
+- **`references/theming/wallpaper.md`** — backends, dynamic theming, cycling automation.
+- **`references/theming/apps.md`** — shipped long-tail templates (btop/cava/starship/swaync/wlogout/
+  fuzzel) + reaching matugen's 50+ app library.
+- **`references/theming/gtk-qt.md`** — GTK/Qt theming gotchas (the four engine-breaking ones —
+  `GTK_THEME=`, icon-theme vs GTK-theme, root-owned `gtk.css` symlink, `gsettings`-alone-misses-GTK3).
 - **`scripts/`** — `detect-version.sh`, `detect-theme-tools.sh`, `rice-init.sh`, `render-templates.sh`,
   `apply-theme.sh`, `set-wallpaper.sh`, `palette-from-wallpaper.sh`, `safe-apply.sh`,
   `install-config.sh`, `verify-config.sh`, `verify-shell.sh`, `backup-config.sh`, `reset-config.sh`.
@@ -573,7 +652,8 @@ Set the wallpaper and optionally re-theme the whole desktop from it — the cano
   Called by the interviewer agent after every `AskUserQuestion` so picks land on disk before the
   next question.
 - **Agents** (under `${CLAUDE_PLUGIN_ROOT}/agents/`):
-  - `hyprland-interviewer` — owns the 23-group interview, records each answer to
+  - `hyprland-interviewer` — owns the 22-component interview (walking
+    `_interview-protocol.md` + each `components/<x>/interview.md`), records each answer to
     `<staging>/answers.json`, runs the review pass, returns just the path + a summary. **A1 spawns
     this so the main loop's context stays clean.**
   - `hyprland-component-writer` — authors one surface (waybar / launcher / notifications / terminal /
@@ -583,16 +663,16 @@ Set the wallpaper and optionally re-theme the whole desktop from it — the cano
     A5 user confirmation. Handles pacman/paru routing, paru bootstrap, transient retries.
   - `hyprland-config-validator` — static lint of the staging dir (and optional live load-test). A5
     step 1.
-- **`assets/scripts/*.sh`** — group-18 utility scripts shipped as-is (copy + `chmod`, not rendered):
-  `screenshot.sh`, `screenrecord.sh`, `ocr.sh`, `colorpicker.sh`, `powermenu.sh` (see `utilities.md`),
-  `gamemode.sh` (group-20 effects toggle, see `gaming.md`), `keybind-cheatsheet.sh` (group 3, reads
-  `hyprctl binds -j`), `blur-toggle.sh` (group 11), `theme-switch.sh` (group 3, menu of saved rices →
-  `rice theme`).
+- **`assets/scripts/*.sh`** — utility scripts shipped as-is (copy + `chmod`, not rendered):
+  `screenshot.sh`, `screenrecord.sh`, `ocr.sh`, `colorpicker.sh`, `powermenu.sh` (see
+  `components/utilities/template.md`), `gamemode.sh` (effects toggle, see
+  `components/gaming/template.md`), `keybind-cheatsheet.sh` (reads `hyprctl binds -j`),
+  `blur-toggle.sh`, `theme-switch.sh` (menu of saved rices → `rice theme`).
 - **`templates/*.tmpl`** — the color templates the engine renders (incl. the shell/prompt set:
   `fish.tmpl` → fish `conf.d` colors, `starship.tmpl` → rice-owned `starship.toml`, `oh-my-posh.tmpl` →
   rice-owned `rice.omp.json`; and the **widget-shell set**: `eww.tmpl` → eww `colors.scss`, `ags.tmpl`
   → AGS/Astal `colors.scss`, `quickshell.tmpl` → Quickshell `Colors.qml`; registered in the manifest
-  when chosen — see `engine.md` → "Shell & prompt theming" and "Widget-shell theming").
+  when chosen — see `theming/engine.md` → "Shell & prompt theming" and "Widget-shell theming").
 - **`assets/profiles/*.conf`** — the twelve shipped preset rices; **`assets/rice`** — the CLI
   (incl. `rice wallpapers [scheme]` to list and `rice get-wallpaper <scheme> <n|name> [--set]` to
   curl-download a matching wallpaper; `rice accents [scheme]` to list per-scheme accent variants and
