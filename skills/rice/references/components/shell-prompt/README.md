@@ -15,9 +15,12 @@ component does the surface that runs *inside* the terminal.
 | `interview.md` | Sub-questions 17a–17e (shell, prompt engine, fish colors, fetch, fisher) + the optional aliases / modern-CLI follow-up. |
 | `schema.md` | The `shell_prompt` slice of `answers.json` — types for `shell`, `prompt`, `fish_colors`, `fetch`, `fisher`, `aliases`, `modern_cli`. |
 | `template.md` | The managed-block contents added to each shell's rc: prompt-engine init line, fastfetch line, alias block. Plus the rice-owned prompt config paths (`STARSHIP_CONFIG` / `oh-my-posh init --config`). |
-| `styling.md` | Full TUI + prompt styling guide (btop / cava / fastfetch / starship / oh-my-posh / fish) — palette knobs, design anatomy, tasteful recipes. |
+| `starship.tmpl` | Engine template rendered to `~/.config/hypr-rice/starship.toml` on every `rice apply`. Whole-config render — starship has no `include` / palette `import` (see `gotchas.md`). |
+| `oh-my-posh.tmpl` | Engine template rendered to `~/.config/hypr-rice/rice.omp.json`. Whole-theme JSON; omp has no `include` either. |
+| `fish.tmpl` | Engine template rendered to `~/.config/fish/conf.d/zz-hypr-rice-colors.fish` — fish syntax-highlighting + pager colors. Auto-sourced by fish on every interactive start; uses explicit `set -g` to win over stale `set -U` universals. |
+| `styling.md` | Full TUI + prompt styling guide (btop / cava / fastfetch / starship / oh-my-posh / fish) — palette knobs, design anatomy, tasteful recipes, corpus-derived archetypes. |
 | `validation.md` | Parse-test commands (`bash -n`, `zsh -n`, `fish --no-execute`). Never `source` to test. |
-| `gotchas.md` | Managed-block convention, parse-only-testing, `chsh` ownership, "new shells only", `set -g` vs `set -U` scoping in fish, fisher is `curl`-installed. |
+| `gotchas.md` | Managed-block convention, parse-only-testing, `chsh` ownership, "new shells only", `set -g` vs `set -U` scoping in fish, fisher is `curl`-installed, no-`include` in starship/omp, omp transient prompt, atuin Up-arrow rebind. |
 | `packages.md` | The shell + prompt-engine + fetch + modern-CLI package map. |
 | `reload.md` | Open a new shell, or `exec <shell>` in place. Live shells keep stale config until restart. |
 

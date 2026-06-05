@@ -100,6 +100,20 @@ with the wallpaper: **HyDE** (Hyprland, 70+ themes, retheming starship/fastfetch
 (wallpaper-driven palette across starship + fastfetch + mako), and **caelestia** (fish + starship +
 fastfetch). The plugin's own rice engine plays the same role — palette keys feed every file below.
 
+### Prompt archetypes seen across the corpus
+
+Boiled down from the top-19 Hyprland rices that ship any kind of prompt config
+(`/workspace/.research/corpus.md`):
+
+| Archetype | Rices | Defining moves |
+|---|---|---|
+| **Minimal two-line** (`$directory $character`) | `dusklinux/dusky .config/starship.toml`, `flickowoa/dotfiles config/hypr/themes/base/starship.toml`, `basecamp/omarchy config/starship.toml` (one-line variant) | `add_newline = false`, `format = "$directory$character"`, `right_format` for git/duration so the cursor never moves; `command_timeout` on omarchy. |
+| **Powerline pill segments** | `prasanthrangan/hyprdots Configs/.config/starship/powerline.toml`, the starship preset `gruvbox-rainbow` (cited by `ml4w` and `dusky`'s alt theme) | Each module is `[ $content ](fg:X bg:Y)`; `[](fg:prev_bg bg:next_bg)` separator bleeds bg→fg into the next pill; `bg` chained through `palette` colors so one palette swap recolors every segment. |
+| **`right_format` firehose** | `caelestia-dots/caelestia starship.toml` (every language module pushed to right_format) | Left prompt stays at `$cmd_duration $hostname $character`; everything detective (git, lang versions, kube, aws, …) goes to `right_format` so the cursor sits at the end of the input line. |
+| **Two-row newline omp** | `mylinuxforwork/dotfiles .config/ohmyposh/zen.toml` | First `[[blocks]]` row prints `{{ .Path }}` + git on a `newline: true` row; second row is just `❯` with `foreground_templates` switching on `gt .Code 0`. Pairs with `[transient_prompt]` so scrollback collapses to one symbol per command. |
+| **Decorative two-line wedge** | `end-4/dots-hyprland dots/.config/starship.toml` (wedges 🭧🭒, powerline glyphs, custom directory format with `→`), `Matt-FTW/dotfiles .config/starship/starship.toml` (custom `detect_files = ["hyprland.conf"]` custom module for a Hyprland glyph) | Visual nerd-font flex; needs a Nerd Font with the powerline-extra block. |
+| **No prompt config** (relies on shell default or powerlevel10k) | `prasanthrangan/hyprdots Configs/.p10k.zsh`, `JaKooLit/Hyprland-Dots` (no starship/p10k file), `binnewbs/arch-hyprland` (oh-my-zsh `robbyrussell`), `Ax-Shell`, `DankMaterialShell`, `koeqaife/hyprland-material-you` | Out of scope for this plugin's starship/omp/fish lineup; the rice picks zsh + p10k or just leaves the shell unstyled. The interview's `prompt = "keep-current"` answer maps here. |
+
 ## Battle-tested techniques (from real configs)
 
 Concrete, attributed moves harvested from the first-party theme repos and real rice configs.
@@ -123,7 +137,34 @@ Concrete, attributed moves harvested from the first-party theme repos and real r
 - *Powerline segment mechanics* (Gruvbox Rainbow / Pastel Powerline presets): a segment is `format = '[ $content ](fg:X bg:Y)'`; between two segments a separator `[](fg:<prev_bg> bg:<next_bg>)` color-bleeds the arrow; the whole bar is one `format = """…"""` with each line ending `\`, and `$line_break$character` drops the input arrow to its own line.
 - *`right_format` for the language firehose* (HyDE): push 50+ language/cloud modules to `right_format` so they never shove the cursor; keep the left prompt to dir + git + character. HyDE also ships a separate `powerline.toml` users opt into, and customises git glyphs — `ahead = '⇡${count}'`, `behind = '⇣${count}'`, `diverged = '⇕⇡${ahead_count}⇣${behind_count}'`.
 - *Transient prompt for clean scrollback* — `enable_transience` (fish: a `starship_transient_prompt_func` returning `starship module character`) collapses past prompts to a bare symbol. Pair with `add_newline = false` for density. The **Nerd Font Symbols** preset is a composable glyph-only layer (drop-in `symbol`/`os.symbols`); `[directory.substitutions]` swaps folder names for icons.
-- *powerlevel10k is the zsh-only alternative* — its headline is **Instant Prompt** (renders before plugins load, killing zsh startup lag), configured by the `p10k configure` wizard. starship wins for theming bash/fish/zsh uniformly from one TOML; p10k wins on pure-zsh startup speed.
+- *powerlevel10k is the zsh-only alternative* — its headline is **Instant Prompt** (renders before plugins load, killing zsh startup lag), configured by the `p10k configure` wizard. starship wins for theming bash/fish/zsh uniformly from one TOML; p10k wins on pure-zsh startup speed. Confirmed in `prasanthrangan/hyprdots Configs/.p10k.zsh` — HyDE picks p10k, not starship, so it falls outside this plugin's starship/omp/fish lineup.
+
+**oh-my-posh.**
+- *Theme = one file, no include* — `oh-my-posh init <shell> --config <path>` is the **only** wiring. `mylinuxforwork/dotfiles dotfiles/.config/ohmyposh/zen.toml` is the in-the-wild reference: a single TOML with `[secondary_prompt]`, `[transient_prompt]`, `[[blocks]]` arrays, `[[blocks.segments]]` per row. There is no upstream "@import" for the palette — the rice renders the whole theme.
+- *Transient prompt block* (ml4w `zen.toml`): a top-level `[transient_prompt]` with `template = '❯ '` and `foreground_templates` that switch to red on `gt .Code 0` and to the success color on `eq .Code 0`. This is the omp analogue of starship's `enable_transience`; ml4w opts in by default. Pair with `[secondary_prompt]` (continuation symbol on multi-line input).
+- *Right-side prompt* — omp uses `"type": "rprompt"` block (`ml4w zen.toml` shows it with `overflow = 'hidden'` and a single `executiontime` segment) instead of starship's `right_format` string. Same intent: keep the left clean, push duration/status to the right.
+
+**fish.**
+- *Stale universal vars are real* — `end-4/dots-hyprland dots/.config/fish/fish_variables` ships a `SETUVAR fish_color_*` block (`SETUVAR fish_color_command:blue`, `SETUVAR fish_color_param:cyan`, …) baked into the dotfiles. Layer a rice on top of a config like this and a bare `set fish_color_command …` will silently update the universal instead of creating a fresh global — `gotchas.md` covers the fix (always explicit `set -g`, cleanup-loop for orphans).
+- *Theme files vs `conf.d` snippets* — `catppuccin/fish themes/catppuccin-mocha.theme` lists each color as `fish_color_command 1e66f5` (no `#`, no `fish_color_` prefix on the LHS, no `set` keyword); these load only via `fish_config theme choose catppuccin-mocha` and persist to universals. A re-rendering rice prefers the explicit `set -g fish_color_command {{accent}}` form in `conf.d/zz-hypr-rice-colors.fish` (covered in `fish.tmpl`) — the snippet wins on every shell start instead of fighting a stale universal.
+- *Transient prompt for starship-on-fish* — `caelestia-dots/caelestia fish/config.fish` ships
+  ```fish
+  function starship_transient_prompt_func
+      starship module character
+  end
+  if test "$TERM" != "linux"
+      starship init fish | source
+      enable_transience
+  end
+  ```
+  TTY guard (`$TERM != "linux"`) avoids invoking transience over the bare-Linux VT where the cursor-rewrite escapes don't render. Not in our template — opt-in.
+- *`config.fish` can stay empty* — `mylinuxforwork/dotfiles dotfiles/.config/fish/config.fish` is **0 bytes**; everything lives in `conf.d/00_init.fish`, `10-aliases.fish`, `20-customization.fish`, `30-autostart.fish`. fish auto-sources `conf.d/*.fish` on every interactive start (before `config.fish`), so this is a legitimate design. Our managed-block sits in `config.fish` because find-and-replace on one file is simpler than coordinating multiple `conf.d` snippets, but a user who prefers the ml4w split can move our block into `conf.d/zz-hypr-rice.fish`; the snippets cohabit cleanly.
+- *`set -U fish_greeting ""`* (ml4w `conf.d/00_init.fish`) — universal scope silences the default fish greeting forever, across all sessions and re-installs. Our template doesn't set it (interview hasn't asked); users who want a silent shell can run it once by hand.
+- *atuin Up-arrow rebind* — `Matt-FTW/dotfiles .config/fish/conf.d/atuin.fish` sets `ATUIN_NOBIND true`, runs `atuin init fish | source`, then explicitly binds Up to `_atuin_bind_up` for fish's default + insert modes, including the `\eOA` and `\e[A` escape variants for terminals that send the alt form. Without this Up only opens the atuin fullscreen UI on Ctrl+R; binding Up makes it the history-up replacement. Our template only emits the init line — the rebind is an opt-in follow-up.
+
+**Cross-engine glyph dict (battle-tested across 3+ rices).**
+- Ahead `⇡${count}`, behind `⇣${count}`, diverged `⇕⇡${ahead_count}⇣${behind_count}` — `basecamp/omarchy config/starship.toml`, `prasanthrangan/hyprdots Configs/.config/starship/starship.toml`, `mylinuxforwork/dotfiles .config/ohmyposh/zen.toml`. This is more or less the de-facto idiom across Hyprland rices — adopt it in both `starship.tmpl` and `oh-my-posh.tmpl` for cross-engine recognition.
+- `command_timeout = 200` (omarchy) on starship — slow VCS or cloud modules over a flaky network will otherwise stall every prompt redraw. The rice template uses 500 (room for `git_status` on big repos); cap at 1000.
 
 ## Tasteful default recipe
 
@@ -383,3 +424,13 @@ for the prompt itself.*
 - catppuccin/cava `themes/mocha.cava` (8-stop gradient) and Matt-FTW `.config/cava/config` (`framerate=75`, `bar_width=3`).
 - fastfetch `config.jsonc` — JaKooLit (tree-glyph `keyColor` grouping), HyDE-Project/HyDE (`$(hyde-shell fastfetch logo)` dynamic logo, ASCII box framing, GPU-driver row), Matt-FTW (PNG logo, block colors footer).
 - starship — catppuccin/starship (`themes/mocha.toml` named palette + nested style markup), the official Gruvbox Rainbow / Pastel Powerline / Nerd Font Symbols presets (`starship.rs/presets`), HyDE `Configs/.config/starship/{starship,powerline}.toml` (`right_format`, custom git_status glyphs), `starship.rs/advanced-config` (transient prompt), and romkatv/powerlevel10k (instant prompt).
+- 2026-06-05 corpus pass on `/workspace/.research/corpus.md`:
+  - `dusklinux/dusky` `.config/starship.toml` + `.config/matugen/templates/starship-colors.toml` (palette-only matugen template, commented-out post-hook `ln -nfs` over `~/.config/starship.toml` — direct proof starship has no `include`/`@import`).
+  - `noctalia-dev/noctalia-shell` `Assets/Templates/terminal/starship.toml` + `starship-predefined.toml` (palette-only `.tmpl` shape — emits **only** a `[palettes.noctalia]` block, no `palette = ...` switch, no format strings; relies on the user's own `starship.toml` to import the palette name).
+  - `basecamp/omarchy` `config/starship.toml` (`command_timeout = 200`, `repo_root_format`, the ⇡⇣⇕ git glyph dict).
+  - `mylinuxforwork/dotfiles` `dotfiles/.config/ohmyposh/zen.toml` (`[transient_prompt]` block, `[[blocks]] type='rprompt'` for omp's right-side prompt, foreground-template recolor on `.Code`) and `dotfiles/.config/fish/conf.d/{00_init,10-aliases,20-customization,30-autostart}.fish` (per-tool conf.d fragmentation, empty `config.fish`).
+  - `caelestia-dots/caelestia` `fish/config.fish` (transient-prompt sugar `starship_transient_prompt_func` + `enable_transience`, `cat ~/.local/state/caelestia/sequences.txt` to inject the matugen-generated ANSI palette into kitty), `starship.toml` (caelestia's `right_format` firehose), `fish/functions/fish_greeting.fish` (custom ASCII art + `fastfetch --key-padding-left 5`).
+  - `Matt-FTW/dotfiles` `.config/fish/conf.d/{starship,zoxide,atuin}.fish` (per-tool `type -q` guards, atuin Up-arrow rebind: `bind up _atuin_bind_up` + `\eOA`/`\e[A` variants + insert-mode binds), `.config/starship/starship.toml` + `STARSHIP_CONFIG=$XDG_CONFIG_HOME/starship/starship.toml` (precedent for our `~/.config/hypr-rice/starship.toml` redirect), `.config/fish/fish_plugins` (`catppuccin/fish`, `franciscolourenco/done`, `jorgebucaran/autopair.fish`, plus tools-specific plugins like `gazorby/fish-abbreviation-tips`, `nickeb96/puffer-fish`).
+  - `end-4/dots-hyprland` `dots/.config/fish/fish_variables` (the in-the-wild `SETUVAR fish_color_*` block that motivates our `set -g` discipline) and `dots/.config/fish/config.fish` (`alias clear "printf '\033[2J\033[3J\033[1;1H'"` to work around kitty's stale-scrollback clear bug — niche but real).
+  - `catppuccin/fish` `themes/catppuccin-mocha.theme` (`.theme` file format reference: no `set` keyword, no `fish_color_` prefix on the LHS, bare hex without `#`).
+  - Confirmed-absent: `prasanthrangan/hyprdots` (powerlevel10k via `.p10k.zsh`, not starship/omp), `JaKooLit/Hyprland-Dots` (no prompt engine in tree), `binnewbs/arch-hyprland` (oh-my-zsh `robbyrussell`), `Ax-Shell` / `DankMaterialShell` / `koeqaife/hyprland-material-you` (Quickshell/Python shells — no terminal-prompt component).

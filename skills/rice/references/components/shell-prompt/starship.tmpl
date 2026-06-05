@@ -9,6 +9,9 @@
 "$schema" = 'https://starship.rs/config-schema.json'
 
 add_newline = true
+# Guard against a slow / network-stalled module hanging the prompt (basecamp/omarchy
+# config/starship.toml: command_timeout = 200). Bump if you add VCS-heavy modules.
+command_timeout = 500
 palette = "rice"
 
 format = """
@@ -47,6 +50,12 @@ format = "[$symbol$branch ]($style)"
 [git_status]
 style = "fg:yellow"
 format = "[$all_status$ahead_behind ]($style)"
+# Near-universal ahead/behind/diverged glyph dict — basecamp/omarchy config/starship.toml,
+# prasanthrangan/hyprdots Configs/.config/starship/starship.toml, mylinuxforwork/dotfiles
+# ohmyposh/zen.toml (mirrored from omp's Go template).
+ahead = "⇡${count} "
+behind = "⇣${count} "
+diverged = "⇕⇡${ahead_count}⇣${behind_count} "
 
 [cmd_duration]
 min_time = 2000

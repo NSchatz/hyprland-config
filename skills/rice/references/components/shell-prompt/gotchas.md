@@ -147,9 +147,101 @@ bindings: `$menu` is already a full launcher invocation; appending `-dmenu` to i
 conflicting mode flags. The `dispatchers.md` cross-cutting reference covers this in the
 variables-convention table.
 
+## starship has no `include` — `.tmpl` MUST render the whole config
+
+starship's TOML parser is single-file. There's no `include`, `import`, or palette-merge mechanism.
+The `dusklinux/dusky` repo confirms this in the wild: `.config/matugen/templates/starship-colors.toml`
+emits **only** a `[palettes.colors]` block, but the corresponding `[templates.starship]` entry in
+`.config/matugen/config.toml` is **commented out** — the maintainers couldn't splice it cleanly,
+and the workaround (commented-out post-hook `ln -nfs` of the generated palette over the user's
+`~/.config/starship.toml`) loses every line of the user's prompt config that isn't `palettes`. The
+rice's answer is: render the whole starship config (palette + format + every module) to a
+**rice-owned path** (`~/.config/hypr-rice/starship.toml`) and point `STARSHIP_CONFIG` at it. The
+user's own `~/.config/starship.toml` stays unmodified.
+
+`noctalia-dev/noctalia-shell` ships a **palette-only `.tmpl`** (`Assets/Templates/terminal/starship.toml`
+= just a `[palettes.noctalia]` block, no `palette = ...` line, no format strings) — this is a valid
+alternative for users who already have a starship config: they add `palette = "noctalia"` at the top
+of their own `starship.toml` and **manually** `include` the palette block via copy/paste. Not a
+re-rendering pipeline. We don't ship this shape because the rice's job is to make `rice apply`
+re-theme the prompt without user edits.
+
+## oh-my-posh has no `include` either — same story
+
+oh-my-posh's `--config` takes a single theme file (`.omp.json` / `.toml` / `.yaml`). The CLI offers
+**no** `@import` / `include` of an external palette. `mylinuxforwork/dotfiles
+dotfiles/.config/ohmyposh/zen.toml` is the in-the-wild reference: a single TOML with palette,
+blocks, segments, `[transient_prompt]`, `[secondary_prompt]` all in one file. Rice renders the
+whole `rice.omp.json` from `oh-my-posh.tmpl`.
+
+## fish: `oh-my-posh init fish` — `| source` is canonical, `eval "$(...)"` works in 3.4+
+
+The fish convention is `oh-my-posh init fish --config <path> | source` (pipe the init output to
+`source`). `mylinuxforwork/dotfiles dotfiles/.config/fish/conf.d/20-customization.fish` uses
+`eval "$(oh-my-posh init fish --config ...)"` — fish 3.4+ added `$(...)` as a synonym for `(...)`
+(per [fish 3.4 release notes](https://fishshell.com/release_notes.html)), so this **does** work,
+but it's bash idiom in fish skin. Our template (`template.md`) uses the canonical `| source` form
+for clarity and to match `fish-shell.com`'s own docs.
+
+## omp `transient_prompt` recolors via `foreground_templates`, not `foreground`
+
+omp's `[transient_prompt]` block takes a single `foreground` **or** a list of
+`foreground_templates` that resolve to the first non-empty Go-template result. ml4w's `zen.toml`
+uses two templates back-to-back:
+
+```toml
+foreground_templates = [
+  '{{if gt .Code 0}}red{{end}}',
+  '{{if eq .Code 0}}magenta{{end}}',
+]
+```
+
+— the first matches on a failed command, the second on success. Setting `foreground = 'red'`
+alongside makes the static color win; pick one model.
+
+## starship `command_timeout` is per-prompt-render, not per-module
+
+omarchy's `command_timeout = 200` is starship's global cap on **any single module** (per starship
+docs); each module that exceeds it is dropped silently with a stderr warning. The default is 500
+in newer starship and 1000 in older. Set it lower if a network module (gcloud, aws, kubernetes)
+hangs your prompt; set it higher if `git_status` on a big repo gets dropped. Our `starship.tmpl`
+defaults to 500; bump to 1000 for slow CI/SSH.
+
+## atuin's `Up-arrow rebind` is an opt-in extra step
+
+`atuin init fish | source` sets up Ctrl-R for the fullscreen UI but **does not** rebind the Up
+arrow. `Matt-FTW/dotfiles .config/fish/conf.d/atuin.fish` opts in by setting `ATUIN_NOBIND true`
+**before** init, then explicitly binding Up post-init:
+
+```fish
+set -x ATUIN_NOBIND true
+atuin init fish | source
+bind \cr _atuin_search
+bind up _atuin_bind_up
+bind \eOA _atuin_bind_up     # alt arrow-up escape (xterm-ish)
+bind \e\[A _atuin_bind_up    # alt arrow-up escape (vt100-ish)
+if bind -M insert >/dev/null 2>&1
+    bind -M insert \cr _atuin_search
+    bind -M insert up _atuin_bind_up
+end
+```
+
+Our template only emits the init line — the rebind is documentation, not a default, because the
+default Ctrl-R is the cross-shell convention and Up-rebinding is a personal-preference change.
+
+## fish: an empty `config.fish` is a valid pattern
+
+`mylinuxforwork/dotfiles dotfiles/.config/fish/config.fish` is 0 bytes — ml4w drives everything
+from `conf.d/{00_init,10-aliases,20-customization,30-autostart}.fish`. fish auto-sources every
+`*.fish` in `conf.d/` on every interactive start (before `config.fish`). Our managed block sits
+in `config.fish` because find-and-replace on a single file is cleaner than coordinating multiple
+`conf.d` snippets; a user who already lives in `conf.d/` can move the managed block to
+`~/.config/fish/conf.d/zz-hypr-rice.fish` without changing semantics.
+
 ## Catalogued elsewhere
 
 - The `MANPAGER='sh -c "col -bx | bat -l man -p"'` + `BAT_THEME=ansi` idiom (omarchy) — picked up
   by the template when both `bat` and `aliases` are set.
 - The starship/oh-my-posh palette-substitution and TUI-color recipes — see `styling.md`.
 - Hyprland-version branches — none; this component doesn't touch hyprlang.
+- p10k (powerlevel10k) — out of scope for this plugin's starship/omp/fish lineup. `prasanthrangan/hyprdots Configs/.p10k.zsh` confirms HyDE uses p10k; the rice user can keep p10k by picking `prompt = "keep-current"` in the interview.
