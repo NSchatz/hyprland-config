@@ -51,7 +51,7 @@ input {
     kb_layout = us
     kb_variant =
     kb_options = caps:escape
-    follow_mouse = 1            # 0 none, 1 normal, 2 detached, 3 strict
+    follow_mouse = 1            # 1=focus-follows-mouse (hover focuses; default), 0=click-to-focus, 2=detached (hover does NOT refocus), 3=full-loose
     mouse_refocus = true
     sensitivity = 0             # -1.0 .. 1.0 (libinput accel); NOT general:sensitivity
     accel_profile =            # flat | adaptive
@@ -107,9 +107,13 @@ general {
 }
 ```
 
-**`layout = scrolling`** (Matt-FTW) is a niri-style scrolling layout but is **not** a core 0.54
-layout — it's provided by a plugin (e.g. hyprscroller). Core built-ins are `dwindle` and `master`;
-only emit `scrolling` when the plugin is installed.
+**`layout = scrolling`** is a niri/PaperWM-style scrolling layout. As of **Hyprland 0.53+ it is a
+NATIVE core layout** (it was merged in; the old `hyprscroller`/`hyprscrolling` plugins are
+deprecated/superseded). Core built-ins are now `dwindle`, `master`, and `scrolling`. Configure it with
+`general:layout = scrolling` + a top-level `scrolling {}` block (`column_width`,
+`fullscreen_on_one_column`, `focus_fit_method`, `follow_focus`, `explicit_column_widths`) and
+`layoutmsg` binds (`move ±col`, `colresize ±conf`, `fit active`). No plugin/hyprpm needed. (On a
+pre-0.53 target it was plugin-only — gate it there.)
 
 Note: cursor-related options that used to live here (`no_cursor_warps`,
 `cursor_inactive_timeout`) moved to the `cursor` category. `sensitivity` moved to `input`.

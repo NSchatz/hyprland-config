@@ -61,6 +61,7 @@ Confirm the namespace with `hyprctl layers` (look for `namespace: waybar`). Know
 
 **Icons / glyphs & states.**
 - Module text comes from `format` strings with `{icon}` placeholders resolved by `format-icons` (an array picked by level, or a keyed map). E.g. battery `"format-icons": ["", "", "", "", ""]`, volume keyed by `"headphone"`/`"default"`.
+- **Use 4-byte (U+F0000+) glyphs, not 3-byte legacy-PUA.** A linter (and some editors/formatters) **strips legacy private-use glyphs (U+E000–U+F8FF) from `config.jsonc` on save**, leaving empty icons. Pick **4-byte Material Design icons (U+F0000+)** for module icons and **plain Unicode** for workspace dots (● U+25CF / ○ U+25CB). Verify a font actually covers a glyph with `fc-query --format='%{charset}' <font.ttf>`. The detailed glyph/codepoint table lives in `rice/references/components.md` — consult it for concrete picks.
 - Stateful classes you can target in CSS:
 
 | Selector | When |

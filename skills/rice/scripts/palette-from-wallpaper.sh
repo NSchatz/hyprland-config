@@ -17,9 +17,16 @@ pal="$RICE_DIR/palette.conf"
 if command -v matugen >/dev/null 2>&1; then
     tmpl="$RICE_DIR/templates/palette.matugen.tmpl"
     if [ -f "$tmpl" ]; then
-        tmpcfg="$(mktemp)"; out="$RICE_DIR/.palette.matugen.out"
-        printf "[templates.palette]\ninput_path = '%s'\noutput_path = '%s'\n" "$tmpl" "$out" > "$tmpcfg"
-        if matugen --config "$tmpcfg" image "$img" >/dev/null 2>&1 && [ -f "$out" ]; then
+        tmpcfg="$(mktemp --suffix=.toml)"; out="$RICE_DIR/.palette.matugen.out"
+        # matugen 4.x requires a top-level [config] table or it errors "missing field config".
+        # Headless (no TTY) also needs an explicit --prefer when an image yields multiple source
+        # colors ("Multiple source colors found ... a terminal was not detected"). type/mode/prefer
+        # are overridable via MATUGEN_TYPE / MATUGEN_MODE / MATUGEN_PREFER.
+        printf "[config]\n\n[templates.palette]\ninput_path = '%s'\noutput_path = '%s'\n" "$tmpl" "$out" > "$tmpcfg"
+        if matugen image "$img" --config "$tmpcfg" \
+                --type "${MATUGEN_TYPE:-scheme-tonal-spot}" \
+                --mode "${MATUGEN_MODE:-dark}" \
+                --prefer "${MATUGEN_PREFER:-saturation}" >/dev/null 2>&1 && [ -f "$out" ]; then
             sed 's/=#/=/' "$out" > "$pal.new"
             printf 'wallpaper=%s\n' "$img" >> "$pal.new"
             mv "$pal.new" "$pal"; rm -f "$tmpcfg" "$out"

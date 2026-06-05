@@ -103,6 +103,15 @@ records every answer to `<staging>/answers.json` as it goes (via `scripts/record
 runs a "review your picks" pass at the end, and returns just the file path + a short summary.
 The 23 groups stay in the agent's context; your main loop only sees the summary line.
 
+**Fallback — `AskUserQuestion` may be disabled inside subagents.** Some harnesses block
+`AskUserQuestion` in subagents (the agent errors on its first probe and returns
+`INTERVIEW=blocked`). When that happens the agent **cannot** run the interview, so **run it inline in
+the main loop yourself**: read `references/interview.md`, ask each group's sub-questions with
+`AskUserQuestion`, and persist every answer with `scripts/record-answer.sh` into the same
+`<staging>/answers.json` (the agent already seeded `version`/`staging_dir`/`hypr_version`). The
+context-isolation benefit is lost, but a real interview beats a fabricated one — **never invent
+answers the user didn't see.** This is the *expected* path in this environment, not an error.
+
 **Verify the call count before accepting the agent's report.** If the agent returns
 `groups_recorded` ≪ 23 or a summary that suggests fewer than ~28 `AskUserQuestion` calls were
 made, the interview was collapsed — re-spawn the agent (or fall back to the inline question bank
@@ -283,11 +292,16 @@ materialized form. Read `references/engine.md`. Then:
    `bash "${CLAUDE_PLUGIN_ROOT}/skills/rice/scripts/rice-init.sh"`
 2. Write `~/.config/hypr-rice/palette.conf` from `answers.json` — resolve the chosen source:
    - `.palette.source == "named"` → look up `.palette.scheme` in `references/palettes.md`,
-   - `.palette.source == "wallpaper"` → `scripts/palette-from-wallpaper.sh "$(jq -r .wallpaper.path answers.json)"`,
+   - `.palette.source == "wallpaper"` → `scripts/palette-from-wallpaper.sh "$(jq -r .wallpaper.path answers.json)"`
+     (override the scheme type/mode/prefer with `MATUGEN_TYPE`/`MATUGEN_MODE`/`MATUGEN_PREFER` env vars
+     if needed — `scheme-tonal-spot`/`dark`/`saturation` by default). **matugen 4.x note:** the script
+     now writes a `[config]` table and passes `--prefer` (headless matugen needs it when an image has
+     multiple source colors); if you ever invoke matugen by hand, do the same or it errors.
    - `.palette.source == "manual"` → take the hex from `.palette.manual.*`.
    Resolve to the contract keys + `scheme`/`wallpaper`/`font_ui`/`font_mono` (from `.fonts.ui` /
    `.fonts.mono`). **Always populate `accent2`** (default it to `accent` on the manual path) — the
-   border template references it.
+   border template references it. On the wallpaper path the matugen template already keeps
+   `font_ui`/`font_mono`, so a later re-render (e.g. a wallpaper cycle) won't drop the fonts.
 3. Fill `<staging>/colors.conf` so it installs with the rest (don't let the engine write to
    `~/.config/hypr` before A5): take `templates/hyprland.tmpl`, substitute its `{{accent}}` etc.
    from `palette.conf`, and `Write` the result. Likewise fill any companion-config color placeholders
@@ -330,6 +344,18 @@ materialized form. Read `references/engine.md`. Then:
    (only the dirs you're writing), then copy each staged dir into place. Reload running apps with
    `bash "${CLAUDE_PLUGIN_ROOT}/skills/rice/scripts/apply-theme.sh"` (waybar `SIGUSR2`, mako/dunst
    reload — only if running). Skip on `rolled-back`/`install-failed`.
+   - **GTK dark theming needs settings.ini, not just gsettings.** Also stage + install
+     `~/.config/gtk-3.0/settings.ini` and `~/.config/gtk-4.0/settings.ini` (+ `~/.gtkrc-2.0`) — without
+     them GTK3 apps (nm-connection-editor, etc.) render in the default *light* theme on Wayland. See the
+     four GTK gotchas under Mode B and `references/theming.md` → GTK.
+   - **Plugin daemons started live by `exec-once` don't run on a `hyprctl reload`** — a reload re-reads
+     settings but does NOT launch `autostart.conf` programs (bar, wallpaper daemon, notifications,
+     widgets, `pypr`, trays). After `ok`, either start them now (`hyprctl dispatch exec <cmd>` mirroring
+     each `exec-once`) or tell the user they appear next login — see A6.
+   - **Dynamic-wallpaper cycle (optional, group 14):** if the user wants periodic re-theming, install a
+     **systemd user timer** (`OnCalendar=…` + a small `cycle-wallpaper.sh` that runs `rice random <dir>`
+     and re-points the hyprlock `current-wallpaper.png` symlink) rather than an `exec-once` loop. The
+     matugen path (A4) must be fixed for 4.x or every cycle silently keeps the old palette.
 
 ### A6. Report (and start the daemons)
 
@@ -393,12 +419,18 @@ reproducible, re-applyable, and version-controllable (see `references/engine.md`
    across `gsettings` (`font-name`/`monospace-font-name`), GTK `settings.ini`, kitty `font_family`,
    waybar `font-family` per `fonts.md`. For the cursor, also `hyprctl setcursor <Cursor> <size>`.
 
-**GTK theming has three engine-breaking gotchas** — a session `GTK_THEME=` (default under uwsm —
+**GTK theming has four engine-breaking gotchas** — (1) a session `GTK_THEME=` (default under uwsm —
 `~/.config/uwsm/env`) that silently defeats the re-theme until the env is fixed and live-propagated;
-"folder color is the icon theme, not the GTK theme" (set a scheme-matched `icon-theme` too); and a
+(2) "folder color is the icon theme, not the GTK theme" (set a scheme-matched `icon-theme` too); (3) a
 root-owned `gtk-4.0/gtk.css` symlink that render hits as *Permission denied* (now handled by
-`render-templates.sh`). Full detail, the propagation commands, and the murrine-needs-`sassc` build
-note live in **`references/theming.md` → GTK** and `styling/gtk-qt.md`.
+`render-templates.sh`); and (4) **`gsettings` alone does NOT theme GTK3 apps** (nm-connection-editor,
+etc.) on Wayland — they fall back to the default *light* theme unless you also write
+`~/.config/gtk-3.0/settings.ini` **and** `~/.config/gtk-4.0/settings.ini` (`gtk-theme-name=Adwaita-dark`,
+`gtk-application-prefer-dark-theme=1`, `gtk-icon-theme-name`, `gtk-font-name`, `gtk-cursor-theme-name/size`)
+plus `~/.gtkrc-2.0` for GTK2. (libadwaita follows `color-scheme=prefer-dark` via the portal but still
+wants the settings.ini; changes apply only to newly-launched apps.) Full detail, the propagation
+commands, and the murrine-needs-`sassc` build note live in **`references/theming.md` → GTK** and
+`styling/gtk-qt.md`.
 
 For one-off, non-engine theming the per-app templates in `references/templates.md` and
 `scripts/apply-theme.sh` (reloads running apps + cursor) remain valid.

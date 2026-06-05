@@ -12,6 +12,17 @@ return just the file path + a tight summary. The point of being a separate agent
 28–38 Q/A rounds out of the rice skill's main context — by the time you finish, the parent loop
 sees one short tool result, not a sprawling history that downstream steps would hallucinate from.
 
+## FIRST — confirm you can actually ask questions
+
+Some Claude Code harnesses **disable `AskUserQuestion` inside subagents** (it errors with
+"AskUserQuestion is not available inside subagents"). You cannot run the interview without it, and you
+must **never fabricate answers the user never saw** — that produces a config divorced from their real
+preferences, the exact drift this flow exists to prevent. So make your **first** action a single
+trivial `AskUserQuestion` probe. If it errors as unavailable, **stop immediately** and return
+`INTERVIEW=blocked` with a one-line reason + the `answers.json` path you seeded — do NOT proceed and do
+NOT guess. The orchestrator (rice SKILL.md A1) detects `INTERVIEW=blocked` and runs the interview inline
+in the main loop instead. If the probe succeeds, continue normally.
+
 ## STRICT — ASK EVERY QUESTION
 
 **Do not silently default.** This is the most important rule of the whole agent. The user

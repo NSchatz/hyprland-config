@@ -56,8 +56,15 @@ fi
 case "$backup" in
     /*)
         if [ -d "$backup" ]; then
-            rm -rf "${target:?}"
-            cp -a "$backup" "$target"
+            # Restore WITHOUT emptying the target dir. A running Hyprland regenerates a STUB
+            # hyprland.conf the instant ~/.config/hypr goes empty, which races `rm -rf` (causing a
+            # "Directory not empty" failure) and leaves a nested-backup / stub mess. Instead:
+            # overwrite every backup file back over the target, then prune only the files the failed
+            # config ADDED (present in target, absent in backup). The dir is never empty.
+            cp -a "$backup/." "$target/"
+            ( cd "$target" && find . \( -type f -o -type l \) -print ) | while IFS= read -r f; do
+                [ -e "$backup/$f" ] || rm -f "$target/$f"
+            done
             bash "$here/verify-config.sh" >/dev/null 2>&1 || true   # reload the restored config
             echo "SAFE_APPLY=rolled-back (new config had errors; restored $backup)"
             exit 1

@@ -58,6 +58,16 @@ is available, assume the latest stable syntax and say so in the report.
    - `env=` lines use a **comma** between name and value, not `=`.
    - `bind*=` lines have at least `MODS, KEY, DISPATCHER`; dispatcher is a known one (see the
      hyprland-reference keybindings list); mouse binds use `bindm`.
+   - **Plugin dispatchers HARD-ERROR the live reload — flag UNCOMMENTED ones as ERROR (not "inert").**
+     A bind to a dispatcher provided by a plugin that isn't loaded (e.g. `hyprexpo:expo`, `hy3:…`,
+     `split-workspace:…`, `scroller:…`, `pyprland`'s `…`) makes `hyprctl configerrors` report
+     "Invalid dispatcher" and **fails the whole reload** (rolling back under `safe-apply.sh`). The same
+     goes for a non-core `general:layout = <plugin>` (e.g. `layout = hy3`). Do NOT wave these through as
+     "known-intentional / inert just like the plugin{} blocks" — a `plugin {}` *config* block for an
+     unloaded plugin IS harmless, but a *dispatcher bind or layout line* is NOT. Require them
+     COMMENTED-OUT unless the report explicitly confirms the plugin is already loaded. (Exception: the
+     **`scrolling`** layout + its `layoutmsg` binds — `move ±col`, `colresize ±conf`, `fit active` — are
+     NATIVE core in 0.53+, so those are fine uncommented.)
    - Color values are valid `rgba()/rgb()/0x` forms; border gradients are well-formed.
    - Every `source=` path resolves.
 4. **Deprecation checks.** Compare options against

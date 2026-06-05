@@ -20,9 +20,13 @@ readable and easy to hand-edit.
 # Variables — $mainMod matches the official default config and tutorials
 $mainMod     = {{mod}}
 $terminal    = {{terminal}}
-$menu        = {{launcher}}
+$menu        = {{launcher}}      # APP launcher, e.g. `rofi -show drun` / `wofi --show drun`
+$dmenu       = {{dmenu}}         # DMENU mode for piping lists, e.g. `rofi -dmenu` / `wofi --dmenu` / `fuzzel --dmenu`
 $browser     = {{browser}}
 $fileManager = {{filemanager_or_omit}}
+# IMPORTANT: $menu and $dmenu are DIFFERENT invocations. Never do `$menu -dmenu` — if $menu is
+# `rofi -show drun`, that expands to `rofi -show drun -dmenu`, whose flags conflict so the picker
+# never opens (the clipboard/emoji/power pickers silently break). Pipe lists through $dmenu instead.
 
 # Sourced modules (order matters: env first, then colors so $accent/$bg are defined
 # before looknfeel uses them)
@@ -170,7 +174,7 @@ input {
     kb_layout = {{kb_layout}}
     kb_variant =
     kb_options = {{kb_options_or_blank}}
-    follow_mouse = {{follow_mouse}}     # 0 click-to-focus, 1 normal, 2 detached, 3 sloppy/strict
+    follow_mouse = {{follow_mouse}}     # 1=focus-follows-mouse (hover focuses; Hyprland default), 0=click-to-focus, 2=detached/loose, 3=full-loose
     sensitivity = {{sensitivity}}       # libinput accel, -1.0 .. 1.0 (0 = default)
     repeat_rate = {{repeat_rate}}       # default 25; bump to ~40-50 for fast key repeat
     repeat_delay = {{repeat_delay}}     # default 600; drop to ~250-300 for a shorter hold
@@ -197,9 +201,14 @@ gesture = 3, horizontal, workspace          # 3-finger swipe ⇄ change workspac
 
 Omit the `touchpad {}` block and the `gesture =` lines entirely for desktops (no touchpad). On a
 target older than 0.45, use a `gestures { workspace_swipe = true }` block instead (see
-`deprecations.md`). `follow_mouse` default is `1`; `0` = strict click-to-focus, `2`/`3` = focus
-follows the pointer (sloppy focus) — ask in group 2 rather than assuming. `repeat_rate`/`repeat_delay`
-default to `25`/`600`; only emit non-defaults.
+`deprecations.md`). **`follow_mouse` semantics are easy to get backwards:** `1` (the Hyprland
+default) IS focus-follows-mouse — moving the pointer over a window focuses it. `0` = click-to-focus
+(the pointer never changes focus). `2` = *detached/loose* — the cursor can scroll/interact with the
+window under it but **keyboard focus only changes on click** (so hovering does NOT refocus — this is
+the opposite of what a user asking for "focus follows mouse" wants). `3` = a fuller loose variant.
+So when someone wants "focus to change when the mouse moves over a window," emit **`follow_mouse = 1`**,
+not `2`. Ask in group 2 rather than assuming. `repeat_rate`/`repeat_delay` default to `25`/`600`;
+only emit non-defaults.
 
 Common `{{kb_options}}` recipes (from real configs): `caps:swapescape` or `caps:escape` (the most
 popular), `compose:caps`, or for a multi-layout `kb_layout = us, es` add `grp:win_space_toggle`
@@ -314,11 +323,31 @@ master {
 }
 ```
 
-Core built-ins are **dwindle** and **master** only. A niri/PaperWM-style `scrolling` layout (and the
-i3-tree `hy3` layout) are **not** core in 0.54 — they come from plugins (`hyprscrolling`/`hy3`); offer
-them via the **group-23 plugins flow** (`plugins.md`), never emit `layout = scrolling`/`hy3` without the
-plugin installed (a bare non-core layout errors the reload). See `plugins.md` for the full hyprpm
-catalog (overview, scrolling/tree layouts, per-monitor workspaces, title bars, scratchpads).
+Core built-ins are **dwindle**, **master**, and — as of **Hyprland 0.53+** — **`scrolling`** (the
+niri/PaperWM-style infinite horizontal strip was **merged into core**; it is NO LONGER a plugin, and the
+old `hyprscrolling` plugin's README now says "DEPRECATED"). Set `general:layout = scrolling` and add a
+**top-level `scrolling {}` block** — excellent on an ultrawide:
+
+```ini
+scrolling {
+    column_width = 0.5                # default column = fraction of monitor width
+    fullscreen_on_one_column = true   # a lone column fills the screen
+    focus_fit_method = 1              # 0 center / 1 fit the focused column into view
+    follow_focus = true
+    explicit_column_widths = 0.333, 0.5, 0.667, 1.0   # cycled by the colresize +conf/-conf binds
+}
+```
+
+Scrolling binds use `layoutmsg`: `move +col`/`move -col` (scroll the viewport a column), `colresize
++conf`/`-conf` (cycle the widths above), `fit active`, `movewindowto <dir>`. Unlike a plugin layout,
+these are safe to emit **uncommented** (they're core).
+
+The i3-tree **`hy3`** layout is still a plugin (`outfoxxed/hy3`) — offer it via the **group-23 plugins
+flow** (`plugins.md`). **Never emit a bare non-core `layout = hy3` (or any plugin dispatcher bind)
+without the plugin loaded — it HARD-ERRORS the reload and rolls back.** Keep such lines commented until
+the plugin is enabled. See `plugins.md` for the hyprpm catalog + gotchas (overview via the
+`sandwichfarm/hyprexpo` community fork, per-monitor workspaces, title bars, scratchpads) and note that
+`hyprexpo`/`hyprtrails`/`hyprscrolling` were **removed from the official hyprland-plugins repo**.
 
 **Window groups (tabbed/stacked windows)** — core Hyprland; themed from the palette like the bar; emit when the user
 opts in (group 11). Colors reference the engine's `$accent`/`$muted` vars:
@@ -452,7 +481,7 @@ bind = $mainMod, Print, exec, grim - | wl-copy
 {{#if hyprlock}}bind = $mainMod, X, exec, hyprlock{{/if}}
 {{#if hyprpicker}}bind = $mainMod SHIFT, P, exec, hyprpicker -a{{/if}}
 {{#if wlogout}}bind = $mainMod SHIFT, M, exec, wlogout{{/if}}
-{{#if cliphist}}bind = $mainMod SHIFT, V, exec, cliphist list | $menu | cliphist decode | wl-copy{{/if}}
+{{#if cliphist}}bind = $mainMod SHIFT, V, exec, cliphist list | $dmenu -i -p "Clipboard" | cliphist decode | wl-copy{{/if}}  # $dmenu (NOT $menu) — see the variables note above
 
 # Utility-script binds (group 18) — emit per chosen util; scripts live in ~/.config/hypr/scripts/
 {{#if util_cheatsheet}}bind = $mainMod, slash, exec, ~/.config/hypr/scripts/keybind-cheatsheet.sh{{/if}}
@@ -629,15 +658,19 @@ background {
 
 input-field {
     monitor =
-    size = 250, 50
+    size = 300, 52
+    rounding = 14
     outline_thickness = 2
+    dots_size = 0.33                     # visible password dots as you type
+    dots_spacing = 0.2
     dots_center = true
     outer_color = rgb({{accent_hex}})    # the palette accent (literal — hyprlock is a separate daemon, can't read $accent)
     inner_color = rgb({{surface_hex}})
     font_color = rgb({{fg_hex}})
-    placeholder_text = <i>Password...</i>
-    fade_on_empty = true
-    position = 0, -40
+    fail_color = rgb({{red_hex}})        # red on a wrong password
+    placeholder_text = <i>Enter password</i>
+    fade_on_empty = false                # keep the field on screen even before/while typing
+    position = 0, -130
     halign = center
     valign = center
 }
@@ -652,6 +685,13 @@ label {
     valign = center
 }
 ```
+
+> **Keep the input field VISIBLE.** A "minimal underline" style (interview group 10d) is fine
+> *visually* but do not implement it as a 6px-tall sliver with `outline_thickness = 0` +
+> `fade_on_empty = true` — that field is effectively invisible and shows almost no feedback while
+> typing, so users report "nothing happens when I type my password." A minimal look should still be
+> a clearly visible thin pill: keep a real height (~50px), `fade_on_empty = false`, a visible
+> `dots_size` (~0.33), and at least a 1px accent `outer_color`/underline.
 
 ### hypridle.conf
 
@@ -701,9 +741,13 @@ set `general:layout`. **Claude never runs `hyprpm`** — generate this file + pr
 Full catalog, per-plugin blocks, the hyprpm flow, and the version-pinning caveat: **`plugins.md`**.
 
 ```ini
-# Example — workspace overview (hyprexpo). Emit only the blocks for plugins the user enabled;
-# a plugin {} block for an unloaded plugin is ignored (harmless), but a layout/dispatcher from a
-# missing plugin errors the reload — so gate `layout =`/`hy3:`/`split-workspace` on install.
+# Example — workspace overview (hyprexpo, now the sandwichfarm/hyprexpo community fork — it was
+# REMOVED from the official hyprland-plugins repo). A plugin {} block for an unloaded plugin is
+# ignored (harmless), BUT a plugin layout (`layout = hy3`) or a plugin dispatcher bind
+# (`hyprexpo:expo`, `hy3:…`, `split-workspace:…`) HARD-ERRORS the reload when the plugin isn't
+# loaded — `hyprctl configerrors` reports "Invalid dispatcher" and the whole config rolls back.
+# So always emit those binds/layout lines COMMENTED-OUT, to be uncommented only after the user
+# builds + enables the plugin (or loads its .so with `hyprctl plugin load`). See plugins.md.
 plugin {
     hyprexpo {
         columns = 3
@@ -712,8 +756,13 @@ plugin {
         workspace_method = center current
     }
 }
-# bind (binds.conf): bind = $mainMod, grave, hyprexpo:expo, toggle
+# bind (binds.conf), COMMENTED until the plugin is loaded:
+#   bind = $mainMod, grave, hyprexpo:expo, toggle
 ```
+
+> Reminder: the **`scrolling`** layout is NOT a plugin anymore (native in 0.53+) — its
+> `general:layout = scrolling` + `scrolling {}` block + `layoutmsg` binds are safe to emit
+> uncommented. Only genuine plugin layouts/dispatchers (`hy3`, `hyprexpo:expo`, …) get gated.
 
 If hyprlock was **not** chosen, drop the `lock_cmd` and the lock listener (or point them at the
 user's locker).

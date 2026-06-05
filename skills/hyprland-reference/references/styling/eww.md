@@ -30,7 +30,7 @@ Two files, two jobs. Both live in `~/.config/eww/`.
 - `defpoll` — re-runs a shell script every interval (`:interval "5s"`): clock, CPU%, weather.
 - `deflisten` — runs a script once and streams its stdout lines (best for event-driven data: `playerctl --follow`, a Hyprland workspace socket listener). The backbone of live widgets.
 
-> **GTK3 CSS is not web CSS.** eww uses GTK's CSS engine, so the same subset limits as Waybar apply: **no flexbox** (use `box` orientation), **no `transform`/`calc()`/`float`/absolute positioning**, and you can't set `width`/`height` in CSS (size comes from yuck or `min-width`/`min-height`). You *do* get `background`, `color`, `border`/`border-radius`, `padding`, `margin`, `min-width`/`min-height`, `font-*`, `opacity`, `box-shadow`, `transition`, and GTK color helpers (`alpha()`/`shade()`/`mix()`). Because eww compiles SCSS, you also get nesting and `$vars` on top.
+> **GTK3 CSS is not web CSS.** eww uses GTK's CSS engine, so the same subset limits as Waybar apply: **no flexbox** (use `box` orientation), **no `transform`/`calc()`/`float`/absolute positioning**, and you can't set `width`/`height` in CSS (size comes from yuck or `min-width`/`min-height`). You *do* get `background`, `color`, `border`/`border-radius`, `padding`, `margin`, `min-width`/`min-height`, `font-*`, `opacity`, `box-shadow`, `transition`, and GTK color helpers. Because eww compiles SCSS (via the **grass** engine), you also get nesting and `$vars` on top — but note grass's Sass `alpha()` takes **one argument** (reads alpha; it does not set it): use `rgba($color, a)` for a translucent color, not `alpha($color, a)` (see Pitfalls).
 
 ## How it's launched
 
@@ -104,10 +104,10 @@ Harvested by reading the yuck + scss of the canonical configs. Drop them in and 
 
 **Reveal animations & hover.**
 - *eventbox → revealer hover reveal* (the dominant interaction pattern): wrap a leader icon in an `eventbox` whose `:onhover`/`:onhoverlost` set a `defvar`, and bind a sibling `revealer :reveal {that-var} :transition "slideleft"`. Slides a slider/label out on hover — the eww equivalent of Waybar's `group/drawer`.
-- *transition on hover state* (dharmx): `button:hover { transition: 200ms linear background-color, border-radius; background-color: alpha($surface, 0.6); }` — a calm fade plus radius morph, driven by the `eventbox`'s `:hover`.
+- *transition on hover state* (dharmx): `button:hover { transition: 200ms linear background-color, border-radius; background-color: rgba($surface, 0.6); }` — a calm fade plus radius morph, driven by the `eventbox`'s `:hover`. (Use `rgba()`, not `alpha()`, for a translucent color — see Pitfalls.)
 
 **Transparency & glass.**
-- *rgba surfaces + compositor blur*: give cards `background-color: alpha($bg, 0.8)` and let the `layerrule … blur = true` on the window's namespace frost the wallpaper behind. Because eww blurs the whole surface, keep inter-card gaps either fully transparent (so `ignore_alpha` skips them) or accept that they blur too.
+- *rgba surfaces + compositor blur*: give cards `background-color: rgba($bg, 0.8)` (use `rgba()` for translucency — eww's `grass` `alpha()` takes one arg only; see Pitfalls) and let the `layerrule … blur = true` on the window's namespace frost the wallpaper behind. Because eww blurs the whole surface, keep inter-card gaps either fully transparent (so `ignore_alpha` skips them) or accept that they blur too.
 - *opacity for state* (common): inactive workspace/element `opacity: 0.4`, active `opacity: 1` — cheapest possible indicator, same as Waybar rices.
 
 **Live workspaces (the signature yuck pattern).**
@@ -143,6 +143,9 @@ eww's SCSS compilation makes palette-swapping clean, and the community standard 
 - **GTK theme bleed-through** — inherited GTK button/scale styling can override yours; reset (`button { all: unset; }` then re-set) like the Waybar `all: unset` trick.
 - **Hardcoded `@import` paths** — some shipped configs use absolute `@import "/home/USER/..."`; these break on copy. Use relative `@import "colors";`.
 - **Reload vs restart** — `eww reload` covers yuck + scss edits. Only a daemon change or a stuck state needs `eww kill; eww daemon`.
+- **`alpha($color, 0.8)` errors — eww's SCSS is `grass`, not dart-sass.** eww compiles SCSS via the **grass** engine, where Sass's `alpha()` takes **only one argument** (it *reads* a color's alpha, it doesn't set it). Writing `alpha($accent, 0.8)` fails with *"Only 1 argument allowed, but 2 were passed"* and the **whole `eww.scss` fails to compile, so the widget renders completely UNSTYLED**. For a translucent color use **`rgba($accent, 0.8)`** instead. (So the hover/glass snippets above should be `rgba($surface, 0.6)` / `rgba($bg, 0.8)`, not `alpha(...)`.)
+- **`:height "auto"` (and `:width "auto"`) is invalid** — eww errors *"Failed to parse 'auto' as a length value"* on a `defwindow :geometry (geometry … :height "auto")`. There is no `auto`; use a concrete length (px or %), e.g. `:height "520px"`.
+- **colors partial var-name mismatch** — the `$var` names in `colors.scss` must match exactly what `eww.scss`'s `@import "colors";` references (`$bg`/`$accent`/…). A missing/renamed `$var` is an undefined-variable compile error that also leaves the widget unstyled.
 
 ## Sources
 

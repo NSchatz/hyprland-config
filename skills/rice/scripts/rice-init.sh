@@ -12,7 +12,16 @@
 set -euo pipefail
 
 RICE_DIR="${RICE_DIR:-$HOME/.config/hypr-rice}"
-SRC="${CLAUDE_PLUGIN_ROOT:?CLAUDE_PLUGIN_ROOT not set}/skills/rice"
+# Prefer CLAUDE_PLUGIN_ROOT, but fall back to deriving the plugin's rice dir from this script's own
+# location (<plugin>/skills/rice/scripts/rice-init.sh) so it works even when the env var isn't
+# exported (e.g. invoked directly — which otherwise aborted with "CLAUDE_PLUGIN_ROOT not set").
+if [ -n "${CLAUDE_PLUGIN_ROOT:-}" ] && [ -d "${CLAUDE_PLUGIN_ROOT}/skills/rice/templates" ]; then
+    SRC="${CLAUDE_PLUGIN_ROOT}/skills/rice"
+else
+    _here="$(cd "$(dirname "$0")" && pwd)"
+    SRC="$(cd "$_here/.." && pwd)"   # skills/rice
+fi
+[ -d "$SRC/templates" ] || { echo "ERROR: cannot find the plugin's rice templates (looked in $SRC). Set CLAUDE_PLUGIN_ROOT." >&2; exit 2; }
 force=0; [ "${1:-}" = "--force" ] && force=1
 
 mkdir -p "$RICE_DIR/templates" "$RICE_DIR/profiles"

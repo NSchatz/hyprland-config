@@ -126,6 +126,32 @@ of `@define-color` entries and `@import` it. Reload: `killall -SIGUSR2 waybar`.
   gsettings set org.gnome.desktop.interface color-scheme 'prefer-dark'
   gsettings set org.gnome.desktop.interface font-name '<Font> <Size>'   # e.g. 'Inter 11'
   ```
+- **gsettings ALONE is not enough — write the `settings.ini` files too.** On a Wayland/Hyprland
+  session, setting only gsettings (`gtk-theme` / `color-scheme` / `icon-theme`) does **not** reliably
+  theme GTK3 apps (e.g. **nm-connection-editor**) — they fall back to the default **light** theme.
+  You must also write the per-version `settings.ini`:
+  ```ini
+  # ~/.config/gtk-3.0/settings.ini  AND  ~/.config/gtk-4.0/settings.ini
+  [Settings]
+  gtk-theme-name=Adwaita-dark
+  gtk-application-prefer-dark-theme=1
+  gtk-icon-theme-name=Papirus-Dark
+  gtk-font-name=Inter 11
+  gtk-cursor-theme-name=<Cursor>
+  gtk-cursor-theme-size=24
+  ```
+  And `~/.gtkrc-2.0` for GTK2 apps:
+  ```ini
+  # ~/.gtkrc-2.0
+  gtk-theme-name="Adwaita-dark"
+  gtk-icon-theme-name="Papirus-Dark"
+  gtk-font-name="Inter 11"
+  gtk-cursor-theme-name="<Cursor>"
+  ```
+  Notes: **libadwaita (GTK4)** apps follow `color-scheme=prefer-dark` via the xdg-desktop-portal but
+  still want the `settings.ini`. `settings.ini` changes apply **only to newly-launched apps** —
+  already-open apps must be relaunched to pick them up. Under **uwsm**, a session `GTK_THEME=` in
+  `~/.config/uwsm/env` overrides all of these (see the `GTK_THEME` bullet below).
 - **GTK4 / libadwaita**: many apps ignore full GTK themes. Lever = color overrides in
   `~/.config/gtk-4.0/gtk.css` with `@define-color` (e.g. `@define-color accent_color #...;`,
   `window_bg_color`, `view_bg_color`). libadwaita honors `color-scheme` (dark/light) and accent.

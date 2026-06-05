@@ -48,7 +48,9 @@ emitted with the rest in `binds.conf`.
 
 - **Clipboard history** — needs the `cliphist` store watchers running (group 15 autostart) and a
   one-line picker bind; no script file:
-  `bind = $mainMod, V, exec, cliphist list | $menu | cliphist decode | wl-copy`
+  `bind = $mainMod SHIFT, V, exec, cliphist list | $dmenu -i -p "Clipboard" | cliphist decode | wl-copy`
+  (use **`$dmenu`** — e.g. `rofi -dmenu` — NOT `$menu`; `$menu -dmenu` conflicts with `-show drun` and
+  the picker won't open. Also note `$mainMod, V` is usually toggle-float, so put clipboard on SHIFT+V.)
 - **Emoji picker** — `bemoji` is self-contained (it types/copies the choice); just bind it. It uses
   whatever menu is installed (`rofi`/`wofi`/`fuzzel`):
   `bind = $mainMod, period, exec, bemoji -t` (`-t` types, drop it to copy only). Package: `bemoji`.

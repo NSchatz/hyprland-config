@@ -21,6 +21,35 @@ Win10 recipes), and the system/ecosystem module recipes (temperature hwmon path,
 **Group 6 (waybar design)** maps each answer (archetype/corner/transparency/workspace
 indicator/accent/motion) onto those recipes.
 
+> **CRITICAL — Nerd Font glyphs get silently stripped.** A formatter/linter reprocesses
+> `config.jsonc` on every save and **strips 3-byte legacy private-use-area glyphs**
+> (U+E000–U+F8FF — the classic FontAwesome/Devicon icons), leaving the `"format"` string
+> **empty** so the module renders with no icon at all. The 4-byte **Material Design Icons**
+> (U+F0000+) survive untouched. RULES:
+> - **Module icons → always use U+F0000+ MDI glyphs** (table below). Never the legacy 3-byte set.
+> - **Simple shapes (workspace dots) → plain NON-PUA Unicode**: filled `●` (U+25CF) / hollow `○`
+>   (U+25CB) from the Geometric Shapes block — every font renders them, nothing strips them.
+> - **Author `config.jsonc` via a `python3` script**, not a heredoc:
+>   `json.dump(obj, f, ensure_ascii=False, indent=2)` writes the glyphs cleanly.
+> - **RE-VERIFY after writing**: scan for empty `"format"` fields and for any character in
+>   U+E000–U+F8FF that slipped through. Confirm the chosen font actually covers a codepoint with
+>   `fc-query --format='%{charset}' <ttf>`.
+>
+> Verified MDI glyph table (codepoint → glyph):
+>
+> | use | glyph | codepoint | use | glyph | codepoint |
+> |-----|-------|-----------|-----|-------|-----------|
+> | cpu | 󰻠 | U+F0EE0 | memory | 󰍛 | U+F035B |
+> | clock | 󰥔 | U+F0954 | thermometer | 󰔏 | U+F050F |
+> | idle on (coffee) | 󰅶 | U+F0176 | idle off | 󰅷 | U+F0177 |
+> | mpris play | 󰐊 | U+F040A | mpris pause | 󰏤 | U+F03E4 |
+> | notif bell | 󰂚 | U+F009A | bell-outline | 󰂛 | U+F009B |
+> | power | 󰐥 | U+F0425 | updates | 󰚰 | U+F06B0 |
+> | volume low | 󰕿 | U+F057F | volume med | 󰖀 | U+F0580 |
+> | volume high | 󰕾 | U+F057E | mute | 󰝟 | U+F075F |
+> | wifi | 󰖩 | U+F05A9 | wifi-off | 󰖪 | U+F05AA |
+> | ethernet | 󰈀 | U+F0200 | | | |
+
 ```jsonc
 {
   "layer": "top",
@@ -96,7 +125,9 @@ The glyphs need a Nerd Font (see Fonts below); fall back to text labels if none 
 ### `style.css`
 
 ```css
-/* rice renders colors.css: @bg @fg @surface @muted @accent @accent2 @red @green @yellow */
+/* rice's waybar.tmpl emits exactly these 12 @define-color names — reference ONLY these:
+   @bg @fg @surface @muted @accent @accent2 @red @green @yellow @blue @magenta @cyan
+   An undefined @color breaks re-theme. alpha(@color, 0.8) IS valid here (GTK CSS, 2-arg). */
 @import "colors.css";
 
 * {
@@ -150,6 +181,19 @@ tooltip { background: @bg; border: 1px solid alpha(@accent,0.4); border-radius: 
 tooltip label { color: @fg; padding: 4px 6px; }
 ```
 
+**Color vars.** `style.css` may reference **only** the 12 `@define-color` names rice's
+`waybar.tmpl` emits — `bg fg surface muted accent accent2 red green yellow blue magenta cyan`,
+nothing else. An undefined `@color` breaks re-theme. The GTK-CSS `alpha(@color, 0.8)` function is
+valid in waybar (2-arg); do **not** confuse it with eww's SCSS, where `alpha()` is 1-arg.
+
+**Separated-pills spacing.** With the separated-pills archetype (transparent bar, each module its
+own pill) the **leftmost and rightmost pills touch the screen edge**. Fix: give the first module a
+`margin-left` and the last module a `margin-right` in `style.css`:
+```css
+#workspaces   { margin-left: 8px; }   /* first module on the left */
+#custom-power { margin-right: 8px; }   /* last module on the right (or #tray, whatever ends the bar) */
+```
+
 The translucent islands look muddy without compositor blur — add the Waybar `layerrule` block
 (0.54+ form) in `hyprland.conf` so Hyprland blurs what's behind the bar (see
 `${CLAUDE_PLUGIN_ROOT}/skills/hyprland-reference/references/styling/waybar.md` → *Transparency +
@@ -161,6 +205,13 @@ hot-reload; with `reload_style_on_change: true`, CSS edits also reload on save).
 For the styling-technique catalog (palette/layout split, the three selection idioms, icon-grid vs
 pill-list, `em`/`%` sizing, blur) see
 `${CLAUDE_PLUGIN_ROOT}/skills/hyprland-reference/references/styling/launchers.md`.
+
+> **`$menu -dmenu` is broken when `$menu = rofi -show drun`.** If the Hyprland `$menu` variable is
+> `rofi -show drun`, then any dmenu pipe written as `$menu -dmenu` (e.g. a clipboard-history picker)
+> **won't open** — `-show drun` and `-dmenu` conflict. For dmenu pipes call `rofi -dmenu` directly:
+> ```sh
+> cliphist list | rofi -dmenu -i -p Clipboard | cliphist decode | wl-copy
+> ```
 
 ### wofi — `~/.config/wofi/config` + `style.css`
 
@@ -204,8 +255,12 @@ configuration {
 
 Put the colors import **inside the theme file** it points to — e.g. in
 `~/.config/rofi/custom.rasi` add `@import "colors.rasi"` at the top, then reference the color names.
-Use a **Wayland-capable** build (`rofi-wayland`, or rofi ≥ 2.0) so layer-shell blur/anchoring works;
+Reference **exactly** the vars rice's `rofi.tmpl` emits in its `*{}` block —
+`@bg @bg-alt @fg @muted @accent @accent2 @red @green` — and no others (not
+`background`/`foreground`/`selected`/etc.; an unknown var fails to resolve). Use a
+**Wayland-capable** build (`rofi-wayland`, or rofi ≥ 2.0) so layer-shell blur/anchoring works;
 classic X11 rofi runs through XWayland and ignores the `layerrule`. Launch: `rofi -show drun`.
+For dmenu pipes call `rofi -dmenu` directly (see the `$menu -dmenu` note above).
 
 ## Notification daemon
 
@@ -294,16 +349,23 @@ is **data** in `config.json`'s `widgets` array, not CSS:
   "timeout-low": 4,
   "timeout-critical": 0,
   "widgets": ["title", "dnd", "notifications", "mpris", "volume", "backlight", "buttons-grid"],
+  // ^ drop "backlight" on a desktop (no /sys/class/backlight device) — see note below
   "widget-config": {
     "title": { "text": "Notifications", "clear-all-button": true, "button-text": "Clear All" },
     "dnd": { "text": "Do Not Disturb" }
   }
 }
 ```
+Only include the `backlight` widget when a backlight device actually exists — guard on
+`/sys/class/backlight` being non-empty. On a desktop (no internal panel) the slider is a
+dead/erroring widget; **drop it** there.
+
 `style.css` is **GTK CSS**: `@import "colors.css";` then style `.control-center`, `.notification`,
-`.widget-dnd switch:checked`, and the slider `scale trough progress` (see notifications.md). For a
-frosted control center, add a block-form `layerrule` blur on the `swaync-control-center` and
-`swaync-notification-window` namespaces. Reload: `swaync-client -rs` (CSS), `swaync-client -R` (config).
+`.widget-dnd switch:checked`, and the slider `scale trough progress` (see notifications.md). It may
+reference **only** the color vars rice's `swaync.tmpl` emits — `bg fg surface muted accent accent2
+red` — and no others. For a frosted control center, add a block-form `layerrule` blur on the
+`swaync-control-center` and `swaync-notification-window` namespaces. Reload: `swaync-client -rs`
+(CSS), `swaync-client -R` (config).
 
 ## Fonts (glyphs)
 

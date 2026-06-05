@@ -56,6 +56,15 @@ scheme:
 - `dots_center = true` centers the typed dots; `fade_on_empty` fades the pill when empty;
   `hide_input = true` shows a single indicator instead of per-character dots (swaylock style).
 
+> **Keep the field visibly there — a "minimal underline" can read as broken.** A field built for
+> minimalism with a tiny height + no outline + fade-on-empty (e.g. `size = 250, 6`,
+> `outline_thickness = 0`, `fade_on_empty = true`) is effectively **invisible** and gives almost no
+> feedback while typing — users perceive it as *"nothing happens when I type my password"* and think
+> the lock is frozen. Keep it clearly visible: a real height (**~50px**), `outline_thickness >= 1`
+> with an accent `outer_color`, `fade_on_empty = false`, and `dots_size ~0.33` so the password dots
+> show. A genuinely minimal look should still be a **visible thin pill**, not a 6px sliver that
+> fades out.
+
 **Labels.** The clock is the typographic anchor: `text = $TIME`, `font_size` **60–120** (90 is the
 canonical value in the shipped example), placed top-left/top-right or dead center. Add a date with
 `cmd[update:60000] date +"%A, %d %B %Y"`, a greeting/user line (`$USER`), or live `cmd` labels for

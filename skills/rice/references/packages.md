@@ -182,10 +182,12 @@ block the user runs with `sudo`, never in the main `PKGS` list.
 
 ### Plugins (group 23) — hyprpm, built from source, NOT the package manager
 Add the build toolchain to `PKGS`: `base-devel cmake meson cpio`. The plugins themselves
-(`hyprexpo`, `hyprscrolling`, `hy3`, `split-monitor-workspaces`, `hyprbars`, …) are added/enabled via
-`hyprpm` against the running Hyprland build and **break on every Hyprland upgrade** — so the script
-emits them as a **separate, commented hyprpm section** the user runs deliberately, never inline with
-package installs (`plugins.md` rule: Claude never runs `hyprpm`). `pyprland` (scratchpads) is the one
+(`hyprexpo` — now the `sandwichfarm/hyprexpo` community fork; `hy3`; `split-monitor-workspaces`;
+`hyprbars`; …) are added/enabled via `hyprpm` against the running Hyprland build and **break on every
+Hyprland upgrade** — so the script emits them as a **separate, commented hyprpm section** the user runs
+deliberately, never inline with the package installs (`plugins.md` rule: Claude never runs `hyprpm` —
+it needs a root sudo prompt). Note: the **`scrolling`** layout is **native** in Hyprland 0.53+ (no
+plugin, no hyprpm), and `pyprland` (scratchpads) is the one
 exception that *is* packaged — AUR `pyprland`.
 
 ## The script shape

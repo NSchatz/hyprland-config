@@ -58,7 +58,13 @@ render replaces it with a rice-owned file. (2) If the user installs a **full** G
 line would fight it — **comment out the `gtk4` manifest line** so the theme owns that file (the GTK
 *colors* are then the theme's, not engine-driven; re-enable to go back to palette overrides). (3) A
 session `GTK_THEME=` env var (common under **uwsm**) overrides the rendered `gtk.css` for GTK apps —
-fix the env source too (see `theming.md` → GTK, and `detect-version.sh` `UWSM_*`).
+fix the env source too (see `theming.md` → GTK, and `detect-version.sh` `UWSM_*`). (4) **gsettings
+alone does not theme GTK3 apps** (e.g. nm-connection-editor) on a Wayland/Hyprland session — they
+fall back to the default **light** theme. Also write `~/.config/gtk-{3,4}.0/settings.ini` (a
+`[Settings]` block with `gtk-theme-name` / `gtk-application-prefer-dark-theme=1` /
+`gtk-icon-theme-name` / `gtk-font-name` / `gtk-cursor-theme-{name,size}`) and `~/.gtkrc-2.0` for
+GTK2 — `settings.ini` applies only to **newly-launched** apps. See `theming.md` → GTK for the full
+field list.
 
 ## Shell & prompt theming (fish · starship · oh-my-posh)
 
@@ -117,7 +123,11 @@ may want `style/colors.scss`, a Quickshell config a `theme/Colors.qml` next to i
 wiring, done when the line is registered:
 
 - **eww** → `@import "colors";` at the top of `eww.scss` (references `$bg`/`$accent`/…). Reload-cmd
-  `eww reload` (a no-op if the daemon isn't running — guarded like every hook). See `styling/eww.md`.
+  `eww reload` (a no-op if the daemon isn't running — guarded like every hook). The `colors.scss`
+  `$var` names must match what `eww.scss` references. **eww compiles SCSS via `grass`**, where
+  `alpha($c, a)` errors (one arg only) and leaves the widget unstyled — the template must use
+  `rgba($c, a)` for translucency; likewise `defwindow` geometry can't use `:height "auto"` (use a
+  concrete px/%). See `styling/eww.md` → Pitfalls.
 - **AGS / Astal** → `@use "colors" as *;` (dart-sass) or `@import "colors";` (sassc) in `style.scss`;
   the shell's own file-monitor recompiles + `resetCss`/`applyCss`, so the reload-cmd is empty. The
   template also emits a few `@define-color` lines for GTK-CSS interop. See `styling/ags-astal.md`.

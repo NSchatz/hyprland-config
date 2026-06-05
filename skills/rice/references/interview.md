@@ -270,8 +270,13 @@ the gesture call self-skips on desktops with no touchpad.
 `grp:win_space_toggle` (or `grp:alt_shift_toggle`) to cycle layouts.
 **2c. Key repeat** — Default (rate 25 / delay 600) **(default)** · Fast (rate 40 / delay 300) · Snappy
 (rate 50 / delay 250) · Custom. Maps to `repeat_rate`/`repeat_delay`; only emit non-defaults.
-**2d. Focus model** — Click / normal (`follow_mouse = 1`) **(default)** · Strict click-to-focus
-(`0` — pointer never changes focus) · Sloppy / focus-follows-mouse (`2` detached, or `3` strict-follow).
+**2d. Focus model** — Focus follows mouse — moving the pointer over a window focuses it
+(`follow_mouse = 1`, the Hyprland **default**) **(default)** · Click to focus — focus changes only on
+click (`0`, pointer never refocuses) · Detached/loose — the pointer can scroll the window under it but
+keyboard focus changes only on click (`2`; `3` is a fuller-loose variant). **Mind the semantics:** `1`
+(NOT `2`) is the real "focus follows mouse"; `2` means hovering does NOT refocus — the opposite of what
+most people asking for sloppy focus want. So when the user says "focus should change as I move the mouse
+over a window," record `follow_mouse = 1`.
 A common power-user preference; don't assume `1` silently.
 **2e. Input baseline** (multi-select, off by default): `accel_profile = flat` (no mouse acceleration —
 gamers), `numlock_by_default = true`, raise/lower mouse `sensitivity` (-1.0 … 1.0, default 0).
@@ -319,7 +324,8 @@ screen, `bindd` (described) so a cheat-sheet can read the binds, `code:10`–`co
 (layout-independent). Wire **ecosystem binds** for the tools chosen below + in group 15 (see
 `ecosystem.md`): screenshot (`hyprshot -m region` / `grimblast copy area` / `grim -g "$(slurp)" - |
 wl-copy`), lock (`hyprlock`), color picker (`hyprpicker -a`), logout (`wlogout`), clipboard
-(`cliphist list | $menu | cliphist decode | wl-copy`).
+(`cliphist list | $dmenu | cliphist decode | wl-copy` — `$dmenu`, NOT `$menu`; see
+`config-templates.md` for why `$menu -dmenu` breaks).
 
 ---
 
@@ -891,22 +897,28 @@ blocks, and the version-pinning caveat: **`plugins.md`**.
 
 **The hard rule:** plugins are compiled against the exact running Hyprland build, so a Hyprland upgrade
 **breaks every plugin** until rebuilt. That makes install a *user* action — **Claude never runs
-`hyprpm`**; we generate the `plugin {}` blocks (→ `plugins.conf`) + binds, then print the exact
-`hyprpm add/enable/reload` commands and the build-toolchain dep. (User is on Hyprland 0.54.3 — plugins
-must match.) Gate `general:layout =` / `hy3:` / `split-workspace` binds on the plugin actually being
-installed (a missing non-core layout/dispatcher errors the reload; an unused `plugin {}` block is
-harmless).
+`hyprpm`** (and genuinely *can't*: hyprpm writes to root-owned `/var/cache/hyprpm` via an internal
+`sudo` prompt that needs a TTY). We generate the `plugin {}` blocks (→ `plugins.conf`) + binds, then
+print the exact `hyprpm add/enable/reload` commands and the build-toolchain dep. **Emit `general:layout
+= hy3` and any plugin dispatcher bind (`hy3:`, `hyprexpo:expo`, `split-workspace:`) COMMENTED-OUT** —
+they don't silently no-op, they **hard-error the reload** ("Invalid dispatcher") and roll back until the
+plugin is actually loaded. (An unused `plugin {}` block is harmless.) Full flow + hyprpm gotchas:
+**`plugins.md`**.
 
 **Call 1 — the gate:**
 **23a. Set up Hyprland plugins?** — No, skip **(default)** · Yes.
 
 **Call 2 (only if yes; multiSelect, none pre-checked):**
 **23b. Which plugins?** —
-- **Workspace overview** — `hyprexpo` (grid exposé, `SUPER+\`` toggle). *Skip if a full widget shell
+- **Workspace overview** — `hyprexpo` (grid exposé, `SUPER+\`` toggle). **Removed from the official
+  hyprland-plugins repo** — now the community fork `sandwichfarm/hyprexpo`. *Skip if a full widget shell
   (group 7) already provides an overview.*
-- **Scrolling layout** — `hyprscrolling` (official) / `hyprscroller` — PaperWM-style infinite strip;
-  **replaces** dwindle/master (group 11g).
-- **i3/sway tree tiling** — `hy3` — manual split tree with tabbed groups; replaces the layout + split binds.
+- **Scrolling layout** — **NATIVE in Hyprland 0.53+ — NOT a plugin.** Don't offer it here; the
+  PaperWM-style infinite strip is core (`general:layout = scrolling` + a `scrolling {}` block — see
+  `config-templates.md`). The old `hyprscrolling`/`hyprscroller` plugins are deprecated/superseded.
+  Recommend it (uncommented, no hyprpm) when the user wants a scrolling layout (group 11g).
+- **i3/sway tree tiling** — `hy3` (`outfoxxed/hy3`, still maintained) — manual split tree with tabbed
+  groups; replaces the layout + split binds. Gate `layout = hy3` + its binds (commented until built).
 - **Per-monitor workspaces** — `split-monitor-workspaces` — each display gets its own 1–10 (offer only
   when `MONITOR_COUNT > 1`; rebinds the workspace keys).
 - **Window title bars** — `hyprbars` (CSD-like bars + buttons; themable from the palette).
