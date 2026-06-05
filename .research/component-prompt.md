@@ -56,17 +56,30 @@ language, same reload story).
 2. THE CORPUS — top ~15 dotfiles from github.com/topics/hyprland
 ================================================================================
 
-Authoritative source: <https://github.com/topics/hyprland> sorted by stars.
-WebFetch that page, take the top ~15 repos by star count, and use them as
-your corpus. Likely (verify, don't trust this list): `end-4/dots-hyprland`,
-`HyDE-Project/HyDE`, `prasanthrangan/hyprdots`, `mylinuxforwork/dotfiles`,
-`JaKooLit/Arch-Hyprland`, `caelestia-dots/shell`, `noctalia-shell`,
-`DankMaterialShell`, `gh0stzk/dotfiles`, `basecamp/omarchy`,
-`ml4w/hyprland-starter`, `sainnhe/dotfiles`, `ChrisTitusTech/Hyprland`,
-`koeqaife/hyprland-material-you`, `HeyImKyu/private-dots`. Fetch each
-repo's README + the relevant config files for {{COMPONENT}}. Don't waste a
-fetch on a rice whose {{COMPONENT}} story is non-existent — note it and
-move on.
+The corpus has already been cached for you at `/workspace/.research/corpus.md`.
+READ THAT FILE FIRST. It contains, for each of the top ~19 actively-maintained
+Hyprland rices/shells:
+  - star count + one-line description
+  - the theming engine (matugen / wallust / pywal / wallbash / hand-rolled)
+  - the repo-root-relative directory paths for every component surface
+    (hypr, waybar, launcher, notifications, widgets, lockscreen, terminal,
+    shell-prompt, utilities, login-boot, theming primitives)
+  - layout notes (e.g. HyDE's `Configs/.config/*` convention, end-4's lua
+    entrypoint, monorepo vs shell-only repos)
+  - cross-reference tables at the bottom grouped by shell tech, theming
+    engine, and layout convention — use these to pick a representative
+    sample fast instead of scanning all 19.
+
+Do NOT re-fetch `https://github.com/topics/hyprland` — the cache already
+did the ranking and the path discovery. Go straight to the per-{{COMPONENT}}
+paths listed in `corpus.md` and fetch the actual config files from there
+(use `gh api repos/<owner>/<repo>/contents/<path>?ref=HEAD` or
+`https://raw.githubusercontent.com/<owner>/<repo>/HEAD/<path>`).
+
+If `corpus.md` lists "none" for {{COMPONENT}} in a given repo, that's a
+confirmed absence (e.g. caelestia-shell intentionally ships no waybar) —
+skip it, don't waste a fetch trying to find the file. If a repo's
+{{COMPONENT}} story is present-but-thin, note it briefly and move on.
 
 For visual components ({{COMPONENT}} in `{waybar, launcher, notifications,
 widgets, look-feel, lock-screen, terminal, shell-prompt}`) read the actual
