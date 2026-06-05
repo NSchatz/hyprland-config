@@ -16,10 +16,13 @@ component just defines the variable and ships the themed config.
 | `schema.md` | The `answers.json` keys this component owns. |
 | `template.md` | Per-tool config + style recipes (wofi, rofi, fuzzel, plus brief notes for tofi/walker/vicinae/anyrun). |
 | `styling.md` | Full styling-technique catalog — palette/layout split, three selection idioms, icon-grid vs pill-list, `em`/`%` sizing, blur. Verbatim copy of the styling reference. |
-| `gotchas.md` | `$menu` vs `$dmenu` is a different invocation, fuzzel hex format, rofi-wayland vs X-only rofi. |
+| `gotchas.md` | `$menu` vs `$dmenu` invocations, fuzzel hex format, fuzzel namespace=launcher, rofi-wayland vs X-only rofi, rofi `selected.normal/urgent/active` state syntax, walker `ext_background_effect_blur`. |
 | `validation.md` | Parse checks for wofi `config`, rofi `.rasi`, fuzzel `.ini`; CSS balanced braces. |
 | `packages.md` | The launcher package map (wofi / rofi (repo, Wayland built-in since 2.0) / fuzzel / tofi AUR / walker AUR / vicinae AUR / anyrun AUR). |
 | `reload.md` | Launchers are stateless — config applies on next launch. No signal reload. |
+| `wofi.tmpl` | Engine colors template — renders `~/.config/wofi/colors.css` (4 keys: `bg fg surface accent`). |
+| `rofi.tmpl` | Engine colors template — renders `~/.config/rofi/colors.rasi` (8 keys: `bg bg-alt fg muted accent accent2 red green`). |
+| `fuzzel.tmpl` | Engine colors template — merges into `~/.config/fuzzel/fuzzel.ini` `[colors]` (7 keys: `background text match selection selection-text selection-match border`; 7-of-11 upstream — see `gotchas.md`). |
 
 ## Where this component lands
 
