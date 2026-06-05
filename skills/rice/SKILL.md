@@ -317,10 +317,10 @@ The colors/fonts from the `look-feel` component (palette, fonts, wallpaper sub-q
    border template references it. On the wallpaper path the matugen template already keeps
    `font_ui`/`font_mono`, so a later re-render (e.g. a wallpaper cycle) won't drop the fonts.
 3. Fill `<staging>/colors.conf` so it installs with the rest (don't let the engine write to
-   `~/.config/hypr` before A5): take `templates/hyprland.tmpl`, substitute its `{{accent}}` etc.
+   `~/.config/hypr` before A5): take `references/components/look-feel/hyprland.tmpl`, substitute its `{{accent}}` etc.
    from `palette.conf`, and `Write` the result. Likewise fill any companion-config color placeholders
    **and the staged shell configs' colors files** (`_shell/<app>/colors.css`/`.rasi` etc.) by rendering
-   the matching `templates/*.tmpl` so the bar/launcher/notifications install already themed. If a
+   the matching `references/components/<component>/*.tmpl` so the bar/launcher/notifications install already themed. If a
    **widget shell** was chosen (`widgets` component), **register its manifest line**
    (`eww`/`ags`/`quickshell` → its colors file) so `rice apply` re-themes it on every switch, and
    render its colors file into the staged shell tree — see `theming/engine.md` → "Widget-shell
@@ -668,10 +668,12 @@ that surface.
   `components/utilities/template.md`), `gamemode.sh` (effects toggle, see
   `components/gaming/template.md`), `keybind-cheatsheet.sh` (reads `hyprctl binds -j`),
   `blur-toggle.sh`, `theme-switch.sh` (menu of saved rices → `rice theme`).
-- **`templates/*.tmpl`** — the color templates the engine renders (incl. the shell/prompt set:
-  `fish.tmpl` → fish `conf.d` colors, `starship.tmpl` → rice-owned `starship.toml`, `oh-my-posh.tmpl` →
-  rice-owned `rice.omp.json`; and the **widget-shell set**: `eww.tmpl` → eww `colors.scss`, `ags.tmpl`
-  → AGS/Astal `colors.scss`, `quickshell.tmpl` → Quickshell `Colors.qml`; registered in the manifest
+- **`references/components/<component>/*.tmpl`** + **`references/theming/{gtk4,palette.matugen}.tmpl`** —
+  the color templates the engine renders (incl. the shell/prompt set:
+  `shell-prompt/fish.tmpl` → fish `conf.d` colors, `shell-prompt/starship.tmpl` → rice-owned `starship.toml`,
+  `shell-prompt/oh-my-posh.tmpl` → rice-owned `rice.omp.json`; and the **widget-shell set**:
+  `widgets/eww.tmpl` → eww `colors.scss`, `widgets/ags.tmpl` → AGS/Astal `colors.scss`,
+  `widgets/quickshell.tmpl` → Quickshell `Colors.qml`; registered in the manifest
   when chosen — see `theming/engine.md` → "Shell & prompt theming" and "Widget-shell theming").
 - **`assets/profiles/*.conf`** — the twelve shipped preset rices; **`assets/rice`** — the CLI
   (incl. `rice wallpapers [scheme]` to list and `rice get-wallpaper <scheme> <n|name> [--set]` to

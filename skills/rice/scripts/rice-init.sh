@@ -15,13 +15,13 @@ RICE_DIR="${RICE_DIR:-$HOME/.config/hypr-rice}"
 # Prefer CLAUDE_PLUGIN_ROOT, but fall back to deriving the plugin's rice dir from this script's own
 # location (<plugin>/skills/rice/scripts/rice-init.sh) so it works even when the env var isn't
 # exported (e.g. invoked directly — which otherwise aborted with "CLAUDE_PLUGIN_ROOT not set").
-if [ -n "${CLAUDE_PLUGIN_ROOT:-}" ] && [ -d "${CLAUDE_PLUGIN_ROOT}/skills/rice/templates" ]; then
+if [ -n "${CLAUDE_PLUGIN_ROOT:-}" ] && [ -d "${CLAUDE_PLUGIN_ROOT}/skills/rice/references/theming" ]; then
     SRC="${CLAUDE_PLUGIN_ROOT}/skills/rice"
 else
     _here="$(cd "$(dirname "$0")" && pwd)"
     SRC="$(cd "$_here/.." && pwd)"   # skills/rice
 fi
-[ -d "$SRC/templates" ] || { echo "ERROR: cannot find the plugin's rice templates (looked in $SRC). Set CLAUDE_PLUGIN_ROOT." >&2; exit 2; }
+[ -d "$SRC/references/theming" ] || { echo "ERROR: cannot find the plugin's rice templates (looked in $SRC). Set CLAUDE_PLUGIN_ROOT." >&2; exit 2; }
 force=0; [ "${1:-}" = "--force" ] && force=1
 
 mkdir -p "$RICE_DIR/templates" "$RICE_DIR/profiles"
@@ -36,7 +36,8 @@ if [ -d "$SRC/assets/profiles" ]; then
 fi
 
 # Copy templates (preserve user edits unless --force).
-for t in "$SRC"/templates/*.tmpl; do
+for t in "$SRC"/references/components/*/*.tmpl \
+         "$SRC"/references/theming/*.tmpl; do
     base="$(basename "$t")"; dest="$RICE_DIR/templates/$base"
     if [ ! -e "$dest" ] || [ "$force" -eq 1 ]; then cp "$t" "$dest"; fi
 done

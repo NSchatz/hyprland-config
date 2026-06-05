@@ -256,12 +256,13 @@ hyprland-config/
 │   │   │   │                                    shell-prompt, utilities, login-boot, gaming, laptop,
 │   │   │   │                                    accessibility)
 │   │   │   └── theming/                        (engine, palettes, fonts, wallpaper, apps,
-│   │   │                                        theming-architecture, gtk-qt)
+│   │   │                                        theming-architecture, gtk-qt; engine *.tmpl
+│   │   │                                        templates — per-component *.tmpl color
+│   │   │                                        templates live in components/<x>/)
 │   │   ├── scripts/      (detect-version, detect-theme-tools, rice-init, render-templates,
 │   │   │                  apply-theme, set-wallpaper, palette-from-wallpaper, safe-apply,
 │   │   │                  install-config, verify-config, verify-shell, backup-config,
 │   │   │                  reset-config)
-│   │   ├── templates/    (*.tmpl color templates rendered by the engine)
 │   │   ├── assets/       (rice CLI, profiles/*.conf presets, wallpapers.tsv catalog)
 │   │   └── examples/     (a complete generated modular config)
 │   ├── edit-config/       (read + change ANY existing surface, test after every change)

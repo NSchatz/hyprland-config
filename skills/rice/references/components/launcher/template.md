@@ -2,7 +2,7 @@
 
 Per-tool config + style recipes. The engine **always** writes a colors file the tool's style
 `@import`s/`include`s — never hardcode hex in the style file. The canonical var names are
-fixed by `_shared/colors-contract.md`; the rice templates in `skills/rice/templates/{wofi,rofi,
+fixed by `_shared/colors-contract.md`; the rice templates in `skills/rice/references/components/launcher/{wofi,rofi,
 fuzzel}.tmpl` render those names from `palette.conf`.
 
 The deep styling catalog — selection idioms, blur, `em`/`%` sizing, layout variants — lives in

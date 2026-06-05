@@ -7,7 +7,7 @@ colors file; the main config stays palette-agnostic.
 
 The colors file's exported variable names per emulator are the contract in
 `_shared/colors-contract.md` (`background`, `foreground`, `cursor`, `selection_background`,
-`selection_foreground`, `color0..color15`). The kitty template (`templates/kitty.tmpl`) is the
+`selection_foreground`, `color0..color15`). The kitty template (`references/components/terminal/kitty.tmpl`) is the
 canonical shape — alacritty/foot/wezterm/ghostty mirror the same 16-color mapping in their native
 formats.
 
@@ -47,7 +47,7 @@ tab_bar_style          powerline               # fade | slant | separator | powe
 # override:  shell /usr/bin/fish
 ```
 
-`~/.config/kitty/colors.conf` — see `templates/kitty.tmpl` (rendered from `palette.conf`).
+`~/.config/kitty/colors.conf` — see `references/components/terminal/kitty.tmpl` (rendered from `palette.conf`).
 
 ## alacritty — `~/.config/alacritty/alacritty.toml` (+ `colors.toml`)
 

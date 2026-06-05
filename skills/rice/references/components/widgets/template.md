@@ -30,7 +30,7 @@ Quickshell ("loads changes as soon as they're saved", per the docs).
 
 ## eww — yuck + SCSS
 
-**Template:** `skills/rice/templates/eww.tmpl` (renders to `~/.config/eww/colors.scss`).
+**Template:** `skills/rice/references/components/widgets/eww.tmpl` (renders to `~/.config/eww/colors.scss`).
 
 The template emits a flat `$bg / $fg / $surface / $muted / $cursor / $accent / $accent2 / $red /
 $green / $yellow / $blue / $magenta / $cyan / $color0..$color15` list of `$key: #hex;` lines.
@@ -70,7 +70,7 @@ exec-once = eww open bar          # or eww open-many bar music dashboard
 
 ## AGS / Astal — TS/JS + SCSS
 
-**Template:** `skills/rice/templates/ags.tmpl` (renders to `~/.config/ags/colors.scss`).
+**Template:** `skills/rice/references/components/widgets/ags.tmpl` (renders to `~/.config/ags/colors.scss`).
 
 The template emits the same `$var` set as eww plus a few **semantic aliases** (`$window-bg`,
 `$on-window`, `$card-bg`, `$primary`, `$secondary`, `$radius`, `$anim-duration`) so widgets stay
@@ -123,7 +123,7 @@ exec-once = ags
 
 ## Quickshell — QML
 
-**Template:** `skills/rice/templates/quickshell.tmpl` (renders to
+**Template:** `skills/rice/references/components/widgets/quickshell.tmpl` (renders to
 `~/.config/quickshell/<name>/Colors.qml`).
 
 The output **is** a QML singleton — `pragma Singleton`, an `import QtQuick` + `import Quickshell`,
