@@ -17,10 +17,19 @@ generates the config.
 | `schema.md` | The `lock_screen.*` keys this component owns in `answers.json`. |
 | `template.md` | The full `hyprlock.conf` template — `background`, `input-field`, `label`s, optional `auth { fingerprint {} }`. Colors are filled at generate-time. |
 | `styling.md` | Full hyprlock design library (palette, layout, technique catalog). Verbatim copy of `hyprland-reference/styling/hyprlock.md`. |
-| `gotchas.md` | Keep-input-visible rule, literal-hex colors, fingerprint enrolment, `pidof` guard for hypridle's `lock_cmd`. |
+| `gotchas.md` | Keep-input-visible rule, literal-hex colors, fingerprint enrolment, `pidof` guard for hypridle's `lock_cmd`, phantom `general {}` keys (per-rice citations). |
 | `validation.md` | Brace balance + required-block checks for `hyprlock.conf` (background, input-field). |
 | `packages.md` | `hyprlock` (repo) + optional `fprintd` (repo, fingerprint). |
 | `reload.md` | hyprlock is launched fresh per lock — there's no running daemon to signal. Config changes apply on next lock. |
+
+**No `.tmpl` in this folder.** Unlike waybar / notifications / launcher / terminal / etc., lock-screen
+does **not** ship a separate `<app>.tmpl` color file. hyprlock cannot read Hyprland `$vars`, so the
+engine substitutes palette literals (`{{accent}}`, `{{surface}}`, `{{fg}}`, `{{bg}}`, `{{green}}`,
+`{{red}}`) directly into `hyprlock.conf` at `rice apply` time. The community's two alternatives
+(`source = hyprlock-colors.conf` written by matugen, e.g. end-4 / ml4w / Ax-Shell / dusky; or
+`source = mocha.conf` palette-var file, e.g. catppuccin / Matt-FTW / omarchy) are documented in
+[`styling.md`](./styling.md) but not used by the rice — one less file to track per the v0.13
+design. See [`gotchas.md`](./gotchas.md) → "Colors are LITERAL hex".
 
 ## Where this component lands
 
