@@ -33,10 +33,18 @@ background_blur        1                 # pair with Hyprland decoration blur
 window_padding_width   {{padding}}
 
 cursor_shape           {{cursor.shape}}
-{{#if cursor.blink}}cursor_blink_interval  0.5{{else}}cursor_blink_interval  0{{/if}}
+{{#if cursor.blink}}cursor_blink_interval  0.5
+cursor_stop_blinking_after  1{{else}}cursor_blink_interval  0{{/if}}    # seconds; supports CSS easing per upstream docs
 
 hide_window_decorations yes                    # yes | no | titlebar-only | titlebar-and-corners
+
+# Tab bar — the recipe ships powerline + slanted because the colors.conf chrome
+# (active_tab_*/inactive_tab_*/tab_bar_background) is wired specifically for it.
+# Set `tab_bar_style hidden` to suppress the strip; the colors are then unused but harmless.
 tab_bar_style          powerline               # fade | slant | separator | powerline | hidden | custom
+tab_powerline_style    slanted                 # angled | round | slanted (community default)
+tab_bar_min_tabs       2                       # hide strip until a second tab opens (Matt-FTW, Dank)
+
 {{#if extras.no-confirm-close}}confirm_os_window_close 0{{/if}}     # 0 = never confirm; >0 = confirm if N+ children alive
 {{#if extras.bell-off}}enable_audio_bell      no{{/if}}             # yes | no
 {{#if extras.scrollback-10k}}scrollback_lines       10000{{/if}}    # int; default 2000
@@ -48,6 +56,10 @@ tab_bar_style          powerline               # fade | slant | separator | powe
 ```
 
 `~/.config/kitty/colors.conf` — see `references/components/terminal/kitty.tmpl` (rendered from `palette.conf`).
+The colors file exports the 16 ANSI cells **plus** the kitty chrome slots that fall back to
+hardcoded gray defaults (`cursor_text_color`, `url_color`, `active_tab_*`, `inactive_tab_*`,
+`tab_bar_background`, `active_border_color`, `inactive_border_color`, `bell_border_color`) —
+see `styling.md` "Chrome that needs theming if it's shown" for the full table.
 
 ## alacritty — `~/.config/alacritty/alacritty.toml` (+ `colors.toml`)
 
@@ -92,10 +104,19 @@ block into `foot.ini` in-place (similar to `mako`/`fuzzel`) so that dual `[color
 `[colors-light]` blocks can coexist with the rest of the user's edits without an extra file.
 Hex is bare `RRGGBB`, **no `#`**.
 
+Important: `alpha=` and `blur=` are **colors-section keys**, NOT `[main]` keys. Per
+`foot.ini(5)` they're documented under `[colors-dark]` / `[colors-light]` (or the legacy single
+`[colors]`). Putting them in `[main]` silently no-ops — foot drops unknown top-level keys
+without a warning. See `gotchas.md` "foot `alpha` and `blur` live in `[colors-*]`."
+
 ```ini
 # Top-level `key=value` pairs live in the implicit [main] section.
 font={{font_mono}}:size={{font_size}}
 pad={{padding}}x{{padding}} center
+# dpi-aware=no honors the literal font size= on fractional-scaled outputs (end-4 default).
+dpi-aware=no
+# Keep bold text in the regular palette instead of jumping to bright (catppuccin discipline).
+bold-text-in-bright=no
 
 [scrollback]
 {{#if extras.scrollback-10k}}lines=10000{{/if}}
@@ -110,6 +131,10 @@ style={{cursor.shape}}            # block | beam | underline | hollow
 urgent=no
 visual=no{{/if}}
 
+# Single-mode colors block. For dual light/dark, replace [colors] with two
+# [colors-dark] / [colors-light] blocks, each carrying its own alpha= / blur=
+# and palette (catppuccin/foot is the canonical example; fufexan/dotfiles
+# foot.nix is the nix-managed worked example).
 [colors]
 alpha={{opacity}}
 foreground={{fg}}
@@ -152,10 +177,12 @@ font-family = {{font_mono}}
 font-size = {{font_size}}
 
 background-opacity = {{opacity}}
-background-blur = 20
+background-blur = 20                                     # integer = intensity; `true` aliases to 20, `false` to 0
 window-padding-x = {{padding}}
 window-padding-y = {{padding}}
 window-decoration = none
+# Catppuccin discipline — keep bold in the regular palette.
+bold-is-bright = false
 
 cursor-style = {{cursor.ghostty_style}}                 # block | bar | underline
 cursor-style-blink = {{#if cursor.blink}}true{{else}}false{{/if}}
@@ -164,18 +191,33 @@ cursor-style-blink = {{#if cursor.blink}}true{{else}}false{{/if}}
 {{#if extras.scrollback-10k}}scrollback-limit = 10000000{{/if}}      # bytes (≈10 MB ≈ many thousands of lines)
 {{#if extras.no-confirm-close}}confirm-close-surface = false{{/if}}
 
-# Palette — rice fills these from palette.conf (16 lines + foreground/background/cursor-color):
+# Theme indirection — the `?` prefix marks the include OPTIONAL (silently skipped if missing).
+# This lets the rice engine drop a generated colors file in WITHOUT breaking the main config on
+# first run. Per upstream: config-file is processed at the END of the current file, so any
+# key the rice writes into ghostty-rice-palette.conf overrides what's set above. Pattern
+# borrowed from JaKooLit/Hyprland-Dots config/ghostty/ghostty.config.
+config-file = ?~/.config/ghostty/ghostty-rice-palette.conf
+```
+
+The included `ghostty-rice-palette.conf` is what the engine writes from `palette.conf`:
+
+```
+# Palette — 16 lines + foreground/background/cursor-color:
 foreground = #{{fg}}
 background = #{{bg}}
 cursor-color = #{{cursor}}
+selection-foreground = #{{bg}}
+selection-background = #{{accent}}
 palette = 0=#{{color0}}
 palette = 1=#{{color1}}
 # … palette = 2..15
 ```
 
-ghostty also ships built-in named themes (`theme = catppuccin-mocha`, `theme = tokyonight`); the
+ghostty also ships built-in named themes (`theme = catppuccin-mocha`, `theme = tokyonight`) and
+supports light/dark auto-switch via `theme = light:catppuccin-latte,dark:catppuccin-mocha`; the
 rice engine **prefers the explicit `palette = N=#hex` form** so wallpaper-generated and manual
-palettes work the same as named schemes.
+palettes work the same as named schemes. Override individual cells without redefining the whole
+palette via `palette = 5=#BB78D9` (documented in `ghostty.org/docs/config/reference`).
 
 ## Cross-references
 
