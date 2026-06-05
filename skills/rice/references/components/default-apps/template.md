@@ -49,3 +49,36 @@ flag in `$browser`.
 
 - The terminal emulator. That's `components/terminal/` (themed, gets a colors file).
 - The launcher invocation (`$menu` / `$dmenu`). That's `components/launcher/`.
+
+## Variable-name choice (vs the corpus)
+
+We emit **`$browser`** and **`$fileManager`** — same names as the upstream Hyprland wiki's
+"Sensible defaults" snippet. The corpus is split:
+
+- `$fileManager` — caelestia (calls it `$fileExplorer`), dusky, binnewbs.
+- `$file` — HyDE (`Configs/.config/hypr/keybindings.conf`).
+- `$files` — JaKooLit, Matt-FTW (as `$file-manager`), linuxmobile.
+
+Stick with `$browser` + `$fileManager`. They're the wiki-canonical names and match the
+`bind = $mainMod, E, exec, $fileManager` example most users will paste in from search results.
+Do not rename to `$file` to save four characters — the rename breaks copy-paste against the wiki.
+
+## Theming linkage (what re-themes when this component changes)
+
+The default-app picks are mostly **structural** — they don't drive a `.tmpl` in this folder.
+But the **picks determine which other component templates need to be rendered**:
+
+| If `default_apps.files ==` | Then re-theming relies on | Owned by |
+|---|---|---|
+| `thunar` / `nautilus` / `nemo` / `pcmanfm` | GTK3 + GTK4 matugen output (`gtk-3.0` / `gtk-4.0`) | `theming/gtk-qt.md`, engine |
+| `dolphin` | Kvantum theme (`QT_STYLE_OVERRIDE=kvantum` + `kvantum.kvconfig`) | `theming/gtk-qt.md` |
+| `yazi` (TUI, recorded as `null` here) | `~/.config/yazi/theme.toml` — currently not generated | flag (see `gotchas.md`) |
+
+| If `default_apps.browser ==` | Then re-theming relies on | Owned by |
+|---|---|---|
+| `firefox` | Firefox is **not** auto-themed. Chrome stays default. (To match: userChrome / pywalfox add-on layer — out of scope for v0.13.) | (none) |
+| `chromium` / `brave` / `zen-browser` | Same — chrome stays default unless a userChrome.css is generated separately. Dank and noctalia ship matugen browser templates; we do not. | (none) |
+
+If you pick a Qt6 file manager (Dolphin) but skip Kvantum, the file manager renders Breeze
+regardless of palette — flag this in the interview when the user picks Dolphin (see
+`gotchas.md`).

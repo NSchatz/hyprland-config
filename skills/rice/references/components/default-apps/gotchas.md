@@ -83,3 +83,89 @@ This belongs in the post-install hook, not in `hyprland.conf`. (Source:
 
 The selected browser and file manager are both installable packages — even if the user picks a
 non-default. See `packages.md` for the map; the installer agent reads it.
+
+## Corpus survey — are default-apps picks theming-driven?
+
+Researched 2026-06-05 against the top ~15 rices in `/workspace/.research/corpus.md`. The headline
+finding: **for waybar-based rices the browser/file-manager picks are NOT theming-driven** — they
+are set as `$browser` / `$fileManager` / `$file` / `$files` variables wired to keybinds and the
+chosen apps either inherit GTK/Qt theme by ricochet (Thunar, Nautilus, Nemo via `gtk3.dcol` /
+`gtk-colors.css`; Dolphin via Kvantum) or aren't themed at all (Firefox without the userChrome
+hack). **For Quickshell-based "shells" (dank, noctalia) the picks ARE theming-driven** because
+those shells ship a matugen template per chosen app.
+
+### Variable names and picks across the corpus
+
+| Rice | `$browser` | `$fileManager`/`$file`/`$files` | `$terminal` | Notes |
+|---|---|---|---|---|
+| HyDE (`hyprdots`) | `firefox` | `dolphin` (var: `$file`) | `kitty` | `$editor = code`; bind `SUPER+F` (not `B`) opens browser, `SUPER+E` files. |
+| ML4W | (settings script) | (settings script) | (settings script) | `~/.config/ml4w/settings/{browser,filemanager,terminal}.sh` shell-out indirection — defaults `firefox`/`nautilus --new-window`/`kitty`. Lets the user swap without editing hypr. |
+| JaKooLit | (none) | `thunar` (var: `$files`) | `kitty` (var: `$term`) | No `$browser` variable at all. |
+| Matt-FTW | `zen-browser` | `$terminal yazi` (var: `$file-manager`) | `ghostty --gtk-single-instance=true` | Primary file-manager = yazi-in-ghostty; `$alter-file-manager = nemo` as fallback. Also `$editor = $terminal nvim`, `$alter-editor = vscodium`. |
+| binnewbs | (`xdg-open "https://"` bind) | `nautilus` | `kitty` | No `$browser` var — `bind = $mainMod, B, exec, xdg-open "https://"` delegates to the `x-scheme-handler/http` xdg-mime handler. |
+| dusky | `firefox` | `nemo` | `foot` | All execs wrapped in `uwsm-app --` so the spawned app inherits the systemd user manager env (XDG_*, GTK_THEME, etc.). |
+| caelestia | `zen-browser` | `thunar` (var: `$fileExplorer`) | `foot` | `$editor = codium`. |
+| linuxmobile | `brave` | `thunar` (var: `$files`) | `wezterm` (var: `$term`) | Defines `$browser` but **does not bind any key to it** — variable is documentation/scripts-only. |
+| flickowoa | (none) | `nautilus` (hardcoded in bind) | `footclient` (var: `$TERM`) | No var indirection for file manager — `bind=$MOD1,E,exec,nautilus` literal. |
+| end-4 | `launch_first_available.sh 'google-chrome-stable' 'zen-browser' 'firefox' 'brave' 'chromium' 'microsoft-edge-stable' 'opera' 'librewolf'` | same script with `'dolphin' 'nautilus' 'nemo' 'thunar' 'kitty -1 fish -c yazi'` fallback chain | same script with `'foot' 'kitty -1' 'alacritty' 'wezterm' 'konsole' 'kgx' 'uxterm' 'xterm'` | Variable values are **fallback-chain shell scripts**, not single binaries. README comment: *"PULL REQUESTS ADDING MORE WILL NOT BE ACCEPTED, CONFIG FOR YOURSELF."* End-4 also defines `codeEditor`, `officeSoftware`, `textEditor`, `volumeMixer`, `settingsApp`, `taskManager` the same way. |
+| dank (DMS) | (shell-owned) | (shell-owned) | (shell-owned) | Ships matugen configs for `firefox.toml` + `zenbrowser.toml` + `alacritty/foot/ghostty/kitty/wezterm.toml` + `vesktop/vencord/equibop.toml` + `emacs/zed/neovim.toml` — i.e. picks ARE bound to which apps the shell can re-color. |
+| noctalia | (shell-owned) | (shell-owned) | (shell-owned) | Ships `Assets/Templates/{pywalfox.json, zen-browser/, yazi.toml, spicetify.ini, code.json, discord-material.css, ...}` — same theming-driven pick pattern. Even `yazi.toml` is generated, so a TUI file manager is themed. |
+| fufexan | (none) | (none) | `foot` (bare in bind) | NixOS — no `$browser`/`$fileManager` indirection at all; binds spawn `foot` directly. |
+
+### Patterns to consider for the recipe
+
+1. **`launch_first_available` fallback-chain script (end-4):** instead of one binary the var is
+   `~/.../launch_first_available.sh 'binA' 'binB' 'binC'`. Survives the user uninstalling the
+   first pick. Out of scope for our recipe — the rice skill records a single string per pick —
+   but worth noting in the gotchas as an upstream idiom.
+2. **Indirection script (ML4W):** the bind execs a shell script that `cat`s a one-line file the
+   user can edit (`~/.config/ml4w/settings/browser.sh`). Lets the user swap without re-running
+   `rice apply`. Out of scope for the same reason.
+3. **`uwsm-app --` wrapping (dusky):** every `exec` is `uwsm-app -- <real-cmd>` so the spawned
+   app ends up in the systemd user manager scope, picking up XDG_* and GTK_THEME from the
+   propagated env. Real benefit when the user uses UWSM as their session manager. Currently the
+   `keybinds` recipe spawns bare commands — flag for `keybinds` if we ever add a UWSM profile.
+4. **`xdg-open "https://"` delegation (binnewbs):** lets the bind survive a browser swap because
+   `xdg-mime`'s `x-scheme-handler/http` handler is what actually picks the binary. Already
+   covered in our gotchas under "Setting the chosen browser as the system default".
+5. **No `$browser` bind at all (JaKooLit, fufexan, flickowoa):** at least three top rices don't
+   bind `SUPER+B` to a browser. Our recipe binds it via `keybinds/template.md`; that's fine but
+   not universal — don't claim it's standard.
+
+### Cross-surface coherence findings
+
+- **GTK theming covers thunar / nautilus / nemo / pcmanfm**, so once `theming/gtk-qt.md`'s
+  `gtk-3.0` and `gtk-4.0` matugen targets are wired, those file managers re-theme on `rice
+  apply` without any default-apps-component change. (HyDE: `Wall-Dcol/gtk{3,4}.dcol`; ML4W:
+  `matugen/templates/gtk-colors.css`; end-4: `matugen/templates/gtk-{3,4}.0/`.)
+- **Kvantum themes Dolphin** (and any Qt6 app under `QT_STYLE_OVERRIDE=kvantum`). HyDE ships
+  `Wall-Dcol/kvantum/{kvantum,kvconfig}.dcol`; end-4 ships `matugen/templates/qt6ct/`. Picking
+  Dolphin without theming Kvantum leaves it Breeze-default.
+- **Firefox userChrome / pywalfox is needed** to actually re-color Firefox chrome. The default
+  Firefox binary is theme-agnostic — picking firefox does not auto-theme it. Dank and noctalia
+  both ship a userChrome template; HyDE / ML4W / JaKooLit / dusky do NOT theme Firefox. If a
+  user picks Firefox expecting it to match the rest of the desktop, set expectations: only the
+  surrounding chrome (waybar / wallpaper) re-colors, the browser stays default unless a
+  userChrome/pywalfox add-on is layered on top (out of scope for v0.13).
+- **TUI file managers (yazi, ranger) CAN be themed** — noctalia ships `yazi.toml`. If we ever
+  add a TUI branch, `components/terminal/yazi.tmpl` would be the right home (not here).
+
+### Bottom line
+
+The default-apps component is **mostly structural with one theming-by-ricochet angle: GTK and
+Kvantum**. The browser pick is not theming-driven for waybar rices. We surface this in the
+interview as a heads-up (Dolphin → Kvantum dep; nautilus → GTK4/libadwaita; firefox →
+chrome-not-themed) and let the user pick on workflow grounds, not palette grounds. No interview
+sub-question is added — picking by palette would force the user to pick file manager AFTER
+picking the engine, and the corpus does not show any rice that gates the pick on theming
+capability.
+
+Sources: end-4 `dots/.config/hypr/hyprland/variables.lua`; HyDE
+`Configs/.config/hypr/keybindings.conf`; ML4W
+`dotfiles/.config/ml4w/settings/{browser,terminal,filemanager}.sh`; JaKooLit
+`config/hypr/UserConfigs/01-UserDefaults.conf`; Matt-FTW
+`.config/hypr/configs/default_apps.conf`; binnewbs `.config/hypr/configs/keybinds.conf`; dusky
+`.config/hypr/hyprland.conf`; caelestia `hypr/variables.conf`; linuxmobile
+`.config/hypr/keybinds.conf`; flickowoa `config/hypr/land/{defaults,binds}.conf`; fufexan
+`system/programs/hyprland/binds.lua`; dank `quickshell/matugen/configs/*.toml` + `templates/*`;
+noctalia `Assets/Templates/{pywalfox.json,zen-browser/,yazi.toml,code.json,...}`.
