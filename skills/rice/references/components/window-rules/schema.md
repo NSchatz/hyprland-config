@@ -64,9 +64,12 @@ rule, not a window rule.
 
 | Source key | Used for |
 |---|---|
-| `waybar.enabled` (owned by `../waybar/schema.md`) | Emit `layerrule blur-waybar` if `true`. |
-| `launcher.tool` (owned by `../launcher/schema.md`) | Map tool name → namespace (`rofi` / `wofi` / `fuzzel` / `anyrun`) → emit `layerrule blur-<namespace>`. Only emit when the tool is a layer-shell surface (not when it's a transient X popup). |
-| `notifications.tool` (owned by `../notifications/schema.md`) | Map tool → namespace (`swaync-control-center`, `swaync-notification-window`, `mako`) → emit `layerrule blur-<namespace>`. |
+| `waybar.enabled` (owned by `../waybar/schema.md`) | Emit `layerrule blur-waybar` if `true`. The block uses `blur_popups = true`, `xray = true`, `ignore_alpha = 0.5` — see `template.md` "Waybar layerrule — beyond just blur = true" for the per-rice citations. |
+| `launcher.tool` (owned by `../launcher/schema.md`) | Map tool name → **namespace string** and emit `layerrule blur-<namespace>`. Map (verified, see `gotchas.md` "Launcher → namespace map"): `rofi`→`rofi`, **`fuzzel`→`launcher`** (NOT `fuzzel`), `wofi`→`wofi`, `anyrun`→`anyrun`, `walker`→`walker`. Only emit when the tool is a layer-shell surface. |
+| `launcher.is_layer` (derived) | Set to `false` for transient X-popup launchers (e.g. dmenu). The template guards the `layerrule` on this. |
+| `launcher.namespace` (derived) | The namespace string from the map above. The component writer **must** populate this from `launcher.tool` using the table — do not ask the user for it. |
+| `notifications.tool` (owned by `../notifications/schema.md`) | Map tool → namespace(s) and emit blur block(s). **`swaync` emits TWO blocks**, one for each namespace (`swaync-control-center` and `swaync-notification-window`) — see `gotchas.md` "swaync exposes TWO namespaces". `mako` and `dunst` both use namespace `notifications`. |
+| `utilities.session_picker` (owned by `../utilities/schema.md`) | If `wlogout`, emit `layerrule blur-logout_dialog` (`logout_dialog` is wlogout's namespace; verified across end-4, dusky, hyprdots, caelestia). |
 
 ## Who reads these keys
 
