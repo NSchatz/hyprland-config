@@ -11,7 +11,8 @@ table (`binds.conf`) is the single biggest file in the config.
 | `interview.md` | Sub-questions 3a–3f (mod key, flavor, vim HJKL, resize submap, cheat-sheet, theme switcher). |
 | `schema.md` | The `answers.json` keys this component owns (`keybinds.mod`, `keybinds.extras`, `keybinds.resize_submap`). Also notes which sibling-component keys feed the `$terminal` / `$menu` / `$dmenu` / `$browser` / `$fileManager` variables this component writes. |
 | `template.md` | Two templates: `hyprland.conf` (the index — variables + source lines) and `binds.conf` (the full bind table). |
-| `gotchas.md` | `$menu -dmenu` breaks the picker; plugin dispatchers hard-error the reload; vim mode shifts `togglesplit` off `J`; duplicate `MODS, KEY` silently last-wins. |
+| `styling.md` | The theming-bind library: which chord patterns popular rices use for theme-switch / wallpaper-cycle / palette-pick / bar-toggle / cheat-sheet binds, with archetypes (discrete-bind / submap-prefix / shell-IPC / variable-driven / hand-rolled-theme.conf) and battle-tested techniques (`pkill -x`, double-bind fallback, `bindd` descriptions). |
+| `gotchas.md` | `$menu -dmenu` breaks the picker; plugin dispatchers hard-error the reload; vim mode shifts `togglesplit` off `J`; duplicate `MODS, KEY` silently last-wins; picker stacking without `pkill -x`; theme-switch must pipe through `$dmenu` not a hard-coded launcher; re-theme reload race. |
 | `packages.md` | `jq` (for the cheat-sheet script). Notes the launcher cross-dependency (rofi/wofi/fuzzel are owned by `launcher`). |
 
 ## Where this component lands
