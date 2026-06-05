@@ -96,3 +96,142 @@ Two field-name traps that bit earlier drafts:
   <https://wiki.hypr.land/0.54.0/Configuring/Workspace-Rules/#rules>.
 
 See `../../_shared/version-matrix.md` for the full cliff table and the detection invocation.
+
+## `xwayland.force_zero_scaling = true` is universal in the corpus, not conditional
+
+The "Fractional scale needs three coordinated fixes" block above (point 3) gates the
+`xwayland { force_zero_scaling = true }` emission on `monitors.scaling != 1.0`. The popular-rices
+corpus disagrees: **HyDE** ships it unconditionally
+(`prasanthrangan/hyprdots:Configs/.config/hypr/hyprland.conf`, alongside the `misc { ... }` block),
+and **dusky** sets it via `hl.config({ xwayland = { force_zero_scaling = true } })` at the top of
+`dusklinux/dusky:.config/hypr/source/window_rules.lua`. Neither gates on monitor scale.
+
+The reason: even at integer scale 1, XWayland apps sharing a session with HiDPI external monitors
+become DPI-confused on hotplug. The flag is harmless at scale 1 (it's effectively a no-op when no
+output is fractional) and prevents the "plug in 4K monitor → every XWayland app blurry until
+restart" symptom. **Recommendation:** the Hyprland top-level writer should emit
+`force_zero_scaling = true` regardless of `monitors.scaling` — treat it as a baseline XWayland
+default. The other two fixes (`monitor =` line and `env = GDK_SCALE,N`) stay gated on
+`scaling != 1.0` as before.
+
+## `nwg-displays` is the community-standard GUI editor for `monitors.conf` / `workspaces.conf`
+
+Several top rices (JaKooLit explicitly, ML4W via its `monitor.lua` / `workspace.lua` indirection,
+HyDE via the `monitors.t2` sample) hand monitor + workspace-rule authorship off to **`nwg-displays`**
+(<https://github.com/nwg-piotr/nwg-displays>). JaKooLit's `config/hypr/workspaces.conf` opens with:
+
+```
+# NOTE: This will be overwritten by NWG-Displays
+# once you use and click apply.
+```
+
+Implications for this component:
+
+- The rice engine **owns** `monitors.conf` and `workspaces.conf` at first apply. Users who later
+  run `nwg-displays` will have their picks overwritten on the next `rice apply` unless the engine
+  re-reads the file first. The source-of-truth in our scheme remains `answers.json`.
+- If detection sets `HAVE_nwg_displays=1`, drop a header comment in `monitors.conf` noting that
+  running `nwg-displays apply` will overwrite the file. Mirrors the JaKooLit pattern.
+- `nwg-displays` itself is **not** in `packages.md` — it's a user-installed convenience, same
+  posture as kanshi/shikane.
+
+## Smart-gaps: exclude special workspaces with `s[false]`
+
+`template.md`'s smart-gaps recipe uses `workspace = w[tv1], gapsout:0, gapsin:0`. Caelestia's
+`hypr/hyprland/rules.conf` adds an `s[false]` clause:
+
+```
+workspace = w[tv1]s[false], gapsout:$singleWindowGapsOut
+workspace = f[1]s[false], gapsout:$singleWindowGapsOut
+```
+
+The `s[false]` selector means "exclude special workspaces" — so the scratchpad keeps its outer
+gaps even when it holds a single tiled window. Without `s[false]`, dropping into the scratchpad
+with one app loses the visual border between the special workspace and the underlying workspace,
+which makes the scratchpad feel "stuck" to the screen edge instead of floating over it.
+
+If the user enables **both** `scratchpad` and `smart_gaps` in 1e, the template should emit the
+`s[false]` variant. If only `smart_gaps` is enabled (no scratchpad), the plain selector is fine.
+Source: `caelestia-dots/caelestia` at `hypr/hyprland/rules.conf` HEAD.
+
+## Special workspaces deserve bigger gaps
+
+end-4's `hyprland/rules.lua` includes:
+
+```
+hl.workspace_rule({ workspace = "special:special", gaps_out = 30 })
+```
+
+A larger `gaps_out` on the special workspace creates breathing room around the scratchpad window,
+making it visually distinct from the underlying workspace — a deliberate theming move (the
+scratchpad reads as "floating above" rather than "tiled on top"). When `monitors.workspace_rules`
+enables a scratchpad, the template could emit:
+
+```ini
+workspace = special:magic, on-created-empty:$terminal, gapsout:30
+```
+
+…to copy the pattern. Worth doing only if the rice's gap-style is "spacious" (`gaps_out` >= 10);
+on a zero-gaps rice the larger special gap reads as a bug. Defer to the `look-feel` answers if
+they're available. Source: `end-4/dots-hyprland` at `dots/.config/hypr/hyprland/rules.lua` HEAD.
+
+## `reserved_area` for non-layer-shell bars
+
+dusky's `monitors.lua` (Section 6c) uses the per-monitor `reserved_area` field to manually carve
+out space for a bar/panel that doesn't reserve via layer-shell:
+
+```lua
+hl.monitor({ output = "eDP-1", reserved_area = 10 })          -- 10 px on all four edges
+hl.monitor({                                                  -- or per-edge
+    output = "eDP-1",
+    reserved_area = { top = 32, bottom = 0, left = 0, right = 0 },
+})
+```
+
+The conf-form equivalent is appended to the monitor line:
+
+```ini
+monitor = eDP-1, preferred, auto, 1, reserved_area, 10,10,10,10   # top right bottom left
+```
+
+This is **not relevant** for waybar / quickshell / AGS / fabric — they all reserve via the
+layer-shell `anchor`/`exclusive_zone` mechanism. It matters only when a user has a custom widget
+renderer drawing to the wallpaper layer. The interview does not currently surface this; flag it
+as "known-thing-we-don't-ask." Source: `dusklinux/dusky:.config/hypr/source/monitors.lua` Section 6c.
+
+## Color-management (`cm`, `bitdepth`, `sdr_eotf`, `sdrbrightness`) is opt-in HDR territory
+
+dusky's monitors.lua documents the full Hyprland 0.50+ color-management surface:
+
+```lua
+hl.monitor({
+    output        = "eDP-1",
+    mode          = "2880x1800@90",
+    scale         = 2,
+    bitdepth      = 10,           -- 8 or 10 only
+    cm            = "hdr",        -- auto | sdronly | hdr | edid
+    sdrbrightness = 1.0,          -- 0.5–2.0
+    sdrsaturation = 1.0,          -- 0.5–1.5
+    sdr_eotf      = "srgb",       -- default | srgb | gamma22
+})
+```
+
+These are **not part of the interview** (HDR pipelines need a calibrated panel + content; not a
+rice-engine concern). If the user pins `bitdepth: 10` in 1c, do **not** auto-pair it with
+`cm = hdr` — 10-bit colour and HDR are independent settings, and many SDR panels accept 10-bit
+at sRGB without HDR. The 1c option list correctly treats them as separate.
+
+Global render-side counterparts live in the `render {}` block (`cm_sdr_eotf`, `cm_fs_passthrough`,
+`cm_auto_hdr`) — those belong in `look-feel`/Hyprland top-level, not in `monitors.conf`. Source:
+`dusklinux/dusky:.config/hypr/source/monitors.lua` SECTION 2b/3f. Wiki reference:
+<https://wiki.hypr.land/Configuring/Monitors/#color-management>.
+
+## Workspace-swipe gap (`gaps_workspaces`) is a `general {}` global, not a workspace rule
+
+Caelestia defines `$workspaceGaps = 20` in `hypr/variables.conf` and sets
+`general { gaps_workspaces = $workspaceGaps }` in `hypr/hyprland/general.conf` — this is the
+**horizontal gap rendered between workspaces during the swipe/slide animation**, not a
+per-workspace rule. Bigger value → more "page-break" feeling on swipe. Lives in `look-feel`
+(`general {}` block) or the Hyprland top-level template, not in `monitors.conf`; mentioned here
+because the `gaps_in` / `gaps_out` answers in `look-feel` naturally pair with it. Source:
+`caelestia-dots/caelestia:hypr/hyprland/general.conf` and `hypr/variables.conf` HEAD.
