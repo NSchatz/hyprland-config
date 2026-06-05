@@ -134,3 +134,93 @@ second-from-end **SPEED** by ~0.6. Do **not** rescale the curves themselves — 
 definitions stay the same. For `animations = off`, set `enabled = false` and drop the
 `animation = ` lines entirely; leaving them with an `enabled = false` parent is harmless but
 noisier.
+
+## `misc:vfr` vs `misc:vrr` — easy to confuse, do different things
+
+Two single-letter-different keys, both in `misc {}` (pre-0.55), both Int defaults that change idle
+behaviour. They are **not the same knob**:
+
+| Key | What it does | Type | Default | Where in 0.55+ |
+|---|---|---|---|---|
+| `vfr` | Variable **frame** rate. Skip repaints when nothing's moving. Idle/battery win. | Bool-ish int (0/1) | 1 | moved to `debug { vfr = … }` |
+| `vrr` | Variable **refresh** rate. Adaptive sync (FreeSync/G-SYNC). 0=off, 1=on, 2=fullscreen-only. | Int (0/1/2) | 0 | stays in `misc { vrr = … }` |
+
+Verified at `src/config/ConfigManager.cpp` v0.54.3 (line 490 `misc:vfr`, line 491 `misc:vrr`) and
+`src/config/values/ConfigValues.cpp` v0.55.2 (line 448 `misc:vrr`, line 608 `debug:vfr`). The two
+travel separately — emitting `vrr = 1` on a monitor that doesn't advertise VRR is harmless (the
+output never opts in), but emitting `vfr` on the wrong block on 0.55+ hard-errors the reload.
+
+When to emit each:
+- `vfr = true` — always; it's the single biggest idle/battery improvement and Hyprland defaults it
+  to `true` anyway. The rice sets it explicitly to defend against upstream flipping the default.
+- `vrr = 2` — only when the user has a VRR-capable monitor and asked for it (no rice
+  sub-question owns this today — the gaming/monitors components could grow one). The rice's
+  default is `0`. Setting it ≥ 1 on a non-VRR display does nothing; it doesn't error.
+
+## Compositor `background_color` flashes before hyprpaper paints
+
+Hyprland draws a solid fallback color until the wallpaper daemon paints. Upstream's default is
+`0xff111111` (near-black). On a paletted rice that's a jarring transition from "boot splash → split
+second of black → wallpaper." Set `misc:background_color = rgb($bg)` so the brief flash is the
+palette base, not raw black.
+
+Verified `misc:background_color` (Color, default `0xff111111`) at `src/config/values/ConfigValues.cpp`
+v0.55.2 line 465; same key at v0.46.0 ConfigManager.cpp line 383.
+
+This also shows through any uncovered monitor area (multi-monitor with no wallpaper assigned,
+hyprpaper crash, etc.) — palette-tinted `$bg` reads as "this is intentional" instead of "the
+wallpaper daemon died."
+
+## `gaps_workspaces` is NOT the same as `gaps_out`
+
+Both are gaps; they apply at different moments.
+
+- `gaps_out` = gap between a window and the **screen edge**. Visible at rest.
+- `gaps_workspaces` = visible gap **between two workspaces during a workspace-switch animation**.
+  Stacks with `gaps_out`. Default `0` (workspaces butt against each other during the slide). Range
+  0–100 int.
+
+If you set `gaps_workspaces = 50` and your animation is `fade`-only, you'll see nothing — fades
+don't expose the inter-workspace seam. The knob is valuable for `slide` / `slidevert` /
+`slidefade` styles, where it makes the swipe read as a swipe instead of a snap. end-4 sets `50`,
+caelestia parameterises as `$workspaceGaps = 20`. Leave at `0` for the rice's defaults.
+
+Verified `general:gaps_workspaces` (Int, default `0`, range 0–100) at v0.55.2
+`src/config/values/ConfigValues.cpp` line 172.
+
+## Window-groups default colors are loud out of the box
+
+Upstream defaults that bite when the user turns groups on (11h):
+
+| Key | Default | What you see |
+|---|---|---|
+| `general:col.nogroup_border` | `0xffaaff` (loud pink) | tile-floor pink border on un-groupable floats |
+| `general:col.nogroup_border_active` | `0xffff00ff` (full magenta) | same, focused |
+| `group:col.border_locked_active` | `0x66ff5500` (orange) | locked-group focused border |
+| `group:col.border_locked_inactive` | `0x66775500` (olive) | locked-group inactive border |
+| `group:groupbar:col.locked_active` | `0x66ff5500` | locked-group tab bar focused |
+| `group:groupbar:col.locked_inactive` | `0x66775500` | locked-group tab bar inactive |
+
+Every palette-aware rice in the corpus re-tints these (caelestia → `$error`/`$secondary`;
+hyprdots → palette gradient on all four; omarchy → reuses `$activeBorderColor`). The rice's
+template emits `$accent2` / `$surface` for the locked tier so the palette stays coherent.
+
+Verified field types and defaults at `src/config/ConfigManager.cpp` v0.54.3 lines 479–480
+(nogroup), 780–786 (locked) and v0.55.2 `ConfigValues.cpp` lines 175, 391–392, 429–430.
+
+## Spring animation curves are Lua-only
+
+`animation = TARGET, ENABLED, SPEED, CURVE` in hyprlang `.conf` validates `CURVE` through
+`bezierExists(name)` — the parser does **not** know spring curves. Verified `handleAnimation` at
+`src/config/legacy/ConfigManager.cpp` v0.55.2 line 1421.
+
+To emit a spring you have to write `~/.config/hypr/hyprland.lua` and use:
+
+```lua
+hl.curve("bounce", { type = "spring", mass = 1, stiffness = 50, dampening = 10 })
+hl.animation({ leaf = "windows", enabled = true, spring = "bounce", style = "popin 80%" })
+```
+
+The rice emits `.conf`, so spring curves are out of scope. The `wind`/`winIn`/`winOut` overshoot
+bezier family or `expressiveFastSpatial = 0.42, 1.67, 0.21, 0.90` (end-4) gets you most of the way
+to that "bouncy" feel inside `.conf`. See `styling.md` "Motion (beziers & animation)."
