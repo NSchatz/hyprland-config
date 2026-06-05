@@ -120,3 +120,77 @@ bar, notification, or floating window on the same output suppresses tearing. Doc
 user when 20b is answered "On for specific games". If a game *freezes* instead of tearing, the
 GPU driver doesn't support tearing on this kernel / Hyprland combination — recommend turning the
 class rule back off rather than continuing to debug.
+
+## "Gaming is just don't break the desktop" — corpus theming finding
+
+Across the top 19 rices, **gaming has no theming-side mechanics**:
+
+- **No rice in the corpus pins games to a `workspace = special:gaming` with `on-created-empty:…`.**
+  The spec brief speculated about this pattern; it is not used in HyDE, end-4, caelestia,
+  JaKooLit, Matt-FTW, fufexan, ML4W, dusky, binnewbs, linuxmobile, noctalia, Ax-Shell, or
+  HyprPanel. Games run on whatever workspace the user launches them on; the per-class window
+  rules (immediate, opaque, no_blur, fullscreen) carry the entire "don't break the look" load.
+- **No rice ships a themed MangoHud config.** `mangohud %command%` is a documented Steam
+  launch option (see `packages.md`), but `~/.config/MangoHud/MangoHud.conf` is not wired into
+  any rice's matugen / wallust / wallbash template pipeline in the corpus. If a user wants
+  MangoHud's overlay to match their rice palette, that's a manual edit today.
+- **No rice ships a themed gamescope wrapper.** gamescope is mentioned as a launch wrapper
+  only; no rice has it in its autostart, and inside gamescope the host compositor's theming
+  doesn't apply anyway (gamescope is its own micro-compositor).
+
+The single theming-adjacent move popular rices make is **stripping decorations off games**:
+JaKooLit applies `no_blur on, fullscreen 0` via a `match:tag games` (covering `gamescope` and
+`steam_app_\d+` — `config/hypr/configs/WindowRules.conf`); caelestia uses one combined regex
+`match:class (steam_app_(default|[0-9]+))|gamescope` for `opaque true`, `immediate true`, *and*
+`idle_inhibit always` together (`hypr/hyprland/rules.conf`); fufexan uses
+`class:^(osu!|cs2)$ immediate = true` (`system/programs/hyprland/rules.lua`). Our
+`strip_fullscreen_effects` answer covers the equivalent ground (no_blur, no_anim, no_shadow,
+border_size = 0, rounding = 0, idle_inhibit = fullscreen) via `match:fullscreen = true` —
+*broader* than the per-class regex but the same end result for the rice's coherence.
+
+## Idle-inhibit for videos is a separate (non-gaming) move several rices make
+
+Outside gaming, three rices in the corpus emit class-based `idle_inhibit` rules for media
+players, which keeps the rice's lockscreen from triggering during long videos:
+
+- **fufexan** (`system/programs/hyprland/rules.lua`):
+  ```lua
+  hl.window_rule({ match = { class = "^(mpv|.+exe|celluloid)$" }, idle_inhibit = "focus" })
+  hl.window_rule({ match = { class = "^(zen)$", title = "^(.*YouTube.*)$" }, idle_inhibit = "focus" })
+  hl.window_rule({ match = { class = "^(zen)$" }, idle_inhibit = "fullscreen" })
+  ```
+- **linuxmobile/hyprland-dots** (`.config/hypr/windowrule.conf`):
+  ```ini
+  windowrulev2 = idleinhibit focus,class:^(mpv)$
+  windowrulev2 = idleinhibit fullscreen,class:^(Brave-browser)$
+  ```
+- **JaKooLit** (`config/hypr/configs/WindowRules.conf`) emits a fullscreen-only catchall via
+  tags (`match:tag multimedia_video, no_blur on, opacity 1.0` plus the global
+  `match:fullscreen true, idle_inhibit fullscreen`). binnewbs follows the same pattern with
+  `windowrule = tag +multimedia_video, class:^([Mm]pv|vlc)$`.
+
+This component's `strip_fullscreen_effects = true` answer (`match:fullscreen = true,
+idle_inhibit = fullscreen`) covers the **fullscreen video** case automatically — the rice
+inherits the same behaviour without naming mpv/vlc/zen. The class-based `idle_inhibit = focus`
+form (inhibits while focused, not just while fullscreen) is **not** emitted from this
+component; it's the [`window-rules`](../window-rules/) component's territory if added at all.
+Flagged here so a future researcher knows that pattern lives in another component, not gaming.
+
+## VRR-as-global vs VRR-per-monitor — corpus is split
+
+This component emits VRR **per-monitor** (`, vrr, N` field on each `monitor =` line — verified
+against the 0.54 Monitors wiki). The corpus is actually split on this:
+
+- **Per-monitor (what we do)**: nobody in the corpus emits it this way verbatim. The pattern is
+  documented but tedious for single-monitor setups.
+- **Global `misc:vrr = N`**: caelestia (`hypr/hyprland/misc.conf`: `vrr = 1`, always-on),
+  JaKooLit (`config/hypr/configs/SystemSettings.conf`: `vrr = 2`, fullscreen-only), dusky
+  (`misc.lua`: `vrr = 2`).
+- **VRR off entirely**: end-4 (`hyprland/general.lua`: `vrr = 0`), Matt-FTW
+  (`.config/hypr/configs/misc.conf`: `vrr = 0`).
+
+Per-monitor overrides global — so the schema's `gaming.vrr_mode` working per-monitor is
+correct for mixed-display users, but a single-monitor user gets the same end-state cheaper
+from a global `misc:vrr = 2` in `looknfeel.conf`. The current emission path is the safe one
+(no silent breakage on a fixed-refresh secondary), so leave it; just be aware the
+single-monitor majority of the corpus uses the global form. Not a bug, just a tradeoff.
