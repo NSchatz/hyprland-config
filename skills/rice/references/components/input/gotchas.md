@@ -188,3 +188,91 @@ Find the device name with `hyprctl devices`. Rice doesn't enumerate devices in t
 prefix. Useful for laptop-keyboard-only Fn keys vs external keyboard layouts. Mentioned here
 so the validator does not strip unknown `tags` lines from user configs. The interview does not
 ask about this.
+
+## Theming angles (narrow but real)
+
+Input is a structural component — most of `input.conf` has no theming surface. The few angles
+the corpus actually exercises:
+
+### Multi-layout `kb_layout` ↔ waybar `hyprland/language` cross-surface coherence
+
+When 2a yields a multi-layout (`us, es`), popular rices surface the active layout in the bar via
+the `hyprland/language` module so the user can SEE which layout is live. JaKooLit ships the
+canonical wiring in `config/waybar/Modules` (the file is base64 in the GitHub API; decoded):
+
+```json
+"hyprland/language": {
+    "format": "Lang: {}",
+    "format-en": "US",
+    "format-tr": "Korea",
+    "keyboard-name": "at-translated-set-2-keyboard",
+    "on-click": "hyprctl switchxkblayout $SET_KB next"
+}
+```
+
+The `on-click` dispatcher `switchxkblayout $SET_KB next` requires the **keyboard name** to be
+discovered at runtime (`hyprctl devices`) — the rice can't hard-code it. Rule of thumb for the
+component-writer agent:
+
+- If `input.kb_layout` contains a comma (multi-layout), the waybar component SHOULD add
+  `hyprland/language` to the bar's right cluster, and the writer agent should leave the
+  `keyboard-name` field unset (waybar then matches the first keyboard).
+- If `input.kb_options` includes `grp:win_space_toggle` or `grp:alt_shift_toggle`, the
+  language indicator is the visual feedback for the toggle — without it, the user cycles
+  layouts blind.
+
+Cross-component: **flag this to the `waybar` agent.** The current waybar template does not
+react to `input.kb_layout` being multi.
+
+### Touchpad `natural_scroll` ↔ widget scroll-direction coherence
+
+Bar widgets in JaKooLit, ML4W, end-4, and HyDE wire `on-scroll-up` / `on-scroll-down` to
+volume / brightness / workspace dispatchers (e.g. `Volume.sh --inc`, `hyprctl dispatch
+workspace +1`). Those handlers are written assuming OS-level "natural scroll" semantics — if
+the user enables `touchpad:natural_scroll = true` on a laptop the OSDs FEEL right (scroll up
+→ volume up, content follows finger). If the user enables `natural_scroll` only on the
+touchpad but NOT on an external mouse (the Hyprland default), the same bar widget will scroll
+"backwards" via the mouse. There is no fix in input — flag in the interview that this
+asymmetry is a known UX artefact of the libinput/Hyprland separation between `input.touchpad`
+and `input` for mouse scroll. No corpus rice exposes a knob for it.
+
+### `binds:scroll_event_delay = 0` for snappy bar-widget scroll
+
+end-4's `dots/.config/hypr/hyprland/general.lua` and ML4W's `conf/window.lua` both set
+`binds { scroll_event_delay = 0 }` (Hyprland default is `300` ms). This is the difference
+between waybar's pulseaudio widget feeling instant on a trackpad scroll vs lagging by a third
+of a second. Out of scope for this component (lives under `keybinds` / look-feel territory),
+but a popular UX-coherence move worth flagging if the user has a "snappy" archetype.
+
+### `off_window_axis_events` and inactive-window scroll
+
+end-4 ships `off_window_axis_events = 2` ("fake" — synthesize a scroll on the inactive
+window without changing focus). This pairs with `follow_mouse = 2` (detached) for the
+"scroll inactive windows" UX. ML4W defaults to `1` ("out-of-bounds"). The corpus default for
+this knob is **not consistent** — leave it unset (Hyprland default `1`) and surface it only if
+the user explicitly asks for detached/loose focus in 2d.
+
+### Popular rices ship `numlock_by_default = true`
+
+HyDE, JaKooLit, end-4, dusky, and Matt-FTW all ship `numlock_by_default = true`. The
+Hyprland compiled-in default is `false`. The current interview (2e) lists this as an
+opt-in — that's correct for a *strict no-defaulting* interview, but the prose should mention
+that the community convention is on. No template change.
+
+### `focus_on_close` is theming-adjacent for floating archetypes
+
+caelestia's `hypr/hyprland/input.conf` ships `focus_on_close = 1` (focus the window under the
+cursor when one closes). For floating-overlay rices where dialogs and pickers float over a
+tiled background, this prevents the focus from jumping to a "random" tiled neighbour when a
+notification dismisses or a picker closes. Not currently in the interview — out of scope, but
+documented here for the validator/writer not to strip it.
+
+### Out of scope: cursor theme, hyprcursor, sync_gsettings_theme
+
+The Hyprland `cursor {}` block (`sync_gsettings_theme`, `enable_hyprcursor`,
+`no_hardware_cursors`, `inactive_timeout`, `zoom_factor`) is **NOT** owned by this component —
+it lives under `components/look-feel/` (which already covers `cursor:no_hardware_cursors` as
+the nouveau/NVIDIA workaround). The cursor theme + size env vars
+(`XCURSOR_THEME`/`XCURSOR_SIZE`/`HYPRCURSOR_THEME`/`HYPRCURSOR_SIZE`) live under
+`components/env/`. If you find yourself wanting to put a cursor knob in `input.conf`, route
+it to one of those two instead.
