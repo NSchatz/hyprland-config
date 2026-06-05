@@ -14,7 +14,7 @@ font — so nothing on screen reads as alien.
 | **GTK4 / libadwaita** | `color-scheme` (dark/light) via `gsettings` **+** `@define-color` overrides in `~/.config/gtk-4.0/gtk.css` (plus optional `assets/`) | libadwaita ignores legacy GTK themes — it only honors the named-color overrides + accent |
 | **Icons** | `icon-theme` via `gsettings` | `~/.local/share/icons` or `/usr/share/icons` |
 | **Cursor** | `cursor-theme` + `cursor-size` (gsettings), `hyprctl setcursor`, and `XCURSOR_*` / `HYPRCURSOR_*` env | `~/.icons`, `~/.local/share/icons`, `/usr/share/icons` |
-| **Qt5 / Qt6** | `QT_QPA_PLATFORMTHEME=qt6ct` (or `qt5ct` / `gtk3`); qt6ct/qt5ct GUI picks style + palette; Kvantum (`kvantummanager`) for SVG themes via `QT_STYLE_OVERRIDE=kvantum` | `~/.config/qt6ct/`, `~/.config/qt5ct/`, `~/.config/Kvantum/` |
+| **Qt5 / Qt6** | `QT_QPA_PLATFORMTHEME=qt6ct` (or `qt5ct` / `gtk3` / `hyprqt6engine`); qt6ct/qt5ct GUI picks style + palette; Kvantum (`kvantummanager`) for SVG themes via `QT_STYLE_OVERRIDE=kvantum` | `~/.config/qt6ct/`, `~/.config/qt5ct/`, `~/.config/Kvantum/`, `~/.config/hypr/hyprqt6engine.conf` |
 | **Fonts** | `font-name` + `monospace-font-name` via `gsettings` | system-installed font families |
 
 Apply tools: `gsettings` (scriptable, source of truth on wlroots), `nwg-look` (GUI that writes
@@ -125,6 +125,44 @@ Concrete, attributed moves harvested from real dotfiles and the theme installers
 **Cursor.**
 - *Set both cursor systems + push at runtime* (end-4, Matt-FTW): `XCURSOR_THEME`/`XCURSOR_SIZE` (XWayland/GTK fallback) **and** `HYPRCURSOR_THEME`/`HYPRCURSOR_SIZE` (native) to the same theme+size, plus `hyprctl setcursor <theme> <size>` + `gsettings … cursor-theme` at runtime to cover the running session and GTK. Bibata-Modern-Ice/Classic and catppuccin-cursors are the common picks.
 
+## Cursor coherence: the three-place rule
+
+There's one cursor theme name, but **four** surfaces want to be told about it. Drift across them is the most common visual incoherence bug in a rice — the cursor "jumps" between sizes (different cache?), or flicks back to `Adwaita` over XWayland apps, or vanishes during an idle frame on NVIDIA. The companion-daemons component owns the single source-of-truth pick (`companion-daemons.cursor_theme` in `answers.json`), and the rice engine cross-sets it into every consumer at generate-time:
+
+| Surface | Where it's set | What goes wrong without it |
+|---|---|---|
+| **Hyprland (native hyprcursor)** | `env = HYPRCURSOR_THEME,<name>` + `env = HYPRCURSOR_SIZE,<n>` in `env.conf`; runtime `hyprctl setcursor <name> <n>` | Hyprland falls back to the libwayland default — typically `Adwaita` 24, doesn't match GTK |
+| **XWayland + GTK fallback** | `env = XCURSOR_THEME,<name>` + `env = XCURSOR_SIZE,<n>` in `env.conf` | XWayland apps (Steam, Discord-X11, Java AWT) show the wrong cursor over their window region |
+| **GTK live channel** | `gsettings set org.gnome.desktop.interface cursor-theme '<name>'` + `cursor-size <n>` | Native GTK apps re-read at runtime — without this they keep the previous theme until the next session |
+| **`settings.ini` mirror** | `gtk-cursor-theme-name=<name>` + `gtk-cursor-theme-size=<n>` in `~/.config/gtk-3.0/settings.ini` | The handful of GTK3 apps that don't poll gsettings (e.g. legacy GIMP 2.10 builds) miss the change |
+
+`nwg-look` does the gsettings + settings.ini half automatically when you Apply; the `env =` half lives in `components/env/template.md` and is cross-set from `companion-daemons.cursor_theme` — you do **not** answer the cursor question again in the env interview. The Hyprcursor package family for the common themes is named `<theme>-hyprcursor` (e.g. `bibata-cursor-theme-bin` ships both X cursors and Hyprcursor metadata; `catppuccin-cursors` ships per-flavor `-hyprcursor` AUR packages). When the Hyprcursor variant isn't installed, Hyprland falls back to `XCURSOR_*` automatically — slightly blurrier on HiDPI but functional.
+
+The vanishing-cursor-when-idle bug on **NVIDIA / nouveau** is *not* an env problem — it's the hardware-cursor plane blanking. Fix in `look-feel`: `cursor { no_hardware_cursors = true }`. See pitfalls below.
+
+## Toolkit footguns the GTK/Qt doc should know about
+
+These don't belong in this file's primary theming flow but they break the *look* of major toolkit-rendered apps on Hyprland and the env component cross-sets them by default. Each is documented in depth at `components/env/gotchas.md`.
+
+- **`_JAVA_AWT_WM_NONREPARENTING,1`** — Java AWT apps (IntelliJ, Android Studio, older Swing tools) render as **blank gray windows** on tiling Wayland compositors until this is set. Long-standing JDK bug (`JDK-8211608` and family). Lives in the env's `toolkit` gate alongside `QT_QPA_PLATFORM`/`GDK_BACKEND` — single flip pulls in the bundle.
+- **`MOZ_DISABLE_RDD_SANDBOX,1`** — Firefox VA-API through the `libva-nvidia-driver` (the NVDEC bridge) requires this because Firefox's RDD sandbox blocks the NVDEC ioctls. Only emit when `firefox_wayland=1` AND `have_libva_nvidia_driver=1`. JaKooLit and linuxmobile ship it commented in their env so users can flip it themselves.
+- **`GSK_RENDERER,ngl`** — GTK4's default `gl` renderer crashes/glitches on the NVIDIA proprietary driver. The *next-gen* (`ngl`) Vulkan-aware renderer fixes it but is still experimental in GTK 4.16/4.18. JaKooLit surfaces it commented in their NVIDIA env block — flag in the validator as a hint when `NVIDIA_PROPRIETARY=1` AND the user reports GTK4 app crashes, do **not** auto-emit.
+- **`ELECTRON_OZONE_PLATFORM_HINT,auto`** — fixes Electron/CEF flicker (Vesktop, VSCodium, Obsidian) on **any** GPU. Pre-v0.14 of this plugin gated it under NVIDIA; the Hyprland NVIDIA wiki explicitly recommends it as a generic fix — caelestia, dusky, and linuxmobile all set it unconditionally. The env interview now exposes it as its own line. Note: Electron 35 / Chromium 134+ use the syncobj protocol (`--enable-features=WaylandLinuxDrmSyncobj`) as the *proper* fix — that's an app-launch flag, not an env var.
+
+## Default-app pick ↔ theming-engine pairing
+
+The default-apps component's file-manager / image-viewer / archive-manager pick can silently undo the theming work — the GTK/Qt mismatch shows up *here* if a Qt file manager isn't given a Qt theming route, and the cursor/GTK setup spawns a desktop-search indexer if a GNOME pick is made:
+
+- **Dolphin (Qt)** without Kvantum/qt6ct wired is **coherence-dead** — it renders in stock Fusion gray regardless of how perfectly GTK is themed. Picking Dolphin in `default-apps.file-manager` MUST pair with the Qt route: `QT_QPA_PLATFORMTHEME,qt6ct` (or `hyprqt6engine`) in env, `style=kvantum` in `qt6ct.conf`, and a Kvantum theme that matches the rice scheme in `kvantummanager`. Without the pairing, the Catppuccin/Gruvbox/Nord rice has a gray hole in it the moment the user opens a file picker.
+- **Nautilus (GTK)** is themed by the libadwaita route this doc covers, *and* it autostarts the **`localsearch`** desktop-search indexer (formerly `tracker-miners`) on first launch — visible CPU + I/O for ~30s after login. Not a theming bug per se but the `companion-daemons` agent suppresses it by default (`systemctl --user mask localsearch-3.service localsearch-extract-3.service`) because rice users typically run `fzf`/`fd` from a terminal. Re-enable only on demand.
+- **Loupe / Image Viewer / GNOME Files** — all libadwaita 1.4+ apps; honor the `sidebar_bg_color` / `sidebar_fg_color` pair the .tmpl now exports.
+
+The rice interview pairs the file-manager pick with the matching toolkit route automatically — see `components/default-apps/interview.md`.
+
+## hyprqt6engine — the Hyprland-native Qt6 route
+
+[`hyprqt6engine`](https://wiki.hypr.land/Hypr-Ecosystem/hyprqt6engine/) is a Qt6 platform theme — a **replacement for qt6ct** built for Hyprland with KColorScheme compatibility. Set `env = QT_QPA_PLATFORMTHEME,hyprqt6engine` instead of `qt6ct` to get colour-scheme-aware Qt6 apps without the qt6ct GUI/config layer; config lives at `~/.config/hypr/hyprqt6engine.conf`. Use when the rice already has a KColorScheme rendered (DMS, end-4) and you want Qt6 apps to follow the same palette without round-tripping through qt6ct's `colors.conf`. Pairs cleanly with `QT_STYLE_OVERRIDE=kvantum` for SVG styling or alone for a flat KDE-Plasma-style look. qt5ct is still the right pick for legacy Qt5 apps.
+
 ## Tasteful default recipe
 
 Worked example: **Catppuccin Mocha** (bg `1e1e2e`, fg `cdd6f4`, surface `313244`, accent `cba6f7`).
@@ -158,22 +196,36 @@ gtk-application-prefer-dark-theme=true
 ```
 
 **3. `~/.config/gtk-4.0/gtk.css`** — tint GTK4/libadwaita with the rice palette via `@define-color`
-(keys are hex *without* `#`; example shows Catppuccin Mocha values):
+(keys are hex *without* `#`; example shows Catppuccin Mocha values). The shape below is the
+engine's `gtk4.tmpl` exactly — the contract row in `_shared/colors-contract.md` lists every
+key, and the corpus (end-4, ml4w, DMS, dusky, binnewbs) ships the same superset. The
+`headerbar_backdrop_color`, `dialog_*`, and `sidebar_*` pairs come from the DMS finding that
+without them GTK4 windows **flash to stock Adwaita** when they lose focus.
 
 ```css
 /* rice palette -> libadwaita named colors */
-@define-color accent_color        #{{accent}};   /* cba6f7 */
-@define-color accent_bg_color     #{{accent}};
-@define-color accent_fg_color     #{{bg}};        /* 1e1e2e */
-@define-color window_bg_color     #{{bg}};        /* 1e1e2e */
-@define-color window_fg_color     #{{fg}};        /* cdd6f4 */
-@define-color view_bg_color       #{{bg}};
-@define-color view_fg_color       #{{fg}};
-@define-color headerbar_bg_color  #{{surface}};   /* 313244 */
-@define-color headerbar_fg_color  #{{fg}};
-@define-color card_bg_color       #{{surface}};
-@define-color popover_bg_color    #{{surface}};
-@define-color popover_fg_color    #{{fg}};
+@define-color accent_color            #{{accent}};   /* cba6f7 */
+@define-color accent_bg_color         #{{accent}};
+@define-color accent_fg_color         #{{bg}};        /* 1e1e2e */
+@define-color window_bg_color         #{{bg}};        /* 1e1e2e */
+@define-color window_fg_color         #{{fg}};        /* cdd6f4 */
+@define-color view_bg_color           #{{bg}};
+@define-color view_fg_color           #{{fg}};
+@define-color headerbar_bg_color      #{{surface}};   /* 313244 */
+@define-color headerbar_fg_color      #{{fg}};
+@define-color headerbar_backdrop_color #{{surface}};  /* prevent unfocus white-flash */
+@define-color card_bg_color           #{{surface}};
+@define-color card_fg_color           #{{fg}};
+@define-color popover_bg_color        #{{surface}};
+@define-color popover_fg_color        #{{fg}};
+@define-color dialog_bg_color         #{{surface}};
+@define-color dialog_fg_color         #{{fg}};
+@define-color sidebar_bg_color        #{{bg}};        /* Nautilus / Files / Loupe */
+@define-color sidebar_fg_color        #{{fg}};
+@define-color destructive_color       #{{red}};
+@define-color error_color             #{{red}};
+@define-color success_color           #{{green}};
+@define-color warning_color           #{{yellow}};
 ```
 
 **4. Cursor in env** (Hyprland config) so it's consistent everywhere, not just GTK:
@@ -223,15 +275,18 @@ same for legacy Qt5 apps.
   apps use that theme and **ignore gsettings / `settings.ini` / `gtk.css` entirely** — so a re-theme
   appears to "not take" on GTK apps. Find it (`env | grep GTK_THEME`, check `~/.config/uwsm/env`,
   `~/.config/environment.d/`, `~/.profile`), update it to the new theme, then live-propagate:
-  `hyprctl keyword env GTK_THEME,<name>` + `dbus-update-activation-environment --systemd GTK_THEME=<name>`
-  (explicit `VAR=value` — bare names re-read the calling shell's stale value, though end-4 and
-  koeqaife both use the bare-name form successfully under uwsm; both work but explicit is safer).
+  `hyprctl keyword env GTK_THEME,<name>` + `dbus-update-activation-environment --systemd GTK_THEME=<name>`.
+  Explicit `VAR=value` is the safe form (bare names re-read the calling shell's stale value);
+  the Hyprland XDPH wiki gives the `--systemd --all` form as the catch-all and `--systemd
+  QT_QPA_PLATFORMTHEME` (bare name) as a single-var form — end-4 and koeqaife both ship the
+  bare-name form successfully under uwsm. All three work; explicit pairs are the safest.
   `hyprctl setenv` was the pre-0.55 spelling; modern Hyprland exposes only `hyprctl keyword env`
   — see `components/env/gotchas.md`. Apps pick it up on next launch. Likewise
-  `XCURSOR_THEME`/`HYPRCURSOR_THEME` live in that env file. If the rice's env writer emits
-  `XDG_CURRENT_DESKTOP,Hyprland` as `envd =` (Matt-FTW pattern, pre-0.55 hyprlang's D-Bus push
-  flag — see `components/env/gotchas.md`), portals see the value without the live-propagate
-  dance above.
+  `XCURSOR_THEME`/`HYPRCURSOR_THEME` live in that env file. On Hyprland 0.55+ Lua,
+  `hl.env("NAME", "value")` already pushes into systemd/DBus by default (the wiki notes
+  `HYPRLAND_NO_SD_VARS=1` as the opt-out); the `envd =` form is only meaningful for 0.54-era
+  `.conf` writers — Matt-FTW's `XDG_CURRENT_DESKTOP,Hyprland` as `envd =` is the canonical
+  pattern there.
 - **`~/.config/gtk-4.0/gtk.css` is sometimes a symlink** to a system theme (Catppuccin-GTK and other
   full-theme packages link the whole `gtk-4.0/` dir). Writing your own `@define-color` overrides
   through it fails with **"Permission denied"** (root-owned target under `/usr/share/themes`). Delete
@@ -248,11 +303,31 @@ same for legacy Qt5 apps.
 - **`nwg-look` doesn't read your `settings.ini`** — it reads gsettings and *overwrites*
   `settings.ini` on apply. Don't expect hand edits to settings.ini to show up in it.
 
+## Pending: high-contrast / AAA accessibility branch
+
+No corpus rice ships a high-contrast GTK/Qt variant — the accessibility component's research pass
+confirmed this. libadwaita honors the **high-contrast color scheme** via the settings portal
+(`org.gnome.desktop.a11y.interface high-contrast`), and the `AdwStyleManager:high-contrast`
+property is read by every GTK4 app at runtime, but **no `@define-color` block currently runs in
+a forced AAA-contrast branch in this rice's `gtk4.tmpl`** — the file emits a single palette
+mapping that may or may not pass WCAG AAA (7:1) depending on the user's accent vs `bg`.
+
+If/when a high-contrast scheme lands, the GTK4 template needs a second branch — `@media
+(prefers-contrast: more)` is the libadwaita-supported form — that re-defines `accent_color`,
+`accent_bg_color`, `window_fg_color`, etc. with values verified to pass AAA against
+`window_bg_color`. The shape would be a conditional block inside the same `gtk.css` file rather
+than a second file (libadwaita honors the media query). The contract row in
+`_shared/colors-contract.md` would need a `_hc_*` mirror set, OR the engine would inject the
+high-contrast block from a separate palette derivation. This is an orchestrator-level decision
+— flagged for the accessibility component's batch.
+
 ## Sources
 
 - Hyprland wiki — App Themes / cursors: <https://wiki.hypr.land/> · hyprcursor: <https://wiki.hypr.land/Hypr-Ecosystem/hyprcursor/>
 - adw-gtk3: <https://github.com/lassekongo83/adw-gtk3> · adw-colors: <https://github.com/lassekongo83/adw-colors>
-- libadwaita named colors / CSS variables: <https://gnome.pages.gitlab.gnome.org/libadwaita/doc/latest/css-variables.html>
+- libadwaita named colors / CSS variables: <https://gnome.pages.gitlab.gnome.org/libadwaita/doc/main/css-variables.html> (verified June 2026 — main 1.7+ adds `overview_*` + `active_toggle_*`; `sidebar_*` + `secondary_sidebar_*` since 1.4; `dialog_*` since 1.2; `popover_shade_color` + `thumbnail_*` since 1.3/1.4)
+- hyprqt6engine (Qt6 platform theme, replacement for qt6ct, KColorScheme-compatible): <https://wiki.hypr.land/Hypr-Ecosystem/hyprqt6engine/>
+- xdg-desktop-portal-hyprland (the `dbus-update-activation-environment --systemd --all` form the wiki recommends, plus the KDE-file-picker `~/.config/xdg-desktop-portal/hyprland-portals.conf` recipe): <https://wiki.hypr.land/Hypr-Ecosystem/xdg-desktop-portal-hyprland/>
 - Catppuccin GTK (archived June 2024): <https://github.com/catppuccin/gtk>
 - Catppuccin Papirus folders: <https://github.com/catppuccin/papirus-folders> · papirus-folders: <https://github.com/PapirusDevelopmentTeam/papirus-folders>
 - Papirus icon theme: <https://github.com/PapirusDevelopmentTeam/papirus-icon-theme>
@@ -271,3 +346,4 @@ same for legacy Qt5 apps.
 - Matt-FTW/dotfiles `.config/hypr/configs/env.conf` (single env source of truth, QT_STYLE_OVERRIDE=kvantum, matched XCURSOR/HYPRCURSOR): <https://github.com/Matt-FTW/dotfiles>
 - end-4/dots-hyprland (KDE platform theme route, in-repo Kvantum themes, runtime `hyprctl setcursor`) and mylinuxforwork/dotfiles (nwg-look workflow, Breeze qt6ct): <https://github.com/end-4/dots-hyprland> · <https://github.com/mylinuxforwork/dotfiles>
 - papirus-folders (`-C <accent>`, `-Ru` after update) and vinceliuice Tela-circle-icon-theme: <https://github.com/PapirusDevelopmentTeam/papirus-folders> · <https://github.com/vinceliuice/Tela-circle-icon-theme>
+- matugen `gtk-colors.css` templates (for the libadwaita named-color superset audit — `popover_fg_color`, `card_fg_color`, `sidebar_*`, `headerbar_backdrop_color`, `error_*`): end-4 `dots/.config/matugen/templates/gtk-4.0/gtk.css`, ml4w `dotfiles/.config/matugen/templates/gtk-colors.css`, AvengeMedia/DankMaterialShell `quickshell/matugen/templates/gtk-colors.css` (annotates `headerbar_backdrop_color` as "prevents white flash on window unfocus"), dusklinux/dusky and binnewbs/arch-hyprland `.config/matugen/templates/gtk-colors.css` (ml4w-derived).
