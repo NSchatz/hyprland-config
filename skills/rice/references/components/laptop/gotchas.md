@@ -125,6 +125,135 @@ with a TODO so the reload doesn't error, and surface the TODO in the install out
 no version branching is needed for this component. The validator does not flag any `laptop` line
 against the version matrix.
 
+## (i) Two community camps on lid handling — bind explicitly vs. delegate to logind
+
+Looking at how the top corpus repos actually ship a default lid action splits cleanly in two:
+
+- **Explicit `bindl`** — JaKooLit (`config/hypr/UserConfigs/Laptops.conf` commented examples
+  showing `bindl = , switch:on:Lid Switch, exec, hyprctl keyword monitor "eDP-1, disable"`),
+  ML4W (`hl.bind` calls with `{ locked = true }` for every `XF86*` key), and the laptop opt-in
+  flow this component implements.
+- **Delegate to `systemd-logind`** — end-4/dots-hyprland ships the lid bind **commented out**
+  in `dots/.config/hypr/hyprland/keybinds.lua`:
+  `-- hl.bind("switch:on:Lid Switch", hl.dsp.exec_cmd("systemctl suspend || loginctl suspend"), {locked = true} ) -- # [hidden] Suspend when laptop lid is closed, uncomment if for whatever reason it's not the default behavior`.
+  The user is expected to let logind's default `HandleLidSwitch=suspend` do the work.
+
+Both camps are valid; this component's interview picks camp (a) (explicit bind) because the
+chosen action is theming-coherent — e.g. `lid_action == "lock"` flows through `loginctl
+lock-session` → hypridle's `listener { on-lock = hyprlock; }` → hyprlock, which is the
+lock-screen component's themed surface. Delegating to logind would still trigger
+`before_sleep_cmd = loginctl lock-session` (the hypridle pattern every corpus rice uses
+verbatim — see Ax-Shell `config/hypr/hypridle.conf`, JaKooLit `config/hypr/hypridle.conf`),
+so the rice would still look right; the user just doesn't get to pick `clamshell` or `nothing`
+without further config.
+
+If the user picks `nothing`, the install output must still print the
+`HandleLidSwitch*=ignore` snippet — otherwise logind keeps acting and `nothing` doesn't
+actually do nothing. (Already covered by § a; calling it out here as the corpus reason
+both camps exist.)
+
+## (j) Brightness/volume OSD is the only theme-coupled laptop surface
+
+The lid bind, power-tool daemon, and charge-limit unit are theming-orthogonal — they fire
+behaviors, not pixels. The one laptop-adjacent surface that DOES render pixels in the rice
+palette is the brightness / volume / mute OSD, and the corpus shows four mutually exclusive
+routing strategies for it:
+
+| Strategy | Where the OSD pixels live | Rices |
+|---|---|---|
+| **In-shell (Quickshell)** | The shell renders its own OSD QML, theme-coupled to matugen output. Bind calls a Quickshell IPC method, not `brightnessctl` directly. | end-4 (`qs ipc call brightness increment`), caelestia, AvengeMedia/DankMaterialShell |
+| **`swayosd-client`** | A separate `swayosd-server` daemon draws the OSD; styling lives in a GTK CSS that's NOT auto-themed by matugen unless the rice ships a matugen template for it. | Matt-FTW (`bindle = , XF86MonBrightnessUp, exec, swayosd-client --brightness +10`) — but Matt-FTW ships no swayosd theme, so the OSD uses defaults and doesn't match the rest of the rice. **This is the most common cross-surface coherence miss in the corpus.** |
+| **mako/swaync notification with `[app-name=OSD]` rule** | The notification daemon renders the OSD as a transient notification; palette comes from the notification daemon's matugen template. | dusky (`~/user_scripts/mako_osd/osd_router/osd_router.sh` + a `[app-name=OSD]` block in `.config/matugen/templates/mako.ini`), HyDE (`batterynotify.sh` → `notify-send -u CRITICAL`), JaKooLit (`config/hypr/scripts/Brightness.sh` → `notify-send -h int:value:N -u low`) |
+| **Hardcoded brightnessctl with no OSD** | Bind fires `brightnessctl` directly, no visual feedback. The user sees nothing change unless they're looking at the screen brightness. | binnewbs partially (no dedicated OSD script in tree) |
+
+Theming implication: when the lock-screen / notifications / look-feel components pick a
+matugen-driven palette, **the OSD routing is what determines whether the brightness
+indicator inherits that palette**. The rice's coherence depends on it. The waybar
+`#battery.critical` CSS is the other touchpoint (see § k).
+
+This component does **not** own OSD routing — that's split across `../notifications/`
+(mako/swaync/dunst CSS), `../widgets/` (if Quickshell/AGS draws the OSD), or `../utilities/`
+(if `swayosd` is shipped as a package). What this component does is **flag** to the
+orchestrator which surface the user's chosen `power_tool` and `lid_action` make most
+coherent. Open question for the orchestrator: should the laptop interview ask for the OSD
+routing strategy too, or should it stay implicit and defer to the notification / widget
+component's choice?
+
+## (k) `#battery.critical` is a cross-surface coherence touchpoint
+
+Across waybar rices, the battery module's critical class is the single most prominent
+"laptop affects theme" pixel. Three palette strategies in the corpus:
+
+- **Palette-keyed (`@error`, Material role)** — dusky (`.config/waybar/01_mechabar_h/style.css`):
+  ```css
+  #memory.critical, #cpu.critical, #battery.critical { color: @error; }
+  #battery.charging { color: @on_tertiary_container; }
+  ```
+  This is the right shape for a theming-first plugin: the matugen template emits
+  `@define-color error …` and every component's critical/error state references it.
+- **Palette-keyed (`@red`, named palette)** — JaKooLit (`config/waybar/style/[Catppuccin] Mocha.css`):
+  ```css
+  #battery { color: @green; }
+  #battery.critical:not(.charging) { background-color: @red; color: @theme_text_color; animation-name: blink; }
+  ```
+  Works for a named-palette rice (Catppuccin, Tokyo Night, Gruvbox) where `@red`/`@green`
+  are stable engine outputs; less ideal for matugen which doesn't emit a `@red` by default.
+- **Hard-coded hex (anti-pattern)** — ML4W (`dotfiles/.config/waybar/themes/default/style.css`)
+  and binnewbs (`.config/waybar/style/islands.css`) both ship `#f53c3c` literal:
+  ```css
+  #battery.critical:not(.charging) { background-color: #f53c3c; color: #ffffff; animation: blink 0.5s infinite; }
+  ```
+  Re-theming the rice silently leaves the critical battery red regardless of palette —
+  exactly the class of bug v0.13 caught for other components.
+
+The rice's waybar component's `.tmpl` must wire `#battery.critical`'s color to the palette
+key (`error` for Material/matugen-driven; the named palette's `red` for a Catppuccin-style
+rice). The waybar component owns the actual CSS; this component owns the answer
+(`laptop.power_tool == "ppd"`) that decides whether the battery module is even enabled in
+the first place. No `.tmpl` change is needed here — flagging the touchpoint so the waybar
+agent's deep-research pass knows to check it.
+
+## (l) Blink animation on `#battery.critical` is the default — keep it palette-aware
+
+JaKooLit, ML4W, and binnewbs all ship a `@keyframes blink` on the critical battery class.
+Three observed shapes:
+
+- JaKooLit fades to `@surface0` (Catppuccin palette key) over 3s, alternating —
+  palette-coherent.
+- ML4W fades to nothing (`color: #fff`) over 0.5s linear infinite — fast and palette-blind.
+- binnewbs doesn't animate, only colors.
+
+The recommended shape for a matugen/palette-first rice is the JaKooLit pattern but with
+`@on_surface` or `@surface_container_low` as the fade target (matugen Material roles), not
+a literal. This keeps the blink coherent across re-themes.
+
+This component does not emit waybar CSS, so it doesn't apply the rule directly — but the
+waybar component's recipe should reference it. Cross-ref → `../waybar/styling.md` § battery /
+critical-state styling.
+
+## (m) `XF86KbdBrightness*` is asus/lenovo-specific — not a default bind
+
+JaKooLit's `config/hypr/configs/Laptops.conf` ships `binde = , xf86KbdBrightnessDown, exec,
+$scriptsDir/BrightnessKbd.sh --dec` for keyboard backlight, but most laptops don't expose
+that key (Lenovo ThinkPads via `asusctl led-mode` for the `XF86Launch3` button, ASUS ROG
+via `rog-control-center` for `XF86Launch1`, etc.). Don't add these to the default bind
+table unless the chassis / vendor detection turns them on — they'll just be no-ops on
+generic hardware. This component does not enable them; if a future interview adds vendor
+detection (`asusctl` / `tuxedo-control-center`), THAT layer would add them.
+
+## (n) `before_sleep_cmd = loginctl lock-session` is the cross-component hand-off
+
+When `laptop.lid_action == "suspend"`, the chain is: `bindl` fires `systemctl suspend`
+→ systemd-logind emits `org.freedesktop.login1.Manager.PrepareForSleep` → hypridle's
+`before_sleep_cmd = loginctl lock-session` fires → hypridle's `lock_cmd = pidof hyprlock ||
+hyprlock` runs → hyprlock renders the themed lock screen → suspend completes. Every corpus
+rice that ships hypridle uses this exact pattern verbatim (JaKooLit `config/hypr/hypridle.conf`,
+Ax-Shell `config/hypr/hypridle.conf`, end-4 `dots/.config/hypr/hypridle.conf`). If the user
+disables hypridle (`companion_daemons.hypridle == false`), `lid_action == "suspend"` will
+suspend WITHOUT locking first — the lock-screen palette never renders. Document this in the
+install output when both conditions hold. The chain matters for theming because suspend
+→ unlock is when the lock-screen rice palette is most visible.
+
 ## Cross-references
 
 - Strict-ask discipline (why the gate is always asked even when `IS_LAPTOP=0`)

@@ -41,6 +41,12 @@ bindl = , switch:off:Lid Switch, exec, hyprctl keyword monitor "{{INTERNAL_PANEL
 - `{{INTERNAL_PANEL}}` is detected at generate-time from `hyprctl monitors -j` — the eDP / LVDS
   output. If detection fails, emit the line **commented out** with a `# TODO: replace eDP-1 with
   your internal panel name (hyprctl monitors)` so reload doesn't error.
+- **`lid_action == "suspend"` surfaces the lock-screen palette on resume IF hypridle ships
+  `before_sleep_cmd = loginctl lock-session`** — every corpus rice that bundles hypridle uses
+  this exact line (JaKooLit `config/hypr/hypridle.conf`, Ax-Shell `config/hypr/hypridle.conf`,
+  end-4 `dots/.config/hypr/hypridle.conf` all verbatim). When `companion_daemons.hypridle ==
+  false`, suspend skips the lock and the rice's themed hyprlock surface never renders on
+  resume. The install output should warn the user in that case. See `gotchas.md` § n.
 - `bindl` (`l` flag) is required: the bind must fire while the screen is locked, otherwise closing
   the lid on a locked session is a no-op. See `_shared/dispatchers.md` → "Bind-flag composition".
 - The `switch:on:Lid Switch` device name comes from libinput; verify against `hyprctl devices`
