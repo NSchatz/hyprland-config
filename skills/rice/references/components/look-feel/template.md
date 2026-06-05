@@ -63,6 +63,14 @@ general {
     gaps_out    = {{gaps_out}}
     border_size = {{border_size}}
 
+    # Extra spacing during workspace-switch animations. Stacks with gaps_out, so a value of 50 leaves
+    # 50px of dead space between two workspaces as one slides off and the next slides in — a visible
+    # "gutter" during the swipe. Default 0 (workspaces butt against each other). 0–100 int.
+    # Verified: present in `src/config/ConfigManager.cpp` ≥ 0.46.0 — safe on the rice's 0.50+ floor.
+    # Idioms: end-4 sets 50 (their workspace slide is *meant* to read as a swipe), caelestia
+    # parameterises it as `$workspaceGaps = 20`. Leave at 0 unless the corpus archetype calls for it.
+    gaps_workspaces   = 0
+
     # Border colour. 11f default ("palette") = $accent → $accent2 gradient at 45°.
     {{#if border_color_palette}}
     col.active_border   = $accent $accent2 45deg
@@ -70,6 +78,13 @@ general {
     col.active_border   = {{border_gradient}}
     {{/if}}
     col.inactive_border = $surface
+
+    # "Window-cannot-be-grouped" border tint (rare — locked floats, no_focus_fallback, certain
+    # plugin-managed windows). Defaults upstream are loud pink/magenta which jars on any palette;
+    # re-tint from the palette so they don't read as a UI glitch. Verified gradient fields at
+    # v0.54.3 line 479-480 and v0.55.2 line 178-179.
+    col.nogroup_border        = $surface
+    col.nogroup_border_active = $accent2
 
     layout            = {{layout}}        # dwindle | master | scrolling
     resize_on_border  = true
@@ -150,15 +165,34 @@ cursor {
 # 0.55+: vfr was reclassified from misc → debug.
 misc {
     disable_hyprland_logo = true
+
+    # Compositor fallback background color — what you see for the split-second before hyprpaper
+    # paints, and behind any uncovered area on a multi-monitor setup. Default is loud near-black
+    # (0xff111111). Tie to $bg so the brief flash on session start matches the wallpaper / palette
+    # instead of jumping black. Verified `misc:background_color` (Color) at v0.55.2 ConfigValues.cpp
+    # line 465; same key registered ≥ 0.46.0.
+    background_color      = rgb($bg)
+
+    # Variable Refresh Rate — adaptive sync (FreeSync / G-SYNC). 0 = off, 1 = on, 2 = fullscreen-only.
+    # Distinct from `debug:vfr` (frame-rate; below). Default 0. Verified `misc:vrr` (Int) at v0.54.3
+    # line 491 and v0.55.2 line 448. Set to 2 on monitors that advertise VRR — it's a near-pure win
+    # on a single fullscreen game / video, and 0 elsewhere avoids the "stutter at the edge of
+    # refresh window" some panels show. Caelestia ships `vrr = 1` unconditionally.
+    vrr                   = 0
+
     {{#if enable_swallow}}enable_swallow = true{{/if}}
     {{#if enable_swallow}}swallow_regex  = {{swallow_regex}}{{/if}}
 }
 debug {
+    # FRAME-rate optimisation (skip repaints when nothing's moving). Default `true` on 0.55+ —
+    # explicit for clarity. NOT the same as `misc:vrr` above. See `gotchas.md` (vfr-vs-vrr).
     vfr = true
 }
 {{else}}
 misc {
-    vfr                   = true   # variable frame rate — biggest idle/battery win
+    vfr                   = true   # variable FRAME rate — biggest idle/battery win
+    vrr                   = 0      # variable REFRESH rate — 0 off / 1 on / 2 fullscreen-only
+    background_color      = rgb($bg)   # fallback bg before hyprpaper paints; default 0xff111111
     disable_hyprland_logo = true
     {{#if enable_swallow}}enable_swallow = true{{/if}}
     {{#if enable_swallow}}swallow_regex  = {{swallow_regex}}{{/if}}
@@ -167,20 +201,38 @@ misc {
 
 {{#if groups}}
 # Window groups / tabs — opted in via 11h. Themed from the palette like waybar.
-# All keys verified against src/config/values/ConfigValues.cpp at v0.55.2 (lines 384–436).
+# All keys verified against src/config/values/ConfigValues.cpp at v0.55.2 (lines 384–436)
+# and src/config/ConfigManager.cpp at v0.54.3 (lines 540–550, 780–786).
 group {
-    col.border_active   = $accent       # default 0x66ffff00 (gradient field)
-    col.border_inactive = $muted        # default 0x66777700
+    col.border_active          = $accent     # default 0x66ffff00 (gradient field)
+    col.border_inactive        = $muted      # default 0x66777700
+    # Locked-group tints. Upstream default is a loud orange (0x66ff5500) — re-tint from palette so a
+    # locked tab stack reads as "this is locked" via the accent2 hue, not as a visual glitch.
+    # Idiom: hyprdots and caelestia route locked-active to a signal hue ($error / $secondary); we use
+    # $accent2 to stay palette-coherent on rices without a separate error hue exported.
+    col.border_locked_active   = $accent2    # default 0x66ff5500
+    col.border_locked_inactive = $surface    # default 0x66775500
+
     groupbar {
-        enabled    = true               # default true
-        font_size  = 11                 # default 8 — bumped for legibility
-        height     = 18                 # default 14 — bumped for legibility
-        gradients  = true               # default false
-        text_color = $fg                # default 0xffffffff
-        col.active   = $accent          # default 0x66ffff00 (gradient field)
-        col.inactive = $surface         # default 0x66777700
+        enabled            = true            # default true
+        font_size          = 11              # default 8 — bumped for legibility
+        height             = 18              # default 14 — bumped for legibility
+        gradients          = true            # default false
+        # Gradient rounding on the tab bar — match `decoration:rounding` so the tab pills share the
+        # window's corner language. Idiom: omarchy uses `gradient_rounding = 0` to enforce its flat
+        # doctrine; caelestia uses `gradient_rounding = 5` + `gradient_round_only_edges = true` so
+        # only the first and last tab round. Default 0 upstream.
+        gradient_rounding  = {{rounding}}
+        gradient_round_only_edges = true     # default false; common idiom (caelestia, omarchy)
+
+        text_color         = $fg             # default 0xffffffff
+        col.active         = $accent         # default 0x66ffff00 (gradient field)
+        col.inactive       = $surface        # default 0x66777700
+        # Locked tab colors mirror the locked window-border tints above.
+        col.locked_active  = $accent2        # default 0x66ff5500
+        col.locked_inactive = $surface       # default 0x66775500
         {{#if hypr_ge_0_55}}
-        middle_click_close = true       # 0.55+; default true upstream — set explicitly for clarity
+        middle_click_close = true            # 0.55+; default true upstream — set explicitly for clarity
         {{/if}}
     }
 }
