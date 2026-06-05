@@ -181,12 +181,17 @@ HaveFormBackground   = true
 
 For `sddm-astronaut-theme` (the AUR package and the directory name under
 `/usr/share/sddm/themes/`): the writer sets `Current=sddm-astronaut-theme` in the
-`sddm.conf.d/10-rice.conf` file, and selects one of the bundled sub-themes (`astronaut`,
-`blackhole`, `cyberpunk`, `hyprlandkath`, `jakethedog`, `japaneseaesthetic`, `pixelsakura`,
-`pixelsakurastatic`, `post-apocalyptichacker`, `purpleleaves`) by editing the theme's
-`metadata.desktop` → `ConfigFile=Themes/<name>.conf` to the closest-matching sub-theme for
-the palette. Qt6 deps are required (`qt6-svg`, `qt6-virtualkeyboard`, `qt6-multimedia` /
-`qt6-multimedia-ffmpeg`, `qt6-declarative`); see `packages.md`.
+`sddm.conf.d/10-rice.conf` file, and selects one of the bundled sub-themes by editing the
+theme's `metadata.desktop` → `ConfigFile=Themes/<file>.conf` to the closest-matching sub-theme
+for the palette. The exact upstream filenames (verified against
+`Keyitdev/sddm-astronaut-theme/Themes/` at HEAD) are:
+`astronaut.conf`, `black_hole.conf`, `cyberpunk.conf`, `hyprland_kath.conf`,
+`jake_the_dog.conf`, `japanese_aesthetic.conf`, `pixel_sakura.conf`,
+`pixel_sakura_static.conf`, `post-apocalyptic_hacker.conf`, `purple_leaves.conf`.
+Note the `snake_case.conf` form — these are the literal filenames, not display names; getting
+this wrong silently falls back to the default sub-theme. Qt6 deps are required (`qt6-svg`,
+`qt6-virtualkeyboard`, `qt6-multimedia` / `qt6-multimedia-ffmpeg`, `qt6-declarative`); see
+`packages.md`.
 
 For `catppuccin-sddm`: flavor + accent are baked into the theme dir name (e.g.
 `catppuccin-mocha-mauve`); the writer doesn't patch `theme.conf` colors, it just picks the
