@@ -59,5 +59,5 @@ catalog set above renders.
 - When `plugins.enabled == false`, `plugins.selected` **must be `[]`**. A non-empty `selected` with
   `enabled == false` is a contradiction and is rejected (the interview re-asks 23a).
 - `plugins.selected` must **not** contain `scrolling` / `hyprscrolling` / `hyprscroller` — the
-  scrolling layout is core in 0.53+ and belongs in `../look-feel/`, not here.
+  scrolling layout is core in 0.54+ and belongs in `../look-feel/`, not here.
 - `split-monitor-workspaces` is accepted only when `monitors.list | length > 1`.
