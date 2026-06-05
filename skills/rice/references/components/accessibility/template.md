@@ -10,14 +10,31 @@ Empty `accessibility` array → no lines emitted, no files touched.
 
 ### `magnifier`
 
-Lands in `../keybinds/template.md`:
+Lands in `../keybinds/template.md`. The default community shape is **multiplicative** (zoom by a
+fixed ratio per keypress, clamped to `>= 1.0`), with a separate reset bind:
 
 ```ini
-bind = $mainMod, equal, exec, hyprctl keyword cursor:zoom_factor 2
-bind = $mainMod, minus, exec, hyprctl keyword cursor:zoom_factor 1
+# Zoom In (×1.25 per press)
+bind = $mainMod, equal,     exec, sh -c 'hyprctl keyword cursor:zoom_factor "$(hyprctl getoption cursor:zoom_factor | awk "NR==1 {print \$2 * 1.25}")"'
+# Zoom Out (÷1.25 per press, clamped to 1.0)
+bind = $mainMod, minus,     exec, sh -c 'hyprctl keyword cursor:zoom_factor "$(hyprctl getoption cursor:zoom_factor | awk "NR==1 {v=\$2/1.25; if (v<1.0) v=1.0; print v}")"'
+# Reset zoom
+bind = $mainMod, BACKSPACE, exec, hyprctl keyword cursor:zoom_factor 1.0
 ```
 
-`equal` is the keysym for the `=` key (no shift required). The second bind resets zoom to 1.
+This shape is drawn from [dusklinux/dusky](https://github.com/dusklinux/dusky)
+(`.config/hypr/hyprland.conf` — the "Accessibility: Zoom" block, ×1.25 ratio with floor clamp,
+`BACKSPACE` reset) and is widely copied. Variants in the corpus:
+
+- **JaKooLit/Hyprland-Dots** (`config/hypr/configs/Keybinds.conf`): `$mainMod ALT, mouse_down/up`
+  bound to a `×2.0`/`÷2.0` ratio (same awk-pipe shape, harsher step), AND a `gesture = 4, up/down`
+  variant on the touchpad — same dispatcher, same multiplicative awk pipe.
+- **Matt-FTW/dotfiles** (`.config/hypr/configs/binds.conf`): `$mainMod SHIFT, mouse:275/276`
+  bound to an **additive** `+0.5`/`-0.5` step (no floor clamp — relies on Hyprland refusing
+  values below 1.0).
+
+`equal` is the keysym for the `=` key (no shift required). The XKB names are case-sensitive
+lowercase.
 
 Optionally, when the user wants the cursor to stay centred while zoomed (the "rigid" variant),
 add to `../look-feel/template.md`:
@@ -28,10 +45,24 @@ cursor {
 }
 ```
 
+For pixel-perfect zoom (no AA blurring when zoomed in — useful for low-vision users reading
+sub-pixel detail), also add:
+
+```ini
+cursor {
+    zoom_disable_aa = true
+}
+```
+
+This is dusky's default. Confirmed against the Hyprland source — `cursor:zoom_disable_aa` is a
+real `Bool` config value (default `false`): "If enabled, when zooming, no antialiasing will be
+used" (`hyprwm/Hyprland:src/config/values/ConfigValues.cpp`).
+
 Pure Hyprland — **no external magnifier tool, no plugin**. `cursor:zoom_factor` is documented
-in the current [Variables wiki § cursor](https://wiki.hypr.land/Configuring/Basics/Variables/)
-as a core `float` keyword (default `1.0`, minimum `1.0`); paired with `cursor:zoom_rigid`
-(`bool`, default `false`) and `cursor:zoom_detached_camera` (`bool`, default `true`).
+in the current Variables wiki (`https://wiki.hypr.land/Configuring/Variables/`) as a core
+`float` keyword (default `1.0`, minimum `1.0`); paired with `cursor:zoom_rigid` (`bool`,
+default `false`), `cursor:zoom_detached_camera` (`bool`, default `true`), and
+`cursor:zoom_disable_aa` (`bool`, default `false`).
 
 ### `large-cursor`
 
@@ -51,7 +82,33 @@ exec-once = hyprctl setcursor {{cursor_theme}} 32
 ```
 
 `{{cursor_theme}}` is read from the resolved cursor theme (e.g. `Bibata-Modern-Ice`,
-`Adwaita`); see `../env/template.md` for theme detection.
+`Adwaita`); see `../env/template.md` for theme detection. The community pattern is to also
+**indirect through hyprlang variables** so user overrides happen in one place — see
+[caelestia-dots/caelestia](https://github.com/caelestia-dots/caelestia) `hypr/variables.conf`:
+
+```ini
+$cursorTheme = sweet-cursors
+$cursorSize  = 24
+```
+
+and then `hypr/hyprland/env.conf`:
+
+```ini
+env = XCURSOR_THEME, $cursorTheme
+env = XCURSOR_SIZE, $cursorSize
+```
+
+[fufexan/dotfiles](https://github.com/fufexan/dotfiles) (`system/programs/hyprland/settings.lua`)
+does the equivalent at the Nix-Lua layer — sets `HYPRCURSOR_THEME` + `HYPRCURSOR_SIZE` from
+`cursorName` / `cursorSize` lua variables and runs `hyprctl setcursor ${cursorName} ${cursorSize}`
+inside the `hyprland.start` event. ML4W hardcodes the same call in its autostart
+(`hyprctl setcursor Bibata-Modern-Ice 24`). Use the variable form — re-themes touch one line.
+
+**`cursor:sync_gsettings_theme`** (`bool`, default `true` in recent Hyprland — confirmed in
+JaKooLit's `SystemSettings.conf` which sets it to `true` explicitly): when on, Hyprland keeps
+the GTK gsettings `cursor-theme` / `cursor-size` aligned with `XCURSOR_THEME` / `XCURSOR_SIZE`
+so xsettings-mediated GTK apps pick up the bump live. Leave it at default; don't disable in a
+large-cursor profile.
 
 **`hyprctl setcursor` since Hyprland 0.37 only accepts hyprcursor themes** (per
 [hyprctl wiki § setcursor](https://wiki.hypr.land/Configuring/Advanced-and-Cool/Using-hyprctl/#setcursor)).
@@ -91,19 +148,51 @@ Two landings — autostart (to start the daemon) and keybinds (to toggle via IPC
 exec-once = hyprsunset
 ```
 
-`../keybinds/template.md` — toggle by switching between a warm temperature and `identity`
-(no filter). Use `hyprctl hyprsunset` IPC (documented in the wiki):
+`../keybinds/template.md` — the **community default is a single-key toggle backed by a wrapper
+script**, not two separate binds. Both [mylinuxforwork/dotfiles](https://github.com/mylinuxforwork/dotfiles)
+(`.config/ml4w/scripts/ml4w-toggle-hyprsunset` — `pgrep -x hyprsunset && pkill || hyprsunset &`)
+and [JaKooLit/Hyprland-Dots](https://github.com/JaKooLit/Hyprland-Dots) (`config/hypr/scripts/Hyprsunset.sh`
+with a state file at `~/.cache/.hyprsunset_state`) ship one. JaKooLit binds it as `$mainMod, N,
+toggle night light, exec, $scriptsDir/Hyprsunset.sh toggle`; ML4W as `SUPER+SHIFT+H ->
+ml4w-toggle-hyprsunset`.
+
+The rice ships its own wrapper at `~/.config/hypr-rice/scripts/night-light-toggle.sh` (one source
+of truth, lives in this component's folder until that path is wired) and binds:
+
+```ini
+# Toggle warm filter
+bind = $mainMod SHIFT, N, exec, ~/.config/hypr-rice/scripts/night-light-toggle.sh
+```
+
+The wrapper logic, condensed from ML4W + JaKooLit:
+
+```bash
+#!/usr/bin/env bash
+TEMP="${HYPRSUNSET_TEMP:-4000}"
+if pgrep -x hyprsunset >/dev/null; then
+    # Already running — either flip filter via IPC, or kill the daemon entirely
+    if hyprctl hyprsunset profile 2>/dev/null | grep -q identity; then
+        hyprctl hyprsunset temperature "$TEMP"
+    else
+        hyprctl hyprsunset identity
+    fi
+else
+    # Daemon not up — start it (autostart should already have done this on session start)
+    hyprsunset &
+fi
+```
+
+The fallback two-bind shape (kept for users who don't want a script in `~/.config/hypr-rice/`):
 
 ```ini
 # Apply warm filter
-bind = $mainMod SHIFT, N,     exec, hyprctl hyprsunset temperature 4000
-# Disable filter (no toggle dispatcher — bind a second key, or wrap in a script)
-bind = $mainMod SHIFT, M,     exec, hyprctl hyprsunset identity
+bind = $mainMod SHIFT, N, exec, hyprctl hyprsunset temperature 4000
+# Disable filter (identity = no filter)
+bind = $mainMod SHIFT, M, exec, hyprctl hyprsunset identity
 ```
 
-For a true single-key toggle, ship a wrapper script in `../utilities/` that reads
-`hyprctl hyprsunset profile` and flips between `temperature 4000` and `identity` — see
-`gotchas.md` for the overlap rule with `../utilities/`.
+See `gotchas.md` for the overlap rule with `../utilities/` — the wrapper-script and bind only
+land here if utilities didn't claim them.
 
 Profiles live in `~/.config/hypr/hyprsunset.conf` (e.g. day/night schedule); this component
 does **not** write that file, it only starts the daemon and binds the IPC toggle. If the user

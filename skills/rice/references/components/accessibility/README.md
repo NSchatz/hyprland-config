@@ -43,3 +43,23 @@ This component doesn't own a `.conf` file of its own. Each selected helper route
 Per `_interview-protocol.md`: opt-in gates are **always asked**, even on a re-theme. The gate
 itself is the multi-select — no separate yes/no precedes it. On zero picks, the component
 records `[]` and downstream writers skip every routing rule above.
+
+## Corpus posture (deep-research pass, batch 2)
+
+A survey of the top ~19 Hyprland rices found:
+
+- **Magnifier**: only ~30% ship a `cursor:zoom_factor` bind (dusky, JaKooLit, Matt-FTW).
+  Multiplicative `×1.25` with a floor clamp is the cleanest shape; see `template.md`.
+- **Night-light**: ML4W and JaKooLit both ship a stateful wrapper script bound to a single key.
+  The two-bind IPC shape appears in no popular rice as the primary surface.
+- **Large cursor**: every rice that has any opinion sets `XCURSOR_SIZE` + `HYPRCURSOR_SIZE` in
+  lockstep. Caelestia + fufexan indirect through hyprlang variables (`$cursorTheme`,
+  `$cursorSize`) — the rice should match.
+- **High-contrast palette mode**: **zero** rices ship one. See `gotchas.md`.
+- **Font-scale variable**: **zero** rices expose a shared font-scale. See `gotchas.md`.
+- **Vestibular / motion-off profile**: **zero** rices ship a one-switch animations-off /
+  blur-off accessibility profile. See `gotchas.md` — currently a gap, not surfaced in the
+  interview.
+
+The four helpers this component already surfaces are the well-trodden ones. The three gaps
+above are flagged for the orchestrator, not silently filled.
