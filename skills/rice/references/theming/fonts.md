@@ -216,26 +216,36 @@ The rice ships `font-size: 13px;` (absolute) by default precisely to avoid this 
 trap. The percentage form is documented here for users who want JaKooLit/binnewbs's "scale-with-GTK"
 behaviour.
 
-## `font_ui_scale` — pending pattern (orchestrator decision)
+## Cross-surface font-scale (`font_ui_scale`)
 
-No rice in the corpus exposes a **shared font-scale variable** that every visual surface's font
-config derives from. waybar `font-size`, rofi/fuzzel `font:`, kitty `font_size`, hyprlock
-per-label `font_size`, swaync CSS — each is hard-coded per app. GTK `text-scaling-factor` (the
-gsettings key the `larger-ui` accessibility helper flips) only reaches xsettings-aware GTK apps;
-waybar's GTK CSS reads `font-size: 13px;` directly and ignores the bridge.
+The rice exposes a **single shared font-scale multiplier** every visual surface multiplies its
+default font-size by. Lands in `palette.conf` as the metadata key `font_ui_scale` (default `1.0`;
+schema in `_shared/palette-schema.md`). Each visual `.tmpl` and recipe-driven surface picks it up:
 
-**If a future `font_ui_scale: 1.0|1.25|1.5` metadata key ever lands in
-`_shared/palette-schema.md`**, every visual `.tmpl` would need to multiply its default font-size
-by it before rendering — and waybar would need to switch from `font-size: 13px;` to
-`font-size: calc(13px * <scale>);` (GTK CSS supports `calc()` with px). DankMaterialShell already
-proves the per-surface form scales (`fontScale: 1.0` + `dankBarFontScale: 1.0` — a second knob for
-the bar alone), and caelestia's `FontSize` token bundle carries a `scale` property that multiplies
-every named size (`small`/`normal`/`large`/`extraLarge`/`huge`).
+- **Recipe-driven CSS surfaces** (waybar, swaync, wlogout) — the
+  `hyprland-component-writer` agent emits `font-size: calc(<base>px * {{font_ui_scale}});` at
+  write time. GTK CSS supports `calc()` with px. The literal `1.0` value is rendered into the
+  output; no runtime evaluation needed.
+- **Recipe-driven non-CSS surfaces** (hyprlock per-label `font_size`, rofi/fuzzel `font:`, kitty
+  `font_size`) — the writer multiplies the absolute size at generate time:
+  `font_size = (base * font_ui_scale | round)`.
+- **Runtime-substituted QML surfaces** (quickshell) — the engine renders
+  `readonly property real fontScale: {{font_ui_scale}}` into `Colors.qml`; QML files use
+  `font.pixelSize: 14 * Colors.fontScale`. Hot-reload picks it up without a rebuild.
 
-Today the rice ships **per-surface absolute sizes** and the `larger-ui` helper bumps only the
-monitor scale + GTK text-scaling-factor. See
-`components/accessibility/gotchas.md` → "No shared font-scale variable across surfaces" — that
-gotcha is the canonical "flag for orchestrator" entry.
+Interview question lives in group 13 (fonts):
+
+> **UI font scale.** All UI text (bar, launcher, notifications, widgets) is multiplied by this.
+> Options: `1.0 — default` / `1.15 — slightly larger` / `1.3 — large` / `1.5 — extra large`.
+
+The picks match the corpus prior art: DankMaterialShell's `SettingsData.qml` exposes `fontScale`
+plus a per-surface `dankBarFontScale` for the bar; caelestia's `FontSize` token bundle carries
+a `scale` property that multiplies every named size (`small`/`normal`/`large`/`extraLarge`/`huge`).
+Both prove the variable scales cross-surface without per-app duplication.
+
+Pairs with the GTK `text-scaling-factor` gsettings key (set by the `larger-ui` accessibility
+helper) — that key reaches xsettings-aware GTK apps; `font_ui_scale` covers everything else
+(waybar / hyprlock / QML widgets / fuzzel / etc.) where the gsettings bridge doesn't apply.
 
 ## fontconfig generic-alias trick (omarchy)
 

@@ -128,6 +128,22 @@ recipe fill — they're how the rice's surfaces look like they came from the sam
   Use `[urgency=critical]` for the high-priority block.
 - **Astronaut SDDM sub-themes** are `snake_case.conf` (`black_hole.conf`, `hyprland_kath.conf`)
   — not camelCase. Verified against `Keyitdev/sddm-astronaut-theme/Themes/`.
+- **Font sizes multiply by `{{font_ui_scale}}`** (palette metadata key, default `1.0`).
+  Every visual surface scales together — that's the user-facing accessibility/HiDPI knob.
+  - **CSS surfaces** (waybar / swaync / wlogout `style.css`, ags `.scss`): emit
+    `font-size: calc(<base>px * {{font_ui_scale}});`. GTK CSS evaluates `calc()` at parse
+    time, so the literal `1.0` rendered into the output works without runtime support.
+  - **Non-CSS recipe surfaces** (hyprlock per-label `font_size`, rofi `font:`/fuzzel `font=`,
+    kitty `font_size`, btop): multiply the absolute size at generate time —
+    `font_size = round(base * font_ui_scale)`.
+  - **QML surfaces** (quickshell): `Colors.qml` already exposes `fontScale: {{font_ui_scale}}`;
+    in the rendered QML use `font.pixelSize: <base> * Colors.fontScale`. Hot-reload picks
+    it up.
+  - Cite `theming/fonts.md` → "Cross-surface font-scale" for the per-surface convention.
+  - DMS pattern (DankMaterialShell): a SECOND knob `dankBarFontScale` exists for the bar
+    alone. If a future per-surface override lands, the bar's font-size becomes
+    `calc(<base>px * {{font_ui_scale}} * <dank_bar_scale>)`. Not implemented yet — single
+    scale today.
 
 ## Rules
 

@@ -3,7 +3,7 @@ name: rice
 description: This skill should be used when the user runs "/hyprland-config:rice" or asks to build, theme, or restyle their Hyprland desktop — i.e. (1) GENERATE a config from scratch ("generate/create my hyprland.conf", "set up Hyprland from scratch", "make me a new config", "build a hyprland config"); (2) THEME/recolor/set fonts ("theme my desktop", "apply Catppuccin/Gruvbox/Nord/Tokyo Night/Dracula/Everforest/Kanagawa/Solarized/Rosé Pine", "change my color scheme/accent", "match my colors to my wallpaper", "set up matugen/wallust", "change my font"); (3) manage named theme PROFILES / "rices" ("save my theme as X", "switch to nord", "list my themes", "load my <name> rice", "pin my accent"); or (4) set/change/cycle the WALLPAPER ("set my wallpaper", "random wallpaper", "make my theme match my wallpaper"). It runs one interactive interview, generates a modular version-matched config, and drives a self-contained rice engine (~/.config/hypr-rice/ — one palette.conf + templates + a `rice` CLI + profiles + a user-override cascade) that themes Hyprland, hyprlock, waybar, notifications, launcher, terminal, GTK/Qt/cursor/icons/fonts and the wallpaper consistently — backing up, live-testing, and reloading after every change.
 argument-hint: "[what you want, e.g. 'set up from scratch', 'catppuccin mocha', 'switch to nord', 'wallpaper ~/x.png and theme from it']"
 allowed-tools: AskUserQuestion, Bash, Read, Write, Edit, Glob, Grep, Agent
-version: 0.14.0
+version: 0.15.0
 ---
 
 # Rice — Build & Theme the Hyprland Desktop
@@ -322,10 +322,13 @@ The colors/fonts from the `look-feel` component (palette, fonts, wallpaper sub-q
      now writes a `[config]` table and passes `--prefer` (headless matugen needs it when an image has
      multiple source colors); if you ever invoke matugen by hand, do the same or it errors.
    - `.palette.source == "manual"` → take the hex from `.palette.manual.*`.
-   Resolve to the contract keys + `scheme`/`wallpaper`/`font_ui`/`font_mono` (from `.fonts.ui` /
-   `.fonts.mono`). **Always populate `accent2`** (default it to `accent` on the manual path) — the
-   border template references it. On the wallpaper path the matugen template already keeps
-   `font_ui`/`font_mono`, so a later re-render (e.g. a wallpaper cycle) won't drop the fonts.
+   Resolve to the contract keys + `scheme`/`wallpaper`/`font_ui`/`font_mono`/`font_ui_scale`
+   (from `.fonts.ui` / `.fonts.mono` / `.fonts.ui_scale`). **Always populate `accent2`**
+   (default it to `accent` on the manual path) — the border template references it.
+   **Always populate `font_ui_scale`** (default `1.0`) — every visual surface multiplies by it,
+   and a missing key on a re-render would un-scale the desktop. On the wallpaper path the
+   matugen template already keeps `font_ui` / `font_mono` / `font_ui_scale`, so a later
+   re-render (e.g. a wallpaper cycle) won't drop the fonts or the scale.
 3. Fill `<staging>/colors.conf` so it installs with the rest (don't let the engine write to
    `~/.config/hypr` before A5): take `references/components/look-feel/hyprland.tmpl`, substitute its `{{accent}}` etc.
    from `palette.conf`, and `Write` the result. Likewise fill any companion-config color placeholders
@@ -602,7 +605,8 @@ references/
 - **`references/_interview-protocol.md`** — the interview protocol (order, no-defaulting rule,
   `answers.json` recording, components-walked table). Used by the **hyprland-interviewer** agent.
 - **`references/_shared/palette-schema.md`** — the `palette.conf` key contract (accent/accent2,
-  bg/fg, ANSI 0..15, scheme, font_ui, font_mono, wallpaper). A4 fills this; B/C/D rewrite it.
+  bg/fg, ANSI 0..15, scheme, font_ui, font_mono, font_ui_scale, wallpaper). A4 fills this;
+  B/C/D rewrite it.
 - **`references/_shared/colors-contract.md`** — per-app color variable contracts (the names each
   rendered colors file exports for waybar/wofi/mako/kitty/eww/…).
 - **`references/_shared/dispatchers.md`** — the Hyprland dispatcher catalog (keybinds component

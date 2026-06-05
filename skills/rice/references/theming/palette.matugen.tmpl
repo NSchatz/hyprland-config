@@ -4,9 +4,10 @@
 # Contract: this template MUST emit every KEY that any component-level `.tmpl`
 # in `references/components/*/*.tmpl` references as `{{KEY}}`. The current set
 # is 29 keys: accent, accent2, bg, blue, color0..15, cursor, cyan, fg, green,
-# magenta, muted, red, surface, yellow. Plus 3 metadata keys (scheme, font_ui,
-# font_mono) read by the rice CLI itself, not by template substitution — they
-# live in palette.conf so a wallpaper-cycle regen preserves them.
+# magenta, muted, red, surface, yellow. Plus 4 metadata keys (scheme, font_ui,
+# font_mono, font_ui_scale) read by the rice CLI itself, not by template
+# substitution — they live in palette.conf so a wallpaper-cycle regen
+# preserves them.
 #
 # Validator (run by `rice apply` and CI): missing-export = component .tmpl
 # references {{KEY}} but this file doesn't emit KEY= → render emits an empty
@@ -45,6 +46,7 @@ color13={{colors.tertiary.default.hex}}
 color14={{colors.secondary.default.hex}}
 color15={{colors.on_surface.default.hex}}
 # Fonts are NOT derived from the wallpaper — keep them so every regen (e.g. the hourly cycle)
-# preserves them instead of dropping font_ui/font_mono from palette.conf. Edit to taste.
+# preserves them instead of dropping font_ui/font_mono/font_ui_scale from palette.conf. Edit to taste.
 font_ui=Inter 11
 font_mono=JetBrainsMono Nerd Font 11
+font_ui_scale=1.0

@@ -142,24 +142,24 @@ the `scheme` metadata key, NOT inside this component.
 The `accessibility` interview deliberately does **not** offer a high-contrast switch today,
 because the rice can't fulfil it. Don't promise what we can't deliver.
 
-## No shared font-scale variable across surfaces
+## Shared font-scale variable (now exposed: `font_ui_scale`)
 
-Same survey: no rice in the corpus exposes a shared font-scale variable that every visual
-surface's font config derives from. waybar font-size, rofi/fuzzel font-size, kitty `font_size`,
-hyprlock `font_size`, btop are all set per-app, independently. `text-scaling-factor` (the
-gsettings key `larger-ui` flips) only reaches xsettings-aware GTK apps — waybar's GTK CSS reads
-`font-size: 13px` directly from `style.css` and ignores the bridge; rofi sets `font` in `*{}`;
-fuzzel sets `font=` in its INI.
+The corpus survey found no rice exposed a shared font-scale variable cross-surface (waybar
+font-size, rofi/fuzzel font-size, kitty `font_size`, hyprlock `font_size`, btop were all set
+per-app, independently). DankMaterialShell's `fontScale` + `dankBarFontScale` and caelestia's
+`FontSize.scale` were the closest prior art, both QML-only.
 
-Result: the `larger-ui` helper realistically only scales the **monitor** (via `scale`) and
-**libadwaita / xsettings-mediated GTK apps**. waybar text stays the size it was. The user is
-told this in the interview hint (`see ../monitors/gotchas.md`); see
-`../../theming/fonts.md` for the broader font-handling story.
+**Now implemented** (v0.15+): `font_ui_scale` is a `palette.conf` metadata key (default `1.0`;
+options `1.0|1.15|1.3|1.5`). The interview asks once in group 13 (fonts). Every visual surface
+multiplies its default font-size by it — recipe-driven CSS surfaces emit
+`font-size: calc(<base>px * {{font_ui_scale}});` at write time, recipe-driven non-CSS surfaces
+multiply the absolute size at generate time, and quickshell renders a real `Colors.fontScale`
+property that QML files multiply by. See [`theming/fonts.md`](../../theming/fonts.md) →
+"Cross-surface font-scale" for the full per-surface convention and citations.
 
-**Flag for orchestrator**: if a future "font-scale" answer ever lands in `palette-schema.md`
-(e.g. a `font_ui_scale: 1.0|1.25|1.5` metadata key), then waybar/launcher/notifications/widgets
-`template.md` files would each need to multiply their default font-size by it, and the
-respective `.tmpl` files would need to emit a derived size. Today none of them do.
+This **complements** the `larger-ui` helper: that one scales the monitor (via `scale`) and
+xsettings-mediated GTK apps; `font_ui_scale` reaches every other surface (waybar / hyprlock /
+QML widgets / fuzzel / etc.) where the gsettings bridge doesn't apply.
 
 ## No popular rice ships a "vestibular" / motion-off accessibility profile
 

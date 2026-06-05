@@ -63,6 +63,13 @@ Singleton {
     readonly property int    radius:       16
     readonly property int    animDuration: 200
 
+    // Cross-surface font scale. Multiply every named font.pixelSize by this so the
+    // accessibility / HiDPI knob reaches every QML surface: `font.pixelSize: 14 * Colors.fontScale`.
+    // Prior art: DankMaterialShell's `fontScale` + per-surface `dankBarFontScale`
+    // (`SettingsData.qml`); caelestia's `FontSize.scale` token (`appearanceconfig.hpp`).
+    // Re-renders preserve the value via the matugen template's `font_ui_scale=` line.
+    readonly property real   fontScale:    {{font_ui_scale}}
+
     // Material 3 motion tokens — the cross-shell vocabulary the modern Quickshell rices share.
     // end-4 `Appearance.qml` (lines 251-268), DankMaterialShell `Common/Anims.qml`, caelestia
     // `components/Anim.qml` all hoist the same standard/emphasized/expressive curves into a

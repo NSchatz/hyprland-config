@@ -1,5 +1,41 @@
 # Changelog
 
+## 0.15.0
+
+Lands the **cross-surface font-scale** the v0.14 release flagged as pending. One palette
+metadata key, every visual surface scales together — the accessibility / HiDPI knob the
+corpus had as DankMaterialShell-only prior art is now a first-class rice feature.
+
+### Cross-surface font-scale (`font_ui_scale`)
+
+- **`_shared/palette-schema.md`**: new metadata key `font_ui_scale` (multiplier, default
+  `1.0`; interview options `1.0|1.15|1.3|1.5`). Always populated; defaults to `1.0` if
+  unset. Documented sizing rules show the per-surface convention.
+- **`theming/palette.matugen.tmpl`**: emits `font_ui_scale=1.0` so a wallpaper-cycle
+  re-render preserves the user's scale instead of dropping it.
+- **`theming/fonts.md`**: "pending pattern" section flipped to **"Cross-surface
+  font-scale"** with the per-surface convention (recipe-driven CSS surfaces use
+  `font-size: calc(<base>px * {{font_ui_scale}})`; recipe-driven non-CSS surfaces
+  multiply at generate time; quickshell exposes `Colors.fontScale` for QML).
+- **`components/widgets/quickshell.tmpl`**: new `readonly property real fontScale:
+  {{font_ui_scale}}` property; QML files use `font.pixelSize: <base> * Colors.fontScale`.
+  Hot-reload picks it up.
+- **`_shared/colors-contract.md`**: quickshell row now includes `fontScale` in the
+  exported singleton names.
+- **`agents/hyprland-component-writer.md`**: new coherence rule — every recipe fill scales
+  font-sizes by `{{font_ui_scale}}`. CSS surfaces use `calc()`, non-CSS surfaces multiply
+  at write time, QML surfaces use `Colors.fontScale`. Notes the DMS dual-knob pattern
+  (`fontScale` + `dankBarFontScale`) as future per-surface override prior art.
+- **`components/accessibility/gotchas.md`**: the "no shared font-scale" absence finding
+  is rewritten as **"Shared font-scale variable (now exposed)"** with prior art and the
+  complement to the `larger-ui` gsettings bridge.
+- **`SKILL.md`**: A4 always populates `font_ui_scale`; bumped to `0.15.0`.
+
+### Orchestrator decisions still pending
+- `high-contrast-dark` / `high-contrast-light` scheme (ripple-list in `palettes.md`).
+- laptop interview sub-question for OSD routing strategy.
+- `lock-screen.wallpaper_strategy` schema addition.
+
 ## 0.14.0
 
 Three-batch deep-research pass across the corpus (top ~19 community Hyprland rices on

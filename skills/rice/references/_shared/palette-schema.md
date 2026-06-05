@@ -36,12 +36,23 @@ scheme          # "catppuccin-mocha" | "manual" | "wallpaper" | "tokyo-night" | 
 wallpaper       # absolute path to the current wallpaper (or empty)
 font_ui         # "Inter 11"  (family + size — size is meaningful for hyprlock)
 font_mono       # "JetBrainsMono Nerd Font 11"
+font_ui_scale   # multiplier applied to every visual surface's font-size: 1.0|1.15|1.3|1.5
+                # 1.0 = no change; >1 = larger UI text everywhere (accessibility / HiDPI).
+                # Prior art: DankMaterialShell `fontScale` + `dankBarFontScale`; caelestia
+                # `FontSize.scale`. Consumers: CSS `font-size: calc(<base>px * {{font_ui_scale}})`
+                # in recipe-driven surfaces; QML `font.pixelSize: <base> * Colors.fontScale`
+                # in quickshell. See theming/fonts.md → "Cross-surface font-scale".
 ```
 
 ## Sizing rules
 
 - `font_ui` / `font_mono` are written **with** the trailing size; consumers strip it when only the
   family is wanted (e.g. waybar `font-family`, kitty `font_family`, QML `font.family`).
+- `font_ui_scale` defaults to `1.0` if absent (the matugen template emits it). Recipe-driven
+  surfaces multiply their baseline font-size by it at write time: `font-size: calc(13px * 1.0);`
+  (the literal `1.0` is the rendered value). Runtime-substituted surfaces (quickshell) expose it
+  as a property and multiply in QML. **Always populate** — the renderer treats a missing key as
+  `1.0` but downstream consumers fail fast on missing palette entries.
 - Hyprland color values wrap as `rgb({{accent}})` (Hyprland doesn't take a hash); CSS wraps as
   `#{{accent}}`; kitty wraps as `#{{color1}}`.
 - `accent2` must **always be populated** — even on the manual path where only `bg`/`fg`/`accent`
