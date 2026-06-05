@@ -98,9 +98,83 @@ user is on a brand-new mako and reports the toasts hugging the edge, swap to `ou
 `margin=8` (the latter then controls between-toast). Not auto-detected today; track via
 `scripts/detect-theme-tools.sh` if it becomes a friction point.
 
+**Note (2026 verification against mako(5) master):** `outer-margin` did not *replace* `margin` —
+they coexist. `outer-margin` applies once to the outside of the whole list; `margin` (default `10`)
+applies to each individual notification. "First and last notifications will use the sum of both
+margins" (mako(5)). dusky's matugen template sets both — `outer-margin=0,0,30,0` plus `margin=5`.
+The version cliff is: pre-1.10 mako has no `outer-margin` key at all, so emitting it errors. Detect
+mako version via `mako --version` if a future change wants to ship both.
+
+## mako urgency criteria values: low/normal/critical (no "high")
+
+mako follows the freedesktop notification spec — the only valid `urgency=` criteria values are
+`low`, `normal`, `critical`. `[urgency=high]` looks reasonable but is **silently a no-op** (mako
+parses it as a custom criteria that no real notification will ever satisfy). The pre-2026 `mako.tmpl`
+in this folder shipped `[urgency=high]` — fixed in the 2026 deep-research pass. If a downstream
+fork pattern resurfaces, reject it at validate-time.
+
 ## dunst legacy `geometry` string
 
 Old `dunstrc` files use `geometry = "700x15-0+80"`. Current dunst splits this into `width = …`,
 `height = (min, max)`, `origin = …`, `offset = (x, y)`. The recipe in `template.md` uses the
 split form. If the user has an existing config with `geometry = …`, the edit-config skill should
 migrate it (the legacy string + the new keys together produce undefined behavior).
+
+## swaync GTK4 toast selector chain: `.notification-row > .notification-background > .notification`
+
+The current swaync (GTK4) DOM is `.notification-row` → `.notification-background` (per-notification
+wrapper) → `.notification` (the actual content). Selectors written without `.notification-background`
+in the chain — e.g. `.notification-row .notification { ... }` — match by cascade but bundle the
+toast and in-panel rows together. To style them differently you need the full chain plus the
+ancestor scope:
+
+- toasts only: `.floating-notifications.background .notification-row .notification-background .notification`
+- panel rows only: `.control-center .notification-row .notification-background .notification`
+
+ml4w `themes/glass/{notifications,control_center}.css` and Matt-FTW use this everywhere. The recipe
+in `template.md` was rewritten in the 2026 pass to use the upstream chain.
+
+## swaync GTK4 slider fill is `trough highlight`, not `trough progress`
+
+GTK3 swaync exposed the volume/backlight slider trough as `scale trough progress`; GTK4 swaync
+paints the fill on `trough highlight` instead. Some older swaync configs (and the styling.md
+battle-tested list) reference `scale trough progress` — that's not what paints on current swaync.
+Scope to the widget (`.widget-volume trough highlight, .widget-backlight trough highlight`) to
+avoid bleeding into `.notification.critical progress` and other progressbars. Verified against
+ErikReider/SwayNotificationCenter `data/style/widgets/{volume,slider,backlight}.scss` HEAD.
+
+## swaync `image-visibility` enum is hyphenated
+
+Valid values for `config.json` `image-visibility` are `"always" | "never" | "when-available"`. The
+binnewbs `arch-hyprland` config ships `"image-visibility": "when available"` (space, not hyphen) —
+swaync silently falls back to the default. Validate the literal string against the three-value
+enum in the writer; do not accept user variants with spaces.
+
+## swaync per-rice position picks vary by orientation, not just preference
+
+Corpus snapshot of `positionX` / `positionY`:
+
+| Rice | X | Y | Notes |
+|---|---|---|---|
+| ml4w        | `right`  | `top`    | The "default" pick — toasts grow downward, panel slides from corner |
+| JaKooLit    | `center` | `top`    | Notification-center-as-banner aesthetic |
+| binnewbs    | `right`  | `top`    | JaKooLit-derived |
+| Matt-FTW    | `right`  | `bottom` | Paired with `layer-shell-cover-screen: true` for click-outside dismiss |
+
+`bottom`-anchored toasts grow **upward**, shoving older toasts up — which can fight a bottom-anchored
+waybar. The interview's default (`top-right`) is the corpus-majority pick.
+
+## swaync waybar palette reuse pattern
+
+JaKooLit + binnewbs both `@import '../../.config/waybar/colors.css';` in their swaync style.css and
+re-define swaync's `--noti-*` variables in terms of waybar's: `@define-color noti-border-color
+@color12; @define-color noti-bg-alt @background-alt; @define-color text-color @foreground;`. This
+guarantees the toast's border accent matches whatever the bar's active-workspace pill uses,
+without duplicating colors.
+
+The rice's `swaync.tmpl` does the equivalent by sharing the same `palette.conf` source — both
+surfaces render `@accent` from the same key. **Cross-surface coherence flag:** if a future change
+ever makes waybar's accent key drift from notifications' (e.g. waybar uses `accent2` for active
+workspace but mako uses `accent` for the border), the rice surfaces will look uncoordinated. Keep
+`waybar.tmpl` and `mako.tmpl` / `dunst.tmpl` / `swaync.tmpl` referencing the same primary
+`{{accent}}` key for the active-/border-accent role.
