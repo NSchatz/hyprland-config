@@ -32,6 +32,8 @@ linters (see `gotchas.md`).
   "margin-top": 8,
   "margin-left": 14,
   "margin-right": 14,
+  "fixed-center": true,
+  "ipc": true,
   "reload_style_on_change": true,
 
   "modules-left":   ["hyprland/workspaces", "hyprland/window"],
@@ -155,8 +157,13 @@ The opening four lines never change:
   font-family: "JetBrainsMono Nerd Font", "Symbols Nerd Font", sans-serif;
   font-size: 13px; font-weight: bold; min-height: 0;
   border: none; border-radius: 0; box-shadow: none;
+  font-feature-settings: '"zero", "ss01", "ss02", "ss03", "ss04", "ss05", "cv31"';
 }
 ```
+
+> `font-feature-settings` enables JetBrainsMono's dotted-zero (`zero`) + stylistic sets `ss01-05`
+> and the alt `@`/`$` (`cv31`) — every JaKooLit theme sets this for crisper rendering at 13–14px.
+> Harmless when the font isn't JetBrainsMono (other Nerd Fonts ignore unknown features).
 
 ### Archetype: `floating-islands` (default)
 
