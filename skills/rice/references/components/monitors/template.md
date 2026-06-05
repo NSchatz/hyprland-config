@@ -92,14 +92,28 @@ workspace = 9, monitor:HDMI-A-1, persistent:true
 workspace = 10, monitor:HDMI-A-1, persistent:true
 
 {{#if scratchpad}}
-# Named scratchpad — toggle with the special-workspace bind in binds.conf
-workspace = special:magic, on-created-empty:$terminal
+# Named scratchpad — toggle with the special-workspace bind in binds.conf.
+# `gapsout:30` gives the scratchpad breathing room so it reads as floating-above,
+# not tiled-on-top — pattern from end-4/dots-hyprland
+# (`hl.workspace_rule({ workspace = "special:special", gaps_out = 30 })` in
+# `dots/.config/hypr/hyprland/rules.lua`). Drop the `gapsout:30` if the rice's
+# overall style is zero-gaps; on a spacious rice it's the standard move.
+workspace = special:magic, on-created-empty:$terminal, gapsout:30
 {{/if}}
 
 {{#if smart_gaps}}
-# Smart gaps — no gaps/border when a workspace holds a single tiled window
+# Smart gaps — no gaps/border when a workspace holds a single tiled window.
+# The `s[false]` selector excludes special workspaces, so the scratchpad keeps
+# its outer gaps even with one tiled window. Pattern from caelestia-dots/caelestia
+# `hypr/hyprland/rules.conf` (`workspace = w[tv1]s[false], gapsout:$singleWindowGapsOut`).
+# When scratchpad is disabled the plain `w[tv1]` selector is fine.
+{{#if scratchpad}}
+workspace = w[tv1]s[false], gapsout:0, gapsin:0
+workspace = f[1]s[false], gapsout:0, gapsin:0
+{{else}}
 workspace = w[tv1], gapsout:0, gapsin:0
 workspace = f[1], gapsout:0, gapsin:0
+{{/if}}
 windowrule {
   name = smartgaps-noborder
   match:float = 0
@@ -142,5 +156,14 @@ version cliff and the canonical [smart-gaps recipe in the wiki][wiki-smart-gaps]
   }
   ```
 - `env = GDK_SCALE,N` and `xwayland { force_zero_scaling = true }`. Live in `../env/template.md`
-  and the Hyprland top-level template respectively.
+  and the Hyprland top-level template respectively. Per `gotchas.md`, `force_zero_scaling = true`
+  is emitted **unconditionally** in HyDE / dusky / most matugen rices — treat it as a baseline
+  XWayland default, not a fractional-scaling-only fix.
 - The kanshi/shikane daemon config. See `gotchas.md`.
+- The `nwg-displays`-managed header comment. If detection sets `HAVE_nwg_displays=1`, prepend a
+  comment to `monitors.conf` warning that `nwg-displays apply` will overwrite the file — mirroring
+  the JaKooLit pattern (`JaKooLit/Hyprland-Dots:config/hypr/workspaces.conf` header).
+- The `gaps_workspaces` (workspace-swipe gap) `general {}` setting. Lives in `look-feel` /
+  Hyprland top-level — not a per-workspace rule. See `gotchas.md` for context.
+- The `reserved_area` per-monitor field. Only useful for custom non-layer-shell renderers; the
+  interview does not currently surface it. See `gotchas.md`.
