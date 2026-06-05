@@ -108,6 +108,49 @@ Same family of pitfall: `no_fade_in`, `no_fade_out`, `disable_loading_bar`, `pam
 **not** valid `general {}` keys in current hyprlock — older config snippets that ship them are
 silently ignored. To swap the PAM file, use `auth { pam { module = <name> } }` instead.
 
+**The corpus shows this is endemic** (re-verified 2026-06; copy below comes from the rices'
+own HEAD `hyprlock.conf` files):
+
+- JaKooLit/Hyprland-Dots `config/hypr/hyprlock.conf`: `general { grace = 1; fractional_scaling = 2; immediate_render = true }` — `grace` is dropped, the other two are valid.
+- prasanthrangan/hyprdots (HyDE) `Configs/.config/hypr/hyprlock/HyDE.conf`: `general { no_fade_in = false; grace = 0; disable_loading_bar = false }` — **all three** silently ignored.
+- fufexan/dotfiles `home/programs/wayland/hyprlock.nix`: `general { disable_loading_bar = true; immediate_render = true; hide_cursor = false; no_fade_in = true }` — only the middle two land.
+- Axenide/Ax-Shell `config/hypr/hyprlock.conf`: `general { grace = 0; hide_cursor = true }` — the `grace = 0` is a no-op (default is already 0 because grace is a CLI flag).
+- binnewbs/arch-hyprland `.config/hypr/hyprlock.conf`: same `grace = 1; fractional_scaling = 2; immediate_render = true` pattern (a downstream copy of JaKooLit).
+- dusklinux/dusky `.config/hypr/hyprlock_themes/006_stacked_clock/hyprlock.conf`: `general { grade = 1; fractional_scaling = 2; immediate_render = false; hide_cursor = false }` — `grade` is a typo of `grace` and so doubly invalid; also `dots_rouding` (sic) in the same file.
+
+Two takeaways: (i) the silently-ignored-key class is widespread, not a one-rice quirk, so the validator's `warn` is justified; (ii) `--no-fade-in` and `--immediate-render` are real **CLI** flags (see `src/main.cpp`'s `argParser.registerBoolOption(...)`), so the `general{}` versions look plausible — but only `immediate_render` is also a config key. If a user wants no fade-in, pass `--no-fade-in` in the launcher.
+
+## Two valid forms for the fingerprint block — pick the nested one
+
+hyprlang lets you write nested sub-categories in two ways:
+
+```ini
+# nested (the form the template emits)
+auth {
+    fingerprint {
+        enabled = true
+    }
+}
+
+# flat / colon (also valid — same key in hyprlock's ConfigManager)
+auth {
+    fingerprint:enabled = true
+}
+```
+
+Verified: `src/config/ConfigManager.cpp` registers the keys as `auth:fingerprint:enabled` etc., and both write-forms parse to the same setting. The wild: basecamp/omarchy's `config/hypr/hyprlock.conf` uses the flat form (`auth { fingerprint:enabled = false }`); catppuccin/hyprlock and HyDE use neither (they show only the password-or-fingerprint *prompt* via labels — see next gotcha). The rice generates the **nested** form because the existing validator's brace-balance and "required block" checks key on `^auth\s*{` + `fingerprint\s*{`. Don't mix forms within the same emitted file.
+
+Note that `auth:pam:enabled` and `auth:pam:module` are valid keys — to swap the PAM service file (default `/etc/pam.d/hyprlock`) you write `auth { pam { module = login } }`, NOT a top-level `pam_module =` (that key doesn't exist).
+
+## `$FPRINTPROMPT` / `$FPRINTFAIL` are LABEL variables, not config keys
+
+hyprlock exposes `$FPRINTPROMPT`, `$FPRINTFAIL`, `$PAMPROMPT`, `$PAMFAIL` and `$FAIL` as substitution variables you put inside `label { text = $FPRINTPROMPT }` to surface the fingerprint daemon's live messages — they are **not** keys in `auth { fingerprint { } }`. The two are complementary:
+
+- `auth { fingerprint { enabled = true } }` turns the fingerprint authenticator **on**.
+- `label { text = $FPRINTPROMPT }` (HyDE-Project/HyDE `Configs/.config/hypr/hyprlock/HyDE.conf`; catppuccin/hyprlock `hyprlock.conf`) shows whatever fprintd is currently saying ("Place finger on reader", "Match failed", etc.) at a fixed position.
+
+If a rice ships only the label and forgets to enable the auth block (or vice versa), fingerprint reads but never unlocks (or unlocks but the user sees no feedback). The rice's `template.md` enables the auth block; users who add `$FPRINTPROMPT`/`$FPRINTFAIL` labels for feedback can do so without disturbing the block.
+
 ## `path = screenshot` needs portal/perms + a screencopy-capable build
 
 The `blurred-screenshot` background relies on hyprlock's screencopy capture. On some setups it
