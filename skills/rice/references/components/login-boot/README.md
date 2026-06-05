@@ -25,8 +25,9 @@ directly — those edits belong to the user with their own audit trail.
 | `interview.md` | Group 19's gate + multi-select call (greeter / Plymouth / GRUB). Detection of the active DM, skip-silently rule. |
 | `schema.md` | The `login_boot.{greeter, plymouth, grub_theme}` keys this component owns. |
 | `template.md` | Generation recipes per tool: greetd+tuigreet, greetd+ReGreet, SDDM, Plymouth, GRUB. Staging layout for `<staging>/_login/`. |
-| `gotchas.md` | Root-side discipline, coarse re-theming, SDDM-is-Qt, GDM is not theme-friendly, DM detection, skip-on-per-user. |
+| `gotchas.md` | Root-side discipline, coarse re-theming, SDDM-is-Qt, GDM is not theme-friendly, DM detection, skip-on-per-user, `sddm.conf.d/` ordering, Astronaut sub-theme filenames, virtual-keyboard double-set, greetd `restart=false` for autologin. |
 | `packages.md` | greetd / tuigreet / ReGreet / SDDM / Plymouth. **Commented `sudo` block** in `install.sh`, never in the main `PKGS` list. |
+| `styling.md` | Corpus survey of how the top community Hyprland rices ship login-boot (only 6 of 19 do). Three archetypes: bundled tarballs (HyDE), scripted theme-repo clone (ML4W), ship-your-own-greeter (DMS/HyprYou/fufexan). Battle-tested techniques with citations. |
 
 ## Where this component lands
 

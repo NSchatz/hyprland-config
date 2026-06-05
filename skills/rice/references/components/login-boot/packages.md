@@ -25,7 +25,7 @@ For the `sddm` row, the Qt deps depend on the theme pick:
 ### SDDM themes (when `login_boot.greeter == "sddm"`)
 | Theme | Package | Repo / AUR | Notes |
 |---|---|---|---|
-| `sddm-astronaut-theme` | `sddm-astronaut-theme` | AUR | Qt6. Installs to `/usr/share/sddm/themes/sddm-astronaut-theme/`. Sub-themes selected via `metadata.desktop` → `ConfigFile=Themes/<name>.conf`. Bundled sub-themes: `astronaut`, `blackhole`, `cyberpunk`, `hyprlandkath`, `jakethedog`, `japaneseaesthetic`, `pixelsakura`, `pixelsakurastatic`, `post-apocalyptichacker`, `purpleleaves`. |
+| `sddm-astronaut-theme` | `sddm-astronaut-theme` | AUR | Qt6. Installs to `/usr/share/sddm/themes/sddm-astronaut-theme/`. Sub-themes selected via `metadata.desktop` → `ConfigFile=Themes/<file>.conf`. The literal upstream filenames (verified against `Keyitdev/sddm-astronaut-theme/Themes/` at HEAD) are `snake_case.conf`: `astronaut.conf`, `black_hole.conf`, `cyberpunk.conf`, `hyprland_kath.conf`, `jake_the_dog.conf`, `japanese_aesthetic.conf`, `pixel_sakura.conf`, `pixel_sakura_static.conf`, `post-apocalyptic_hacker.conf`, `purple_leaves.conf`. |
 | `sugar-candy` (Kangie fork) | `sddm-sugar-candy-git` | AUR | **Qt5**, upstream-archived. Won't render on Qt6-only SDDM builds. |
 | `catppuccin-sddm` | `catppuccin-sddm-theme-mocha` (or `-frappe`, `-macchiato`, `-latte`) | AUR | One package per flavor; the accent variant lives as a sub-dir inside the package (e.g. `/usr/share/sddm/themes/catppuccin-mocha-mauve/`). |
 
