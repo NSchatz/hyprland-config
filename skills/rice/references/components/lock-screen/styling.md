@@ -110,8 +110,10 @@ fill literal hexes from the rice palette. Grouped by what they buy you.
 
 **Theming & structure.**
 - *Source a color-var file* (catppuccin/hyprlock, basecamp/omarchy, Matt-FTW): `source = ~/.config/hypr/mocha.conf` then `$accent = $mauve` — re-theming the whole lock is one swapped file, never a layout edit. omarchy goes further: a `hyprlock.conf.tpl` renders `$inner_color = rgba({{ background_rgb }}, 0.8)` etc. per palette at theme-build time.
-- *`source`-swappable layout packs* (mahaveergurjar/Hyprlock-Dots): an entry `hyprlock.conf` that just `source`s one of N `layouts/layoutN.conf` — switch the entire lock-screen design by editing one line.
+- *Matugen-generated `hyprlock-colors.conf` sourced from `hyprlock.conf`* (end-4/dots-hyprland, mylinuxforwork/dotfiles, Axenide/Ax-Shell, dusklinux/dusky): the matugen template emits a small `$primary`, `$on_primary`, `$entry_background_color`, `$text_color`, … hex-var file at `~/.config/matugen/generated/hyprlock-colors.conf` (or `~/.config/hypr/hyprlock/colors.conf`), and the main `hyprlock.conf` does `source = …/hyprlock-colors.conf` then references `inner_color = $entry_background_color` etc. End result: wallpaper-cycle re-themes the locker for free, no file rewrite. The rice plugin gets the same effect by writing literal hex at generate-time (one less file to ship), but this is the alternative idiom if a user wants live matugen-driven re-theming.
+- *`source`-swappable layout packs* (mahaveergurjar/Hyprlock-Dots `.config/hypr/hyprlock.conf` — a single uncommented `source = $hyprlockDir/layouts/layoutN.conf` selects one of ~13 layouts): switch the entire lock-screen design by editing one line.
 - *`zindex` layering over a `shape{}` panel* (mahaveergurjar): draw a `shape { rounding = 10; zindex = 1 }` card, then put labels/widgets at higher `zindex` on top — backgrounds for battery/weather HUD widgets.
+- *Wallust ANSI palette references* (JaKooLit/Hyprland-Dots, binnewbs/arch-hyprland): the lock pulls colors as `$color8`, `$color9`, `$color13` from a wallust-rendered `wallust-hyprland.conf` — i.e. reuses the same `color0..15` 16-color palette the terminal/waybar use. This is the cross-surface coherence move: lock-screen, kitty, waybar, fish all reference the same `colorN` slots, so a palette swap touches them in lockstep. The rice palette already exports `color0..15` — keep that contract.
 
 **Background depth.**
 - *The frosted-depth stack* (JaKooLit, Matt-FTW): `blur_passes = 2–3` + `contrast ≈ 1.3` + `brightness ≈ 0.7–0.8` + `vibrancy ≈ 0.21` + `noise = 0.0117` — the near-universal recipe for a rich film-grain frost that makes the clock/pill pop.
@@ -298,6 +300,14 @@ image {
   back and your sizing/look drift.
 - **`monitor =` empty = all monitors.** Only set a name to scope a widget to one output; a typo'd
   monitor name means the widget simply doesn't appear.
+- **Phantom `general {}` keys in popular configs.** Six of the top hyprlock-using rices
+  (JaKooLit, HyDE, fufexan, Ax-Shell, binnewbs, dusky) ship `grace`, `no_fade_in`,
+  `disable_loading_bar`, `pam_module`, or even typo'd `grade` inside `general {}` — **all silently
+  ignored** by current hyprlock. The valid `general:*` keys (per `src/config/ConfigManager.cpp`)
+  are `text_trim`, `hide_cursor`, `ignore_empty_input`, `immediate_render`, `fractional_scaling`,
+  `screencopy_mode`, `fail_timeout`. `grace` and `no-fade-in` are CLI flags (pass them in the
+  launcher: `hyprlock --grace 2 --no-fade-in`). See [`gotchas.md`](./gotchas.md) for the per-rice
+  citation table.
 
 ## Sources
 
@@ -315,8 +325,13 @@ image {
 - hyprwm/hyprlock `assets/example.conf` — canonical key list + gradient state colors + `$LAYOUT` switcher: <https://github.com/hyprwm/hyprlock>
 - catppuccin/hyprlock `hyprlock.conf` — `source = mocha.conf` palette vars, `.face` avatar, `$FPRINTPROMPT`: <https://github.com/catppuccin/hyprlock>
 - HyDE-Project/HyDE `Configs/.config/hypr/hyprlock/*.conf` — clickable playerctl media controls, `$fn_greet` time-of-day greeting, `pkill -SIGUSR2` refresh, MPRIS album art: <https://github.com/HyDE-Project/HyDE>
-- JaKooLit/Hyprland-Dots `config/hypr/hyprlock.conf` — tiered `cmd[update:N]` rates, full frosted-depth background stack, `##` Pango escaping, corner info HUD: <https://github.com/JaKooLit/Hyprland-Dots>
+- JaKooLit/Hyprland-Dots `config/hypr/hyprlock.conf` — tiered `cmd[update:N]` rates, full frosted-depth background stack, `##` Pango escaping, corner info HUD, `$colorN` ANSI palette refs from wallust: <https://github.com/JaKooLit/Hyprland-Dots>
 - mylinuxforwork/dotfiles `dotfiles/.config/hypr/hyprlock.conf` — pre-baked blurred/square wallpaper assets, drop-shadows, matugen Material-You vars: <https://github.com/mylinuxforwork/dotfiles>
 - Matt-FTW/dotfiles `.config/hypr/hyprlock.conf` — `rounding = -1` circle avatar, `fail_transition`, now-playing script label: <https://github.com/Matt-FTW/dotfiles>
-- basecamp/omarchy `config/hypr/hyprlock.conf` + `default/themed/hyprlock.conf.tpl` — templated color source, `ignore_empty_input`, oversized single pill: <https://github.com/basecamp/omarchy>
-- mahaveergurjar/Hyprlock-Dots — `source`-swappable layout packs, `zindex` over `shape{}` panels, split-stack clock: <https://github.com/mahaveergurjar/Hyprlock-Dots>
+- basecamp/omarchy `config/hypr/hyprlock.conf` + `default/themed/hyprlock.conf.tpl` — templated color source, `ignore_empty_input`, oversized single pill, flat `auth { fingerprint:enabled = false }`: <https://github.com/basecamp/omarchy>
+- mahaveergurjar/Hyprlock-Dots `.config/hypr/hyprlock.conf` — `source`-swappable layout packs (13+ layouts), `zindex` over `shape{}` panels, split-stack clock: <https://github.com/mahaveergurjar/Hyprlock-Dots>
+- end-4/dots-hyprland `dots/.config/hypr/hyprlock.conf` + `dots/.config/matugen/templates/hyprland/hyprlock-colors.conf` — matugen-rendered `$text_color`/`$entry_*` vars sourced from a tiny side file: <https://github.com/end-4/dots-hyprland>
+- Axenide/Ax-Shell `config/hypr/hyprlock.conf` + matugen `hyprland-colors.conf` — `source`d `$foreground`/`$primary` matugen vars, `rgb($foreground)` wrap in label colors: <https://github.com/Axenide/Ax-Shell>
+- fufexan/dotfiles `home/programs/wayland/hyprlock.nix` — NixOS-flavoured `programs.hyprlock` `settings { general = {…} }` + per-monitor `input-field { monitor = "eDP-1" }`: <https://github.com/fufexan/dotfiles>
+- dusklinux/dusky `.config/hypr/hyprlock_themes/006_stacked_clock/hyprlock.conf` — split-stack hours/minutes, `animations { bezier = ... }` per-element fade timings, gradient `check_color`/`fail_color`: <https://github.com/dusklinux/dusky>
+- binnewbs/arch-hyprland `.config/hypr/hyprlock.conf` — Material-You matugen vars (`$on_secondary_container`, `$secondary`) directly in label colors: <https://github.com/binnewbs/arch-hyprland>
