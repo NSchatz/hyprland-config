@@ -126,13 +126,23 @@ exec-once = ags
 **Template:** `skills/rice/references/components/widgets/quickshell.tmpl` (renders to
 `~/.config/quickshell/<name>/Colors.qml`).
 
-The output **is** a QML singleton — `pragma Singleton`, an `import QtQuick` + `import Quickshell`,
-and a `Singleton {}` root (the Quickshell `Singleton` type — per the Quickshell QML-overview
-docs: *"To make a type of a Singleton, put `pragma Singleton` at the top of the file. To ensure
-it behaves correctly with Quickshell, you should also make the Singleton the root item of your
-type."*) with `readonly property color bg: "#..."`, `... accent: "#..."`, a `term[16]` array of
-the color0..color15 hex strings, `fontUi` / `fontMono` strings (bare family), and `radius` /
-`animDuration` int properties.
+The output **is** a QML singleton — `pragma Singleton` + `pragma ComponentBehavior: Bound` at the
+top, an `import QtQuick` + `import Quickshell`, and a `Singleton {}` root (the Quickshell
+`Singleton` type — per the Quickshell QML-overview docs: *"To make a type of a Singleton, put
+`pragma Singleton` at the top of the file. To ensure it behaves correctly with Quickshell, you
+should also make the Singleton the root item of your type."*) with `readonly property color bg:
+"#..."`, `... accent: "#..."`, individual `term0`..`term15` color properties (one per ANSI slot —
+matches caelestia `services/Colours.qml` and end-4 `modules/common/Appearance.qml`, so sibling QML
+references them as `Colors.term3` directly), `fontUi` / `fontMono` strings (bare family), `radius`
+/ `animDuration` int properties, and the Material 3 motion-curve vocabulary (`standard`,
+`emphasized`, `emphasizedDecel`, …) hoisted as `readonly property var` cubic-bezier lists — every
+modern Quickshell rice (caelestia, end-4, DankMaterialShell) shares the same curve set in its
+appearance singleton.
+
+> The previous shape used `QtObject` as the root and a `var term: [16]` array. Both were corpus
+> mismatches: Quickshell's core prints *"Tried to register singleton which is not the root component
+> of its file"* when the root isn't `Singleton` (`src/core/singleton.cpp`), and every popular shell
+> uses individual `termN` properties. Fixed in the widgets deep-research accuracy pass.
 
 **One-time wiring** — register the singleton in `qmldir`:
 
