@@ -153,11 +153,69 @@ microcode update, and `/etc/grub.d/` snippet. On systems with multiple kernels +
 boot it takes 10–30 seconds. That's fine, but tell the user so they don't `Ctrl-C` thinking
 it hung.
 
+## `/etc/sddm.conf.d/` is last-wins, alphabetical — pick a numeric prefix
+
+SDDM reads every `*.conf` in `/etc/sddm.conf.d/` in alphabetical order and the last value of
+each key wins (per `sddm.conf(5)`). Our recipe writes `10-rice.conf` — the numeric prefix
+guarantees it loads **after** distro-installed files like `kde_settings.conf` (HyDE's
+convention, also Plasma's `sddm-kcm` default) and before higher-numbered drop-ins. This is the
+documented Arch convention.
+
+If the user has both `kde_settings.conf` (from a prior KDE install or HyDE) and our
+`10-rice.conf`, both are read — last-wins applies per key, so our `[Theme] Current=` wins.
+**Don't** delete the existing file; that strands theme-specific keys (`ThemeDir=`, `FacesDir=`)
+the upstream package expects. Tell the user this in the run-these report.
+
+## Astronaut sub-theme filenames are `snake_case.conf` — exact names matter
+
+`Keyitdev/sddm-astronaut-theme` ships its sub-themes as filenames under `Themes/`. The literal
+filenames are `astronaut.conf`, `black_hole.conf`, `cyberpunk.conf`, `hyprland_kath.conf`,
+`jake_the_dog.conf`, `japanese_aesthetic.conf`, `pixel_sakura.conf`, `pixel_sakura_static.conf`,
+`post-apocalyptic_hacker.conf`, `purple_leaves.conf` — note the underscores and the lone hyphen
+in `post-apocalyptic_hacker.conf`. Writing `ConfigFile=Themes/blackhole.conf` (the display name)
+silently falls back to the default. The writer must use the verified filenames from
+`template.md`.
+
+## Virtual keyboard requires BOTH `InputMethod=` and `GreeterEnvironment=QT_IM_MODULE=`
+
+ML4W's `dotfiles/.config/ml4w/scripts/ml4w-install-sddm` discovered upstream:
+
+> `InputMethod` was supposed to automatically set `QT_IM_MODULE`, but it doesn't, so we
+> manually export it.
+
+So when the chosen SDDM theme uses the on-screen keyboard component (Astronaut's variants,
+Sugar Candy with `EnableKeyboard=true`), the writer must emit both:
+
+```ini
+[General]
+InputMethod=qtvirtualkeyboard
+GreeterEnvironment=QT_IM_MODULE=qtvirtualkeyboard
+```
+
+Without the second line, the keyboard renders but typing into it produces no input. Add this
+to the `10-rice.conf` only when the theme needs it.
+
+## Autologin + greetd: set `restart = false`
+
+When the user opts into autologin via `[Autologin]` (SDDM) or `initial_session` (greetd), set
+`restart = false` in greetd's `/etc/greetd/config.toml` — without it, exiting Hyprland from an
+autologin session immediately re-spawns greetd, which immediately auto-logs the user back in.
+Verified against `fufexan/dotfiles/system/services/greetd.nix`:
+
+```nix
+restart = false;          # do not restart on session exit (useful on autologin)
+```
+
+The writer should emit this when `login_boot.greeter` starts with `greetd-` **and** the
+interview opted into autologin. No corpus precedent on the SDDM side because SDDM doesn't have
+the same respawn behavior.
+
 ## Cross-references
 
 - The opt-in gate rule + skip-silently rule → `interview.md`
 - Schema enum values → `schema.md`
 - Recipe details (which files, what content) → `template.md`
 - Packages (the **commented** sudo block in `install.sh`) → `packages.md`
+- Corpus survey of community login-boot patterns → `styling.md`
 - Strict-ask discipline (and the explicit exception this component leans on) →
   `_interview-protocol.md`
