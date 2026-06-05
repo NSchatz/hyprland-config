@@ -134,6 +134,59 @@ Hyprland uses `button.active`. Sway uses `button.focused`. Many community styles
 configs use `.focused`; on Hyprland that selector silently no-ops and the active workspace looks
 unstyled. The recipe in `template.md` uses `.active`; if you adapt from a Sway example, swap it.
 
+**Real-world reproducer:** ML4W's default `themes/default/style.css` still ships
+`#workspaces button.focused { background-color: #64727D; box-shadow: inset 0 -3px #ffffff; }`
+(forked from the upstream Waybar Sway sample). On Hyprland that rule has done nothing for years;
+nobody has noticed because the bar still functions. Re-check any style.css adapted from ML4W
+themes for the same forked-from-Sway selector.
+
+## Foreign palette name vocabularies — Catppuccin / Material You don't drop in
+
+Two popular waybar-styling conventions ship completely different `@define-color` namesets from
+the rice engine's:
+
+- **Catppuccin** (`catppuccin/waybar` mocha.css): 26 names — `@rosewater @flamingo @pink @mauve
+  @red @maroon @peach @yellow @green @teal @sky @sapphire @blue @lavender @text @subtext1 @subtext0
+  @overlay2 @overlay1 @overlay0 @surface2 @surface1 @surface0 @base @mantle @crust`.
+- **Material You via matugen** (ml4w, binnewbs, dusky default template): 40+ names —
+  `@primary @on_primary @primary_container @on_primary_container @primary_fixed @primary_fixed_dim
+  @secondary … @surface_container_low @surface_container @surface_container_high
+  @surface_container_highest @on_surface @on_surface_variant @error @on_error … @outline
+  @outline_variant @inverse_*`.
+
+The rice engine emits **12 names** — `@bg @fg @surface @muted @accent @accent2 @red @green
+@yellow @blue @magenta @cyan` (see [`_shared/colors-contract.md`](../../_shared/colors-contract.md)).
+Dropping a Catppuccin port `style.css` or an ML4W matugen style into our `~/.config/waybar/` will
+**silently un-theme** every selector that references the foreign names — GTK CSS no-ops on unknown
+`@define-color`. The rice path forward is to keep referencing our 12 keys and let the engine's
+named-scheme catalog (`theming/palettes.md`) supply Catppuccin hexes when the user picks Catppuccin
+as their scheme; do NOT `@import` a third-party `mocha.css`.
+
+## Nerd Font fallback isn't guaranteed — list one explicitly
+
+ML4W's default style sets `font-family: "Fira Sans Semibold", "Font Awesome 7 Free", "Font Awesome 7
+Brands", "Font Awesome 6 Free", "Font Awesome 6 Brands", FontAwesome, Roboto, Helvetica, Arial,
+sans-serif;` — no Nerd Font at all. It relies on FontAwesome stepping in for `format` glyphs. That
+only works when `otf-font-awesome` is installed AND the glyph being requested is in FontAwesome's
+codepoint set — every MDI glyph (the U+F0xxx range our template uses) will tofu-box because
+FontAwesome doesn't cover it. **Always list a Nerd Font first** and `"Symbols Nerd Font"` (the
+plain glyph-only fallback) second; the recipe in `template.md` does both. Verify post-install with
+`fc-list | grep -i nerd`.
+
+## Do not clobber the user's `UserModules` / `user-style.css` override
+
+JaKooLit, HyDE, and ml4w all ship a dedicated user-override file (`UserModules` /
+`~/.config/waybar/themes/<name>/style-custom.css` / HyDE's `user-style.css`) that the rice author
+edits instead of the managed config. If we overwrite a sibling `~/.config/waybar/UserModules`,
+`style-custom.css`, or `user-style.css` we silently destroy the user's customizations. The writer
+must:
+
+1. Detect any of those overrides existing before any write.
+2. Leave them in place untouched.
+3. Surface the existence to the user so they can re-apply if needed.
+
+Same logic as the symlink rule above; this is the override-file flavour of it.
+
 ## Editing through a symlink (HyDE / JaKooLit / ml4w)
 
 If the user's existing `~/.config/waybar/config.jsonc` is a **symlink** into a dotfiles manager's
