@@ -126,6 +126,15 @@ that's a long single package compared to everything else in the batch.
 
 QML / Quickshell gotchas worth surfacing:
 
+- **The `Colors` / `Theme` singleton's root must be Quickshell's `Singleton` type**, not a plain
+  `QtObject`. Quickshell registers the singleton via its core `Singleton::componentComplete()` and
+  prints *"Tried to register singleton … which is not the root component of its file"* when the
+  root isn't `Singleton` (`quickshell-mirror/quickshell` → `src/core/singleton.cpp`). The visible
+  symptom isn't a hard error — the file *parses* (QtObject is valid QML), but Quickshell skips
+  registration, so `import qs.<dir>` consumers see the singleton as undefined and every
+  `Colors.<key>` reference fails silently. Verified across caelestia (`services/Colours.qml`),
+  end-4 (`modules/common/Appearance.qml`), DankMaterialShell (`Common/Theme.qml`), and noctalia
+  (`Commons/Color.qml`). The previous `quickshell.tmpl` used `QtObject`; fixed.
 - **A layer-shell window can't be rounded** — `PanelWindow { color: "transparent" }` with an inner
   `Rectangle { radius: 16; color: Colors.surface }` is *the* idiom for a rounded panel.
 - **Blur is not a QML property** — there's no `backdrop-filter`. A translucent panel only frosts
