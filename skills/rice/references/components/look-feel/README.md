@@ -15,8 +15,10 @@ blur, opacity, animations, layout etc. without rebuilding everything else. See
 |---|---|
 | `interview.md` | Sub-questions 11a–11j across 3 `AskUserQuestion` calls (4+3+3), with `record-answer.sh` paths. |
 | `schema.md` | The `look_feel.*` keys this component owns in `answers.json`, with the "who reads them" table. |
-| `template.md` | The full `looknfeel.conf` body — general / decoration / animations / cursor / misc / layout blocks, the scrolling block, the window-groups block, and the per-version variants. |
-| `gotchas.md` | Cursor-disappears-on-nouveau/NVIDIA, the `misc:vfr` → `debug:vfr` 0.55+ move, `dwindle:pseudotile` and `decoration:shadow:ignore_window` removal in 0.55+, scrolling-is-core (not a plugin) in 0.53+, blur-needs-opacity, the "frosted" preset. |
+| `template.md` | The full `looknfeel.conf` body — general / decoration / animations / cursor / misc / debug / layout blocks, the scrolling block, the window-groups block (with locked-tier tints), and the per-version variants. |
+| `hyprland.tmpl` | Engine color template — exports `$accent` `$accent2` `$bg` `$fg` `$surface` `$muted` as hyprlang `rgb(hex)` vars. Rendered to `~/.config/hypr/colors.conf` on every `rice apply` / wallpaper cycle / profile switch; sourced from `hyprland.conf` **before** `looknfeel.conf` so the vars are in scope. |
+| `styling.md` | Visual-design library: anatomy of the knobs, archetypes ("floating signature", "no-gaps tiling", "heavy glass", "flat doctrine"), battle-tested techniques harvested from ~20 corpus rices, the tasteful-default recipe, pitfalls. |
+| `gotchas.md` | Cursor-disappears-on-nouveau/NVIDIA, the `misc:vfr` → `debug:vfr` 0.55+ move, `dwindle:pseudotile` and `decoration:shadow:ignore_window` removal in 0.55+, scrolling-is-core (0.54+ — NOT 0.53), blur-needs-opacity, the "frosted" preset, vfr-vs-vrr confusion, the `background_color` pre-hyprpaper flash, `gaps_workspaces` ≠ `gaps_out`, the loud upstream group/nogroup default tints, spring-curves-are-Lua-only. |
 | `packages.md` | None — looknfeel is built into Hyprland. |
 
 ## Where this component lands
