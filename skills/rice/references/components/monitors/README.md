@@ -33,3 +33,11 @@ here because the user is already thinking about workspaces.
   component's scratchpad rule wires up.
 - [`laptop`](../laptop/) — when `monitors.dock_undock == true`, this component names the package
   (`kanshi`/`shikane`); the daemon config lives in laptop's territory if scripted at all.
+- [`look-feel`](../look-feel/) — owns `gaps_in` / `gaps_out` (which the smart-gaps + special-ws
+  rules here build on) and `gaps_workspaces` (workspace-swipe gap; lives in `general {}`, not
+  here). The scratchpad `gapsout:30` move from end-4 only reads right when `look-feel`'s overall
+  gap style is spacious (`gaps_out` >= 10); on a zero-gaps rice it looks wrong. See `gotchas.md`.
+- [`waybar`](../waybar/) and the other bar components — workspace-monitor pinning makes the bar's
+  workspace pills meaningful (Matt-FTW's multi-bar setup pairs `bars/top-bar.jsonc` with
+  `configs/workspaces.conf` per-monitor pins). Pin the bar to the primary monitor in the bar
+  config; pin workspaces 1-5 here.
