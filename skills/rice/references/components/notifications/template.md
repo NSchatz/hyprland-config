@@ -78,13 +78,18 @@ behavior + reads those rendered colors back into the urgency sections.
     horizontal_padding = 14
     separator_color = frame
     gap_size = 8
+    corners = all                          # round every corner (dunst 1.10+)
     markup = full
     format = "<b>%s</b>\n%b"
     {{#if app-icons}}icon_position = left
     min_icon_size = 16
-    max_icon_size = 48{{else}}icon_position = off{{/if}}
+    max_icon_size = 48
+    icon_corner_radius = 10                # round app icons to match the card (hyprdots)
+    {{else}}icon_position = off{{/if}}
     progress_bar = true
     progress_bar_height = 8
+    progress_bar_corner_radius = 4
+    highlight = "#{{accent}}"              # progress_bar fill — themes volume/brightness OSD (catppuccin/dunst)
     {{#if group-by-app}}stack_duplicates = true
     hide_duplicate_count = false{{/if}}
     mouse_left_click = do_action, close_current
@@ -179,14 +184,20 @@ panel). On a desktop, **drop the `"backlight"` widget entirely** — see `gotcha
 
 * { font-family: "{{font_ui}}", "Symbols Nerd Font"; font-size: 14px; }
 
-.notification-row .notification {
+/* upstream selector chain: .notification-row > .notification-background > .notification.
+   The .floating-notifications.background prefix scopes the toast (not the
+   per-row entry inside .control-center). Mirrors ml4w + Matt-FTW. */
+.floating-notifications.background .notification-row .notification-background .notification {
   border-radius: 10px;
   border: 2px solid @accent;
   margin: 6px 12px;
   background: alpha(@surface, 0.93);
   box-shadow: 0 2px 8px 0 rgba(0,0,0,0.6);
 }
-.notification-row .notification.critical { border-color: @red; }
+.floating-notifications.background .notification-row .notification-background .notification.critical {
+  border-color: @red;
+  box-shadow: inset 0 0 7px 0 @red;       /* Matt-FTW: critical reads instantly even in muted palettes */
+}
 .notification .summary { color: @fg; font-weight: bold; }
 .notification .body,
 .notification .time   { color: alpha(@fg, 0.8); }
@@ -204,11 +215,18 @@ panel). On a desktop, **drop the `"backlight"` widget entirely** — see `gotcha
   padding: 14px;
   color: @fg;
 }
+/* match the toast selector chain inside the panel too */
+.control-center .notification-row .notification-background .notification.critical { border: 2px solid @red; }
 .widget-dnd > switch:checked { background: @accent; }
 .widget-title > button { background: @surface; color: @fg; border-radius: 8px; }
 
-/* sliders — accent-filled trough */
-scale trough progress { background: @accent; }
+/* sliders — accent-filled trough, scoped to the slider widgets.
+   GTK4 selector is `.<widget> trough highlight` (ml4w/glass, catppuccin/swaync).
+   The unscoped `trough highlight` catches every progress bar (notification.critical
+   progress included) — fine, but the scoped form prevents bleed-through into
+   3rd-party themed sub-widgets. */
+.widget-volume    trough highlight,
+.widget-backlight trough highlight { background: @accent; }
 slider { background: @fg; border-radius: 100%; }
 
 .widget-buttons-grid flowboxchild > button.toggle:checked {
