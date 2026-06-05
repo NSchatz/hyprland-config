@@ -14,9 +14,9 @@ their startup line into `autostart.conf` based on the values already in `answers
 | File | What it holds |
 |---|---|
 | `interview.md` | Sub-questions 15a–15d (wallpaper tool, polkit agent, also-autostart multi-select, screen-share portals). |
-| `schema.md` | The `autostart_env.{wallpaper_tool, polkit, autostart}` slice of `answers.json`. |
-| `template.md` | The full `autostart.conf` template — every `exec-once` line and the conditional gates. |
-| `gotchas.md` | `hyprctl reload` does NOT re-run `exec-once`; one polkit + one wallpaper daemon max; `SWWW_DAEMON_BIN` detection; notification-owner conflicts; portal env propagation. |
+| `schema.md` | The `autostart_env.{wallpaper_tool, polkit, dbus_propagation, autostart}` slice of `answers.json`. |
+| `template.md` | The full `autostart.conf` template — every `exec-once` line, the conditional gates, the two corpus-attested ordering schools, and the engine wallpaper-restore hook. |
+| `gotchas.md` | `hyprctl reload` does NOT re-run `exec-once`; one polkit + one wallpaper daemon max; `SWWW_DAEMON_BIN` detection; notification-owner conflicts; portal env propagation; `--all` vs explicit-var propagation debate; `resetxdgportal.sh` kill+restart pattern; wallpaper restore on login; systemd-user-unit vs raw `exec-once` for `hyprpolkitagent` / `hypridle`; uwsm `uwsm app --` wrapping. |
 | `packages.md` | Wallpaper / polkit / tray / clipboard / idle / OSD package map. Bar and notification daemon packages live in their own components. |
 
 ## Where this component lands
@@ -42,3 +42,12 @@ their startup line into `autostart.conf` based on the values already in `answers
   `autostart.conf`, so the lock-screen pick does not feed `autostart.conf` directly.
 - [`utilities`](../utilities/) — the **on-demand** scripts (screenshot, power menu) live there;
   this component only handles the **always-on** background services.
+- [`../../theming/wallpaper.md`](../../theming/wallpaper.md) and
+  [`../../theming/engine.md`](../../theming/engine.md) — the wallpaper-restore script's *content*
+  (matugen post-hook / wallust template / wallbash regenerator). This component only emits the
+  `exec-once` that runs it; the engine writes the script body. See `template.md` "Theme-restore on
+  login".
+- [`../env/`](../env/) — `XDG_CURRENT_DESKTOP=Hyprland` is set there; this component just
+  propagates whatever value is already in the compositor env to the systemd-user manager and to
+  dbus. Do **not** re-assign `XDG_CURRENT_DESKTOP` in the propagation line — that fights with uwsm
+  sessions that set `Hyprland:wlroots`.

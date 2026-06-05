@@ -9,6 +9,7 @@ two components share the `autostart_env` parent but never write to each other's 
   "autostart_env": {
     "wallpaper_tool": "hyprpaper | swww | none",
     "polkit":         "hyprpolkitagent | polkit-gnome | polkit-kde | none",
+    "dbus_propagation": "explicit | all",
     "autostart": [
       "cliphist-text", "cliphist-image",
       "nm-applet", "blueman",
@@ -25,6 +26,13 @@ two components share the `autostart_env` parent but never write to each other's 
 - `autostart_env.polkit` — string, enum. `"none"` means no polkit-agent `exec-once` line is
   emitted (auth prompts will silently fail — usually only chosen on minimal/embedded setups).
   Always populated.
+- `autostart_env.dbus_propagation` — string, enum, defaults to `"explicit"`. `"explicit"` emits
+  only the `DISPLAY WAYLAND_DISPLAY XDG_CURRENT_DESKTOP` propagation pair (the standard
+  screen-share fix). `"all"` additionally emits `dbus-update-activation-environment --systemd
+  --all`, which broadcasts every env var the compositor has to systemd-activated services — fixes
+  the "GTK file-picker doesn't see my PATH" class of bug HyDE / dusky hit, at the cost of leaking
+  every compositor env var. Default is `"explicit"`; flip to `"all"` only when the user reports
+  portal-activated apps missing rice-specific env. See `gotchas.md`.
 - `autostart_env.autostart` — array of strings (possibly empty). Each entry is a short token
   the `autostart.conf` template branches on. Order doesn't matter; the template emits a fixed
   order. The empty array is valid and downstream code (`jq -r '.autostart_env.autostart[]'`) must
@@ -67,6 +75,9 @@ This component's template reads — but does not own — these sibling keys:
 
 - `wallpaper_tool` is required; one of `hyprpaper`, `swww`, `none`.
 - `polkit` is required; one of `hyprpolkitagent`, `polkit-gnome`, `polkit-kde`, `none`.
+- `dbus_propagation` is required; one of `explicit`, `all`. Defaults to `explicit` if the
+  interviewer didn't ask (the question is opt-in — adding it to the interview is a separate
+  decision; see `interview.md`).
 - `autostart` is required (may be `[]`); every entry must be in the token catalog above.
 - The validator rejects a template emission with two `exec-once` polkit lines or two `exec-once`
   wallpaper-daemon lines.
