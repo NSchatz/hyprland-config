@@ -1,5 +1,54 @@
 # env — gotchas
 
+## `envd =` vs `env =` — the systemd/DBus push flag
+
+The Hyprland 0.54 hyprlang config has **two** env keywords:
+
+```ini
+env  = NAME,value   # sets the env var on the compositor only
+envd = NAME,value   # ALSO pushes it into systemd + DBus activation environment
+```
+
+Quoting the [0.54 keywords wiki](https://wiki.hypr.land/0.54.0/Configuring/Keywords/):
+*"You can also add a `d` flag if you want the env var to be exported to D-Bus (systemd only)."*
+
+This is the foot-gun behind a class of bug we kept hitting in v0.13 — a `xdg-desktop-portal` that
+silently picks the wrong backend because `XDG_CURRENT_DESKTOP` was set with `env =`, which means
+the *Hyprland-spawned* apps see it but the *portal* (DBus-activated) never gets it. The fix is
+`envd = XDG_CURRENT_DESKTOP,Hyprland`. **Matt-FTW's `.config/hypr/configs/env.conf` is the
+canonical example** — uses `envd =` for all three XDG vars and `env =` for everything else.
+
+On Hyprland **0.55+**, hyprlang is deprecated in favor of Lua, and the corresponding `hl.env()`
+binding **already manages systemd + DBus activation environment by default** — the wiki's
+Hyprland-vars section lists `hl.env("HYPRLAND_NO_SD_VARS", "1")` as the *opt-out*:
+*"Disables management of variables in systemd and dbus activation environments."*
+So on 0.55+ there's no `hl.envd()` — every `hl.env()` is implicitly the `envd` form. Our
+`template.md` writes `envd =` only because we still target the `.conf` writer path (broader
+compatibility through 0.54 holdouts and uwsm-stage configs).
+
+### `dbus-update-activation-environment --all` vs explicit `VAR=value`
+
+The other gotchas file recommends passing **explicit `VAR=value` pairs** to
+`dbus-update-activation-environment`, but the corpus shows a counter-pattern. end-4's
+`execs.lua` does:
+
+```lua
+hl.exec_cmd("dbus-update-activation-environment --all")
+hl.exec_cmd("sleep 1 && dbus-update-activation-environment --systemd WAYLAND_DISPLAY XDG_CURRENT_DESKTOP")
+```
+
+— and koeqaife's greeter does:
+
+```ini
+exec-once = dbus-update-activation-environment --systemd WAYLAND_DISPLAY XDG_CURRENT_DESKTOP
+```
+
+Both pass **bare names**, not `VAR=value`. This works under uwsm and recent xdg-desktop-portal
+because the names re-read the current Hyprland-stage environment (which already has the values
+set via `hl.env()` / `env.conf`). The "always pass `VAR=value`" rule is safe; the "pass bare
+names" rule works **iff** the calling shell's env already matches what you want exported. We
+keep the explicit form as the recommendation but document both — community rices are split.
+
 ## NVIDIA env is gated on the *active driver*, not the card
 
 `scripts/detect-version.sh` prints both `GPU_DRIVER=…` and `NVIDIA_PROPRIETARY=…`. Emit the
@@ -140,3 +189,61 @@ Firefox shipped Wayland-by-default in **121.0** (December 2023). The variable is
 Firefox. Keep the line for older Firefox builds and as a clear opt-in marker; do not present it
 in the interview as "required for Wayland Firefox" — phrase it as "force Wayland (no-op on
 current Firefox; useful as documentation)".
+
+## `ELECTRON_OZONE_PLATFORM_HINT,auto` is GPU-agnostic
+
+A pre-v0.14 version of this folder placed `ELECTRON_OZONE_PLATFORM_HINT,auto` inside the NVIDIA
+gate. The [Hyprland NVIDIA wiki](https://wiki.hypr.land/Nvidia/) explicitly recommends it as a
+generic Electron-flicker fix, *quoted*:
+
+> To enable native Wayland support for most Electron apps, add this environment variable to
+> your config: `hl.env("ELECTRON_OZONE_PLATFORM_HINT", "auto")`. This has been confirmed to
+> work on Vesktop, VSCodium, Obsidian and will probably work on other Electron apps as well.
+
+It's safe on mesa (Intel/AMD/nouveau) too — caelestia, dusky, and linuxmobile all set it
+unconditionally. The interview now offers it as its own line (default on) instead of bundling
+it with NVIDIA. The validator does **not** flag it under mesa.
+
+As of Electron 35 / Chromium 134, the syncobj protocol (`--enable-features=WaylandLinuxDrmSyncobj`)
+is the **proper** fix for Electron flicker on Wayland — it implements explicit sync. That's an
+app-launch flag, not an env var, so it's out of scope for `env.conf`; document it in the
+relevant default-apps' `gotchas.md` if a user reports flicker on Electron 35+.
+
+## `_JAVA_AWT_WM_NONREPARENTING,1` for Java AWT blank windows
+
+Java AWT apps (IntelliJ, Android Studio, older Swing apps) **render as blank gray windows** on
+tiling Wayland compositors unless this is set — long-standing JDK bug.
+Wiki listed under "Other useful variables"; corpus rices that bake it into the toolkit block:
+caelestia, dusky's uwsm/env, linuxmobile. We include it in the `toolkit` gate so a single check
+emits the whole Wayland-toolkit + Java fix bundle.
+
+## `MOZ_DISABLE_RDD_SANDBOX,1` for Firefox + `libva-nvidia-driver`
+
+[`elFarto/nvidia-vaapi-driver`](https://github.com/elFarto/nvidia-vaapi-driver) (the libva
+→ NVDEC bridge — Arch package `libva-nvidia-driver`) requires `MOZ_DISABLE_RDD_SANDBOX=1` for
+Firefox hardware video decoding because Firefox's RDD sandbox blocks the NVDEC ioctls. JaKooLit
+and linuxmobile both ship this commented in their env. Only emit when `firefox_wayland=1` AND
+`have_libva_nvidia_driver=1` — the rice writer can fold it into the NVIDIA block conditionally,
+but the interview does not present it (too situational; flag in the validator's "missing for
+HW decode" hint instead).
+
+## `GSK_RENDERER,ngl` for GTK4 on NVIDIA
+
+GTK4's default `gl` renderer crashes / glitches on the NVIDIA proprietary driver. JaKooLit's
+commented NVIDIA block surfaces `env = GSK_RENDERER,ngl` — the *next-gen* Vulkan-aware GTK4
+renderer that fixes the issue. Out of the slim 4 the Hyprland wiki recommends, but worth
+flagging in the validator as a hint when `NVIDIA_PROPRIETARY=1` AND the user reports GTK4 app
+crashes. Do not auto-emit — `ngl` is still experimental in GTK 4.16/4.18.
+
+## `GTK_THEME` in `env.conf` clashes with palette-driven theming
+
+Matt-FTW's env.conf includes `env = GTK_THEME,catppuccin-macchiato-lavender-standard+default`
+— that hard-codes the GTK theme name and **overrides gsettings + `gtk-4.0/gtk.css`**, as the
+theming/gtk-qt.md "pitfalls" section explains in depth. For a single hand-curated rice that's
+fine; for a palette-driven engine (matugen / wallust) it's wrong — the value goes stale on the
+next palette flip. The rice generator therefore **does not emit `GTK_THEME` in `env.conf`** by
+default; theming routes through `gsettings org.gnome.desktop.interface gtk-theme` (live channel)
+and the engine-rendered `~/.config/gtk-4.0/gtk.css` `@define-color` block.
+
+If a user explicitly adds `GTK_THEME,…` to `autostart_env.env`, the validator warns with a
+pointer to `theming/gtk-qt.md` ("GTK_THEME env silently overrides your GTK theme").
