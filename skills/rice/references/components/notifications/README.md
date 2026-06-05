@@ -15,7 +15,10 @@ rice generates the daemon's functional config plus a rendered colors file from t
 | `schema.md` | The `notifications.*` keys this component owns in `answers.json`. |
 | `template.md` | Per-daemon recipes — mako `config`, dunst `dunstrc`, swaync `config.json` + `style.css`. Colors `@import`ed / merged from rice. |
 | `styling.md` | Full styling-technique library (anatomy, urgency idioms, swaync widgets, battle-tested moves). Verbatim copy of `hyprland-reference/styling/notifications.md`. |
-| `gotchas.md` | Daemon mutex (one D-Bus owner), swaync `backlight` only on laptops, colors from the engine, waybar `custom/notification` mutex. |
+| `mako.tmpl` | Engine color template for `~/.config/mako/config` color section. Exports inline `background-color`/`text-color`/`border-color`/`progress-color` + `[urgency=low/critical]` overrides. |
+| `dunst.tmpl` | Engine color template merged into `~/.config/dunst/dunstrc`. Exports `[global]` defaults + `[urgency_low/normal/critical]` blocks. |
+| `swaync.tmpl` | Engine color template for `~/.config/swaync/colors.css`. Exports `@define-color bg fg surface muted accent accent2 red`. `style.css` `@import`s this. |
+| `gotchas.md` | Daemon mutex (one D-Bus owner), swaync `backlight` only on laptops, colors from the engine, waybar `custom/notification` mutex, swaync GTK4 selector chain, slider `trough highlight` (not `trough progress`), waybar-palette reuse pattern. |
 | `validation.md` | mako/dunst INI parse, swaync JSON parse + CSS balanced braces. |
 | `packages.md` | Arch package per daemon (mako / dunst / swaync). |
 | `reload.md` | mako: `makoctl reload`. dunst: `dunstctl reload`. swaync: `swaync-client -rs` (CSS) / `-R` (config). Only when the daemon is running. |
