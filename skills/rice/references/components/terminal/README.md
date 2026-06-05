@@ -11,11 +11,14 @@ palette.
 |---|---|
 | `interview.md` | Sub-questions 5a–5f (emulator, opacity, padding, cursor, font size, extras). |
 | `schema.md` | The `terminal.*` keys this component owns in `answers.json`. |
-| `template.md` | Per-emulator recipes — `kitty.conf` / `alacritty.toml` / `foot.ini` / `wezterm.lua` / `ghostty/config`, each `include`ing the rice-rendered colors file. |
-| `styling.md` | Full design library (palette, fonts, padding, opacity/blur, decorations) — verbatim copy of `hyprland-reference/styling/terminals.md`. The source of truth for the look. |
-| `gotchas.md` | Font family vs. size separation, `enable_swallow` + regex requirement, `$terminal` variable matching, Alacritty YAML→TOML migration. |
+| `template.md` | Per-emulator recipes — `kitty.conf` / `alacritty.toml` / `foot.ini` / `wezterm.lua` / `ghostty/config`, each `include`ing (or `?`-optional-including) the rice-rendered colors file. |
+| `styling.md` | Full design library (palette, fonts, padding, opacity/blur, decorations, chrome theming) — the source of truth for the look. |
+| `gotchas.md` | Font family vs. size separation, `enable_swallow` + regex requirement, `$terminal` variable matching, Alacritty YAML→TOML migration, foot `[colors-*]` alpha/blur placement, kitty `cursor_trail` ms semantics, kitty `font_family auto` myth, ghostty `config-file ?` ordering, btop/cava .tmpl coherence notes. |
 | `packages.md` | One Arch package per emulator pick. |
 | `reload.md` | Apply scope (new windows only); no global signal reload across emulators. |
+| `kitty.tmpl` | Engine colors template for kitty — 16 ANSI cells + chrome (`cursor_text_color`, `url_color`, tab bar, window borders). All wired through existing palette keys; no new schema keys. |
+| `btop.tmpl` | Engine theme template for btop — full 42-key set verified against upstream (`aristocratos/btop/main/themes/dracula.theme`), including `cached_*`, `available_*`, `download_*`, `upload_*`, `process_*` meter gradients. |
+| `cava.tmpl` | Engine colors template for cava — 8 gradient stops + foreground/background, matches HyDE/JaKooLit community standard. |
 
 ## Where this component lands
 
