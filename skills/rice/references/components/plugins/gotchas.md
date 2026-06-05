@@ -66,20 +66,65 @@ for sudo, and for an in-session "uncomment the binds and verify they work" pass.
 the user still needs `hyprpm enable` (which writes to root-owned config) + the `exec-once =
 hyprpm reload -n` autostart line.
 
-## `scrolling` is CORE in Hyprland 0.53+ — do NOT offer it here
+## `scrolling` is CORE in Hyprland 0.54+ — do NOT offer it here
 
 The single biggest mistake new plugin guides make in 2026 is offering `hyprscrolling` or
-`hyprscroller`. Both are **deprecated** — the upstream `hyprscrolling` README literally says
+`hyprscroller`. Both are **dead upstream** as of June 2026:
 
-> *DEPRECATED: see wiki Configuring/Scrolling-Layout*
+- `dawsers/hyprscroller` — **ARCHIVED** 2026-06-02 (the upstream README still says
+  *"DEPRECATED: see wiki Configuring/Scrolling-Layout"*).
+- `hyprscrolling` — the original `zakk4223/hyprscrolling` repo is gone; only orphan community
+  forks remain (e.g. `vaguesyntax/hyprscrolling`, last update 2026-02), and `hyprscrolling` was
+  one of the five plugins dropped from the official `hyprwm/hyprland-plugins` repo by PR #663
+  (2026-05-12).
 
-As of Hyprland 0.53+, `scrolling` is a **native core layout**. No hyprpm, no plugin, no install. It
-belongs in `../look-feel/` (`general:layout = scrolling` + a top-level `scrolling {}` block) and is
-**safe to emit uncommented** because `layoutmsg` is a core dispatcher.
+As of Hyprland 0.54+, `scrolling` is a **native core layout** (verified absent at v0.53.0
+`src/config/ConfigManager.cpp`, present at v0.54.0 — see `../../_shared/version-matrix.md`). No
+hyprpm, no plugin, no install. It belongs in `../look-feel/` (`general:layout = scrolling` + a
+top-level `scrolling {}` block) and is **safe to emit uncommented** because `layoutmsg` is a core
+dispatcher. The wiki page is at
+`hyprwm/hyprland-wiki:content/Configuring/Layouts/Scrolling-Layout.md`.
+
+> **Field sighting:** `Matt-FTW/dotfiles:.config/hypr/configs/plugins.conf` (HEAD as of 2026-06)
+> still ships an uncommented `exec-once = hyprpm enable hyprscrolling` line — this is a stale
+> config that breaks on 0.54+. If you're porting from Matt-FTW's plugin block, **drop the
+> hyprscrolling source line and use the core layout instead.**
 
 This component's catalog (`interview.md` 23b) **must not** list it. The validator rejects
 `plugins.selected` containing `scrolling` / `hyprscrolling` / `hyprscroller`. See
-`../../_shared/version-matrix.md` → 0.53+ cliff.
+`../../_shared/version-matrix.md` → 0.54+ cliff.
+
+## 0.55+ cliff — hyprlang is "deprecated", lua is the default, plugin custom-keyword API broke
+
+Hyprland 0.55.0 (released 2026-05-09) ships **lua as the default config language** —
+`~/.config/hypr/hyprland.lua` is the new entry point. Hyprlang `.conf` files still parse ("legacy
+remains functional for several releases" per the upstream wiki), but the **plugin custom-keyword
+API was rebuilt at the same time**, and the old `plugin { name { … } }` block syntax now has a
+caveat: the upstream sandwichfarm/hyprexpo docs explicitly warn
+
+> *Hyprland 0.55 deprecated the custom keyword API that older HyprExpo configs used. HyprExpo no
+> longer registers `hyprexpo_gesture` or `hyprexpo_workspace_method`. Use
+> `plugin:hyprexpo:workspace_method` for workspace placement and the Lua API for gestures.*
+
+(verified at `sandwichfarm/hyprexpo:docs/configuration/options.md` HEAD).
+
+This means **any plugin that exposed a Hyprland-side keyword via the pre-0.55 API silently stops
+parsing on 0.55+** — the user gets a parse-error popup on first reload and the plugin's old
+config block becomes inert until the plugin maintainer ports to the new API. Many community
+plugins haven't ported yet (June 2026). Footgun for users who upgrade Hyprland: their plugin
+config breaks even after `hyprpm update`.
+
+The rice still emits a `.conf` (`plugins.conf`) on 0.55+ because the standard `plugin:<name>:<key>
+= value` config-value syntax is preserved. But:
+
+- The user-run print-out should remind 0.55+ users that **`hyprpm update` is mandatory after the
+  Hyprland upgrade** — the rebuilt plugin is the one written against 0.55's headers.
+- If a plugin's block silently disappears from effect, check whether it used a custom
+  `addConfigKeyword` (the pre-0.55 API). The bar's `hyprbars-button` keyword **is** registered via
+  the still-supported `addConfigKeyword` path (verified in `hyprland-plugins:hyprbars/main.cpp` →
+  `HyprlandAPI::addConfigKeyword(PHANDLE, "plugin:hyprbars:hyprbars-button", …)`).
+
+See `../../_shared/version-matrix.md` → 0.55+ row.
 
 ## `hyprexpo` / `hyprtrails` / `hyprscrolling` / `hyprwinwrap` were removed from the official repo
 
@@ -165,7 +210,7 @@ dispatcher does, and the same rollback happens.
 The `look-feel` component appends `# general { layout = hy3 }` (commented) when `hy3` is in
 `plugins.selected`. The user uncomments it after enabling the plugin. The **only** layout names
 safe uncommented for a generated config are the core ones: `dwindle`, `master`, and `scrolling`
-(0.53+).
+(0.54+).
 
 ## `pyprland` is pip / AUR, NOT hyprpm
 
@@ -225,6 +270,34 @@ Two operational footguns:
 
    Each failure is then visible and the others still succeed.
 
+## `exec-once = hyprpm enable …` (Matt-FTW pattern) vs. `hyprpm reload -n` (ours)
+
+`Matt-FTW/dotfiles:.config/hypr/configs/plugins.conf` uses a per-plugin enable-on-startup pattern:
+
+```ini
+exec-once = hyprpm enable hyprtrails
+source = ~/.config/hypr/plugins/hyprtrails.conf
+…
+exec-once = hyprpm reload -n
+```
+
+That's a defensible alternative to our `autostart` component's single `exec-once = hyprpm reload
+-n` line — it re-asserts the enabled set every session, which can recover from `hyprpm` state
+drift (a stale `state.toml` left after a botched upgrade). But it has two drawbacks:
+
+1. **`hyprpm enable <name>` shells out to sudo** (verified in
+   `hyprwm/Hyprland:hyprpm/src/core/PluginManager.cpp`) just like the install path, so every
+   session start prompts for a password unless the user has hyprpm in their sudoers rules.
+   `hyprpm reload -n` does **not** shell to sudo — it loads already-enabled `.so` files via
+   the running compositor's IPC.
+2. If the user is on a fresh Hyprland upgrade and the plugin hasn't been rebuilt (`hyprpm update`
+   not yet run), the `exec-once = hyprpm enable foo` line will silently fail and the session
+   starts up plugin-less — without any error popping in the user's face.
+
+We stick with the `autostart`-component-owned `exec-once = hyprpm reload -n` model. If a user
+asks "why doesn't Matt-FTW's pattern work for me", the answer is "it does, but it
+costs a sudo prompt per session and hides upgrade failures."
+
 ## `ecosystem:enforce_permissions` may gate hyprpm
 
 `ecosystem:enforce_permissions` is **default `false`** (verified in
@@ -240,6 +313,62 @@ Two operational footguns:
 
 The rice skill doesn't set `enforce_permissions = true` by default, so this rarely fires — but if
 the user reports "I ran `hyprpm enable` but the plugin isn't loading", check this setting.
+
+## Corpus observation — top rices ship NO plugins by default
+
+A theming-relevant data point from the v0.13 corpus pass (top 19 actively-maintained Hyprland
+rices on `github.com/topics/hyprland`, sorted by stars):
+
+| Rice | Plugins shipped? | Notes |
+|---|---|---|
+| `end-4/dots-hyprland` | none | lua-entry hypr config, no `plugin {}` blocks |
+| `caelestia-dots/caelestia` | none | sources a `scrolling.conf` — uses the **core** scrolling layout, not the plugin |
+| `prasanthrangan/hyprdots` (HyDE) | none | `userprefs.conf` is plugin-empty |
+| `JaKooLit/Hyprland-Dots` | none | UserConfigs split — no plugins.conf |
+| `mylinuxforwork/dotfiles` (ML4W) | none | `.lua` entry, no plugin block |
+| `dusklinux/dusky` | **commented-out only** | `source/plugins.lua` ships a hyprexpo example block entirely commented out |
+| `Matt-FTW/dotfiles` | **YES — opt-in catalog** | `.config/hypr/configs/plugins.conf` sources `plugins/{hyprtrails,hyprexpo,hyprsplit,hyprtasking,hyprspace,dynamic-cursors,hycov,hyprbars,hyprscrolling}.conf` — six of seven commented out, only one active |
+| `binnewbs/arch-hyprland` | none | |
+| `linuxmobile/hyprland-dots` | none | |
+| `Axenide/Ax-Shell` | none | |
+| `koeqaife/hyprland-material-you` | none | |
+
+**Corpus archetype: opt-in catalog, default disabled.** Only **one** of the top 19 rices ships any
+plugin uncommented (Matt-FTW), and even that one runs only one plugin at a time with the others
+sourced-but-commented. This validates our gate-on-`enabled=false`-by-default design: a popular
+rice that "looks coherent" doesn't depend on plugins at all. Plugins are eye-candy add-ons, not
+load-bearing surface theming.
+
+> **Takeaway for `template.md`:** the per-plugin `plugin {}` block catalog is correct, but the
+> recipe should not pad the default `plugins.selected = []` set with "popular" plugins — popularity
+> is **low** across the corpus. The interview should keep all options unchecked-by-default (already
+> the case per `interview.md` 23b).
+
+## Cross-surface coherence — hyprbars must reuse the waybar/look-feel palette
+
+`hyprbars` paints a per-window title bar that lives **between** the window content and the
+hyprland border. The user perceives it as part of the same "chrome" stack as the waybar and the
+window border. If the hyprbars `bar_color` / `col.text` / button colors don't reuse the same
+palette keys waybar uses for its `background` / `foreground` / accent buttons, the desktop reads
+as two disjoint UIs.
+
+Three coherence rules (verified against `hyprwm/hyprland-plugins:hyprbars/main.cpp`):
+
+1. **`hyprbars:bar_color` must reuse `{{surface}}` or `{{bg}}`** — same key the waybar background
+   uses. `Matt-FTW/dotfiles:.config/hypr/plugins/hyprbars.conf` uses `bar_color = $mantle` (the
+   catppuccin surface key) — analogous to our `{{surface}}`.
+2. **`hyprbars:col.text` must reuse `{{fg}}`** — same key waybar / kitty / mako foregrounds use.
+3. **Button colors should reuse the named palette** (`{{red}}`, `{{yellow}}`, `{{green}}`) for
+   kill/maximize/minimize — NOT literal hex. Matt-FTW's config uses `rgb(ff4040)` /
+   `rgb(eeee11)` (literal hex), which is the **anti-pattern** — it survives a wallpaper
+   swap silently wrong. Our `template.md` uses `rgb({{red}})` / `rgb({{yellow}})`, which is the
+   correct shape.
+
+Same coherence rule for `borders-plus-plus`: `col.border_1 = rgb({{accent}})` reuses the same
+accent waybar uses for its active workspace pill — matches the rest of the chrome.
+
+For `hyprtrails`: `color = rgba({{accent}}aa)` (the 0.5x opacity suffix is a Hyprland color-syntax
+convention — see `../../_shared/colors-contract.md`).
 
 ## Cross-references
 

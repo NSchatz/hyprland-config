@@ -67,5 +67,7 @@ names the plugins to wire up. A non-plugin user never sees the catalog.
   `plugins.enabled == true`) and `exec-once = pypr` (added when pyprland is selected).
 - [`_shared/dispatchers.md`](../../_shared/dispatchers.md) — the canonical rule that plugin
   dispatchers hard-error the reload until loaded.
-- [`_shared/version-matrix.md`](../../_shared/version-matrix.md) — the **0.53+** cliff where
-  `scrolling` became core (and why this component does NOT offer it as a plugin).
+- [`_shared/version-matrix.md`](../../_shared/version-matrix.md) — the **0.54+** cliff where
+  `scrolling` became core (and why this component does NOT offer it as a plugin), and the
+  **0.55+** cliff where hyprlang was deprecated in favour of lua and the plugin custom-keyword
+  API was rebuilt (which broke many community plugin configs in-place).
