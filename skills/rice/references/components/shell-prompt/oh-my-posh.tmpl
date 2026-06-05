@@ -3,6 +3,19 @@
   "version": 3,
   "final_space": true,
   "console_title_template": "{{ .Folder }}",
+  "transient_prompt": {
+    "template": "❯ ",
+    "background": "transparent",
+    "foreground_templates": [
+      "{{ if gt .Code 0 }}p:red{{ end }}",
+      "{{ if eq .Code 0 }}p:accent{{ end }}"
+    ]
+  },
+  "secondary_prompt": {
+    "template": "❯❯ ",
+    "foreground": "p:accent2",
+    "background": "transparent"
+  },
   "palette": {
     "bg": "#{{bg}}",
     "fg": "#{{fg}}",
