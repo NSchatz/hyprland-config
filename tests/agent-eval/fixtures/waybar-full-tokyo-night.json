@@ -1,6 +1,6 @@
 {
   "name": "waybar-full-tokyo-night",
-  "description": "Full-payload waybar fixture: floating-islands archetype, pill corners, translucent + shadow depth, single-accent strategy, smooth motion, hyprland/workspaces module set. Tests that the writer reads only its slice (.bar / .palette / .fonts) from the full answers.json and emits a strict-JSON config.jsonc + a style.css that imports colors.css (no inlined hex).",
+  "description": "Full-payload waybar fixture: floating-islands archetype, pill corners, translucent + shadow depth, single-accent strategy, smooth motion, hyprland/workspaces module set. Tests that the writer reads only its slice (.bar / .palette / .fonts) from the full answers.json and emits a strict-JSON config.jsonc + a style.css that imports colors.css (no inlined hex). Module list must include `sway/workspaces` alongside `hyprland/workspaces` (waybar silently skips the unknown one per compositor \u2014 covers both) and the style sheet must theme `#workspaces button.focused` (sway active-workspace class) the same as `.active` (hyprland's).",
   "agent": "hyprland-component-writer",
   "surface": "waybar",
   "preset": "tokyo-night",
@@ -381,6 +381,16 @@
       "type": "file_not_contains",
       "path": "waybar/style.css",
       "needle": "#cba6f7"
+    },
+    {
+      "type": "file_contains",
+      "path": "waybar/config.jsonc",
+      "needle": "sway/workspaces"
+    },
+    {
+      "type": "file_contains",
+      "path": "waybar/style.css",
+      "needle": "button.focused"
     }
   ]
 }

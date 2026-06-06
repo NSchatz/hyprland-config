@@ -38,7 +38,8 @@ window#waybar {
   background: transparent;
   transition: all 0.2s ease;
 }
-#workspaces button.active {
+#workspaces button.active,
+#workspaces button.focused {
   color: @accent;
   background: alpha(@accent, 0.14);
   border-color: alpha(@accent, 0.45);

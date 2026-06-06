@@ -1,6 +1,6 @@
 {
   "name": "terminal-kitty-full-tokyo-night",
-  "description": "Full-payload kitty terminal: 0.92 opacity, 14px padding, font_size 12, beam cursor with blink, ligatures + 10k scrollback + bell-off extras. Tests the engine-owned colors split \u2014 kitty.conf MUST use `include colors.conf` rather than inline literal hex (the re-theme hook), and the font_family MUST come from .fonts.mono_family in the answers slice.",
+  "description": "Full-payload kitty terminal: 0.92 opacity, 14px padding, font_size 12, beam cursor with blink, ligatures + 10k scrollback + bell-off extras. Tests the engine-owned colors split \u2014 kitty.conf MUST use `include colors.conf` rather than inline literal hex (the re-theme hook), and the font_family MUST come from .fonts.mono_family in the answers slice. Inline `# comment` MUST NOT appear on a value line \u2014 kitty parses the whole RHS as the value, breaking enum (`tab_powerline_style slanted # ...`) and int (`scrollback_lines 10000 # ...`) keys.",
   "agent": "hyprland-component-writer",
   "surface": "terminal",
   "preset": "tokyo-night",
@@ -363,6 +363,11 @@
       "type": "file_contains",
       "path": "kitty/kitty.conf",
       "needle": "font_size"
+    },
+    {
+      "type": "file_not_contains",
+      "path": "kitty/kitty.conf",
+      "needle": " # "
     }
   ]
 }

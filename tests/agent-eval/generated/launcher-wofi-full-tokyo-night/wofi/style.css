@@ -2,33 +2,44 @@
 
 window {
   margin: 0;
-  background-color: alpha(@bg, 0.92);
-  border-radius: 14px;
-  border: 1px solid @accent;
-  font-family: "Inter", sans-serif;
-  font-size: calc(11px * 1.0);
+  background-color: alpha(@bg, 0.94);
+  border-radius: 16px;
+  border: 2px solid @accent;
+  font-family: "JetBrainsMono Nerd Font", "Inter", sans-serif;
+  font-size: calc(13px * 1.0);
 }
 
 #input {
-  margin: 10px;
-  padding: 8px 12px;
-  border-radius: 10px;
-  border: none;
-  background-color: @surface;
+  margin: 14px;
+  padding: 10px 14px;
+  border-radius: 12px;
+  border: 1px solid alpha(@accent, 0.35);
+  background-color: alpha(@surface, 1.0);
   color: @fg;
 }
 
-#inner-box  { margin: 6px; }
-#outer-box  { padding: 8px; }
+#input image      { -gtk-icon-transform: none; color: @accent; }
+
+#outer-box  { padding: 0 14px 14px 14px; }
+#inner-box  { margin: 0; }
+
+#scroll     { margin: 0; padding: 0; }
 
 #entry {
-  padding: 6px 10px;
-  border-radius: 8px;
+  padding: 8px 12px;
+  margin: 2px 0;
+  border-radius: 10px;
+  color: @fg;
 }
 
 #entry image { -gtk-icon-transform: none; }
+#entry #text { color: @fg; }
 
-#text { color: @fg; }
-
-#entry:selected        { background-color: @accent; }
-#entry:selected #text  { color: @bg; }
+#entry:selected,
+#entry:focus {
+  background-color: @accent;
+}
+#entry:selected #text,
+#entry:focus    #text { color: @bg; }
+#entry:selected image,
+#entry:focus    image { -gtk-icon-effect: highlight; }
