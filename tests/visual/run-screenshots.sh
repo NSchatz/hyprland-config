@@ -37,7 +37,10 @@ cat > "$HOME/.config/sway/config" <<'EOF'
 # we set it explicitly so screenshots are a known size.
 output HEADLESS-1 resolution 1600x900 position 0,0
 input * xkb_layout "us"
-default_border none
+# 2px solid border around floating windows (closest sway can get to Hyprland's
+# general:border_size = 2 + col.active_border = $accent). Per-preset accent color is
+# applied via `swaymsg client.focused …` once the palette is loaded.
+default_border pixel 2
 gaps inner 8
 gaps outer 12
 font pango:Inter 11
@@ -46,7 +49,9 @@ font pango:Inter 11
 # avoid swaymsg-after-launch because focus/timing is racy; for_window rules apply when the
 # window is mapped.
 for_window [app_id="kitty"] floating enable, resize set 900 340, move position 60 140
-for_window [app_id="wofi"]  floating enable, move position 500 170
+# wofi already paints its own 2px @accent border in style.css — suppress the sway one so
+# we don't double up.
+for_window [app_id="wofi"]  floating enable, move position 500 170, border none
 EOF
 
 # ----- 2. Start sway headlessly --------------------------------------------------------------
@@ -219,6 +224,19 @@ for preset in "${PRESETS[@]}"; do
     # Pull palette bg for the wallpaper backdrop.
     pal_val() { awk -F= -v k="$1" '$1==k{print $2; exit}' "$RICE_DIR/palette.conf" | tr -d '\r'; }
     bg_hex="$(pal_val bg)"
+    accent_hex="$(pal_val accent)"
+    accent2_hex="$(pal_val accent2)"
+    muted_hex="$(pal_val muted)"
+    fg_hex="$(pal_val fg)"
+
+    # Theme sway's per-state window border using the loaded palette. This is what gives the
+    # kitty terminal (the only non-layer-shell, non-wofi window in scene) a visible accent
+    # frame — the closest sway can render to Hyprland's `general:col.active_border = $accent`.
+    if [ -n "$accent_hex" ]; then
+        swaymsg "client.focused          #${accent_hex} #${accent_hex} #${fg_hex:-c0caf5} #${accent2_hex:-$accent_hex} #${accent_hex}" >/dev/null 2>&1 || true
+        swaymsg "client.focused_inactive #${muted_hex:-565f89}  #${muted_hex:-565f89}  #${fg_hex:-c0caf5} #${muted_hex:-565f89}        #${muted_hex:-565f89}" >/dev/null 2>&1 || true
+        swaymsg "client.unfocused        #${muted_hex:-565f89}  #${muted_hex:-565f89}  #${fg_hex:-c0caf5} #${muted_hex:-565f89}        #${muted_hex:-565f89}" >/dev/null 2>&1 || true
+    fi
 
     # Clear screen.
     kill_clients
