@@ -224,11 +224,23 @@ for preset in "${PRESETS[@]}"; do
     kill_clients
     swaymsg 'exec true' >/dev/null 2>&1 || true
 
-    # Set a solid wallpaper using the palette bg so the screenshot has a real backdrop.
-    if [ -n "$bg_hex" ] && command -v swaybg >/dev/null 2>&1; then
+    # Set the wallpaper. Prefer a per-preset image at tests/visual/wallpapers/<preset>.{jpg,png}
+    # if one is bundled — that's the realistic backdrop (kitty's translucency is visible, the bar
+    # sits over a real backdrop, wofi overlays it). Fall back to a solid palette-bg color for
+    # presets that don't ship a wallpaper.
+    if command -v swaybg >/dev/null 2>&1; then
         pkill -x swaybg 2>/dev/null || true
-        # swaybg's --color expects #RRGGBB.
-        start_app_bg swaybg --color "#${bg_hex}"
+        wp=""
+        for ext in jpg png jpeg; do
+            cand="$PLUGIN_ROOT/tests/visual/wallpapers/${preset}.${ext}"
+            [ -f "$cand" ] && { wp="$cand"; break; }
+        done
+        if [ -n "$wp" ]; then
+            start_app_bg swaybg -i "$wp" -m fill
+        elif [ -n "$bg_hex" ]; then
+            # swaybg's --color expects #RRGGBB.
+            start_app_bg swaybg --color "#${bg_hex}"
+        fi
         sleep 0.2
     fi
 
