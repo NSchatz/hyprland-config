@@ -45,7 +45,7 @@ font pango:Inter 11
 # Place kitty (the rice preview window) at a known spot so the per-window crop is stable. We
 # avoid swaymsg-after-launch because focus/timing is racy; for_window rules apply when the
 # window is mapped.
-for_window [app_id="kitty"] floating enable, resize set 900 600, move position 60 140
+for_window [app_id="kitty"] floating enable, resize set 900 340, move position 60 140
 for_window [app_id="wofi"]  floating enable, move position 500 170
 EOF
 
@@ -164,10 +164,12 @@ window#waybar {
 #memory { color: @yellow; padding: 0 8px; }
 EOF
 
-# Tiny mako config that themes off the engine's colors.css (we render a colors.ini next to it
-# for mako since mako can't read CSS). For the screenshot we just want one notification visible.
+# Mako config: layout is static, colors are re-baked per-preset inside the loop below from
+# palette.conf (mako has no @include, so we can't point it at a rendered colors fragment).
 mkdir -p "$HOME/.config/mako"
-cat > "$HOME/.config/mako/config" <<'EOF'
+write_mako_config() {
+    # $1=surface  $2=fg  $3=accent  $4=muted  $5=red
+    cat > "$HOME/.config/mako/config" <<EOF
 font=Inter 11
 default-timeout=0
 anchor=top-right
@@ -178,7 +180,18 @@ border-radius=12
 width=380
 height=120
 icons=0
+background-color=#${1}ee
+text-color=#${2}
+border-color=#${3}
+progress-color=over #${3}44
+
+[urgency=low]
+border-color=#${4}
+
+[urgency=critical]
+border-color=#${5}
 EOF
+}
 
 # Wofi: simple drun layout
 mkdir -p "$HOME/.config/wofi"
@@ -294,12 +307,22 @@ for preset in "${PRESETS[@]}"; do
         continue
     fi
 
+    # Pull the palette values we need for the surfaces the engine doesn't theme directly (mako).
+    pal_val() { awk -F= -v k="$1" '$1==k{print $2; exit}' "$RICE_DIR/palette.conf" | tr -d '\r'; }
+    bg_hex="$(pal_val bg)"
+    fg_hex="$(pal_val fg)"
+    surface_hex="$(pal_val surface)"
+    accent_hex="$(pal_val accent)"
+    muted_hex="$(pal_val muted)"
+    red_hex="$(pal_val red)"
+
+    write_mako_config "$surface_hex" "$fg_hex" "$accent_hex" "$muted_hex" "$red_hex"
+
     # Clear screen.
     kill_clients
     swaymsg 'exec true' >/dev/null 2>&1 || true
 
     # Set a solid wallpaper using the palette bg so the screenshot has a real backdrop.
-    bg_hex="$(awk -F= '$1=="bg"{print $2}' "$RICE_DIR/palette.conf" | head -n1 | tr -d '\r')"
     if [ -n "$bg_hex" ] && command -v swaybg >/dev/null 2>&1; then
         pkill -x swaybg 2>/dev/null || true
         # swaybg's --color expects #RRGGBB.
@@ -312,8 +335,6 @@ for preset in "${PRESETS[@]}"; do
     start_app_logged "/tmp/waybar.log" waybar
     start_app_logged "/tmp/mako.log"   mako
     sleep 2.0  # both need a beat to draw; waybar in particular has a noticeable warm-up
-    send_notification "$preset rice screenshot run"
-    sleep 0.6
 
     # Echo any error/warning lines waybar produced (so the orchestrator log has them).
     if [ -s /tmp/waybar.log ]; then
@@ -323,14 +344,8 @@ for preset in "${PRESETS[@]}"; do
 
     out_dir="$OUT/$preset"; mkdir -p "$out_dir"
 
-    # Full-desktop screenshot (waybar + wallpaper + notification together).
-    grim "$out_dir/desktop.png" 2>/dev/null && manifest_entries+=("$preset/desktop.png")
-    # Waybar-only via crop region. The bar is at the top of HEADLESS-1.
-    grim -g "0,0 1600x80" "$out_dir/waybar.png" 2>/dev/null && manifest_entries+=("$preset/waybar.png")
-    # Notification-only crop (mako anchored top-right).
-    grim -g "1180,80 400x160" "$out_dir/notification.png" 2>/dev/null && manifest_entries+=("$preset/notification.png")
-
-    # Terminal: launch kitty, run a small color demo script in it, screenshot.
+    # Launch kitty with a small color demo script. Goes up first so the desktop composite
+    # captures wallpaper + bar + terminal + notification together.
     start_app_bg kitty --hold bash -c '
         printf "\033[1;38;2;255;255;255mhyprland-config rice preview\033[0m\n\n"
         printf "scheme: \033[1m%s\033[0m\n\n" "$(awk -F= "\$1==\"scheme\"{print \$2}" ~/.config/hypr-rice/palette.conf)"
@@ -347,22 +362,37 @@ for preset in "${PRESETS[@]}"; do
         printf "  $ \033[32mhyprctl reload\033[0m\n"
         printf "  ok\n\n"
     '
-    # Sway's `for_window [app_id="kitty"] floating enable, resize set 900 600, move position
-    # 60 140` rule fires when the kitty window is mapped, so no swaymsg-after-launch race.
+    # Sway's for_window rule sizes kitty to 900x340 / position 60,140. The 340 height matches
+    # how much output the demo script actually prints, so the terminal crop has no dead space.
     sleep 1.5
-    grim -g "60,140 900x600" "$out_dir/terminal.png" 2>/dev/null && manifest_entries+=("$preset/terminal.png")
 
-    # Wofi: launch, screenshot, dismiss. wofi prints its picks to stdout — `&` it and read pid.
+    # Now send the notification so the desktop shot has all three surfaces lit.
+    send_notification "$preset rice screenshot run"
+    sleep 0.6
+
+    # Per-surface crops. Tight enough that each frame is mostly the thing it's showing.
+    # Terminal: matches the for_window resize (900x340 at 60,140).
+    grim -g "60,140 900x340" "$out_dir/terminal.png" 2>/dev/null && manifest_entries+=("$preset/terminal.png")
+    # Waybar: full width, tall enough to fence in the pill and a strip of wallpaper underneath.
+    grim -g "0,0 1600x70" "$out_dir/waybar.png" 2>/dev/null && manifest_entries+=("$preset/waybar.png")
+    # Notification: anchored top-right with margin=20 + width=380; this crop pulls just the toast.
+    grim -g "1190,10 400x180" "$out_dir/notification.png" 2>/dev/null && manifest_entries+=("$preset/notification.png")
+    # Full-desktop composite (wallpaper + waybar + terminal + notification together).
+    grim "$out_dir/desktop.png" 2>/dev/null && manifest_entries+=("$preset/desktop.png")
+
+    # Wofi gets a dedicated shot on a clean backdrop — kill kitty + dismiss the notification so
+    # nothing bleeds through wofi's translucent background.
+    pkill -x kitty 2>/dev/null || true
+    makoctl dismiss --all 2>/dev/null || true
+    sleep 0.3
+
     setsid wofi --show drun >/dev/null 2>&1 < /dev/null &
     wofi_pid=$!
     sleep 0.8
-    grim -g "500,170 600x500" "$out_dir/wofi.png" 2>/dev/null && manifest_entries+=("$preset/wofi.png")
+    grim -g "500,170 600x400" "$out_dir/wofi.png" 2>/dev/null && manifest_entries+=("$preset/wofi.png")
     kill "$wofi_pid" 2>/dev/null || true
     pkill -x wofi 2>/dev/null || true
     sleep 0.2
-
-    # One more full-desktop screenshot AFTER closing wofi so we have a "clean" composite too.
-    grim "$out_dir/desktop-clean.png" 2>/dev/null && manifest_entries+=("$preset/desktop-clean.png")
 done
 
 # ----- 7. Write manifest ---------------------------------------------------------------------

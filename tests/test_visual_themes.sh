@@ -87,9 +87,9 @@ else
     preset_count="0"
 fi
 
-# Each preset is expected to produce ~6 PNGs (desktop, desktop-clean, waybar, notification,
-# terminal, wofi). For the 4 presets we run that's ~24 shots minimum. Allow some slack — a
-# missing wofi screenshot (e.g.) shouldn't fail the whole run.
+# Each preset is expected to produce 5 PNGs (desktop, waybar, notification, terminal, wofi).
+# For the 4 presets we run that's 20 shots minimum. Allow some slack — a missing wofi
+# screenshot (e.g.) shouldn't fail the whole run.
 if [ "$shot_count" -ge 12 ]; then
     pass "manifest has ${shot_count} screenshots across ${preset_count} presets"
 else
