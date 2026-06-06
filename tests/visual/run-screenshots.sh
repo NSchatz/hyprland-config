@@ -37,10 +37,11 @@ cat > "$HOME/.config/sway/config" <<'EOF'
 # we set it explicitly so screenshots are a known size.
 output HEADLESS-1 resolution 1600x900 position 0,0
 input * xkb_layout "us"
-# 2px solid border around floating windows (closest sway can get to Hyprland's
-# general:border_size = 2 + col.active_border = $accent). Per-preset accent color is
-# applied via `swaymsg client.focused …` once the palette is loaded.
-default_border pixel 2
+# 3px solid border around floating windows (closest sway can get to Hyprland's
+# general:border_size = 2 + col.active_border = $accent $accent2 gradient). 3px (not 2px)
+# because sway can't paint gradients — a slightly thicker solid is more legible. Per-preset
+# colors applied via `swaymsg client.focused …` once the palette is loaded.
+default_border pixel 3
 gaps inner 8
 gaps outer 12
 font pango:Inter 11
@@ -232,8 +233,12 @@ for preset in "${PRESETS[@]}"; do
     # Theme sway's per-state window border using the loaded palette. This is what gives the
     # kitty terminal (the only non-layer-shell, non-wofi window in scene) a visible accent
     # frame — the closest sway can render to Hyprland's `general:col.active_border = $accent`.
-    if [ -n "$accent_hex" ]; then
-        swaymsg "client.focused          #${accent_hex} #${accent_hex} #${fg_hex:-c0caf5} #${accent2_hex:-$accent_hex} #${accent_hex}" >/dev/null 2>&1 || true
+    # We use accent2 (not accent) because the wallpaper bands include the accent color, and a
+    # same-color border would be invisible against the matching stripe. accent2 is the gradient
+    # endpoint Hyprland uses for col.active_border anyway, so it's still palette-coherent.
+    border_hex="${accent2_hex:-$accent_hex}"
+    if [ -n "$border_hex" ]; then
+        swaymsg "client.focused          #${border_hex} #${border_hex} #${fg_hex:-c0caf5} #${accent_hex:-$border_hex} #${border_hex}" >/dev/null 2>&1 || true
         swaymsg "client.focused_inactive #${muted_hex:-565f89}  #${muted_hex:-565f89}  #${fg_hex:-c0caf5} #${muted_hex:-565f89}        #${muted_hex:-565f89}" >/dev/null 2>&1 || true
         swaymsg "client.unfocused        #${muted_hex:-565f89}  #${muted_hex:-565f89}  #${fg_hex:-c0caf5} #${muted_hex:-565f89}        #${muted_hex:-565f89}" >/dev/null 2>&1 || true
     fi
