@@ -72,32 +72,43 @@ if [ "$rc" -ne 0 ] || ! grep -q '^VISUAL=ok' "$run_log"; then
 fi
 pass "visual run: VISUAL=ok"
 
-# Assert the manifest exists and has shots.
+# Assert the manifest exists.
 if [ ! -f "$out_host/manifest.json" ]; then
     fail "manifest.json written" "missing"; return 0
 fi
 pass "manifest.json written"
 
+# Manifest may legitimately be empty: the visual test now consumes the committed
+# tests/agent-eval/generated/<fixture>/ dirs (i.e. real agent output). If nothing has been
+# generated yet, the run-script writes a manifest with a `skipped_reason` and exits clean.
+# Treat that as a skip, not a fail — the user populates fixtures locally via /regression-eval.
 if command -v jq >/dev/null 2>&1; then
+    skipped_reason="$(jq -r '.skipped_reason // empty' "$out_host/manifest.json")"
     shot_count="$(jq '.shots | length' "$out_host/manifest.json")"
     preset_count="$(jq '.presets | length' "$out_host/manifest.json")"
 else
-    # crude fallback
+    skipped_reason="$(grep -oE '"skipped_reason"[[:space:]]*:[[:space:]]*"[^"]+"' "$out_host/manifest.json" | head -1 | sed 's/.*: *"//; s/"$//')"
     shot_count="$(grep -oE '"[^"]+\.png"' "$out_host/manifest.json" | wc -l)"
     preset_count="0"
 fi
 
-# Each preset is expected to produce 5 PNGs (desktop, waybar, notification, terminal, wofi).
-# For the 4 presets we run that's 20 shots minimum. Allow some slack — a missing wofi
-# screenshot (e.g.) shouldn't fail the whole run.
-if [ "$shot_count" -ge 12 ]; then
-    pass "manifest has ${shot_count} screenshots across ${preset_count} presets"
-else
-    fail "manifest has ≥12 screenshots" "got $shot_count across $preset_count presets"
+if [ -n "$skipped_reason" ]; then
+    skip "visual: scene render" "$skipped_reason — run /regression-eval locally to populate tests/agent-eval/generated/"
+    rm -f "$run_log"
+    return 0
 fi
 
-# Confirm at least one waybar.png landed for each preset (waybar is the headline surface — if
-# none of those rendered, something's fundamentally wrong with the rice render → app pickup).
+# Real run: expect at minimum 3 shots per populated preset (waybar + terminal + desktop are
+# the always-present surfaces — wofi/notification can drop out without failing the suite).
+min_expected=$((preset_count * 3))
+if [ "$shot_count" -ge "$min_expected" ]; then
+    pass "manifest has ${shot_count} screenshots across ${preset_count} preset(s)"
+else
+    fail "manifest has ≥${min_expected} screenshots" "got $shot_count across $preset_count preset(s)"
+fi
+
+# Every preset that DID get screenshotted must have a waybar.png — that's the headline surface
+# and confirms the fixture's waybar config was picked up.
 missing_waybar=()
 while IFS= read -r preset_dir; do
     preset="$(basename "$preset_dir")"
@@ -105,11 +116,11 @@ while IFS= read -r preset_dir; do
 done < <(find "$out_host" -mindepth 1 -maxdepth 1 -type d | sort)
 
 if [ "${#missing_waybar[@]}" -eq 0 ]; then
-    pass "every preset has a waybar.png"
+    pass "every populated preset has a waybar.png"
 else
     detail=""
     for p in "${missing_waybar[@]}"; do detail+="$p"$'\n'; done
-    fail "every preset has a waybar.png" "$detail"
+    fail "every populated preset has a waybar.png" "$detail"
 fi
 
 # Sanity check: the screenshots are non-trivially-sized PNG files (a 0-byte file would mean

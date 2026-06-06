@@ -102,155 +102,59 @@ export CLAUDE_PLUGIN_ROOT="$PLUGIN_ROOT"
 bash "$PLUGIN_ROOT/skills/rice/scripts/rice-init.sh" >/dev/null
 RICE_DIR="$HOME/.config/hypr-rice"
 
-# ----- 4. Write minimal waybar + mako configs that read the engine's colors ------------------
-# Bar is a centered floating-pill style: shows clock, workspaces stand-in, a status indicator.
-# Style imports the colors file so the per-preset re-render is visible.
-mkdir -p "$HOME/.config/waybar"
-cat > "$HOME/.config/waybar/config.jsonc" <<'EOF'
-{
-  "layer": "top",
-  "position": "top",
-  "height": 38,
-  "spacing": 8,
-  "margin-top": 8,
-  "margin-left": 14,
-  "margin-right": 14,
-  "modules-left": ["sway/workspaces", "sway/mode"],
-  "modules-center": ["clock"],
-  "modules-right": ["cpu", "memory", "tray"],
-  "sway/workspaces": { "format": "{name}" },
-  "clock": { "format": "{:%H:%M  %a %d %b}" },
-  "cpu":   { "format": "  {usage}%" },
-  "memory":{ "format": "  {used:.1f}G" }
+# ----- 4. Discover committed regression fixtures ---------------------------------------------
+# The plugin's component-writer agent produces real configs into tests/agent-eval/generated/
+# when the user runs /regression-eval locally. The visual test consumes whatever's committed
+# there — that's how this loop tests REAL plugin output instead of test stubs. If nothing has
+# been committed, there's nothing to screenshot; bail out clean.
+GEN_DIR="$PLUGIN_ROOT/tests/agent-eval/generated"
+
+if [ ! -d "$GEN_DIR" ] || [ -z "$(ls -A "$GEN_DIR" 2>/dev/null)" ]; then
+    echo "VISUAL_PHASE=no-fixtures"
+    echo "  tests/agent-eval/generated/ is empty — no committed agent output to screenshot."
+    echo "  To populate it: run '/regression-eval' locally, then commit tests/agent-eval/generated/."
+    printf '{\n  "presets": [],\n  "shots": [],\n  "skipped_reason": "no-committed-fixtures"\n}\n' > "$OUT/manifest.json"
+    echo "VISUAL=ok (skipped — no fixtures)"
+    exit 0
+fi
+
+# Build the preset → [fixture-name, ...] map from fixture metadata. Each fixture targets one
+# preset; the visual test groups all fixtures sharing a preset into a single composed scene.
+declare -A PRESET_FIXTURES
+for fix_json in "$PLUGIN_ROOT"/tests/agent-eval/fixtures/*.json; do
+    [ -f "$fix_json" ] || continue
+    name="$(jq -r .name "$fix_json")"
+    preset="$(jq -r .preset "$fix_json")"
+    [ -z "$name" ] || [ -z "$preset" ] && continue
+    # Only count fixtures whose generated/ dir was actually committed.
+    [ -d "$GEN_DIR/$name" ] || continue
+    PRESET_FIXTURES["$preset"]+="$name "
+done
+
+if [ "${#PRESET_FIXTURES[@]}" -eq 0 ]; then
+    echo "VISUAL_PHASE=no-matched-fixtures"
+    echo "  Found fixture JSONs but no matching tests/agent-eval/generated/<name>/ dirs."
+    echo "  Run '/regression-eval' to produce them, then commit."
+    printf '{\n  "presets": [],\n  "shots": [],\n  "skipped_reason": "fixtures-defined-but-no-generated-dirs"\n}\n' > "$OUT/manifest.json"
+    echo "VISUAL=ok (skipped — fixtures unpopulated)"
+    exit 0
+fi
+
+PRESETS=( "${!PRESET_FIXTURES[@]}" )
+echo "VISUAL_PHASE=fixtures-loaded"
+for p in "${PRESETS[@]}"; do
+    echo "  preset=$p  fixtures=${PRESET_FIXTURES[$p]}"
+done
+
+# Install the generated config dirs for every fixture in a preset's bundle into ~/.config/.
+# Each fixture's tree mirrors what would go under ~/.config (e.g. waybar/, wofi/, mako/, kitty/),
+# so a flat cp -r merges the surfaces cleanly.
+install_preset_fixtures() {
+    local preset="$1"
+    for fix in ${PRESET_FIXTURES[$preset]}; do
+        cp -r "$GEN_DIR/$fix/." "$HOME/.config/" 2>/dev/null || true
+    done
 }
-EOF
-
-cat > "$HOME/.config/waybar/style.css" <<'EOF'
-@import "colors.css";
-
-* {
-    font-family: "JetBrainsMono Nerd Font", "Inter", sans-serif;
-    font-size: 12pt;
-    border: none;
-    border-radius: 0;
-}
-
-window#waybar {
-    background: transparent;
-}
-
-.modules-left, .modules-center, .modules-right {
-    background-color: alpha(@bg, 0.85);
-    color: @fg;
-    border-radius: 14px;
-    padding: 4px 14px;
-    margin: 2px;
-    border: 1px solid alpha(@surface, 0.6);
-}
-
-#workspaces button {
-    background: transparent;
-    color: @muted;
-    padding: 0 6px;
-}
-#workspaces button.focused {
-    color: @accent;
-    background: alpha(@accent, 0.18);
-    border-radius: 8px;
-}
-
-#clock { color: @accent; padding: 0 8px; }
-#cpu { color: @green; padding: 0 8px; }
-#memory { color: @yellow; padding: 0 8px; }
-EOF
-
-# Mako config: layout is static, colors are re-baked per-preset inside the loop below from
-# palette.conf (mako has no @include, so we can't point it at a rendered colors fragment).
-mkdir -p "$HOME/.config/mako"
-write_mako_config() {
-    # $1=surface  $2=fg  $3=accent  $4=muted  $5=red
-    cat > "$HOME/.config/mako/config" <<EOF
-font=Inter 11
-default-timeout=0
-anchor=top-right
-margin=20
-padding=14
-border-size=2
-border-radius=12
-width=380
-height=120
-icons=0
-background-color=#${1}ee
-text-color=#${2}
-border-color=#${3}
-progress-color=over #${3}44
-
-[urgency=low]
-border-color=#${4}
-
-[urgency=critical]
-border-color=#${5}
-EOF
-}
-
-# Wofi: simple drun layout
-mkdir -p "$HOME/.config/wofi"
-cat > "$HOME/.config/wofi/config" <<'EOF'
-show=drun
-width=600
-height=400
-location=center
-allow_images=true
-prompt=Search
-EOF
-
-cat > "$HOME/.config/wofi/style.css" <<'EOF'
-@import "colors.css";
-
-* {
-    font-family: "Inter", sans-serif;
-    font-size: 12pt;
-}
-
-window {
-    background-color: alpha(@bg, 0.92);
-    border: 2px solid @accent;
-    border-radius: 16px;
-}
-
-#input {
-    background-color: alpha(@surface, 0.6);
-    color: @fg;
-    padding: 10px 14px;
-    margin: 12px;
-    border-radius: 10px;
-    border: 1px solid alpha(@muted, 0.4);
-}
-
-#inner-box, #outer-box, #scroll { background: transparent; }
-#text { color: @fg; padding: 6px 10px; }
-#entry { padding: 4px 8px; border-radius: 8px; }
-#entry:selected {
-    background-color: @accent;
-    color: @bg;
-}
-EOF
-
-# Kitty config — uses the colors.conf the engine renders.
-mkdir -p "$HOME/.config/kitty"
-cat > "$HOME/.config/kitty/kitty.conf" <<'EOF'
-font_family JetBrainsMono Nerd Font
-font_size 12.0
-background_opacity 0.92
-padding 14
-include colors.conf
-EOF
-
-# ----- 5. Make sure the engine's manifest knows about wofi (its template) --------------------
-# rice-init.sh already wires waybar/wofi/kitty/hyprland/rofi/gtk4 — the defaults are perfect.
-
-# ----- 6. Iterate presets, render, screenshot ------------------------------------------------
-PRESETS=(catppuccin-mocha gruvbox nord tokyo-night)
 
 # Track what got captured for the orchestrator. Start a manifest array.
 manifest_entries=()
@@ -307,16 +211,14 @@ for preset in "${PRESETS[@]}"; do
         continue
     fi
 
-    # Pull the palette values we need for the surfaces the engine doesn't theme directly (mako).
+    # Install the agent-produced configs for every fixture targeting this preset. This is the
+    # whole point of the visual test now: it screenshots REAL plugin output (the
+    # component-writer's generated configs that the user committed), not test stubs.
+    install_preset_fixtures "$preset"
+
+    # Pull palette bg for the wallpaper backdrop.
     pal_val() { awk -F= -v k="$1" '$1==k{print $2; exit}' "$RICE_DIR/palette.conf" | tr -d '\r'; }
     bg_hex="$(pal_val bg)"
-    fg_hex="$(pal_val fg)"
-    surface_hex="$(pal_val surface)"
-    accent_hex="$(pal_val accent)"
-    muted_hex="$(pal_val muted)"
-    red_hex="$(pal_val red)"
-
-    write_mako_config "$surface_hex" "$fg_hex" "$accent_hex" "$muted_hex" "$red_hex"
 
     # Clear screen.
     kill_clients
