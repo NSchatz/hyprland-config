@@ -278,7 +278,13 @@ for preset in "${PRESETS[@]}"; do
 
     # Launch kitty with a small color demo script. Goes up first so the desktop composite
     # captures wallpaper + bar + terminal + notification together.
-    start_app_bg kitty --hold bash -c '
+    # Override hide_window_decorations to `no` for the screenshot run only — the fixture's
+    # production setting is `yes` (intended for real Hyprland users, where the COMPOSITOR
+    # draws the accent border). Under sway-with-xdg-decoration, `yes` makes kitty request
+    # CSD-no-decoration, which means sway never draws a border either. `no` lets sway draw
+    # SSD per our `default_border pixel 2` + `client.focused #accent …` setup, so the
+    # screenshot reproduces what Hyprland would render around the terminal.
+    start_app_bg kitty -o hide_window_decorations=no --hold bash -c '
         printf "\033[1;38;2;255;255;255mhyprland-config rice preview\033[0m\n\n"
         printf "scheme: \033[1m%s\033[0m\n\n" "$(awk -F= "\$1==\"scheme\"{print \$2}" ~/.config/hypr-rice/palette.conf)"
         for i in 0 1 2 3 4 5 6 7; do
