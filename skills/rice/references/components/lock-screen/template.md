@@ -2,6 +2,26 @@
 
 The component generates one file: `~/.config/hypr/hyprlock.conf`.
 
+The canonical template the rice engine re-renders on every `rice apply` is
+[`hyprlock.tmpl`](./hyprlock.tmpl) — a fixed-layout, accent-outlined-input, large-clock
+variant that resolves the five color placeholders (`{{accent}}`, `{{surface}}`, `{{fg}}`,
+`{{green}}`, `{{red}}`) plus `{{font_ui_family}}` from `palette.conf`. The full variant
+catalog (blurred-screenshot vs wallpaper background, underline vs hidden input-field,
+time-only / no clock, optional fingerprint) is below — the component-writer picks one set
+of branches against `answers.json:lock_screen.*` and emits the staged `hyprlock.conf`. The
+shipped `.tmpl` is the **default-default** the engine renders from when only `palette.conf`
+changes (the dominant case).
+
+**Required render-manifest line** (emitted by SKILL.md A4.3 whenever `lock_screen.*` is
+selected; see `agents/hyprland-config-validator.md` → "Render-manifest completeness" for
+the assertion):
+
+```
+hyprlock <TAB> ~/.config/hypr-rice/templates/hyprlock.tmpl <TAB> ~/.config/hypr/hyprlock.conf <TAB> :
+```
+
+`:` is the shell no-op (see `reload.md` → "Render-manifest line").
+
 **Colors are LITERAL hex** — hyprlock is a separate daemon and **cannot read Hyprland `$vars`**
 from `colors.conf`. The engine substitutes `{{accent}}`, `{{surface}}`, `{{fg}}`, `{{green}}`,
 `{{red}}`, `{{bg}}` from `palette.conf` at generate-time. See [`gotchas.md`](./gotchas.md) and

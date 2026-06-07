@@ -79,9 +79,18 @@ full custom GTK theme.
 **The matugen / dynamic approach.** Generate `gtk-3.0/gtk.css` and `gtk-4.0/gtk.css` (the
 `@define-color` block) from the wallpaper palette so apps recolor with every wallpaper change.
 matugen ships a [GTK colors template](https://github.com/InioX/matugen-themes); HyDE/ml4w-style
-setups do the same with wallust/pywal. **This plugin's rice engine already renders
-`~/.config/gtk-4.0/gtk.css`** from the active palette — so GTK4/adwaita apps follow the rice
-without an extra tool.
+setups do the same with wallust/pywal. **This plugin's rice engine renders
+`~/.config/gtk-4.0/gtk.css` from `theming/gtk4.tmpl` AND `~/.config/gtk-3.0/gtk.css` from
+`components/look-feel/gtk3.tmpl`** when any GTK3 default app is selected (thunar,
+nm-connection-editor, blueman, classic file pickers, etc.) — so both GTK3 and GTK4 apps follow
+the rice without an extra tool. The GTK3 template defines the older `theme_selected_bg_color` /
+`theme_selected_fg_color` / `theme_bg_color` aliases AND a direct `*:selected` override (the
+inherited Adwaita selection rule has higher CSS specificity than `@define-color` aliases on
+GTK3, so without the direct override the file-manager selection bar reads as stock-Adwaita blue
+even with the right `theme_selected_bg_color`).
+
+The validator's manifest-completeness assertion ERRORs on a missing `gtk3` line when a GTK3 app
+is in scope.
 
 **adw-gtk3 + accent (cleanest libadwaita-consistent look).** Use `adw-gtk3-dark` for GTK3 so it
 matches stock libadwaita exactly, set `color-scheme prefer-dark`, then push one accent via
@@ -158,6 +167,28 @@ The default-apps component's file-manager / image-viewer / archive-manager pick 
 - **Loupe / Image Viewer / GNOME Files** — all libadwaita 1.4+ apps; honor the `sidebar_bg_color` / `sidebar_fg_color` pair the .tmpl now exports.
 
 The rice interview pairs the file-manager pick with the matching toolkit route automatically — see `components/default-apps/interview.md`.
+
+## The lightweight Qt route: qt6ct + Fusion + custom_palette
+
+The plugin's default Qt route is **Fusion + `custom_palette = true`** in qt6ct, with
+`color_scheme_path` pointing at a rendered scheme INI (`~/.config/qt6ct/colors/rice.conf`). Zero
+extra packages beyond `qt6ct` itself, re-themes via one rendered INI, no `kvantummanager --set`
+round-trip. The full recipe (engine `.tmpl`, static `qt6ct.conf` writer, the 21-role QPalette
+matrix) lives in [`../components/qt/template.md`](../components/qt/template.md); Kvantum stays
+documented below for the SVG-fidelity case.
+
+Why default to Fusion over Kvantum:
+
+- Fusion is built into Qt6 (no AUR theme packages per rice scheme).
+- The switch is "rewrite one INI." No subprocess, no folder-name == theme-name dance.
+- Kvantum themes are color-scheme-agnostic by design; a Catppuccin Kvantum theme paints
+  Catppuccin even on a Nord rice unless you swap the Kvantum theme too. Fusion +
+  `custom_palette` inherits the rice palette directly.
+
+The rice engine registers the qt6ct manifest line whenever `QT_QPA_PLATFORMTHEME=qt6ct` is
+emitted **or** a Qt default app (dolphin, krusader, kdenlive, kwrite, okular) is picked. The
+validator's manifest-completeness assertion ERRORs on the missing line. See
+[`apps.md`](apps.md) for the App-Coverage row.
 
 ## hyprqt6engine — the Hyprland-native Qt6 route
 

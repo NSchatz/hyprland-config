@@ -66,6 +66,30 @@ This is opt-in only — surface it in the gotcha, not as a default option in the
 - The actual bind table in `binds.conf` is assembled by the `keybinds` component; this file just
   documents the lines this component contributes.
 
+## swayosd — `~/.config/swayosd/style.css`
+
+Emit only when `utilities.osd_route == "swayosd"`. swayosd-server reads
+`~/.config/swayosd/style.css` at startup; there is no live IPC reload, so the manifest line's
+reload-cmd is **empty** (`:`). Applying a new palette takes effect on the next server restart,
+which `rice apply`'s footer surfaces (Issue 15.3, v0.21.0+).
+
+**Required render-manifest line** (emitted by SKILL.md A4.3 when the gate above holds; the
+validator at A5 step 1 ERRORs on a miss — see `agents/hyprland-config-validator.md` →
+"Render-manifest completeness"):
+
+```
+swayosd <TAB> ~/.config/hypr-rice/templates/swayosd.tmpl <TAB> ~/.config/swayosd/style.css <TAB> :
+```
+
+The shipped template is [`swayosd.tmpl`](./swayosd.tmpl) — a flat themed OSD window (rounded
+container, accent progress bar) sourcing `{{bg}} {{surface}} {{fg}} {{accent}}` from
+`palette.conf`. No `{{cursor}}` or per-state hover styling — swayosd's window is dismissed too
+quickly for cursor interaction to matter.
+
+The autostart line for `swayosd-server` is owned by [`../autostart/template.md`](../autostart/template.md)
+(`{{swayosd}}` gate). The brightness/volume client binds are emitted by the keybinds component
+through the `utilities.osd_route == "swayosd"` route — see `schema.md` and `../laptop/README.md`.
+
 ## wlogout — `~/.config/wlogout/layout`
 
 Emit only when `utilities.selected` contains `power-menu` AND the user picked `wlogout` upstream.

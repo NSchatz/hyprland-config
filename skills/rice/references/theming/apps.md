@@ -26,6 +26,9 @@ per-component `template.md` files. A short index:
 | swaync | `components/notifications/` | `~/.config/swaync/colors.css` (`@import`) | `@bg @fg @surface @muted @accent @accent2 @red` | `swaync-client -rs` |
 | wlogout | `components/utilities/` | `~/.config/wlogout/colors.css` (`@import`) | `@bg @fg @accent @surface` | (launch) |
 | gtk4 | `components/look-feel/` | `~/.config/gtk-4.0/gtk.css` (the file itself) | M3 `@define-color` palette per `gtk4.tmpl` | live |
+| gtk3 | `components/look-feel/` | `~/.config/gtk-3.0/gtk.css` (the file itself) | `@define-color theme_selected_bg_color`/`_fg_color` accent + `*:selected` direct override per `gtk3.tmpl` | (next launch) |
+| qt6ct | `components/qt/` | `~/.config/qt6ct/colors/rice.conf` (qt6ct's `color_scheme_path` points at it; static `qt6ct.conf` selects Fusion + `custom_palette = true`) | 21 QPalette roles × {active, inactive, disabled} as `#AARRGGBB` per `qt6ct.tmpl`; sourced from `{{fg}} {{bg}} {{surface}} {{muted}} {{accent}} {{accent2}}` | (next launch) |
+| swayosd | `components/utilities/` | `~/.config/swayosd/style.css` (`@import` from upstream-shipped `style.css`) | `{{bg}} {{surface}} {{fg}} {{accent}}` for window/label/image/progressbar | (server restart) |
 | btop | `components/terminal/` | `~/.config/btop/themes/rice.theme` (set `color_theme = "rice"`) | `main_{bg,fg} title hi_fg selected_{bg,fg} inactive_fg graph_text meter_bg proc_misc`, box outlines, 9 gradient triples | restart |
 | cava | `components/terminal/` | merged into `~/.config/cava/config` | gradient + foreground | restart |
 | hyprlock | `components/lock-screen/` | `~/.config/hypr/hyprlock.conf` (single file; **literal hex** baked at generate-time) | `{{accent}} {{surface}} {{fg}} {{bg}} {{green}} {{red}}` substituted into the conf — hyprlock cannot read `$vars` from Hyprland's `colors.conf` | (launch) |
