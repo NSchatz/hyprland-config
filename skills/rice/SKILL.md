@@ -388,6 +388,22 @@ The colors/fonts from the `look-feel` component (palette, fonts, wallpaper sub-q
    (`eww`/`ags`/`quickshell` → its colors file) so `rice apply` re-themes it on every switch, and
    render its colors file into the staged shell tree — see `theming/engine.md` → "Widget-shell
    theming" (HyprPanel/Material-You shells are driven by matugen instead, not the manifest).
+
+   **Mandatory render-manifest entries — one row per selected themable surface.** The
+   validator (A5 step 1) ERRORs if any required line is missing — this matrix is the source of
+   truth and must stay synchronized with the validator's matrix in
+   `agents/hyprland-config-validator.md` → "Render-manifest completeness".
+
+   | Condition in `answers.json` | Manifest name | Template | Output | Reload-cmd |
+   |---|---|---|---|---|
+   | `lock_screen.style` selected OR `companion_configs.hyprlock == true` | `hyprlock` | `templates/hyprlock.tmpl` | `~/.config/hypr/hyprlock.conf` | `:` (empty — applies on next lock) |
+   | Any Qt default-app picked OR `env.qt_platformtheme == "qt6ct"` | `qt6ct` | `templates/qt6ct.tmpl` | `~/.config/qt6ct/colors/rice.conf` | `:` (empty — next Qt-app launch) |
+   | `utilities.osd_route == "swayosd"` | `swayosd` | `templates/swayosd.tmpl` | `~/.config/swayosd/style.css` | `:` (empty — next server restart) |
+   | Any GTK3 default app selected | `gtk3` | `templates/gtk3.tmpl` | `~/.config/gtk-3.0/gtk.css` | `:` (empty — next launch) |
+   | `default_apps.browser == "firefox"` AND browser theming opted in | `firefox` | `templates/firefox.tmpl` | `<profile>/chrome/rice-colors.css` | `bash ~/.config/hypr-rice/firefox-restart.sh` (optional, v0.21.0+) |
+
+   `:` is the shell no-op — explicit so the engine doesn't substitute a default. The "next X"
+   surface group is footer-reported by `rice apply` (Issue 15.3, v0.21.0+).
 4. **Only after a successful install** (A5 returns `ok`/`installed-untested`), run
    `bash ~/.config/hypr-rice/rice apply` so any already-present apps pick up the palette. **Skip it on
    `rolled-back`/`install-failed`** — it would re-render outside the safe-apply harness.

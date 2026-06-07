@@ -240,6 +240,28 @@ the version string.
 Saving a profile snapshots it; version-controlling `~/.config/hypr-rice/` (and the rendered app
 configs) in git makes the whole rice reproducible. See the dotfiles skill.
 
+### Profiles are palette-only — structural look stays in the live config
+
+`rice save <name>` snapshots **only** `palette.conf`. It does **not** capture structural look:
+`~/.config/hypr/looknfeel.conf` (gaps, borders, decoration radius, animation curves),
+`~/.config/waybar/style.css` (archetype CSS), `~/.config/hypr/hyprlock.conf` non-color blocks
+(layout, font_size), `~/.config/eww/eww.scss` selectors. Those files are owned by their
+components, not the engine, and they don't change on a re-theme.
+
+The consequence: `rice theme dracula` swaps the palette + wallpaper but does **not** restore the
+floating-pill archetype if you switched to edge-to-edge in between. If you want full snapshots
+of structural look, the dotfiles skill is the right tool — it version-controls the whole config
+tree and `git stash` / `git checkout` give you the same effect across both palette and structure.
+
+Two reasons the engine stops at the palette boundary:
+
+1. Structural files are component-owned. A profile that overwrote `waybar/style.css` would race
+   with the waybar component-writer on the next interview re-run.
+2. Most users adjust structure once and palette-cycle daily. Snapshotting structure on every
+   `rice save` would expand profile size 20× for no daily-flow benefit.
+
+`rice save --full` is not on the roadmap for v0.20.0; revisit if a real user reports the need.
+
 ## CLI
 
 ```

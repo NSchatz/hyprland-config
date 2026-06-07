@@ -221,9 +221,14 @@ hypr-rice — desktop theme engine ($RICE_DIR)
   rice accents [scheme]   list the accent variants for a scheme (default: current)
   rice accent <name|hex> [--pin]    set the accent (in-palette name or raw hex); --pin = survive re-theme
   rice theme <name>       load a saved profile (palette + wallpaper) and re-theme
+                          NOTE: profiles are PALETTE-ONLY — structural look
+                          (looknfeel.conf, waybar style.css, hyprlock layout, etc.)
+                          does not travel with rice theme. Manage structural
+                          changes via the dotfiles skill instead.
   rice theme-toggle <a> <b>  flip between two profiles (the dark/light toggle keybind)
   rice theme-next         cycle to the next saved profile (single-key theme cycler)
-  rice save <name>        snapshot the current palette as a profile
+  rice save <name>        snapshot the current palette as a profile (palette only —
+                          structural look stays in the live config)
   rice themes             list saved profiles
   rice palette            print the current palette
   rice templates          print the template manifest (name -> output -> reload)

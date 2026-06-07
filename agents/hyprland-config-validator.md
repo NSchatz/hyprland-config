@@ -156,6 +156,59 @@ is available, assume the latest stable syntax and say so in the report.
      package no longer exists for those generations; the user needs the legacy AUR branch.
      Suggest the exact package set from `components/env/gotchas.md` "NVIDIA package branch".
 
+   - **Render-manifest completeness: every selected themable surface has a manifest line**
+     (v0.20.0 Issue 16 — defects 10/11/12/13). Read `answers.json` AND the generated
+     `templates.list`. For each row in the matrix below, evaluate the condition against
+     `answers.json`; if true, the manifest must contain a line whose `name` field matches AND
+     the referenced `.tmpl` file AND the output directory's parent both exist. ERROR on any
+     miss — surfaces have been historically half-themed (env var set, no config emitted) and a
+     warning lets this regress. The matrix is the single source of truth for "which surfaces
+     does the engine re-render":
+
+     | Selected in `answers.json` (gate) | Required manifest name | Required `.tmpl` | Required output dir |
+     |---|---|---|---|
+     | `lock_screen.style` selected (hyprlock present) OR `companion_configs.hyprlock == true` | `hyprlock` | `templates/hyprlock.tmpl` | `~/.config/hypr/` |
+     | `default_apps.file_manager == "dolphin"` OR `default_apps.file_manager == "krusader"` OR `env.qt_platformtheme == "qt6ct"` OR any other selected Qt app | `qt6ct` | `templates/qt6ct.tmpl` | `~/.config/qt6ct/colors/` |
+     | `utilities.osd_route == "swayosd"` | `swayosd` | `templates/swayosd.tmpl` | `~/.config/swayosd/` |
+     | Any GTK3 app in `default_apps` (thunar, nm-connection-editor, blueman, etc.) OR `gtk_settings.gtk3 == true` | `gtk3` | `templates/gtk3.tmpl` | `~/.config/gtk-3.0/` |
+     | `default_apps.browser == "firefox"` AND `browser_theming.opt_in == true` | `firefox` | `templates/firefox.tmpl` | `<firefox-profile>/chrome/` |
+     | `terminal.emulator`, `bar.strategy`, `launcher.tool`, `notifications.daemon` (their existing rows) | their existing manifest entries | their existing `.tmpl` | their existing dirs |
+
+     The lint:
+     ```bash
+     # Pseudocode — read answers + manifest, evaluate the matrix, ERROR on any miss.
+     answers="$conf_dir/answers.json"
+     manifest="$conf_dir/templates.list"
+     [ -f "$answers" ] && [ -f "$manifest" ] || return 0   # nothing to assert if either is missing
+     manifest_has() { awk -F'\t' -v want="$1" '$1==want{found=1} END{exit !found}' "$manifest"; }
+
+     # one row per selected surface (the matrix above)
+     if jq -re '.lock_screen.style // empty' "$answers" >/dev/null; then
+         manifest_has hyprlock || { echo "ERROR: lock_screen selected but no `hyprlock` manifest line"; exit_status=1; }
+     fi
+     # ... (the rest of the rows; see the matrix above for the full set)
+     ```
+
+     The matrix is also the spec the rice component-writer reads when emitting `templates.list`.
+     Keep it synchronized — when a new themable surface lands, add a row here AND wire the
+     emission in `SKILL.md` §A4.3.
+
+   - **No literal wallpaper path in `autostart.conf`, `hyprpaper.conf`, `hyprlock.conf`**
+     (v0.20.0 Issue 3). The plugin's contract (`_shared/wallpaper-pointer.md`) is that every
+     wallpaper consumer references the live symlink `~/.config/hypr-rice/current-wallpaper`,
+     never a literal path captured at generation time — so re-themes change one symlink and
+     every consumer follows. Lint:
+     ```bash
+     for f in "$conf_dir/autostart.conf" "$conf_dir/hyprpaper.conf" "$conf_dir/hyprlock.conf"; do
+         [ -f "$f" ] || continue
+         if grep -nE '[~]?/.*/(wallpapers?|Pictures)/[^[:space:],]+\.(png|jpg|jpeg|webp)' "$f" | \
+                grep -v 'current-wallpaper'; then
+             echo "ERROR: $f references a literal wallpaper path — use ~/.config/hypr-rice/current-wallpaper"
+             exit_status=1
+         fi
+     done
+     ```
+
 7. **Cross-surface coherence checks (from the v0.14 3-batch research pass).** These catch
    real-world breakage observed across the corpus. All cite the upstream evidence; check
    against the per-component `validation.md` / `gotchas.md` for the full rationale.
