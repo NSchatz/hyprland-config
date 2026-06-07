@@ -394,16 +394,24 @@ The colors/fonts from the `look-feel` component (palette, fonts, wallpaper sub-q
    truth and must stay synchronized with the validator's matrix in
    `agents/hyprland-config-validator.md` → "Render-manifest completeness".
 
-   | Condition in `answers.json` | Manifest name | Template | Output | Reload-cmd |
-   |---|---|---|---|---|
-   | `lock_screen.style` selected OR `companion_configs.hyprlock == true` | `hyprlock` | `templates/hyprlock.tmpl` | `~/.config/hypr/hyprlock.conf` | `:` (empty — applies on next lock) |
-   | Any Qt default-app picked OR `env.qt_platformtheme == "qt6ct"` | `qt6ct` | `templates/qt6ct.tmpl` | `~/.config/qt6ct/colors/rice.conf` | `:` (empty — next Qt-app launch) |
-   | `utilities.osd_route == "swayosd"` | `swayosd` | `templates/swayosd.tmpl` | `~/.config/swayosd/style.css` | `:` (empty — next server restart) |
-   | Any GTK3 default app selected | `gtk3` | `templates/gtk3.tmpl` | `~/.config/gtk-3.0/gtk.css` | `:` (empty — next launch) |
-   | `default_apps.browser == "firefox"` AND browser theming opted in | `firefox` | `templates/firefox.tmpl` | `<profile>/chrome/rice-colors.css` | `bash ~/.config/hypr-rice/firefox-restart.sh` (optional, v0.21.0+) |
+   | Condition in `answers.json` | Manifest name | Template | Output | Reload-cmd | next-X (5th col, v0.21+) |
+   |---|---|---|---|---|---|
+   | `lock_screen.style` selected OR `companion_configs.hyprlock == true` | `hyprlock` | `templates/hyprlock.tmpl` | `~/.config/hypr/hyprlock.conf` | `:` | `next-lock` |
+   | Any Qt default-app picked OR `env.qt_platformtheme == "qt6ct"` | `qt6ct` | `templates/qt6ct.tmpl` | `~/.config/qt6ct/colors/rice.conf` | `:` | `next-launch` |
+   | `utilities.osd_route == "swayosd"` | `swayosd` | `templates/swayosd.tmpl` | `~/.config/swayosd/style.css` | `:` | `server-restart` |
+   | Any GTK3 default app selected | `gtk3` | `templates/gtk3.tmpl` | `~/.config/gtk-3.0/gtk.css` | `:` | `next-launch` |
+   | `default_apps.browser == "firefox"` AND `browser_theming.opt_in == true` AND `browser_theming.restart_hook == true` (default) | `firefox` | `templates/firefox.tmpl` | `<profile>/chrome/rice-colors.css` (resolved by `firefox-bootstrap.sh`) | `bash ~/.config/hypr-rice/firefox-restart.sh` | *(empty — the script restarts)* |
+   | `default_apps.browser == "firefox"` AND `browser_theming.opt_in == true` AND `browser_theming.restart_hook == false` | `firefox` | `templates/firefox.tmpl` | `<profile>/chrome/rice-colors.css` | *(empty)* | `next-launch` |
 
    `:` is the shell no-op — explicit so the engine doesn't substitute a default. The "next X"
-   surface group is footer-reported by `rice apply` (Issue 15.3, v0.21.0+).
+   surface group is footer-reported by `rice apply` (Issue 15.3, v0.21.0+ — the
+   `next-x-hint` column drives the grouping; see `theming/engine.md` → "Manifest format").
+
+   **Browser theming integration** (v0.21+): when `browser_theming.opt_in == true`, also run
+   `bash ~/.config/hypr-rice/firefox-bootstrap.sh` from the install batch to resolve the
+   default profile from `profiles.ini` and copy `userChrome.css` + `user.js` into
+   `<profile>/chrome/`. Capture `FIREFOX_RICE_COLORS=` from its stdout and substitute that
+   path into the firefox manifest line's `output` column.
 4. **Only after a successful install** (A5 returns `ok`/`installed-untested`), run
    `bash ~/.config/hypr-rice/rice apply` so any already-present apps pick up the palette. **Skip it on
    `rolled-back`/`install-failed`** — it would re-render outside the safe-apply harness.

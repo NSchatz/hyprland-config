@@ -58,12 +58,19 @@ Re-theming = rewrite `palette.conf` and `rice apply`. Adding an app = drop a `<n
 
 ## Manifest format (`templates.list`)
 
-TAB-separated, four fields per line. Empty `reload-cmd` is valid (the app picks colors up on
-launch, or hot-reloads on file save).
+TAB-separated, four mandatory fields per line plus one optional fifth field.
 
 ```
-name<TAB>template-path<TAB>output-path<TAB>reload-cmd
+name<TAB>template-path<TAB>output-path<TAB>reload-cmd[<TAB>next-x-hint]
 ```
+
+| Field | Required | Meaning |
+|---|---|---|
+| `name` | yes | Short identifier (`hyprland`, `kitty`, `waybar`, `hyprlock`, `qt6ct`, `swayosd`, `gtk3`, `firefox`, …). Used by render-templates.sh in its output and by the footer grouping. |
+| `template-path` | yes | Absolute or `~`-prefixed path to the `.tmpl`. The engine substitutes every `{{key}}` in `palette.conf` (and the user-override cascade) before writing. |
+| `output-path` | yes | Where the rendered file lands. The directory's parent is auto-created. If the path is a symlink, it's replaced with a real, rice-owned file (the gtk-4.0/gtk.css symlink-to-system-theme trap). |
+| `reload-cmd` | yes (may be empty) | Shell command run after a successful render. Always guarded (see below). Empty = no live reload, the surface picks up on next launch / lock / restart. |
+| `next-x-hint` | optional | When `reload-cmd` is empty (or `:`), declare the "next-X" condition so `rice apply`'s footer can group surfaces by what triggers their re-paint. Known values: `next-launch`, `next-lock`, `server-restart`, `restart`. Empty = the surface re-themes via file-watch (eww, ags, wofi, rofi, gtk4) — don't track. |
 
 Example (real tabs between fields):
 
@@ -71,11 +78,40 @@ Example (real tabs between fields):
 hyprland   ~/.config/hypr-rice/templates/hyprland.tmpl   ~/.config/hypr/colors.conf      hyprctl reload
 kitty      ~/.config/hypr-rice/templates/kitty.tmpl      ~/.config/kitty/colors.conf     kill -SIGUSR1 $(pidof kitty)
 waybar     ~/.config/hypr-rice/templates/waybar.tmpl     ~/.config/waybar/colors.css     killall -SIGUSR2 waybar
+hyprlock   ~/.config/hypr-rice/templates/hyprlock.tmpl   ~/.config/hypr/hyprlock.conf    :                                                next-lock
+qt6ct      ~/.config/hypr-rice/templates/qt6ct.tmpl      ~/.config/qt6ct/colors/rice.conf :                                               next-launch
+gtk3       ~/.config/hypr-rice/templates/gtk3.tmpl       ~/.config/gtk-3.0/gtk.css       :                                                next-launch
+swayosd    ~/.config/hypr-rice/templates/swayosd.tmpl    ~/.config/swayosd/style.css     :                                                server-restart
+firefox    ~/.config/hypr-rice/templates/firefox.tmpl    <profile>/chrome/rice-colors.css bash ~/.config/hypr-rice/firefox-restart.sh
 ```
 
 Reload commands are always guarded — `render-templates.sh` checks `pidof`/`pgrep` (or uses `|| true`)
 so the line is a no-op when the app isn't running. The per-app reload command catalog is in
 [`theming-architecture.md`](theming-architecture.md) → "Apply + reload".
+
+### `rice apply` footer for needs-relaunch surfaces
+
+When the `next-x-hint` column is non-empty, render-templates.sh groups those entries and prints
+a footer per group at the end of `rice apply` output:
+
+```
+$ rice apply
+RENDERED hyprland -> /home/u/.config/hypr/colors.conf
+RELOADED hyprland
+… (every other rendered + reloaded surface) …
+RENDERED qt6ct -> /home/u/.config/qt6ct/colors/rice.conf
+RENDERED gtk3  -> /home/u/.config/gtk-3.0/gtk.css
+RENDERED hyprlock -> /home/u/.config/hypr/hyprlock.conf
+RENDERED swayosd -> /home/u/.config/swayosd/style.css
+2 surfaces apply on next launch: qt6ct, gtk3
+1 surface applies on next lock: hyprlock
+1 surface applies on server restart: swayosd
+RENDER=done
+```
+
+This is the "stop reading the switch as half-applied" footer (Issue 15.3). Surfaces with
+non-empty reload-cmds (firefox, hyprland, kitty, waybar, mako, swaync, etc.) are NOT in the
+footer — they re-themed live.
 
 ## Wiring each app (one-time)
 

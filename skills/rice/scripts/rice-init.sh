@@ -51,6 +51,26 @@ cp "$SRC/assets/wallpapers.tsv"            "$RICE_DIR/wallpapers.tsv"   # curate
 cp "$SRC/assets/accents.tsv"               "$RICE_DIR/accents.tsv"      # per-scheme accent variants
 chmod +x "$RICE_DIR"/render-templates.sh "$RICE_DIR"/set-wallpaper.sh "$RICE_DIR"/palette-from-wallpaper.sh "$RICE_DIR"/rice
 
+# Browser-theming helpers (Issue 14/15 — copied unconditionally; only used when
+# browser_theming.opt_in == true, but live in the engine so a user opting in
+# post-install doesn't need to re-run rice-init).
+mkdir -p "$RICE_DIR/browser"
+if [ -f "$SRC/assets/scripts/firefox-bootstrap.sh" ]; then
+    cp "$SRC/assets/scripts/firefox-bootstrap.sh" "$RICE_DIR/firefox-bootstrap.sh"
+    chmod +x "$RICE_DIR/firefox-bootstrap.sh"
+fi
+if [ -f "$SRC/assets/scripts/firefox-restart.sh" ]; then
+    cp "$SRC/assets/scripts/firefox-restart.sh" "$RICE_DIR/firefox-restart.sh"
+    chmod +x "$RICE_DIR/firefox-restart.sh"
+fi
+# Static browser assets the bootstrap script copies into the Firefox profile.
+if [ -f "$SRC/references/components/browser/userChrome.css" ]; then
+    cp "$SRC/references/components/browser/userChrome.css" "$RICE_DIR/browser/userChrome.css"
+fi
+if [ -f "$SRC/references/components/browser/user.js" ]; then
+    cp "$SRC/references/components/browser/user.js" "$RICE_DIR/browser/user.js"
+fi
+
 # Default manifest (only the cleanly include-able apps; others added by their skills).
 mf="$RICE_DIR/templates.list"
 if [ ! -f "$mf" ] || [ "$force" -eq 1 ]; then

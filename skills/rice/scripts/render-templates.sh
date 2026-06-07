@@ -13,6 +13,11 @@
 # Templates add their own '#' / 'rgb(...)' wrappers (e.g. `#{{accent}}`, `rgb({{bg}})`).
 #
 # Output: RENDERED <name> -> <output> / RELOADED <name> / RELOAD_SKIPPED <name> / RENDER=done
+# When the manifest's optional 5th column declares a "next-X" hint for entries
+# that can't hot-reload (next-launch, next-lock, server-restart, restart),
+# the script groups them and prints a footer like:
+#     "3 surfaces apply on next launch: gtk3, qt6ct, hyprlock"
+# so a `rice apply` against a fresh palette doesn't look half-applied.
 set -uo pipefail
 
 RICE_DIR="${RICE_DIR:-$HOME/.config/hypr-rice}"
@@ -55,7 +60,12 @@ render_one() {
     printf '%s' "$content" > "$out"
 }
 
-while IFS=$'\t' read -r name tmpl out rcmd; do
+# Track surfaces whose effect lands on the NEXT-X event, not now. Keys are the
+# hint values from the manifest's 5th column (next-launch, next-lock,
+# server-restart, restart, ...); values are space-separated surface names.
+declare -A NEXT_GROUPS
+
+while IFS=$'\t' read -r name tmpl out rcmd next_hint; do
     case "$name" in ''|\#*) continue ;; esac
     tmpl="${tmpl/#\~/$HOME}"; out="${out/#\~/$HOME}"
     if [ ! -f "$tmpl" ]; then echo "SKIP $name (no template: $tmpl)"; continue; fi
@@ -64,7 +74,37 @@ while IFS=$'\t' read -r name tmpl out rcmd; do
     if [ "$reload" -eq 1 ] && [ -n "${rcmd:-}" ]; then
         if eval "$rcmd" >/dev/null 2>&1; then echo "RELOADED $name"; else echo "RELOAD_SKIPPED $name"; fi
     fi
+    # If the line declares a "next-X" hint (5th column), record it for the
+    # post-render footer. Empty hint = either live-reload or no concept of
+    # "next" (e.g. wofi/rofi pick up on file save).
+    if [ -n "${next_hint:-}" ]; then
+        NEXT_GROUPS["$next_hint"]+="$name "
+    fi
 done < "$manifest"
+
+# Footer: one line per "next-X" group, friendlier wording per hint value.
+hint_label() {
+    case "$1" in
+        next-launch)      echo "next launch" ;;
+        next-lock)        echo "next lock" ;;
+        server-restart)   echo "server restart" ;;
+        restart)          echo "restart" ;;
+        *)                echo "$1" ;;
+    esac
+}
+for hint in "${!NEXT_GROUPS[@]}"; do
+    names="${NEXT_GROUPS[$hint]% }"
+    # shellcheck disable=SC2086
+    set -- $names
+    label="$(hint_label "$hint")"
+    n=$#
+    if [ "$n" -eq 1 ]; then
+        echo "$n surface applies on $label: $names"
+    else
+        joined="$(echo "$names" | tr ' ' ',' | sed 's/,/, /g')"
+        echo "$n surfaces apply on $label: $joined"
+    fi
+done
 
 # Theme-restore-on-login script. The body is engine-specific so it can't be a static
 # autostart line — it has to be regenerated whenever the wallpaper or engine choice

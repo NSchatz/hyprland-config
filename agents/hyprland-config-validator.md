@@ -171,7 +171,7 @@ is available, assume the latest stable syntax and say so in the report.
      | `default_apps.file_manager == "dolphin"` OR `default_apps.file_manager == "krusader"` OR `env.qt_platformtheme == "qt6ct"` OR any other selected Qt app | `qt6ct` | `templates/qt6ct.tmpl` | `~/.config/qt6ct/colors/` |
      | `utilities.osd_route == "swayosd"` | `swayosd` | `templates/swayosd.tmpl` | `~/.config/swayosd/` |
      | Any GTK3 app in `default_apps` (thunar, nm-connection-editor, blueman, etc.) OR `gtk_settings.gtk3 == true` | `gtk3` | `templates/gtk3.tmpl` | `~/.config/gtk-3.0/` |
-     | `default_apps.browser == "firefox"` AND `browser_theming.opt_in == true` | `firefox` | `templates/firefox.tmpl` | `<firefox-profile>/chrome/` |
+     | `default_apps.browser == "firefox"` AND `browser_theming.opt_in == true` | `firefox` | `templates/firefox.tmpl` | `<firefox-profile>/chrome/` (where `<firefox-profile>` is resolved by `firefox-bootstrap.sh` — see `components/browser/template.md`) |
      | `terminal.emulator`, `bar.strategy`, `launcher.tool`, `notifications.daemon` (their existing rows) | their existing manifest entries | their existing `.tmpl` | their existing dirs |
 
      The lint:
@@ -192,6 +192,16 @@ is available, assume the latest stable syntax and say so in the report.
      The matrix is also the spec the rice component-writer reads when emitting `templates.list`.
      Keep it synchronized — when a new themable surface lands, add a row here AND wire the
      emission in `SKILL.md` §A4.3.
+
+   - **Manifest entries with an empty reload-cmd must declare a `next-X` hint** (v0.21.0
+     Issue 15.3). The 5th column of `templates.list` is the "applies on next launch / lock /
+     server restart" classifier — `rice apply`'s footer reads it to print
+     `"3 surfaces apply on next launch: gtk3, qt6ct, hyprlock"` instead of leaving the
+     switch looking half-applied. Lint: for each manifest line whose `reload-cmd` is empty
+     or `:`, the 5th column must be one of `next-launch`, `next-lock`, `server-restart`,
+     `restart`. Empty 5th column is allowed ONLY for surfaces that pick up via file-watch
+     (eww, ags, wofi, rofi, gtk4 — their existing rows). WARNING on a miss (not ERROR —
+     `rice apply` still works, the footer just loses that surface).
 
    - **No literal wallpaper path in `autostart.conf`, `hyprpaper.conf`, `hyprlock.conf`**
      (v0.20.0 Issue 3). The plugin's contract (`_shared/wallpaper-pointer.md`) is that every
