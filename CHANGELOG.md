@@ -1,5 +1,148 @@
 # Changelog
 
+## 0.20.0
+
+Second end-to-end production-shakedown release. A two-session full rice run against v0.19.0
+on Arch + Hyprland 0.55.x surfaced 16 defects: nine functional (Part I — kitty rejects
+trailing comments, wallpaper picks evaporate, lock screen / autostart carry literal paths
+that don't track theme switches, waybar pill shadows render as boxy halos, dividers float
+at the first child when mpris collapses, eww silently sits on stale colors and refuses to
+open the music window) and six theming-coverage (Part II — hyprlock widget colors / Qt
+apps / swayosd / GTK3 apps were installed and routed but never re-themed; the validator
+had no check closing the loop). v0.20 closes 14 of the 16 (Issues 14-15 — browser theming
++ next-launch reporting — defer to v0.21.0 because the browser component is real new scope).
+
+### Part I — functional defects (9 fixes)
+
+- **#1 — kitty: trailing inline comments stripped.** kitty's parser has no value-line
+  comment-stripping, so `background_blur 1  # pair with Hyprland decoration blur` is read
+  as `background_blur = "1 # pair with Hyprland decoration blur"` and silently disabled
+  on every launch. The template (`terminal/template.md` kitty block + `terminal/styling.md`
+  recipe) now puts every explanatory comment on its own line above the setting; foot.ini
+  and ghostty (same comment-strict parsers) got the same treatment. New
+  `terminal/validation.md` ships a hard-fail lint (regex for `<key> <value> ... # comment`)
+  plus a `kitty +runpy load_config` full parse when kitty is available.
+
+- **#2 — `rice wallpaper <img> --no-theme` lost the choice.** The branch short-circuited
+  before `wallpaper=` was written to `palette.conf`, so the next `rice apply` / `rice
+  theme` / `rice save` evaporated the pick. Now persisted unconditionally before the
+  --no-theme check — setting a wallpaper is the source of truth, theme regen or not.
+
+- **#3 — current-wallpaper symlink as the single live pointer.** Reboot used to snap
+  back to the generation-time image and the lock screen always painted that one wallpaper,
+  because autostart.conf / hyprpaper.conf / hyprlock.conf carried literal paths. Now
+  `scripts/set-wallpaper.sh` maintains `~/.config/hypr-rice/current-wallpaper` as a
+  symlink to the active image on every successful pick (swww/awww, hyprpaper, swaybg).
+  The three consumers reference the symlink; re-theme changes one link, everyone follows.
+  New `_shared/wallpaper-pointer.md` documents the consumer list + the generation-time
+  invariant the validator (#16) enforces.
+
+- **#4 — preset profiles carry a wallpaper.** Each of the 12 shipped profiles under
+  `assets/profiles/` now has a `wallpaper=<scheme>:<name>` catalog selector line. `rice
+  theme <name>` recognizes the selector, resolves through `rice get-wallpaper` on first
+  use (downloads to ~/Pictures/wallpapers/), rewrites palette.conf with the local path,
+  and paints. No bundled images. Pairings cover the highest-width entry per scheme.
+
+- **#5 — wallpaper catalog width metadata.** `assets/wallpapers.tsv` gains a `width`
+  column. Rows reordered to descending-width per scheme so `rice get-wallpaper <scheme>
+  1` resolves to the highest-resolution image. `--min-res W` filters by minimum pixel
+  width. Three explicit overrides documented inline: catppuccin-latte promotes
+  cloudy-day above clear-day (Clearday.jpg is 1080p), nord promotes lighthouse above
+  abstract-nord, solarized adopts dharmx/walls minimal-mountains-stars as its first-pick
+  because the native set tops out at 1080p.
+
+- **#6 — waybar heavy box-shadow default rendered boxy.** The floating-islands archetype
+  shipped a multi-layer `0 6px 24px rgba(0,0,0,0.40), 0 1px 3px rgba(0,0,0,0.30)` on
+  every group pill. Cairo's blur falls back to a hard-edged bounding-box stamp on small
+  rounded translucent surfaces — users saw a rectangular halo, not a soft shadow.
+  Default dropped (the universal `box-shadow: none` from `*` takes over); an opt-in
+  single-layer `0 1px 2px rgba(0,0,0,0.20)` block documents the soft-lift alternative.
+
+- **#7 — waybar divider on first child.** Separator dividers between stat modules now
+  use `:not(:first-child)` semantics, not an enumerated per-module list. mpris is the
+  canonical leader in the stats group and disappears when nothing's playing; pulseaudio
+  then becomes first and an enumerated `#pulseaudio { border-left: ... }` recipe leaves
+  a stray vertical line floating at the group edge. The new `waybar/template.md` →
+  "Module dividers" section gives the canonical block + enumerates the frequently-empty
+  leading modules (mpris, tray, idle_inhibitor, custom/*).
+
+- **#8 — eww `RELOAD_SKIPPED` + music window won't open.** Two sub-defects: the
+  manifest's `eww reload` non-zero-exits when the daemon isn't running and the
+  re-themed colors.scss sat on disk; and `(deflisten playing "playerctl status -F")`
+  feeds an uninitialized var into `:visible`, eww refuses to open the music window
+  with a bool parse error. Switch the manifest reload to `pgrep -x eww >/dev/null &&
+  eww reload || true` (no-op when not running, reload when it is). Document the two
+  bool-safe-default idioms in `widgets/gotchas.md` — `:initial "false"` on the
+  declaration, `(playing ?: "false")` at the use site — and ship a `widgets/
+  validation.md` step that greps every unprotected boolean binding AND dry-run-opens
+  each defwindow against the staged config.
+
+- **#9 — profiles are palette-only — documented.** `rice save <name>` snapshots only
+  `palette.conf`; structural look (looknfeel.conf, waybar style.css, hyprlock layout)
+  doesn't travel. `rice` help text and `theming/engine.md` now state this clearly and
+  point at the dotfiles skill for whole-tree snapshots.
+
+### Part II — theming-coverage / doc-vs-generation parity (5 fixes — #14, #15 deferred)
+
+The Part-II issues shared a structural root: the docs already described correct behavior
+and the generator emitted the routing half (env vars, autostart, packages), but the
+config half (themed artifact + manifest entry) was missing. Issue 16 (do-it-first) closes
+the loop with a validator assertion.
+
+- **#16 — validator manifest-completeness assertion.** `agents/hyprland-config-validator.md`
+  gains a semantic lint: given `answers.json` AND the generated `templates.list`, every
+  selected themable surface must have a manifest line, AND the referenced `.tmpl` +
+  output directory must exist. ERROR on a miss (not warn — this is silent-failure
+  territory). Matrix covers hyprlock, qt6ct, swayosd, gtk3, firefox (v0.21.0+). The same
+  matrix lives in `SKILL.md` A4.3 as a generation requirement, so the component-writer
+  emits what the validator asserts. A second lint ERRORs on any literal wallpaper path
+  in autostart.conf / hyprpaper.conf / hyprlock.conf — the only acceptable wallpaper
+  reference is the `current-wallpaper` symlink (per #3).
+
+- **#10 — hyprlock template + manifest entry.** New
+  `components/lock-screen/hyprlock.tmpl` (5-color literal-hex render: accent / surface
+  / fg / green / red, plus `{{font_ui_family}}`; background references the Issue-3
+  symlink). The required `hyprlock <TAB> … <TAB> :` manifest line (empty reload =
+  applies on next lock) is documented + asserted.
+
+- **#11 — qt6ct + Fusion + custom_palette.** New `components/qt/` directory with
+  `qt6ct.tmpl` (21 QPalette roles × {active, inactive, disabled}, `#AARRGGBB`) +
+  `template.md` documenting the static `qt6ct.conf` writer (`style=Fusion`,
+  `custom_palette=true`, `color_scheme_path=…/colors/rice.conf`). Fusion + custom_palette
+  is the lightest route — zero extra packages, re-themes from one INI rewrite (vs
+  Kvantum's folder-name dance + `kvantummanager --set` round-trip). `theming/gtk-qt.md`
+  gets a "lightweight Qt route" section explaining the trade-off; Kvantum remains
+  documented for SVG-fidelity / content-theming.
+
+- **#12 — swayosd theming.** New `components/utilities/swayosd.tmpl` (rounded container,
+  accent progress bar; sources `{{bg}} {{surface}} {{fg}} {{accent}}`). `utilities/
+  template.md` gains the swayosd section + manifest line. Empty reload — applies on
+  next server restart.
+
+- **#13 — gtk3 accent.** New `components/look-feel/gtk3.tmpl` parallel to
+  `theming/gtk4.tmpl`. Defines the older GTK3 aliases
+  (`theme_selected_bg_color`/`_fg_color`/`theme_bg_color`/`theme_base_color`) AND a
+  direct `*:selected { background-color: accent }` override — without the override, the
+  inherited Adwaita selection rule wins on specificity and thunar's selection bar reads
+  as stock blue even when `theme_selected_bg_color` is set. Registered when any GTK3
+  default app is in scope.
+
+### Deferred to v0.21.0
+
+- **#14 — browser (firefox) theming.** Browser is real new component scope (new
+  `components/browser/` tree with userChrome route + pywalfox route, profile resolution,
+  optional restart-hook reload script). Lands as one focused release rather than rushed
+  into v0.20.
+- **#15 — browser-profile bootstrap + needs-relaunch footer.** Sub-issue 15.3 (a
+  `rice apply` footer reporting "3 surfaces apply on next launch/lock: gtk3, qt6ct,
+  hyprlock") will land alongside #14, because all the next-launch surfaces are already
+  in v0.20.0 and the footer makes them legible.
+
+### Version bumps
+
+- **`SKILL.md`**, **`.claude-plugin/plugin.json`**, **`.claude-plugin/marketplace.json`**:
+  bumped to `0.20.0`.
+
 ## 0.19.0
 
 End-to-end production-shakedown release. A complete `/hyprland-config:rice` run on Arch +
