@@ -8,10 +8,3 @@
 /tmp/hypr-gen-*
 hypr-test/
 *.bak.*
-
-# Visual test screenshots — produced fresh on every run, uploaded as a CI artifact
-tests/visual/output/
-
-# Agent-eval per-run logs (verdicts, diffs, prior snapshots) — not committed; only the
-# generated/<fixture>/ baselines under tests/agent-eval/generated/ are.
-tests/agent-eval/output/
