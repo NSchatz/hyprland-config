@@ -196,7 +196,18 @@ window#waybar { background: transparent; color: @fg; }
   background: alpha(@bg, 0.78);
   border: 1px solid alpha(@accent, 0.18);
   border-radius: 16px; padding: 1px 6px;
-  box-shadow: 0 6px 24px rgba(0,0,0,0.40), 0 1px 3px rgba(0,0,0,0.30);
+  /* No box-shadow on the default — GTK/cairo renders heavy shadows on small
+   * rounded translucent surfaces as a visible rectangular halo on most stacks.
+   * The base `box-shadow: none` in `* { … }` takes over. The "elevated" knob
+   * below opts back in to a light single-layer shadow for users who want it. */
+}
+```
+
+To opt back in to a soft elevation (use sparingly — see `styling.md`):
+
+```css
+.modules-left, .modules-center, .modules-right {
+  box-shadow: 0 1px 2px rgba(0,0,0,0.20);
 }
 ```
 
@@ -290,6 +301,42 @@ tooltip label { color: @fg; padding: 4px 6px; }
 
 The full library of motion variants (blink-critical, opacity-breathe, spring overshoot, conditional
 backdrop) is in `styling.md` → *Motion & state animation*.
+
+### Module dividers — only between modules, never at the start of a group
+
+If the archetype paints a thin separator between adjacent stat modules (mechabar's `border-left`
+recipe is the canonical example), the **first module in a group must never carry the divider**.
+That includes both the truly-first module *and* whichever module becomes leading when an
+upstream module collapses for empty state (`mpris` disappears when nothing's playing, `tray`
+when no apps register, `idle_inhibitor` if not exec'd). A leading divider reads as a stray
+vertical line floating against the bar background.
+
+Use `:not(:first-child)` semantics on the divider rule rather than enumerating modules — that
+single selector also handles the "mpris collapsed → pulseaudio is now first" case for free:
+
+```css
+/* Vertical separator between stat modules — never on the first child of the group. */
+.modules-right > widget:not(:first-child) > #cpu,
+.modules-right > widget:not(:first-child) > #memory,
+.modules-right > widget:not(:first-child) > #temperature,
+.modules-right > widget:not(:first-child) > #pulseaudio,
+.modules-right > widget:not(:first-child) > #network,
+.modules-right > widget:not(:first-child) > #bluetooth,
+.modules-right > widget:not(:first-child) > #idle_inhibitor,
+.modules-right > widget:not(:first-child) > #tray {
+  border-left: 1px solid alpha(@accent, 0.18);
+}
+```
+
+Frequently-empty leading modules (must be considered when emitting the divider recipe):
+
+- `mpris` — empty whenever nothing's playing. Default leader in the stats group.
+- `tray` — empty when no SNI apps have registered.
+- `idle_inhibitor` — empty if the corresponding exec-once didn't run.
+- `custom/*` — any custom module whose `format` evaluates to empty.
+
+See `styling.md` → *Pitfalls* for the rationale (the `:not(:first-child)` approach plus the
+empty-leader list).
 
 ## Vertical / dual / dock — the other forms
 
