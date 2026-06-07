@@ -49,6 +49,80 @@ if grep -RE ':(height|width) +"auto"' "$staging/eww/"*.yuck; then
 fi
 ```
 
+### Boolean-typed `deflisten` / `defpoll` must have a safe default
+
+eww rejects opening a window whose `:visible` / `:reveal` / any other boolean-typed prop is
+bound to an uninitialized `deflisten` / `defpoll`. Until the first stdout line arrives, the
+var is `none`; binding `none` to a `bool` field surfaces as a parse error at `eww open <window>`
+time. The canonical defect is the music window — a `(deflisten playing "playerctl status -F")`
+that hasn't produced a line yet leaves `playing` as `none`; `defwindow music :visible playing`
+refuses to open.
+
+Two safe-default idioms; either is enough (use them together for belt-and-braces):
+
+1. **Initialize the var to a literal at declaration time**, so the first read is always a real
+   string/bool. eww accepts an inline default on the deflisten/defpoll form:
+
+   ```yuck
+   (deflisten playing :initial "false"   "~/.config/eww/scripts/player --watch | jq -r '.status==\"Playing\"'")
+   (defpoll   has_net :initial "false"   :interval "5s"  "~/.config/eww/scripts/toggles | jq -r '.wifi'")
+   ```
+
+2. **Coerce at the use site** with `(playing ?: "false")` — eww's `?:` returns the right side
+   if the left is `none`/empty:
+
+   ```yuck
+   (defwindow music :visible {playing ?: "false"} ...)
+   ```
+
+Both forms convert the empty-stdout window into a deterministic `false` instead of `none`. Watch
+particularly for `playerctl`-driven props: the helper may exit immediately if no player is on the
+bus, so the listener emits nothing on first run.
+
+A validator grep that surfaces every unprotected boolean-typed listener:
+
+```bash
+# Flag any deflisten / defpoll without :initial whose name is used in a :visible / :reveal /
+# :show / :active / :checked / :enabled / any *-toggle attribute. False positives are cheap;
+# missing this defect leaves a window unopenable.
+python3 - "$staging/eww/eww.yuck" <<'PY'
+import re, sys
+src = open(sys.argv[1]).read()
+bool_attrs = r'(?::visible|:reveal|:show|:active|:checked|:enabled|:toggle)'
+listeners = {}
+for m in re.finditer(r'\((deflisten|defpoll)\s+(\w+)([^)]*)\)', src, re.DOTALL):
+    has_initial = ':initial' in m.group(3)
+    listeners[m.group(2)] = has_initial
+bad = []
+for m in re.finditer(rf'{bool_attrs}\s*[{{"]?\s*(\w+)', src):
+    nm = m.group(1)
+    if nm in listeners and not listeners[nm]:
+        if f'{nm} ?:' not in src and f'{nm}?:' not in src:
+            bad.append(nm)
+if bad:
+    print(f"ERROR: boolean-typed vars without :initial or `?:` default: {sorted(set(bad))}",
+          file=sys.stderr)
+    sys.exit(1)
+PY
+```
+
+### Dry-run each declared window
+
+eww doesn't surface every parse error until the specific window is opened. The validator can
+ask the daemon to open and immediately close each `defwindow` against the staged config:
+
+```bash
+# Discover defwindow names and dry-run each one.
+EWW_CONFIG_DIR="$staging/eww" eww --restart daemon >/dev/null 2>&1
+for win in $(awk '/^\(defwindow/ {print $2}' "$staging/eww/eww.yuck"); do
+  EWW_CONFIG_DIR="$staging/eww" eww open "$win"  || { echo "ERROR: eww open $win failed" >&2; exit 1; }
+  EWW_CONFIG_DIR="$staging/eww" eww close "$win" >/dev/null 2>&1
+done
+EWW_CONFIG_DIR="$staging/eww" eww kill >/dev/null 2>&1
+```
+
+This catches the bool-default class for every window, not just the music one.
+
 ## AGS / Astal
 
 The Astal / AGS v3 CLI compiles + bundles TypeScript on `ags run` / `ags bundle`; there is

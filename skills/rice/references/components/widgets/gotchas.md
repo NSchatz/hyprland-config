@@ -131,6 +131,14 @@ Other eww traps worth knowing:
   `hyprctl layers`.
 - **Hardcoded `@import` paths** — some shipped configs use `@import "/home/USER/.config/eww/colors"`;
   these break on copy. Use relative `@import "colors";`.
+- **Boolean-typed `deflisten` / `defpoll` need a safe default** — until the first stdout line
+  arrives, the var is `none`, and binding `none` to `:visible` / `:reveal` / any other bool prop
+  refuses to open the window with a `bool` parse error. The canonical defect is the music window
+  bound to a `playerctl --follow` listener that hasn't emitted yet (no media player on the bus →
+  empty stdout → `none`). Fix at declaration with `:initial "false"`, or at the use site with
+  `(playing ?: "false")` — `?:` returns the right side when the left is `none`. The validator
+  (`validation.md` → "Boolean-typed deflisten / defpoll must have a safe default") greps for
+  unprotected bindings and a dry-run open of each defwindow surfaces the failure deterministically.
 
 See `styling.md` → `## eww` → "Pitfalls" for the full list.
 

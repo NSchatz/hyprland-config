@@ -17,16 +17,24 @@ these when 7a is one of `eww` / `ags` / `quickshell`; nothing for `hyprpanel` / 
 `none`. (Source: `theming/engine.md` → "Widget-shell theming".)
 
 ```
-eww         ~/.config/hypr-rice/templates/eww.tmpl         ~/.config/eww/colors.scss             eww reload
+eww         ~/.config/hypr-rice/templates/eww.tmpl         ~/.config/eww/colors.scss             pgrep -x eww >/dev/null && eww reload || true
 ags         ~/.config/hypr-rice/templates/ags.tmpl         ~/.config/ags/colors.scss
 quickshell  ~/.config/hypr-rice/templates/quickshell.tmpl  ~/.config/quickshell/<name>/Colors.qml
 ```
 
 Output paths vary per shell layout — an Astal project may want `style/colors.scss`, a Quickshell
-config may want `theme/Colors.qml` next to its `qmldir`. Match the shell's actual layout. The
-reload command is empty for AGS (the shell's *user-written* file-monitor — `Utils.monitorFile` in
-v1, a `monitorFile` + `app.apply_css(scss)` pair in v3 — picks up the colors-file write) and for
-Quickshell ("loads changes as soon as they're saved", per the docs).
+config may want `theme/Colors.qml` next to its `qmldir`. Match the shell's actual layout.
+
+**eww reload-cmd** must be the guarded form `pgrep -x eww >/dev/null && eww reload || true`.
+Plain `eww reload` non-zero-exits when the daemon isn't running, which `render-templates.sh`
+surfaces as `RELOAD_SKIPPED eww` — and worse, the shipped recipe previously had **no** reload-cmd
+at all, so a re-themed `colors.scss` sat on disk until the user manually re-ran eww. The guarded
+form is a no-op when eww isn't running (returns 0 via the `|| true`) and a successful reload when
+it is. eww `reload` is supported in elkowar/eww ≥ 0.5.
+
+The reload-cmd is **empty** for AGS (the shell's *user-written* file-monitor — `Utils.monitorFile`
+in v1, a `monitorFile` + `app.apply_css(scss)` pair in v3 — picks up the colors-file write) and
+for Quickshell ("loads changes as soon as they're saved", per the docs).
 
 ## eww — yuck + SCSS
 
