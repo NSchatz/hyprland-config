@@ -16,9 +16,17 @@ case "$cmd" in
         ;;
     wallpaper)
         # Set wallpaper, regenerate the palette from it, then re-theme everything.
+        # Setting a wallpaper is always the source of truth: persist `wallpaper=` to
+        # palette.conf before any --no-theme short-circuit, so the next `rice apply` /
+        # `rice theme` / `rice save` carries it.
         img="${1:-}"; [ -n "$img" ] || { echo "usage: rice wallpaper <image> [--no-theme]" >&2; exit 1; }
         shift 2>/dev/null || true
         bash "$RICE_DIR/set-wallpaper.sh" "$img"
+        pc="$RICE_DIR/palette.conf"
+        if [ -f "$pc" ]; then
+            if grep -q '^wallpaper=' "$pc"; then sed -i "s|^wallpaper=.*|wallpaper=$img|" "$pc"
+            else printf 'wallpaper=%s\n' "$img" >> "$pc"; fi
+        fi
         if [ "${1:-}" != "--no-theme" ]; then
             bash "$RICE_DIR/palette-from-wallpaper.sh" "$img" && bash "$RICE_DIR/render-templates.sh"
         fi
@@ -33,37 +41,49 @@ case "$cmd" in
     wallpapers)
         # List curated, theme-tagged downloadable wallpapers. Optional <scheme> filters to that
         # scheme plus the theme-agnostic `any` set; no arg lists everything grouped by scheme.
+        # Catalog schema: scheme<TAB>name<TAB>width<TAB>url (width is `?` if unknown).
         cat="$RICE_DIR/wallpapers.tsv"
         [ -f "$cat" ] || { echo "no wallpaper catalog ($cat)" >&2; exit 1; }
         want="${1:-}"
-        # Prefix-tolerant scheme match: `gruvbox` matches `gruvbox-dark`, `catppuccin` matches both
-        # flavors, exact keys match exactly. `any` is always included.
         awk -F'\t' -v want="$want" '
             function m(s,w){ return (w=="" || s==w || index(s,w"-")==1 || index(w,s"-")==1) }
-            /^[[:space:]]*#/ || NF<3 { next }
+            /^[[:space:]]*#/ || NF<4 { next }
             (m($1,want) || $1=="any") {
                 if ($1!=last) { printf "\n[%s]\n", $1; last=$1 }
-                n++; printf "  %2d) %-26s %s\n", n, $2, $3
+                n++; printf "  %2d) %-26s %6s  %s\n", n, $2, ($3=="?"?"?":$3"px"), $4
             }' "$cat"
         echo
-        echo "Download one with:  rice get-wallpaper <scheme> <number|name> [--set]"
+        echo "Download one with:  rice get-wallpaper <scheme> <number|name> [--set] [--min-res W]"
         ;;
     get-wallpaper|wallpaper-get)
         # Download a catalog wallpaper by scheme + selector (number within that scheme's list,
         # counting its `any` entries too, or a name substring). --set also applies it (keeps the
-        # current palette — no re-theme). --dir overrides the destination.
+        # current palette — no re-theme). --dir overrides the destination. --min-res W filters out
+        # entries narrower than W pixels (unknown widths are dropped).
         scheme="${1:-}"; sel="${2:-}"
-        [ -n "$scheme" ] && [ -n "$sel" ] || { echo "usage: rice get-wallpaper <scheme> <number|name> [--set] [--dir DIR]" >&2; exit 1; }
+        [ -n "$scheme" ] && [ -n "$sel" ] || { echo "usage: rice get-wallpaper <scheme> <number|name> [--set] [--dir DIR] [--min-res W]" >&2; exit 1; }
         shift 2 2>/dev/null || true
-        do_set=0; dir="$HOME/Pictures/wallpapers"
-        while [ $# -gt 0 ]; do case "$1" in --set) do_set=1;; --dir) shift; dir="${1:-$dir}";; esac; shift; done
+        do_set=0; dir="$HOME/Pictures/wallpapers"; min_res=0
+        while [ $# -gt 0 ]; do
+            case "$1" in
+                --set) do_set=1;;
+                --dir) shift; dir="${1:-$dir}";;
+                --min-res) shift; min_res="${1:-0}";;
+            esac
+            shift
+        done
         cat="$RICE_DIR/wallpapers.tsv"
         [ -f "$cat" ] || { echo "no wallpaper catalog ($cat)" >&2; exit 1; }
-        # Build the same scheme+any list `rice wallpapers <scheme>` shows, then resolve the selector.
-        mapfile -t rows < <(awk -F'\t' -v want="$scheme" '
+        # Catalog rows are listed in descending-width order per scheme, so the first match is the
+        # highest-res entry. With --min-res W, drop rows whose width is unknown (`?`) or below W.
+        mapfile -t rows < <(awk -F'\t' -v want="$scheme" -v minw="$min_res" '
             function m(s,w){ return (s==w || index(s,w"-")==1 || index(w,s"-")==1) }
-            /^[[:space:]]*#/ || NF<3 { next }
-            (m($1,want) || $1=="any") { printf "%s\t%s\n", $2, $3 }' "$cat")
+            /^[[:space:]]*#/ || NF<4 { next }
+            (m($1,want) || $1=="any") {
+                w = ($3=="?" ? 0 : $3+0)
+                if (minw>0 && w<minw) next
+                printf "%s\t%s\n", $2, $4
+            }' "$cat")
         [ "${#rows[@]}" -gt 0 ] || { echo "no wallpapers for scheme '$scheme' (see: rice wallpapers)" >&2; exit 1; }
         pick=""
         if printf '%s' "$sel" | grep -qE '^[0-9]+$'; then
@@ -134,11 +154,29 @@ case "$cmd" in
         echo "SAVED profile '$name'";;
     theme|load)
         # Load a saved profile's palette, set its wallpaper if recorded, and re-theme.
+        # `wallpaper=` in the profile may be either a local path or a catalog selector
+        # `<scheme>:<name>` — selectors are resolved through `rice get-wallpaper`, downloading
+        # to ~/Pictures/wallpapers/ on first use. This lets shipped preset profiles carry a
+        # wallpaper assignment without bundling the image.
         name="${1:-}"; [ -n "$name" ] || { echo "usage: rice theme <name>  (see: rice themes)" >&2; exit 1; }
         src="$RICE_DIR/profiles/$name.conf"
         [ -f "$src" ] || { echo "no profile '$name' (see: rice themes)" >&2; exit 1; }
         cp "$src" "$RICE_DIR/palette.conf"
         wp="$(sed -n 's/^wallpaper=//p' "$RICE_DIR/palette.conf" | head -1)"; wp="${wp/#\~/$HOME}"
+        # Catalog-selector form: `scheme:name` (no `/`, no leading `~`, contains `:`).
+        if [ -n "$wp" ] && [ ! -f "$wp" ] && printf '%s' "$wp" | grep -qE '^[A-Za-z0-9-]+:[A-Za-z0-9._-]+$'; then
+            sch="${wp%%:*}"; sel="${wp##*:}"
+            resolved="$(bash "$0" get-wallpaper "$sch" "$sel" 2>/dev/null | sed -n 's/^WALLPAPER=//p' | tail -1)"
+            if [ -n "$resolved" ] && [ -f "$resolved" ]; then
+                # Persist the resolved local path so subsequent applies don't re-download.
+                pc="$RICE_DIR/palette.conf"
+                sed -i "s|^wallpaper=.*|wallpaper=$resolved|" "$pc"
+                wp="$resolved"
+            else
+                echo "WARN: could not resolve wallpaper selector '$wp' — skipping wallpaper set" >&2
+                wp=""
+            fi
+        fi
         [ -n "$wp" ] && [ -f "$wp" ] && bash "$RICE_DIR/set-wallpaper.sh" "$wp" >/dev/null 2>&1
         bash "$RICE_DIR/render-templates.sh"
         echo "APPLIED profile '$name'";;
