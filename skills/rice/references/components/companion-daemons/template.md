@@ -91,9 +91,13 @@ restart as its reload hook (guarded — no-op when hypridle isn't running).
 
 ## `~/.config/hypr/hyprpaper.conf`
 
-Emitted only when `companion_configs.hyprpaper == true`. The wallpaper path comes from
-`wallpaper.path`; if the user skipped the wallpaper question, use the placeholder
-`~/.config/hypr/wall.png` and tell the user to drop an image there.
+Emitted only when `companion_configs.hyprpaper == true`. The wallpaper path is **always** the
+stable symlink `~/.config/hypr-rice/current-wallpaper` (maintained by `scripts/set-wallpaper.sh`
+on every successful pick — see `_shared/wallpaper-pointer.md`). hyprpaper follows symlinks at
+read time, so re-theming / wallpaper-picking updates the link, no `hyprpaper.conf` re-render
+needed. If the user skipped the wallpaper question, the writer drops an initial image at
+`~/.config/hypr/wall.png` and points the symlink at it on first generation; subsequent
+`rice wallpaper` calls retarget the symlink, the .conf stays unchanged.
 
 > **HARD BREAK at hyprpaper 0.8.0** (Dec 2025) — hyprpaper was rewritten on top of hyprtoolkit
 > and the **classic `preload =` / `wallpaper = MON, PATH` syntax was removed**. The new config
@@ -109,7 +113,7 @@ Verified against the [official wiki](https://wiki.hypr.land/Hypr-Ecosystem/hyprp
 ```ini
 wallpaper {
     monitor  =                                  # empty = fallback for any output without a target
-    path     = {{wallpaper_path_or_placeholder}}
+    path     = ~/.config/hypr-rice/current-wallpaper
     fit_mode = cover                            # cover (default) | contain | tile | fill
 }
 
@@ -140,8 +144,8 @@ A wallpaper-swap reload hook must use the single `wallpaper` IPC line above.
 ### Legacy (0.7.x and earlier — only if a user pins an older package)
 
 ```ini
-preload   = {{wallpaper_path_or_placeholder}}
-wallpaper = , {{wallpaper_path_or_placeholder}}
+preload   = ~/.config/hypr-rice/current-wallpaper
+wallpaper = , ~/.config/hypr-rice/current-wallpaper
 splash    = false
 ipc       = on
 ```

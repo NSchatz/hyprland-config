@@ -4,6 +4,26 @@ The interview asks the wallpaper pick at component 14 (see
 [`_interview-protocol.md`](../_interview-protocol.md) → "Components walked"). The chosen path lands
 in `palette.conf` as `wallpaper=…` so it's captured by theme profiles and git versioning.
 
+`palette.conf:wallpaper=` accepts two forms:
+
+- **Local path** — `wallpaper=/home/u/Pictures/wallpapers/foo.png` (the normal case after an
+  interactive pick or `rice get-wallpaper --set`). `set-wallpaper.sh` paints it directly.
+- **Catalog selector** — `wallpaper=<scheme>:<name>` (e.g. `wallpaper=nord:lighthouse`). Used by
+  the shipped preset profiles under `assets/profiles/` so they can carry a wallpaper assignment
+  without bundling the image. `rice theme <name>` recognizes the selector, resolves it through
+  `rice get-wallpaper <scheme> <name>` (downloading on first use), rewrites `palette.conf` to the
+  resolved local path, and paints. Subsequent applies skip the download.
+
+The catalog itself (`assets/wallpapers.tsv`) is a 4-column TSV
+(`scheme<TAB>name<TAB>width<TAB>url`); rows are listed in **descending width per scheme** so
+`rice get-wallpaper <scheme> 1` resolves to the highest-resolution image. Unknown widths render
+as `?` and rank below any known width. The `rice wallpapers` listing shows the width column.
+
+Every preset profile under `assets/profiles/` ships a `wallpaper=<scheme>:<name>` line — see
+the `wallpaper=` row in each `*.conf` for the chosen pairing. The selection rule was "pick the
+highest-width catalog entry whose colors fit the palette." Latte (catppuccin-latte), Nord, and
+Solarized had to override the default ordering — see the inline comments in `wallpapers.tsv`.
+
 ## Backends
 
 | Tool | Set command | Notes |
@@ -219,6 +239,23 @@ target   = "~/.config/hypr/colors.conf"
 ```
 
 Run: `wallust run "$wp"`. The old `new_engine` key is gone — Jinja2 is the default.
+
+## The `current-wallpaper` symlink — single live pointer for every consumer
+
+`scripts/set-wallpaper.sh` maintains `~/.config/hypr-rice/current-wallpaper` as a symlink to the
+active image on **every** successful set (swww/awww, hyprpaper, swaybg paths). Every wallpaper
+consumer in the rice — `hyprlock.conf` (background path), `hyprpaper.conf` (`wallpaper { path }`),
+the autostart swww/awww bootstrap, the restore-theme script — references the symlink, **not** a
+literal path captured at generation time. Re-theme / re-pick changes one symlink, every consumer
+follows.
+
+The full contract (consumers, generation-time invariants, why a symlink) is `_shared/wallpaper-pointer.md`.
+
+The persistence story (`palette.conf:wallpaper=<literal>`) is **unchanged** — that's the *recorded*
+choice that survives `rice save <name>` / `rice theme <name>`. The symlink is the *current*
+pointer; the palette key is the *last selected* image. The restore script reads `palette.conf` on
+fresh login (to know what to set the symlink to on a cold boot when set-wallpaper.sh hasn't run
+yet) and the symlink during every other paint.
 
 ## Restore last wallpaper on login
 

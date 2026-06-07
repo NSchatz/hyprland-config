@@ -44,9 +44,13 @@ background {
 }
 {{/if}}
 {{#if background == "wallpaper"}}
+# Reference the stable symlink that `set-wallpaper.sh` maintains, not the literal
+# path captured at generation time. hyprlock follows symlinks at lock time, so any
+# `rice wallpaper` / `rice theme` keeps the lock background in sync without a
+# re-render of hyprlock.conf. See _shared/wallpaper-pointer.md.
 background {
     monitor =
-    path = {{wallpaper_path}}
+    path = ~/.config/hypr-rice/current-wallpaper
     blur_passes = 1
     blur_size = 5
 }
@@ -209,7 +213,7 @@ auth {
 | Placeholder        | Source                           | Notes |
 |---|---|---|
 | `{{font_ui_family}}` | `palette.conf` `font_ui` minus the size suffix | `"Inter 11"` → `Inter`. |
-| `{{wallpaper_path}}` | `wallpaper.path` from `answers.json` | Only when `background = wallpaper`. |
+| (wallpaper path) | the literal `~/.config/hypr-rice/current-wallpaper` symlink | The `background = wallpaper` branch references the symlink directly — no per-render substitution. Maintained by `scripts/set-wallpaper.sh` on every successful set. |
 | `{{accent}}`         | `palette.conf` `accent`           | Bare hex (no `#`). |
 | `{{surface}}`        | `palette.conf` `surface`          | Bare hex. |
 | `{{fg}}`             | `palette.conf` `fg`               | Bare hex. |

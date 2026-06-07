@@ -20,9 +20,15 @@ Lands at `~/.config/hypr/autostart.conf`, `source =`d from `hyprland.conf`. Ever
 # before the install (the normal Mode A flow) neither variant is on disk yet, so the writer emits
 # the binary-agnostic launcher instead of a hard-coded name; the launcher picks whichever variant
 # exists at first run.
+#
+# Wallpaper path: the swww/awww initial-paint line and hyprpaper.conf both reference the stable
+# symlink ~/.config/hypr-rice/current-wallpaper (maintained by scripts/set-wallpaper.sh). Reboot
+# follows the live pointer — never the literal path captured at generation time. See
+# _shared/wallpaper-pointer.md.
 {{#if hyprpaper}}exec-once = hyprpaper{{/if}}
 {{#if swww_known_bin}}exec-once = {{swww_daemon_bin}}{{/if}}
 {{#if swww_agnostic}}exec-once = sh -c 'command -v swww-daemon >/dev/null && exec swww-daemon || exec awww-daemon'{{/if}}
+{{#if swww_any}}exec-once = sh -c 'for _ in 1 2 3 4 5 6; do command -v swww >/dev/null && swww query >/dev/null 2>&1 && swww img ~/.config/hypr-rice/current-wallpaper --transition-type any && exit; command -v awww >/dev/null && awww query >/dev/null 2>&1 && awww img ~/.config/hypr-rice/current-wallpaper --transition-type any && exit; sleep 0.5; done'{{/if}}
 {{#if has_restore_script}}exec-once = {{restore_script_path}}{{/if}}
 
 # --- Portal env propagation (always emitted — the "screen-share is black" fix) ---
@@ -62,6 +68,7 @@ Emit only the chosen branches — drop the template markers and any branch that'
 | `swww_known_bin` | `autostart_env.wallpaper_tool == "swww"` AND detection has a concrete `SWWW_DAEMON_BIN` (one of the two variants is on disk at generate time). |
 | `swww_agnostic` | `autostart_env.wallpaper_tool == "swww"` AND detection reports `MISSING_swww=1` (neither variant installed yet — the normal Mode A flow before the install batch runs). Emits the `sh -c …` agnostic launcher so first boot picks whichever variant the install batch landed. See `_shared/binaries.md`. |
 | `swww_daemon_bin` | `SWWW_DAEMON_BIN` from `detect-version.sh` — literally `swww-daemon` or `awww-daemon`. **Never hard-code `swww-daemon`** (see `gotchas.md` and `_shared/binaries.md`). Used only when `swww_known_bin` is true. |
+| `swww_any` | `autostart_env.wallpaper_tool == "swww"`. Emits the initial-paint bootstrap that runs `swww img ~/.config/hypr-rice/current-wallpaper` once the daemon's socket is up. Without it the swww/awww daemon starts on every login but paints nothing until the next `rice apply` / `rice wallpaper` — so reboot leaves the screen blank for the un-themed paint window. See `_shared/wallpaper-pointer.md`. |
 | `bar_waybar` | `bar.strategy` is `"waybar"` or `"waybar+widgets"`. |
 | `notif_mako` / `notif_dunst` / `notif_swaync` | `notifications.daemon` matches that string. If a widget shell owns notifications (see `gotchas.md`), set the daemon to `null` upstream — none of these branches fire. |
 | `hypridle` / `hyprsunset` | Entry present in `autostart_env.autostart`. |
