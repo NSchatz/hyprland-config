@@ -76,8 +76,9 @@ But the **picks determine which other component templates need to be rendered**:
 
 | If `default_apps.browser ==` | Then re-theming relies on | Owned by |
 |---|---|---|
-| `firefox` | Firefox is **not** auto-themed. Chrome stays default. (To match: userChrome / pywalfox add-on layer — out of scope for v0.13.) | (none) |
-| `chromium` / `brave` / `zen-browser` | Same — chrome stays default unless a userChrome.css is generated separately. Dank and noctalia ship matugen browser templates; we do not. | (none) |
+| `firefox` (+ `browser_theming.opt_in = true`) | The new browser component — `firefox.tmpl` → `<profile>/chrome/rice-colors.css` + a static `userChrome.css` + `user.js` copied via `firefox-bootstrap.sh`. Default route since v0.21. Restart-hook `firefox-restart.sh` makes the switch live (with session restore) or opt out for "next launch" footer reporting. | [`components/browser/`](../browser/) |
+| `firefox` (no opt-in) | Firefox is **not** auto-themed. Chrome stays default. | (none) |
+| `chromium` / `brave` / `zen-browser` | Chromium / Brave have no userChrome equivalent (out of scope). Zen + LibreWolf inherit the userChrome mechanism but the component is firefox-only in v0.21 — see [`components/browser/packages.md`](../browser/packages.md) → "Other browsers". Dank and noctalia ship matugen browser templates for the wallpaper-engine path; we don't (use the pywalfox route documented in `browser/gotchas.md` instead). | (none) |
 
 If you pick a Qt6 file manager (Dolphin) but skip Kvantum, the file manager renders Breeze
 regardless of palette — flag this in the interview when the user picks Dolphin (see

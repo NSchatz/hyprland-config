@@ -1,0 +1,148 @@
+#!/usr/bin/env bash
+# One-time bootstrap for Firefox userChrome theming (Issue 15.1).
+# Run by install.sh (or invoked manually after the user runs Firefox once).
+#
+# Resolves the default Firefox profile from ~/.mozilla/firefox/profiles.ini
+# (the profile dir name is dynamic — `xxxxxxxx.default-release` etc.),
+# creates <profile>/chrome/ if missing, copies the static userChrome.css +
+# user.js into place, and prints the resolved path so install.sh can write
+# the templates.list manifest line.
+#
+# Usage:
+#   firefox-bootstrap.sh                     # bootstrap default profile
+#   firefox-bootstrap.sh --profile <dir>     # bootstrap a specific profile
+#   firefox-bootstrap.sh --no-create-profile # don't auto-create if missing
+#
+# Output (stdout):
+#   FIREFOX_PROFILE=<absolute-path>          # resolved profile directory
+#   FIREFOX_CHROME=<absolute-path>           # the chrome/ subdir we wrote
+#   FIREFOX_RICE_COLORS=<absolute-path>      # rice-colors.css render target
+#
+# Exit codes:
+#   0  bootstrap succeeded
+#   1  no profile + --no-create-profile (user must launch Firefox first)
+#   2  bad arguments / no Firefox installed
+
+set -uo pipefail
+
+RICE_DIR="${RICE_DIR:-$HOME/.config/hypr-rice}"
+ASSETS="${FIREFOX_ASSETS_DIR:-$RICE_DIR/browser}"
+auto_create=1
+profile_override=""
+
+while [ $# -gt 0 ]; do
+    case "$1" in
+        --profile)            shift; profile_override="${1:-}";;
+        --no-create-profile)  auto_create=0;;
+        -h|--help)            sed -n '2,18p' "$0"; exit 0;;
+        *)                    echo "ERROR: unknown arg: $1" >&2; exit 2;;
+    esac
+    shift
+done
+
+command -v firefox >/dev/null 2>&1 || { echo "ERROR: firefox not installed" >&2; exit 2; }
+
+ff_dir="$HOME/.mozilla/firefox"
+profiles_ini="$ff_dir/profiles.ini"
+
+resolve_default_profile() {
+    [ -f "$profiles_ini" ] || return 1
+    # Parse profiles.ini for the Default=1 profile, or fall back to the
+    # first [Profile…] block. Path= may be relative ("xxxx.default-release")
+    # or absolute ("/home/u/.mozilla/firefox/xxxx.default-release").
+    awk -F= '
+        BEGIN { in_p=0; def=0; path=""; first=""; first_set=0 }
+        /^\[Profile/ {
+            if (def && path) { print path; exit }
+            in_p=1; def=0; path=""
+            next
+        }
+        /^\[/ {
+            if (def && path) { print path; exit }
+            in_p=0; def=0; path=""
+            next
+        }
+        in_p && $1=="Default" && $2=="1" { def=1 }
+        in_p && $1=="Path" {
+            path=$2
+            if (!first_set) { first=path; first_set=1 }
+        }
+        END {
+            if (def && path) print path
+            else if (first_set) print first
+        }
+    ' "$profiles_ini"
+}
+
+if [ -n "$profile_override" ]; then
+    profile_dir="$profile_override"
+else
+    profile_dir="$(resolve_default_profile || true)"
+fi
+
+if [ -z "$profile_dir" ]; then
+    if [ "$auto_create" -eq 0 ]; then
+        echo "ERROR: no Firefox profile found and --no-create-profile set" >&2
+        echo "       launch Firefox once, then re-run this script" >&2
+        exit 1
+    fi
+    # Use Firefox's documented headless CreateProfile flow. This writes
+    # profiles.ini AND creates the profile directory with a random prefix
+    # (e.g. xxxxxxxx.default-release).
+    firefox --headless --no-remote --CreateProfile "default-release" >/dev/null 2>&1 || true
+    profile_dir="$(resolve_default_profile || true)"
+    if [ -z "$profile_dir" ]; then
+        echo "ERROR: --CreateProfile didn't produce a usable profile" >&2
+        exit 1
+    fi
+fi
+
+# Absolutize.
+case "$profile_dir" in
+    /*) ;;
+    *)  profile_dir="$ff_dir/$profile_dir" ;;
+esac
+
+if [ ! -d "$profile_dir" ]; then
+    echo "ERROR: resolved profile dir does not exist: $profile_dir" >&2
+    exit 1
+fi
+
+chrome_dir="$profile_dir/chrome"
+mkdir -p "$chrome_dir"
+
+# Copy the static files. Don't clobber a user-modified userChrome.css
+# without a backup — leave it intact and append an @import line if missing.
+if [ -f "$ASSETS/userChrome.css" ]; then
+    if [ -e "$chrome_dir/userChrome.css" ] && \
+       ! grep -q 'rice-colors.css' "$chrome_dir/userChrome.css"; then
+        cp "$chrome_dir/userChrome.css" "$chrome_dir/userChrome.css.bak.$(date +%s)"
+        printf '\n/* hypr-rice: pull in rice-colors.css */\n@import "rice-colors.css";\n' \
+            >> "$chrome_dir/userChrome.css"
+    else
+        cp "$ASSETS/userChrome.css" "$chrome_dir/userChrome.css"
+    fi
+fi
+
+# user.js — merge prefs idempotently (don't clobber user settings).
+if [ -f "$ASSETS/user.js" ]; then
+    touch "$profile_dir/user.js"
+    while IFS= read -r line; do
+        case "$line" in
+            'user_pref('*)
+                key="$(printf '%s' "$line" | sed -n 's/^user_pref("\([^"]*\)".*$/\1/p')"
+                [ -n "$key" ] || continue
+                if ! grep -qF "user_pref(\"$key\"" "$profile_dir/user.js"; then
+                    printf '%s\n' "$line" >> "$profile_dir/user.js"
+                fi
+                ;;
+            *) : ;;
+        esac
+    done < "$ASSETS/user.js"
+fi
+
+# Emit the paths so install.sh can wire the manifest line + render the
+# initial rice-colors.css.
+echo "FIREFOX_PROFILE=$profile_dir"
+echo "FIREFOX_CHROME=$chrome_dir"
+echo "FIREFOX_RICE_COLORS=$chrome_dir/rice-colors.css"

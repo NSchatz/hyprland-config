@@ -1,0 +1,98 @@
+/* Installed once into <profile>/chrome/userChrome.css by firefox-bootstrap.sh.
+ * Palette-agnostic: imports the engine-rendered rice-colors.css and maps
+ * --rice-* onto Firefox chrome via the lightweight-theme (lwt-*) custom
+ * properties + direct selectors. Re-themes pick up automatically on next
+ * browser launch (or via firefox-restart.sh as the manifest reload hook).
+ *
+ * Requires `toolkit.legacyUserProfileCustomizations.stylesheets = true` —
+ * set in user.js so the pref re-locks on every startup.
+ */
+
+@import "rice-colors.css";
+
+:root {
+    /* lightweight-theme variables — these flow through every chrome surface
+     * Firefox themes touch, so they cover ~80% of the visible chrome for free. */
+    --lwt-accent-color:                    var(--rice-bg) !important;
+    --lwt-text-color:                      var(--rice-fg) !important;
+    --lwt-toolbar-field-background-color:  var(--rice-surface) !important;
+    --lwt-toolbar-field-color:             var(--rice-fg) !important;
+    --lwt-toolbar-field-focus:             var(--rice-surface) !important;
+    --lwt-toolbar-field-focus-color:       var(--rice-fg) !important;
+    --lwt-toolbar-field-border-color:      var(--rice-muted) !important;
+    --lwt-tab-text:                        var(--rice-fg) !important;
+    --lwt-selected-tab-background-color:   var(--rice-surface) !important;
+    --lwt-popup-background:                var(--rice-surface) !important;
+    --lwt-popup-color:                     var(--rice-fg) !important;
+
+    /* Direct toolbar/panel/url-bar tokens (Firefox 110+). */
+    --toolbar-bgcolor:                     var(--rice-bg) !important;
+    --toolbar-color:                       var(--rice-fg) !important;
+    --tab-selected-bgcolor:                var(--rice-surface) !important;
+    --tab-selected-textcolor:              var(--rice-fg) !important;
+    --urlbar-box-bgcolor:                  var(--rice-surface) !important;
+    --urlbar-box-focused-bgcolor:          var(--rice-surface) !important;
+    --panel-background:                    var(--rice-surface) !important;
+    --panel-color:                         var(--rice-fg) !important;
+}
+
+/* ---------- tab bar ---------- */
+#TabsToolbar,
+#tabbrowser-tabs {
+    background-color: var(--rice-bg) !important;
+}
+.tabbrowser-tab:not([selected="true"]) .tab-label {
+    color: var(--rice-muted) !important;
+}
+.tabbrowser-tab[selected="true"] .tab-label {
+    color: var(--rice-fg) !important;
+}
+.tabbrowser-tab[selected="true"] {
+    background-color: var(--rice-surface) !important;
+}
+
+/* ---------- URL bar ---------- */
+#urlbar,
+#urlbar-background {
+    background-color: var(--rice-surface) !important;
+    color: var(--rice-fg) !important;
+}
+#urlbar[focused] #urlbar-background,
+#urlbar:focus-within {
+    border-color: var(--rice-accent) !important;
+    box-shadow: 0 0 0 1px var(--rice-accent) !important;
+}
+
+/* ---------- nav bar + toolbar buttons ---------- */
+#nav-bar,
+#PersonalToolbar {
+    background-color: var(--rice-bg) !important;
+    border-bottom: 1px solid var(--rice-surface) !important;
+}
+.toolbarbutton-icon,
+.urlbar-icon {
+    fill: var(--rice-fg) !important;
+    color: var(--rice-fg) !important;
+}
+
+/* ---------- menus / panels / popups ---------- */
+menupopup,
+panel,
+.panel-arrowcontent {
+    --panel-background: var(--rice-surface) !important;
+    --panel-color: var(--rice-fg) !important;
+    background-color: var(--rice-surface) !important;
+    color: var(--rice-fg) !important;
+}
+menuitem:hover,
+menu:hover {
+    background-color: var(--rice-accent) !important;
+    color: var(--rice-bg) !important;
+}
+
+/* ---------- sidebar (history, bookmarks) ---------- */
+#sidebar-box,
+#sidebar-header {
+    background-color: var(--rice-bg) !important;
+    color: var(--rice-fg) !important;
+}
