@@ -19,8 +19,14 @@ Version branches (cite [`_shared/version-matrix.md`](../../_shared/version-matri
   `scrolling:*` config keys do not exist at v0.53.0 source). The rice version matrix says 0.53+;
   see the cross-component flag in the changes report. Safe to emit uncommented on any target ≥ 0.54.
 - `cursor { no_hardware_cursors = 1 }` — emit when `CURSOR_NO_HARDWARE_RECOMMENDED=1` (see
-  `gotchas.md`). Note `no_hardware_cursors` is an **int** in source (0 disable / 1 enable / 2 auto),
-  not a bool; the hyprlang parser also accepts `true`/`false` but the canonical form is the int.
+  `gotchas.md`). The option means *"do not use hardware cursors"* — i.e. the integer selects
+  the source the cursor is rendered from:
+    - `0` = **HW cursors** (use the GPU cursor plane — fastest, but flaky on nouveau / nvidia
+      proprietary, which is why we don't pick it as the default)
+    - `1` = **software cursors** (rendered by the compositor — safe on every GPU)
+    - `2` = **auto** (let Hyprland decide — default in 0.54+)
+  It's an **int** in source, not a bool; the hyprlang parser accepts `true` / `false` but the
+  int form is canonical.
 
 ## Preset substitution table
 
@@ -153,8 +159,11 @@ animations { enabled = false }
 {{#if cursor_no_hardware}}
 # Software-cursors workaround — emitted only when detect-version reports
 # CURSOR_NO_HARDWARE_RECOMMENDED=1 (GPU_DRIVER nouveau or nvidia). See gotchas.md.
-# Note: no_hardware_cursors is an int (0/1/2 = disable/enable/auto) in 0.54+; the parser
-# also accepts true/false, but the int form is what the source registers (default = 2).
+# `no_hardware_cursors` is an int in 0.54+ (parser also accepts true/false; the int form is
+# canonical; default = 2). The option name is literally "do not use hardware cursors", so:
+#   0 = use HW cursors (GPU cursor plane — fastest, but blanks on nouveau/nvidia when idle)
+#   1 = use software cursors (rendered by the compositor — safe; what we want here)
+#   2 = auto (Hyprland picks)
 cursor {
     no_hardware_cursors = 1
     inactive_timeout    = 0
@@ -171,7 +180,13 @@ misc {
     # (0xff111111). Tie to $bg so the brief flash on session start matches the wallpaper / palette
     # instead of jumping black. Verified `misc:background_color` (Color) at v0.55.2 ConfigValues.cpp
     # line 465; same key registered ≥ 0.46.0.
-    background_color      = rgb($bg)
+    # NOTE: `$bg` is already `rgb(<hex>)` (palette vars in colors.conf wrap with rgb()), so emit
+    # it bare — wrapping again as `rgb($bg)` produces `rgb(rgb(<hex>))` which Hyprland rejects
+    # and the whole reload fails. Same rule for every color key (col.*, background_color,
+    # cursor.color, shadow.color): use `$accent` / `$bg` / `$surface` bare. The validator
+    # agent lints generated *.conf for `rgb($var)` / `rgba($var)` / `#$var` and errors if any
+    # appear (defect #3 — the "double-wrap" class of bug).
+    background_color      = $bg
 
     # Variable Refresh Rate — adaptive sync (FreeSync / G-SYNC). 0 = off, 1 = on, 2 = fullscreen-only.
     # Distinct from `debug:vfr` (frame-rate; below). Default 0. Verified `misc:vrr` (Int) at v0.54.3
@@ -192,7 +207,7 @@ debug {
 misc {
     vfr                   = true   # variable FRAME rate — biggest idle/battery win
     vrr                   = 0      # variable REFRESH rate — 0 off / 1 on / 2 fullscreen-only
-    background_color      = rgb($bg)   # fallback bg before hyprpaper paints; default 0xff111111
+    background_color      = $bg   # fallback bg before hyprpaper paints; default 0xff111111
     disable_hyprland_logo = true
     {{#if enable_swallow}}enable_swallow = true{{/if}}
     {{#if enable_swallow}}swallow_regex  = {{swallow_regex}}{{/if}}

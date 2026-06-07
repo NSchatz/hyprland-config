@@ -32,6 +32,39 @@ Quickshell ("loads changes as soon as they're saved", per the docs).
 
 **Template:** `skills/rice/references/components/widgets/eww.tmpl` (renders to `~/.config/eww/colors.scss`).
 
+**Data helpers (shipped):** the eww `defwidget`s reference shell scripts that emit JSON for
+`(deflisten)` / `(defpoll)` blocks. These scripts ship under
+`${CLAUDE_PLUGIN_ROOT}/skills/rice/assets/scripts/eww/` and the installer copies them to
+`~/.config/eww/scripts/`, `chmod +x`. The contract for each script lives in
+[`_shared/helper-scripts.md`](../../_shared/helper-scripts.md):
+
+| Script | Path under eww | Emits | Runtime deps |
+|---|---|---|---|
+| `sysinfo` | `~/.config/eww/scripts/sysinfo` | `{cpu, mem, mem_used_mb, mem_total_mb, swap, temp_c, disk, uptime}` | `/proc`, `awk` (always), `sensors` (optional) |
+| `audio`   | `~/.config/eww/scripts/audio`   | `{vol, mute, mic, mic_mute, brightness, source}` plus `vol+/vol-/vol-toggle/mic-toggle/bright+/bright-` actions | `wpctl` or `pactl`; `brightnessctl` optional |
+| `player`  | `~/.config/eww/scripts/player`  | `{status, title, artist, album, art_url, art_local, length_us, position_us, progress, player_name}` plus `toggle/next/prev` actions | `playerctl`; `curl` (cover-art download) |
+| `toggles` | `~/.config/eww/scripts/toggles` | `{wifi, bt, dnd, mic_mute}` plus `wifi/bt/dnd/mic` toggle actions | `nmcli`, `bluetoothctl`, `swaync-client`/`makoctl`/`dunstctl`, `wpctl`/`pactl` |
+
+Wire them via `defpoll` (one-shot, low-rate) or `deflisten` (long-running with `--watch`):
+
+```yuck
+(defpoll sysinfo  :interval "2s" "~/.config/eww/scripts/sysinfo")
+(deflisten audio  "~/.config/eww/scripts/audio --watch")
+(deflisten player "~/.config/eww/scripts/player --watch")
+(defpoll  toggles :interval "5s" "~/.config/eww/scripts/toggles")
+```
+
+The widgets writer must:
+
+1. **Stage the eww scripts** alongside `eww.yuck` / `eww.scss` (the rice installer copies them
+   into `~/.config/eww/scripts/` and `chmod +x`s them — see
+   `_shared/helper-scripts.md` and `components/widgets/packages.md`).
+2. **Reference the canonical paths** above in the yuck templates the writer ships. Hard-coded
+   `/home/USER/.config/eww/scripts/...` paths break on first reinstall; use `~/.config/`.
+3. **Declare the helper-script runtime deps** in the install batch so the scripts actually work
+   on first boot (`wpctl` ships with `wireplumber`; `brightnessctl`, `playerctl`, `nmcli`, `bluetoothctl`
+   are repo packages).
+
 The template emits a flat `$bg / $fg / $surface / $muted / $cursor / $accent / $accent2 / $red /
 $green / $yellow / $blue / $magenta / $cyan / $color0..$color15` list of `$key: #hex;` lines.
 

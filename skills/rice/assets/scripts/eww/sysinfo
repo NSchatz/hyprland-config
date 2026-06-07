@@ -1,0 +1,93 @@
+#!/usr/bin/env bash
+# eww helper: print system info as JSON for `(deflisten sysinfo :initial "{}" "scripts/sysinfo")`.
+# Prints once and exits (eww's `defpoll`) or, with `--watch`, every 2 s (eww's `deflisten`).
+# Output keys: cpu (0-100, integer %), mem (0-100 %), mem_used_mb, mem_total_mb, swap (%),
+# temp_c (or null when no sensor is readable), disk (0-100 % of /), uptime (human, e.g. "3h 12m").
+# No external deps beyond `awk` / coreutils — `sensors` is consulted opportunistically.
+set -uo pipefail
+
+cpu_pct() {
+    # Read /proc/stat snapshot, sleep 1s, read again; idle delta vs total delta.
+    local a b idle1 idle2 total1 total2 deltaidle deltatotal
+    read -r _ a < /proc/stat
+    a=( $a )
+    idle1=$(( a[3] + a[4] ))
+    total1=0; for x in "${a[@]}"; do total1=$(( total1 + x )); done
+    sleep 1
+    read -r _ b < /proc/stat
+    b=( $b )
+    idle2=$(( b[3] + b[4] ))
+    total2=0; for x in "${b[@]}"; do total2=$(( total2 + x )); done
+    deltaidle=$(( idle2 - idle1 ))
+    deltatotal=$(( total2 - total1 ))
+    [ "$deltatotal" -gt 0 ] || { echo 0; return; }
+    echo $(( (deltatotal - deltaidle) * 100 / deltatotal ))
+}
+
+mem_block() {
+    # Three values: used_mb total_mb pct  (used_mb = total - available, NOT total - free)
+    awk '
+        /^MemTotal:/     { tot = $2 }
+        /^MemAvailable:/ { avail = $2 }
+        END {
+            used = tot - avail
+            pct  = (tot > 0) ? int(used * 100 / tot + 0.5) : 0
+            printf "%d %d %d\n", int(used / 1024 + 0.5), int(tot / 1024 + 0.5), pct
+        }' /proc/meminfo
+}
+
+swap_pct() {
+    awk '
+        /^SwapTotal:/ { tot = $2 }
+        /^SwapFree:/  { free = $2 }
+        END {
+            if (tot > 0) printf "%d", int((tot - free) * 100 / tot + 0.5)
+            else printf "0"
+        }' /proc/meminfo
+}
+
+temp_c() {
+    # Prefer `sensors` (lm_sensors); fall back to /sys/class/thermal/thermal_zone0/temp.
+    if command -v sensors >/dev/null 2>&1; then
+        sensors 2>/dev/null | awk '
+            tolower($0) ~ /package id 0|cpu temp|tctl|cpu thermal/ {
+                for (i=1;i<=NF;i++) if ($i ~ /^\+[0-9]+(\.[0-9]+)?°C$/) {
+                    gsub(/[^0-9.]/, "", $i); print int($i + 0.5); exit
+                }
+            }'
+    fi | head -n1 || true
+}
+
+disk_pct() {
+    # 0-100 % of /  (no /home distinction — that's a polish thing widgets can grow).
+    df --output=pcent / 2>/dev/null | awk 'NR==2 {gsub(/%/, "", $1); print $1}'
+}
+
+uptime_h() {
+    # /proc/uptime first field is seconds.
+    awk '{
+        t = int($1); d = int(t / 86400); t -= d * 86400
+        h = int(t / 3600); t -= h * 3600
+        m = int(t / 60)
+        if (d > 0) printf "%dd %dh", d, h
+        else if (h > 0) printf "%dh %dm", h, m
+        else printf "%dm", m
+    }' /proc/uptime
+}
+
+emit_one() {
+    local cpu mem_used mem_total mem_pct swap t disk up
+    cpu=$(cpu_pct)
+    read -r mem_used mem_total mem_pct < <(mem_block)
+    swap=$(swap_pct)
+    t=$(temp_c); [ -z "${t:-}" ] && t="null" || t="$t"
+    disk=$(disk_pct); [ -z "${disk:-}" ] && disk=0
+    up="$(uptime_h)"
+    printf '{"cpu":%d,"mem":%d,"mem_used_mb":%d,"mem_total_mb":%d,"swap":%s,"temp_c":%s,"disk":%d,"uptime":"%s"}\n' \
+        "${cpu:-0}" "${mem_pct:-0}" "${mem_used:-0}" "${mem_total:-0}" "${swap:-0}" "$t" "${disk:-0}" "$up"
+}
+
+case "${1:-}" in
+    --watch) while :; do emit_one; sleep 2; done ;;
+    *)       emit_one ;;
+esac

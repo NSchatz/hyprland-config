@@ -1,0 +1,76 @@
+#!/usr/bin/env bash
+# eww helper: print volume + brightness as JSON.
+#   audio          → one-shot JSON
+#   audio --watch  → emit on every sink/source change (wpctl subscribe equivalent)
+#   audio vol+         → raise sink volume by 5%
+#   audio vol-         → lower
+#   audio vol-toggle   → mute toggle (sink)
+#   audio mic-toggle   → mute toggle (source)
+#   audio bright+ / bright- → brightness via brightnessctl
+# JSON keys: vol (0-100), mute (bool), mic (0-100), mic_mute (bool),
+#            brightness (0-100, or null if no backlight), source ("wpctl" / "pactl").
+# Deps: wpctl (PipeWire, preferred) OR pactl (PulseAudio); brightnessctl optional.
+set -uo pipefail
+
+get_vol_wpctl() {
+    # `wpctl get-volume @DEFAULT_AUDIO_SINK@` → "Volume: 0.45 [MUTED]"
+    local raw; raw="$(wpctl get-volume @DEFAULT_AUDIO_SINK@ 2>/dev/null)" || return 1
+    local vol mute; vol="$(printf '%s\n' "$raw" | awk '{print int($2 * 100 + 0.5)}')"
+    mute="$(printf '%s\n' "$raw" | grep -qF "[MUTED]" && echo true || echo false)"
+    printf '%s %s\n' "$vol" "$mute"
+}
+get_mic_wpctl() {
+    local raw; raw="$(wpctl get-volume @DEFAULT_AUDIO_SOURCE@ 2>/dev/null)" || return 1
+    local v m; v="$(printf '%s\n' "$raw" | awk '{print int($2 * 100 + 0.5)}')"
+    m="$(printf '%s\n' "$raw" | grep -qF "[MUTED]" && echo true || echo false)"
+    printf '%s %s\n' "$v" "$m"
+}
+
+get_brightness() {
+    if command -v brightnessctl >/dev/null 2>&1; then
+        local cur max
+        cur="$(brightnessctl get 2>/dev/null)" || return 1
+        max="$(brightnessctl max 2>/dev/null)" || return 1
+        [ "${max:-0}" -gt 0 ] || return 1
+        printf '%d\n' $(( cur * 100 / max ))
+    else
+        return 1
+    fi
+}
+
+emit_one() {
+    local vol mute mic mic_mute b src
+    if command -v wpctl >/dev/null 2>&1; then
+        src="wpctl"
+        read -r vol mute < <(get_vol_wpctl)   || { vol=0; mute=false; }
+        read -r mic mic_mute < <(get_mic_wpctl) || { mic=0; mic_mute=false; }
+    else
+        src="pactl"
+        vol="$(pactl get-sink-volume @DEFAULT_SINK@ 2>/dev/null | awk -F'/' 'NR==1{gsub(/[ %]/,"",$2); print $2; exit}')"
+        mute="$(pactl get-sink-mute @DEFAULT_SINK@ 2>/dev/null | grep -qE 'yes$' && echo true || echo false)"
+        mic="$(pactl get-source-volume @DEFAULT_SOURCE@ 2>/dev/null | awk -F'/' 'NR==1{gsub(/[ %]/,"",$2); print $2; exit}')"
+        mic_mute="$(pactl get-source-mute @DEFAULT_SOURCE@ 2>/dev/null | grep -qE 'yes$' && echo true || echo false)"
+    fi
+    if b="$(get_brightness)"; then :; else b="null"; fi
+    printf '{"vol":%d,"mute":%s,"mic":%d,"mic_mute":%s,"brightness":%s,"source":"%s"}\n' \
+        "${vol:-0}" "${mute:-false}" "${mic:-0}" "${mic_mute:-false}" "$b" "$src"
+}
+
+case "${1:-}" in
+    vol+)        if command -v wpctl >/dev/null 2>&1; then wpctl set-volume -l 1 @DEFAULT_AUDIO_SINK@ 5%+; else pactl set-sink-volume @DEFAULT_SINK@ +5%; fi ;;
+    vol-)        if command -v wpctl >/dev/null 2>&1; then wpctl set-volume @DEFAULT_AUDIO_SINK@ 5%-;     else pactl set-sink-volume @DEFAULT_SINK@ -5%; fi ;;
+    vol-toggle)  if command -v wpctl >/dev/null 2>&1; then wpctl set-mute @DEFAULT_AUDIO_SINK@ toggle;     else pactl set-sink-mute @DEFAULT_SINK@ toggle; fi ;;
+    mic-toggle)  if command -v wpctl >/dev/null 2>&1; then wpctl set-mute @DEFAULT_AUDIO_SOURCE@ toggle;  else pactl set-source-mute @DEFAULT_SOURCE@ toggle; fi ;;
+    bright+)     command -v brightnessctl >/dev/null 2>&1 && brightnessctl -e4 -n2 set 5%+ >/dev/null ;;
+    bright-)     command -v brightnessctl >/dev/null 2>&1 && brightnessctl -e4 -n2 set 5%- >/dev/null ;;
+    --watch)
+        # Subscribe to PipeWire/PulseAudio object changes; debounce-emit on each.
+        emit_one
+        if command -v pactl >/dev/null 2>&1; then
+            pactl subscribe 2>/dev/null | while read -r _line; do emit_one; done
+        else
+            while :; do sleep 2; emit_one; done
+        fi
+        ;;
+    *)           emit_one ;;
+esac

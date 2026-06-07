@@ -1,0 +1,92 @@
+#!/usr/bin/env bash
+# eww helper: MPRIS player metadata + cover art for the music widget.
+#   player           → one-shot JSON
+#   player --watch   → emit on every metadata/status change
+#   player toggle    → play-pause
+#   player next      → next track
+#   player prev      → previous track
+# JSON keys: status ("Playing" | "Paused" | "Stopped"), title, artist, album, art_url
+#            (file:// or http(s)://), art_local (an absolute local path; downloaded from art_url
+#            into ~/.cache/hypr-rice/player/ if remote), length_us, position_us, progress (0-1),
+#            player_name (the MPRIS bus id).
+# Deps: playerctl. Optional: curl (for downloading remote cover art).
+set -uo pipefail
+
+cache="${XDG_CACHE_HOME:-$HOME/.cache}/hypr-rice/player"
+mkdir -p "$cache"
+
+# Strip non-ASCII / shell-trouble chars from filenames.
+clean_name() { printf '%s' "$1" | tr -c 'A-Za-z0-9._-' '_' | head -c 64; }
+
+art_local_for() {
+    local url="$1" name="$2"
+    case "$url" in
+        file://*)   printf '%s' "${url#file://}" ;;
+        http://*|https://*)
+            local fn="$cache/$(clean_name "$name").img"
+            if [ ! -s "$fn" ] && command -v curl >/dev/null 2>&1; then
+                curl -sLo "$fn.tmp" "$url" 2>/dev/null && mv "$fn.tmp" "$fn"
+            fi
+            [ -s "$fn" ] && printf '%s' "$fn"
+            ;;
+        *) ;;
+    esac
+}
+
+json_escape() {
+    # Convert raw text into a safe JSON string body (no surrounding quotes).
+    python3 -c 'import json,sys; sys.stdout.write(json.dumps(sys.stdin.read().rstrip("\n"))[1:-1])'
+}
+
+emit_one() {
+    command -v playerctl >/dev/null 2>&1 || {
+        printf '{"status":"Stopped","title":"","artist":"","album":"","art_url":"","art_local":"","length_us":0,"position_us":0,"progress":0,"player_name":""}\n'
+        return
+    }
+    local status title artist album art_url art_local length position progress name
+    name="$(playerctl -l 2>/dev/null | head -n1)"
+    if [ -z "$name" ]; then
+        printf '{"status":"Stopped","title":"","artist":"","album":"","art_url":"","art_local":"","length_us":0,"position_us":0,"progress":0,"player_name":""}\n'
+        return
+    fi
+    status="$(playerctl -p "$name" status 2>/dev/null || echo Stopped)"
+    title="$(playerctl -p "$name" metadata title 2>/dev/null)"
+    artist="$(playerctl -p "$name" metadata artist 2>/dev/null)"
+    album="$(playerctl -p "$name" metadata album 2>/dev/null)"
+    art_url="$(playerctl -p "$name" metadata mpris:artUrl 2>/dev/null)"
+    length="$(playerctl -p "$name" metadata mpris:length 2>/dev/null || echo 0)"
+    position="$(playerctl -p "$name" position 2>/dev/null | awk '{print int($1 * 1000000)}')"
+    [ -z "${position:-}" ] && position=0
+    art_local="$(art_local_for "$art_url" "${title}_${artist}")"
+    if [ "${length:-0}" -gt 0 ] && [ "${position:-0}" -gt 0 ]; then
+        progress="$(awk -v p="$position" -v l="$length" 'BEGIN{printf "%.4f", (l>0)?p/l:0}')"
+    else
+        progress="0"
+    fi
+    printf '{"status":"%s","title":"%s","artist":"%s","album":"%s","art_url":"%s","art_local":"%s","length_us":%d,"position_us":%d,"progress":%s,"player_name":"%s"}\n' \
+        "$status" \
+        "$(printf '%s' "$title"   | json_escape)" \
+        "$(printf '%s' "$artist"  | json_escape)" \
+        "$(printf '%s' "$album"   | json_escape)" \
+        "$(printf '%s' "$art_url" | json_escape)" \
+        "$(printf '%s' "$art_local" | json_escape)" \
+        "${length:-0}" "${position:-0}" "$progress" \
+        "$(printf '%s' "$name" | json_escape)"
+}
+
+case "${1:-}" in
+    toggle) command -v playerctl >/dev/null 2>&1 && playerctl play-pause ;;
+    next)   command -v playerctl >/dev/null 2>&1 && playerctl next ;;
+    prev)   command -v playerctl >/dev/null 2>&1 && playerctl previous ;;
+    --watch)
+        emit_one
+        if command -v playerctl >/dev/null 2>&1; then
+            # playerctl emits an event per metadata/status/position change.
+            playerctl --follow metadata --format '{{status}} {{artist}} - {{title}}' 2>/dev/null \
+                | while read -r _line; do emit_one; done
+        else
+            while :; do sleep 2; emit_one; done
+        fi
+        ;;
+    *) emit_one ;;
+esac

@@ -68,6 +68,27 @@ and stop the rice pipeline.
     grep -E 'unable to resolve|unknown' && exit 1 || true
   ```
 
+- **`theme.rasi` is SELF-CONTAINED (defect #4 lint).** Rofi loads its bundled base theme first
+  and overlays the user theme on top. Anything the user theme does NOT explicitly style inherits
+  the (usually light) base theme — visible as a white list with black text on a dark rice. The
+  template requires a global `*` default block AND background-color on `listview` / `element` /
+  `element-text` / `element-icon` AND the full nine-state element matrix
+  (`normal/alternate/selected` × `normal/urgent/active`). Lint:
+
+  ```bash
+  for block in '\* {' 'listview' 'element-text' 'element-icon' \
+               'element normal.normal' 'element normal.urgent' 'element normal.active' \
+               'element alternate.normal' 'element alternate.urgent' 'element alternate.active' \
+               'element selected.normal' 'element selected.urgent' 'element selected.active'; do
+      grep -qE "$block" ~/.config/rofi/theme.rasi \
+        || { echo "error: rofi theme.rasi missing required block/selector: $block (rofi will overlay base-theme colors for unstyled widgets — see launcher/template.md rofi recipe)"; exit 1; }
+  done
+  ```
+
+  The `*` block is the safety net for any selector not covered above; the explicit element
+  states are required because rofi marks drun rows as `urgent`/`active` for things like
+  notifications and recently-launched apps, and a missing state silently picks the base theme.
+
 ## fuzzel — `~/.config/fuzzel/fuzzel.ini`
 
 - **INI parse + `[colors]` section present.** fuzzel doesn't ship a `-validate` flag, so the

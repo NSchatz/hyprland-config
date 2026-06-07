@@ -1,14 +1,45 @@
 #!/usr/bin/env bash
-# Behavior tests for scripts/record-answer.sh — the interview's "persist every answer to disk
-# as it's chosen" helper that fixes the post-interview hallucination problem.
-
-if ! command -v jq >/dev/null 2>&1; then
-    skip "record-answer: jq missing" "jq required"
-    return 0
-fi
+# Behavior tests for scripts/record-answer.{sh,py} — the interview's "persist every answer to
+# disk as it's chosen" helper that fixes the post-interview hallucination problem.
+#
+# As of v0.19, the actual implementation is record-answer.py (Python stdlib only) — the .sh
+# is a thin wrapper. The interview runs *before* the install batch lands jq on disk, so
+# generation-time tooling must depend on Python stdlib only.
 
 script="$PLUGIN_ROOT/scripts/record-answer.sh"
+py_script="$PLUGIN_ROOT/scripts/record-answer.py"
 assert_file_exists "$script" "record-answer.sh present"
+assert_file_exists "$py_script" "record-answer.py present (Python implementation)"
+
+# Assertions in this file use jq to read back values, but the *script under test* must not
+# need jq. We verify that separately at the bottom.
+jq_present() { command -v jq >/dev/null 2>&1; }
+if ! jq_present; then
+    skip "record-answer: jq missing for assertions" "behavioral tests need jq to read back values"
+    have_jq=0
+else
+    have_jq=1
+fi
+
+# --- jq-independent check: the script itself must not require jq. ---
+# Stage a sandbox PATH that has python3 and bash but explicitly no jq, by symlinking
+# the runtimes we need into a temp dir.
+no_jq_tmp="$(mktemp -d)"
+mkdir "$no_jq_tmp/bin"
+for tool in python3 bash sh env; do
+    p="$(command -v "$tool" || true)"
+    [ -n "$p" ] && ln -s "$p" "$no_jq_tmp/bin/$tool"
+done
+if PATH="$no_jq_tmp/bin" "$no_jq_tmp/bin/python3" "$py_script" "$no_jq_tmp/x.json" probe.value worked >/dev/null 2>&1 \
+   && [ "$(cat "$no_jq_tmp/x.json" | grep -c '"worked"')" -ge 1 ]; then
+    pass "record-answer.py runs without jq on PATH"
+else
+    fail "record-answer.py runs without jq on PATH" "the python implementation must depend only on python stdlib"
+fi
+rm -rf "$no_jq_tmp"
+
+if [ "$have_jq" -eq 0 ]; then return 0; fi
+
 
 tmp="$(mktemp_test_dir record-answer)"
 trap 'rm -rf "$tmp"' EXIT

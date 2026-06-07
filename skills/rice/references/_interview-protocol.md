@@ -98,6 +98,26 @@ at `<staging>/answers.json` (e.g. `/tmp/hypr-gen-abc123/answers.json`); it's the
 truth the rest of Mode A reads from. **Never invent a key after-the-fact** — if a downstream step
 needs something the interview didn't capture, go back and ask, then re-record.
 
+### No jq at generation time
+
+The interview, file generation, palette setup, and `install.sh` assembly all run **before** the
+install batch lands `jq` on disk — `jq` is one of the packages the rice itself installs. So
+generation-time tooling **depends only on the Python stdlib** (Arch's `pacman` pulls in `python3`
+as a base dep). Concretely:
+
+- **Writes**: `record-answer.sh` is a thin wrapper around `scripts/record-answer.py`.
+- **Reads**: every downstream step (A3 file gen, A3b shell configs, A3c shell-prompt, A3d
+  install.sh, A4 palette) reads `answers.json` through `scripts/answers.py`. The verbs are
+  `get <file> <key.path>` (scalar), `slice <file> <k1> <k2> …` (`jq '{a,b,c}'` equivalent),
+  `list <file> <key.path>` (`jq -r '.a.b[]'`), and `has <file> <key.path>` (`jq -e`).
+
+**Runtime helper scripts** (`keybind-cheatsheet.sh`, eww `audio`/`sysinfo`/`player`/`toggles`,
+the `rice` CLI) keep using `jq` — they execute after the install batch.
+
+If a generation-time step *must* call out to something missing on a clean Arch box (rare), add the
+package to the **prerequisites micro-batch** the installer runs before generation, and document the
+new dep in the relevant component's `packages.md`.
+
 Each component owns its slice of `answers.json` — see `components/<name>/schema.md` for the exact
 keys and types that component writes. Sibling-component slices aren't visible to a component's
 `schema.md`; they live in their own component folder.

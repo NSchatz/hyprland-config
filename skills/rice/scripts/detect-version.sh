@@ -150,6 +150,32 @@ if command -v lspci >/dev/null 2>&1; then
             | head -n1 | sed 's/^[0-9a-f:.]* //')"
     [ -n "$vga" ] && echo "GPU_DEVICE=${vga}"
 fi
+nvidia_gen_for_device() {
+    # $1 = lower-cased hex device id (no `0x`, no spaces). Returns one of:
+    #   blackwell|ada|ampere|turing|volta|pascal|maxwell|kepler|fermi|tesla|unknown
+    local d="$1"
+    case "$d" in
+        # Blackwell  GB20x — 5xxx series (and some workstation parts)
+        29[0-9a-f][0-9a-f]|2a[0-9a-f][0-9a-f]|2b[0-9a-f][0-9a-f]) echo blackwell ;;
+        # Ada Lovelace AD10x — 4xxx series
+        26[0-9a-f][0-9a-f]|27[0-9a-f][0-9a-f]|28[0-9a-f][0-9a-f]) echo ada ;;
+        # Ampere    GA10x — 3xxx series (+ A100/A40 workstation)
+        20[0-9a-f][0-9a-f]|21[0-9a-f][0-9a-f]|22[0-9a-f][0-9a-f]|23[0-9a-f][0-9a-f]|24[0-9a-f][0-9a-f]|25[0-9a-f][0-9a-f]) echo ampere ;;
+        # Turing    TU10x — 1660 / 2xxx series, T4
+        1e[0-9a-f][0-9a-f]|1f[0-9a-f][0-9a-f]) echo turing ;;
+        # Volta     GV100 — Titan V / V100
+        1d[0-9a-f][0-9a-f]) echo volta ;;
+        # Pascal    GP10x — 1xxx series (1050/1060/1070/1080/Titan Xp)
+        1b[0-9a-f][0-9a-f]|1c[0-9a-f][0-9a-f]) echo pascal ;;
+        # Maxwell   GM10x/GM20x — 750 / 9xx series / Titan X
+        13[0-9a-f][0-9a-f]|14[0-9a-f][0-9a-f]) echo maxwell ;;
+        # Kepler    GK10x — 6xx / 7xx series
+        0f[0-9a-f][0-9a-f]|10[0-9a-f][0-9a-f]|11[0-9a-f][0-9a-f]|12[0-9a-f][0-9a-f]) echo kepler ;;
+        # Fermi     GF10x — 4xx / 5xx / Quadro 4000-6000
+        06[0-9a-f][0-9a-f]|0d[0-9a-f][0-9a-f]|0e[0-9a-f][0-9a-f]) echo fermi ;;
+        *) echo unknown ;;
+    esac
+}
 if have_mod nvidia || command -v nvidia-smi >/dev/null 2>&1; then
     echo "GPU_DRIVER=nvidia"
     echo "NVIDIA_PROPRIETARY=1"
@@ -165,6 +191,33 @@ elif [ -n "$gpu_bound" ]; then
     echo "NVIDIA_PROPRIETARY=0"
 else
     echo "GPU_DRIVER=unknown"
+fi
+
+# NVIDIA generation → driver branch (defect #15). Repos now ship only `nvidia-open` /
+# `nvidia-open-dkms` (Turing+, capability ≥ 7.5); Maxwell / Pascal / Volta land on the AUR
+# `nvidia-580xx-*` legacy branch (DKMS, needs `linux-headers`); Kepler and older need older
+# branches. The `nvidia` package no longer exists for non-Turing+ GPUs. Map by PCI device-id
+# range so the rice picks the right package — `components/env/gotchas.md` documents each
+# branch. Always emit when an NVIDIA card is *present* (regardless of which driver is loaded),
+# so the env writer can warn an nvidia-driver user on a Pascal box that they need the legacy
+# branch, not the missing `nvidia` package.
+if command -v lspci >/dev/null 2>&1; then
+    nvidia_dev="$(lspci -nn 2>/dev/null | awk -F'[][]' '
+        /VGA compatible controller|3D controller|Display controller/ && /10de:/ {
+            for (i=1;i<=NF;i++) if ($i ~ /^10de:[0-9a-fA-F]+$/) { split($i,a,":"); print tolower(a[2]); exit }
+        }')"
+    if [ -n "${nvidia_dev:-}" ]; then
+        echo "NVIDIA_PCI_ID=${nvidia_dev}"
+        gen="$(nvidia_gen_for_device "$nvidia_dev")"
+        echo "NVIDIA_GENERATION=${gen}"
+        case "$gen" in
+            blackwell|ada|ampere|turing) echo "NVIDIA_DRIVER_BRANCH=nvidia-open" ;;
+            volta|pascal|maxwell)        echo "NVIDIA_DRIVER_BRANCH=nvidia-580xx" ;;
+            kepler)                      echo "NVIDIA_DRIVER_BRANCH=nvidia-470xx" ;;
+            fermi)                       echo "NVIDIA_DRIVER_BRANCH=nvidia-390xx" ;;
+            *)                           echo "NVIDIA_DRIVER_BRANCH=unknown" ;;
+        esac
+    fi
 fi
 
 # --- Chassis / power shape (the laptop-only interview group self-skips on desktops) ---

@@ -18,7 +18,9 @@ don't read recipes for other surfaces.
   looknfeel / binds / windowrules / autostart / colors) · `waybar` · `launcher` · `notifications` ·
   `terminal` · `lock-screen` · `widgets` (eww / AGS / Quickshell — caller specifies which).
 - **`ANSWERS=<json or kv block>`** — the interview answers for the groups that own this surface
-  (e.g. group 6 for waybar, group 5 for terminal). Only the relevant slice.
+  (e.g. group 6 for waybar, group 5 for terminal). Only the relevant slice. The caller carves it
+  via `python3 "${CLAUDE_PLUGIN_ROOT}/scripts/answers.py" slice <answers.json> <group> [<group> ...]`
+  — **not jq** (`jq` is not yet installed at generation time; see `SKILL.md` A3).
 - **`PALETTE=<path>`** — `~/.config/hypr-rice/palette.conf` (the source of truth). For literal-hex
   formats (hyprlock, fuzzel) you read values directly; otherwise you reference the engine's colors
   file the surface includes.
@@ -108,7 +110,13 @@ recipe fill — they're how the rice's surfaces look like they came from the sam
   emit literal hex (the ML4W/binnewbs `#f53c3c` anti-pattern silently un-themes on every
   re-theme).
 - **`window-rules` surface specifically**: emit a per-tool `layerrule` map driven by the
-  interview answers. Verified upstream against `fuzzel.ini(5)` + swaync source:
+  interview answers, reading the namespaces from
+  **`${CLAUDE_PLUGIN_ROOT}/skills/rice/references/_shared/namespaces.md`** — the cross-cutting
+  registry of "writer A owns namespace X; window-rules blurs X". Defects #11 and #14 are the
+  same shape: the writer didn't see the slice of answers.json that selects the owner, so it
+  emitted nothing for `widgets` and `swayosd`. **Always pass widgets, utilities, and
+  notifications slices to the window-rules writer**; the writer reads `_shared/namespaces.md`
+  for what to match.
   - fuzzel → `match:namespace = launcher` (NOT `fuzzel` — common stale form across community
     configs)
   - swaync → TWO blocks: `swaync-control-center` AND `swaync-notification-window`
@@ -117,6 +125,12 @@ recipe fill — they're how the rice's surfaces look like they came from the sam
     emit a `layerrule = blur, walker` block.
   - mako/dunst → single block on `notifications`
   - wlogout → `logout_dialog` namespace (only when `utilities.session_picker == wlogout`)
+  - **eww** → `^eww-.*$` regex (widgets writer declares `:namespace "eww-<name>"`; bare `eww`
+    matches nothing — defect #11)
+  - **ags** → `^ags-.*$` regex
+  - **quickshell** → `^quickshell:.*$` regex
+  - **swayosd** → `swayosd` namespace (only when `utilities.osd_route == "swayosd"` —
+    defect #14)
 - **`env` surface specifically**: emit `envd =` (D-Bus push variant) for `XDG_CURRENT_DESKTOP`
   — not `env =`. The `envd` form pushes the value into the D-Bus activation environment so
   GTK/portal apps that launch from notification clicks pick it up. Plain `env =` doesn't.

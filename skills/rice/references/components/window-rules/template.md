@@ -121,8 +121,10 @@ windowrule {
 {{/each}}
 
 # ------------------------------------------------------------
-# Layer-shell blur (0.54+ block form — see gotchas.md for the hard break,
-# the launcher/notifications namespace map, and the fuzzel/swaync cliffs)
+# Layer-shell blur (0.54+ block form). Every namespace below comes from
+# _shared/namespaces.md — the cross-cutting registry of "writer A names a layer-shell window
+# at X; writer B (this one) blurs X". Editing namespaces in isolation is what produced
+# defects #11 (eww namespace mismatch) and #14 (swayosd never blurred).
 # ------------------------------------------------------------
 {{#if waybar.enabled}}
 layerrule {
@@ -136,7 +138,8 @@ layerrule {
 {{/if}}
 {{#if launcher.is_layer}}
 # launcher.namespace must be: rofi→"rofi", fuzzel→"launcher", wofi→"wofi",
-# anyrun→"anyrun". See gotchas.md "Launcher → namespace map".
+# anyrun→"anyrun". See _shared/namespaces.md ("Layer-shell namespaces" table) and
+# gotchas.md "Launcher → namespace map".
 layerrule {
     name = blur-{{launcher.namespace}}
     match:namespace = {{launcher.namespace}}
@@ -176,6 +179,54 @@ layerrule {
 layerrule {
     name = blur-logout_dialog
     match:namespace = logout_dialog
+    blur = true
+    ignore_alpha = 0.0
+}
+{{/eq}}
+
+# Widget shell — eww namespaces are the `eww-<name>` family (eww-bar, eww-dashboard,
+# eww-music, eww-sysinfo, eww-osd). Single regex-style block via the `match:namespace`
+# regex (Hyprland matches namespaces as regex). Defect #11 — a `match:namespace = eww` line
+# (the previous emission) never matched any surface; eww doesn't declare a bare "eww"
+# namespace anywhere.
+{{#eq widgets.system "eww"}}
+layerrule {
+    name = blur-eww
+    match:namespace = ^eww-.*$
+    blur = true
+    blur_popups = true
+    ignore_alpha = 0.5
+}
+{{/eq}}
+
+# AGS v3 windows declare `namespace: "ags-<name>"` — match the family.
+{{#eq widgets.system "ags"}}
+layerrule {
+    name = blur-ags
+    match:namespace = ^ags-.*$
+    blur = true
+    ignore_alpha = 0.5
+}
+{{/eq}}
+
+# Quickshell uses `quickshell:<window>` namespaces (per the WlrLayershell.namespace docs).
+{{#eq widgets.system "quickshell"}}
+layerrule {
+    name = blur-quickshell
+    match:namespace = ^quickshell:.*$
+    blur = true
+    ignore_alpha = 0.5
+}
+{{/eq}}
+
+# swayosd-server's overlay layer uses namespace `swayosd`. Without a blur rule the OSD
+# pop-up renders against a flat background, breaking the rice look (defect #14 — the
+# window-rules writer was never given the utilities slice of answers.json, so swayosd was
+# never matched). Pass the slice; emit when the route is swayosd.
+{{#eq utilities.osd_route "swayosd"}}
+layerrule {
+    name = blur-swayosd
+    match:namespace = swayosd
     blur = true
     ignore_alpha = 0.0
 }

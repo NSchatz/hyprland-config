@@ -127,6 +127,17 @@ configuration {
 ```rasi
 @import "colors.rasi"        /* * { bg: …; bg-alt: …; fg: …; muted: …; accent: …; accent2: …; red: …; green: …; } */
 
+/* GLOBAL DEFAULT — rofi overlays the user theme on top of its bundled base theme. Any selector
+   NOT explicitly themed here inherits the base theme's (usually light) colors — the
+   widely-reported "white list with black text on a dark rice" symptom. The `*` block sets a
+   transparent background + palette `text-color` so every unstyled widget at least picks up the
+   palette. Defect #4 (the validator agent now lints rofi themes for this `*` block). */
+* {
+    background-color: transparent;
+    text-color:       @fg;
+    border-color:     @accent;
+}
+
 window {
   width: 700px;
   border-radius: 14px;
@@ -135,20 +146,44 @@ window {
   background-color: @bg;
   padding: 12px;
 }
+mainbox   { background-color: transparent;
+            children: [ inputbar, listview ]; }
 inputbar  { spacing: 8px; padding: 8px; margin: 0 0 8px 0;
-            background-color: @bg-alt; border-radius: 10px; }
-prompt    { text-color: @accent; }
-entry     { text-color: @fg; placeholder: "Search…"; placeholder-color: @muted; }
-listview  { lines: 8; columns: 1; spacing: 4px; scrollbar: false; }
-element   { padding: 7px 10px; border-radius: 8px; }
-element-icon { size: 22px; }
-/* visible-modifier.state syntax per rofi-theme(5) — period (not space)
-   is the dominant community form (HyDE, JaKooLit, ML4W, dusky, Matt-FTW,
-   binnewbs all use this). Cover the three states or the highlight won't
-   apply to drun rows that rofi has marked active/urgent. */
-element selected.normal  { background-color: @accent; text-color: @bg; }
-element selected.urgent  { background-color: @red;    text-color: @bg; }
-element selected.active  { background-color: @green;  text-color: @bg; }
+            background-color: @bg-alt; border-radius: 10px;
+            children: [ prompt, entry ]; }
+prompt    { text-color: @accent;        background-color: transparent; }
+entry     { text-color: @fg;            background-color: transparent;
+            placeholder: "Search…"; placeholder-color: @muted; }
+
+/* listview & elements must explicitly set background, or the base theme paints them white. */
+listview  { background-color: transparent; lines: 8; columns: 1;
+            spacing: 4px; scrollbar: false; }
+scrollbar { background-color: @bg-alt; handle-color: @accent; }
+
+element        { padding: 7px 10px; border-radius: 8px; }
+element-text   { background-color: transparent; text-color: inherit; }
+element-icon   { background-color: transparent; size: 22px; }
+
+/* visible-modifier.state syntax per rofi-theme(5) — period (not space) is the dominant
+   community form (HyDE, JaKooLit, ML4W, dusky, Matt-FTW, binnewbs all use this). Cover the
+   full 9-state matrix or the un-named states inherit the base theme. Pattern: bg/fg for
+   "normal" rows, surface for "alternate", accent for "selected". */
+element normal.normal    { background-color: transparent; text-color: @fg; }
+element normal.urgent    { background-color: transparent; text-color: @red; }
+element normal.active    { background-color: transparent; text-color: @green; }
+
+element alternate.normal { background-color: @bg-alt;     text-color: @fg; }
+element alternate.urgent { background-color: @bg-alt;     text-color: @red; }
+element alternate.active { background-color: @bg-alt;     text-color: @green; }
+
+element selected.normal  { background-color: @accent;     text-color: @bg; }
+element selected.urgent  { background-color: @red;        text-color: @bg; }
+element selected.active  { background-color: @green;      text-color: @bg; }
+
+/* When the same theme is reused for rofi `dmenu` mode (clipboard, power menu), the message bar
+   appears for status lines; theme it explicitly or the dmenu prompts render unstyled. */
+message   { background-color: @bg-alt; border-radius: 8px; padding: 6px 10px; margin: 4px 0 0 0; }
+textbox   { background-color: transparent; text-color: @fg; }
 ```
 
 `colors.rasi` rendered by the engine from `rofi.tmpl`. The `*{}` block exports

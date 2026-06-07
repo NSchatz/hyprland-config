@@ -20,7 +20,7 @@ Options ordered by corpus frequency. Items marked **(on)** are pre-checked.
 | Clipboard history picker | `clipboard` | **on** | Needs `cliphist` watchers in `autostart`. |
 | Color picker | `color-picker` | **on** | `hyprpicker` + `wl-copy`. |
 | Power menu | `power-menu` | **on** | rofi/wofi/bemenu prompt OR `wlogout`. |
-| Screen recording | `screen-record` | off | `wl-screenrec` (HW-encoded) or `wf-recorder`. |
+| Screen recording | `screen-record` | off | **Defaults to `wf-recorder`** (repo, C, no ffmpeg-next pin). `wl-screenrec` is opt-in for "HW-encoded on AMD/Intel" — warn that it's a fragile AUR Rust build (defect #7: `wl-screenrec` 0.2.0 pins `ffmpeg-next 8.0.0`, whose hand-written exhaustive matches don't cover ffmpeg-8 enum variants; builds explode with E0004s and, with batch-mode AUR installs, abort the whole batch). See `gotchas.md` → "Screen recorder default". |
 | OCR (screen → text) | `ocr` | off | `tesseract` + per-language data. |
 | Emoji picker | `emoji` | off | `bemoji` self-contained. |
 | Calculator | `calculator` | off | `rofi -show calc` (needs `rofi-calc`). |
@@ -29,10 +29,18 @@ Options ordered by corpus frequency. Items marked **(on)** are pre-checked.
 | Night-light toggle | `night-light` | off | `hyprsunset` toggle bind. |
 
 Tool defaults the writer should prefer at install-batch time (see `gotchas.md`): **satty** over
-swappy for annotation, **wl-screenrec** over wf-recorder on AMD/Intel, **grimblast** or `hyprshot`
-for the capture wrapper. The shipped scripts auto-detect (screenshot.sh: grimblast → hyprshot →
-grim+slurp; screenrecord.sh: wl-screenrec → wf-recorder), so listing several tools in the install
-batch is harmless — the script picks the first one present.
+swappy for annotation, **`wf-recorder` over `wl-screenrec`** (repo C package vs. AUR Rust build
+that pins a brittle ffmpeg-next — see defect #7 note above), **grimblast** or `hyprshot` for the
+capture wrapper. The shipped scripts auto-detect (screenshot.sh: grimblast → hyprshot →
+grim+slurp; screenrecord.sh: wf-recorder → wl-screenrec — `wf-recorder` first so the more
+reliable backend wins when both are present), so listing several tools in the install batch is
+harmless. **Broader rule**: prefer repo packages over AUR Rust builds when a functional
+equivalent exists.
+
+When the user opts in to `wl-screenrec` explicitly (e.g. for AV1/HEVC HW encoding on AMD VAAPI),
+add `screen-record-hw` to the install batch and surface a one-line warning:
+> *wl-screenrec is a Rust AUR build pinning `ffmpeg-next 8.0.0` — it has broken historically
+> when ffmpeg moves; the install may fail. `wf-recorder` is also being installed as a fallback.*
 
 ## Record path
 

@@ -15,8 +15,14 @@ Lands at `~/.config/hypr/autostart.conf`, `source =`d from `hyprland.conf`. Ever
 {{#if polkit_kde}}exec-once = /usr/lib/polkit-kde-authentication-agent-1{{/if}}
 
 # --- Wallpaper daemon (exactly one, or none) ---
+# See _shared/binaries.md for the binary registry. `swww_daemon_bin` is `swww-daemon` (upstream,
+# archived) or `awww-daemon` (the maintained fork — declares `provides=swww`). If detection ran
+# before the install (the normal Mode A flow) neither variant is on disk yet, so the writer emits
+# the binary-agnostic launcher instead of a hard-coded name; the launcher picks whichever variant
+# exists at first run.
 {{#if hyprpaper}}exec-once = hyprpaper{{/if}}
-{{#if swww}}exec-once = {{swww_daemon_bin}}{{/if}}
+{{#if swww_known_bin}}exec-once = {{swww_daemon_bin}}{{/if}}
+{{#if swww_agnostic}}exec-once = sh -c 'command -v swww-daemon >/dev/null && exec swww-daemon || exec awww-daemon'{{/if}}
 {{#if has_restore_script}}exec-once = {{restore_script_path}}{{/if}}
 
 # --- Portal env propagation (always emitted — the "screen-share is black" fix) ---
@@ -52,8 +58,10 @@ Emit only the chosen branches — drop the template markers and any branch that'
 | Template var | Source |
 |---|---|
 | `polkit_hypr` / `polkit_gnome` / `polkit_kde` | `autostart_env.polkit == "hyprpolkitagent"` / `"polkit-gnome"` / `"polkit-kde"`. |
-| `hyprpaper` / `swww` | `autostart_env.wallpaper_tool == "hyprpaper"` / `"swww"`. |
-| `swww_daemon_bin` | `SWWW_DAEMON_BIN` from `detect-version.sh` — literally `swww-daemon` or `awww-daemon`. **Never hard-code `swww-daemon`** (see `gotchas.md`). |
+| `hyprpaper` | `autostart_env.wallpaper_tool == "hyprpaper"`. |
+| `swww_known_bin` | `autostart_env.wallpaper_tool == "swww"` AND detection has a concrete `SWWW_DAEMON_BIN` (one of the two variants is on disk at generate time). |
+| `swww_agnostic` | `autostart_env.wallpaper_tool == "swww"` AND detection reports `MISSING_swww=1` (neither variant installed yet — the normal Mode A flow before the install batch runs). Emits the `sh -c …` agnostic launcher so first boot picks whichever variant the install batch landed. See `_shared/binaries.md`. |
+| `swww_daemon_bin` | `SWWW_DAEMON_BIN` from `detect-version.sh` — literally `swww-daemon` or `awww-daemon`. **Never hard-code `swww-daemon`** (see `gotchas.md` and `_shared/binaries.md`). Used only when `swww_known_bin` is true. |
 | `bar_waybar` | `bar.strategy` is `"waybar"` or `"waybar+widgets"`. |
 | `notif_mako` / `notif_dunst` / `notif_swaync` | `notifications.daemon` matches that string. If a widget shell owns notifications (see `gotchas.md`), set the daemon to `null` upstream — none of these branches fire. |
 | `hypridle` / `hyprsunset` | Entry present in `autostart_env.autostart`. |

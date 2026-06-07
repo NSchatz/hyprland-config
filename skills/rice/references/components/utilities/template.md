@@ -19,7 +19,7 @@ is one) and the bind line.
 | Value | Script (copy from `assets/scripts/`) | Runtime deps (auto-detected) | Bind line(s) emitted into `binds.conf` |
 |---|---|---|---|
 | `screenshot` | `screenshot.sh` | one of `grimblast`/`hyprshot`/(`grim`+`slurp`+`jq`); `wl-clipboard`; `satty` OR `swappy` for the `edit` arg | `bind = , Print, exec, ~/.config/hypr/scripts/screenshot.sh region` <br> `bind = $mainMod, Print, exec, ~/.config/hypr/scripts/screenshot.sh region edit` <br> `bind = ALT, Print, exec, ~/.config/hypr/scripts/screenshot.sh window` |
-| `screen-record` | `screenrecord.sh` | one of `wl-screenrec` (HW, preferred) / `wf-recorder` (SW fallback); `slurp` for region | `bind = $mainMod SHIFT, Print, exec, ~/.config/hypr/scripts/screenrecord.sh region` |
+| `screen-record` | `screenrecord.sh` | **`wf-recorder` (default — repo C)** with `wl-screenrec` as an opt-in HW-encoded fallback (AUR Rust, fragile — see `gotchas.md` "Screen recorder default" and defect #7); `slurp` for region | `bind = $mainMod SHIFT, Print, exec, ~/.config/hypr/scripts/screenrecord.sh region` |
 | `ocr` | `ocr.sh` | `tesseract` + `tesseract-data-eng` (+ per-language packs); `grim`; `slurp`; `wl-clipboard` | `bind = $mainMod, O, exec, ~/.config/hypr/scripts/ocr.sh` |
 | `color-picker` | `colorpicker.sh` | `hyprpicker`; `wl-clipboard` (for `-a` autocopy) | `bind = $mainMod SHIFT, P, exec, ~/.config/hypr/scripts/colorpicker.sh` |
 | `power-menu` (rofi flavor) | `powermenu.sh` | `rofi` (≥ 2.0); `hyprlock`; systemd | `bind = $mainMod, Escape, exec, ~/.config/hypr/scripts/powermenu.sh` |

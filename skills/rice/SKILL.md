@@ -3,7 +3,7 @@ name: rice
 description: This skill should be used when the user runs "/hyprland-config:rice" or asks to build, theme, or restyle their Hyprland desktop — i.e. (1) GENERATE a config from scratch ("generate/create my hyprland.conf", "set up Hyprland from scratch", "make me a new config", "build a hyprland config"); (2) THEME/recolor/set fonts ("theme my desktop", "apply Catppuccin/Gruvbox/Nord/Tokyo Night/Dracula/Everforest/Kanagawa/Solarized/Rosé Pine", "change my color scheme/accent", "match my colors to my wallpaper", "set up matugen/wallust", "change my font"); (3) manage named theme PROFILES / "rices" ("save my theme as X", "switch to nord", "list my themes", "load my <name> rice", "pin my accent"); or (4) set/change/cycle the WALLPAPER ("set my wallpaper", "random wallpaper", "make my theme match my wallpaper"). It runs one interactive interview, generates a modular version-matched config, and drives a self-contained rice engine (~/.config/hypr-rice/ — one palette.conf + templates + a `rice` CLI + profiles + a user-override cascade) that themes Hyprland, hyprlock, waybar, notifications, launcher, terminal, GTK/Qt/cursor/icons/fonts and the wallpaper consistently — backing up, live-testing, and reloading after every change.
 argument-hint: "[what you want, e.g. 'set up from scratch', 'catppuccin mocha', 'switch to nord', 'wallpaper ~/x.png and theme from it']"
 allowed-tools: AskUserQuestion, Bash, Read, Write, Edit, Glob, Grep, Agent
-version: 0.18.0
+version: 0.19.0
 ---
 
 # Rice — Build & Theme the Hyprland Desktop
@@ -79,18 +79,30 @@ Generate a complete, validated, **modular** config (a main `hyprland.conf` that 
 files), back up any existing config, install it, and live-test with auto-rollback. Do not write to
 `~/.config/hypr` until the config is generated and the user has seen the plan.
 
-### A1. Delegate the interview to the `hyprland-interviewer` agent
+### A1. Run the interview — pick the path deterministically up front
 
-The interview is 28–38 `AskUserQuestion` calls across 23 groups. **Do not run it in the main rice
-loop** — by the time it finishes, the main context is full of Q/A noise and downstream steps start
-hallucinating picks. Instead, set up a staging dir and spawn the **`hyprland-interviewer`** agent:
+The interview is 28–38 `AskUserQuestion` calls across 23 groups. Some Claude Code harnesses
+**disable `AskUserQuestion` inside subagents**; on those, the interviewer agent immediately
+returns `INTERVIEW=blocked`. So **probe availability once, up front, and pick the path
+deterministically.** Both paths are first-class — neither is a fallback (defect #2: the inline
+path is the *expected* path in this environment, not an error).
+
+Set up a staging dir first (both paths use it):
 
 ```bash
 staging="/tmp/hypr-gen-$(date +%s)-$$"
 mkdir -p "$staging"
 ```
 
-Then call the Agent tool with `subagent_type: hyprland-interviewer` passing:
+Then probe `AskUserQuestion` availability with one trivial throwaway call (e.g. "Ready to start
+the interview?" Yes / Cancel). If it returns normally, both **agent** and **inline** paths are
+open — prefer the agent (the context-isolation matters at 28-38 calls). If the probe errors as
+"not available inside subagents", the inline path is the only path **and that is fine** — do not
+spawn the interviewer just to have it bounce back.
+
+#### A1a — Agent path (when `AskUserQuestion` works in subagents)
+
+Call the Agent tool with `subagent_type: hyprland-interviewer` passing:
 - `STAGING=<staging>`
 - `HYPR_VERSION=<from detect-version.sh>`
 - `ARGUMENTS=<the user's $ARGUMENTS>`
@@ -98,27 +110,41 @@ Then call the Agent tool with `subagent_type: hyprland-interviewer` passing:
 - `DETECT_VERSION=<the detect-version.sh kv dump>` / `DETECT_THEME=<detect-theme-tools.sh kv dump>`
 
 The agent walks the question bank in `references/_interview-protocol.md` (protocol + the
-components-walked table) plus each `references/components/<x>/interview.md`, **asks every sub-question**
-(see the agent's "STRICT — ASK EVERY QUESTION" rules: `(default)` only reorders the option list,
-it doesn't authorize skipping; `ARGUMENTS` / `EXISTING_CONFIG` reorder, they don't answer),
-records every answer to `<staging>/answers.json` as it goes (via `scripts/record-answer.sh`),
-runs a "review your picks" pass at the end, and returns just the file path + a short summary.
-The 23 groups stay in the agent's context; your main loop only sees the summary line.
-
-**Fallback — `AskUserQuestion` may be disabled inside subagents.** Some harnesses block
-`AskUserQuestion` in subagents (the agent errors on its first probe and returns
-`INTERVIEW=blocked`). When that happens the agent **cannot** run the interview, so **run it inline in
-the main loop yourself**: read `references/_interview-protocol.md` for the order and each
-`references/components/<x>/interview.md` for the sub-questions, ask them with `AskUserQuestion`,
-and persist every answer with `scripts/record-answer.sh` into the same
-`<staging>/answers.json` (the agent already seeded `version`/`staging_dir`/`hypr_version`). The
-context-isolation benefit is lost, but a real interview beats a fabricated one — **never invent
-answers the user didn't see.** This is the *expected* path in this environment, not an error.
+components-walked table) plus each `references/components/<x>/interview.md`, **asks every
+sub-question** (see the agent's "STRICT — ASK EVERY QUESTION" rules: `(default)` only reorders
+the option list, it doesn't authorize skipping; `ARGUMENTS` / `EXISTING_CONFIG` reorder, they
+don't answer), records every answer to `<staging>/answers.json` as it goes (via
+`scripts/record-answer.sh`), runs a "review your picks" pass at the end, and returns just the
+file path + a short summary. The 23 groups stay in the agent's context; your main loop only
+sees the summary line.
 
 **Verify the call count before accepting the agent's report.** If the agent returns
-`components_recorded` ≪ 22 or a summary that suggests fewer than ~28 `AskUserQuestion` calls were
-made, the interview was collapsed — re-spawn the agent (or fall back to the inline question bank
-in the main loop, asking each question yourself).
+`components_recorded` ≪ 22 or a summary suggesting fewer than ~28 `AskUserQuestion` calls were
+made, the interview was collapsed — re-spawn the agent (or run inline yourself).
+
+#### A1b — Inline path (when `AskUserQuestion` is blocked in subagents)
+
+This is co-equal to the agent path — not a fallback. The probe told you up front that the
+agent can't ask questions; running it just to have it return `INTERVIEW=blocked` is wasted
+work. Instead, **run the interview yourself in the main rice loop**:
+
+1. Seed `<staging>/answers.json` with `version` / `staging_dir` / `hypr_version`:
+   ```bash
+   bash "${CLAUDE_PLUGIN_ROOT}/scripts/record-answer.sh" "$staging/answers.json" version --json 1
+   bash "${CLAUDE_PLUGIN_ROOT}/scripts/record-answer.sh" "$staging/answers.json" staging_dir "$staging"
+   bash "${CLAUDE_PLUGIN_ROOT}/scripts/record-answer.sh" "$staging/answers.json" hypr_version "$HYPR_VERSION"
+   ```
+2. Read `references/_interview-protocol.md` for the order + the asking discipline. Read each
+   `references/components/<x>/interview.md` in walked-order for that component's sub-questions.
+3. Ask every sub-question with `AskUserQuestion`; immediately record each answer with
+   `record-answer.sh`. The same strict no-defaulting rule applies — `(default)` reorders the
+   option list, `$ARGUMENTS` / `EXISTING_CONFIG` reorder the first option, neither answers the
+   question.
+4. Run the review pass with one final `AskUserQuestion` summarizing palette/fonts/bar/launcher/
+   terminal/notif/shell/monitors/opt-ins.
+
+The context-isolation benefit is lost (28-38 Q/A rounds live in the main loop), but a real
+interview beats a fabricated one — **never invent answers the user didn't see.**
 
 For **re-theming (Mode B)** you don't need the full interviewer — Mode B only walks the `look-feel`
 component (palette · fonts · wallpaper sub-questions) inline; running the heavy agent for one
@@ -146,12 +172,34 @@ that's a missing question — go back through the interviewer rather than invent
 
 The actual file authoring is **delegated to `hyprland-component-writer` agents in parallel** (see
 A3b for the spawn pattern — the same agent handles Hyprland topic files via
-`SURFACE=hyprland-topic`). Each writer gets a `jq` slice of `answers.json` as its `ANSWERS`
-parameter, e.g.:
+`SURFACE=hyprland-topic`). Each writer gets a slice of `answers.json` as its `ANSWERS`
+parameter, sliced via `scripts/answers.py` (the Python helper — `jq` is not yet installed
+at generation time):
 
 ```bash
-ANSWERS="$(jq '{monitors, input}' "$staging/answers.json")"
+ANSWERS="$(python3 "${CLAUDE_PLUGIN_ROOT}/scripts/answers.py" slice "$staging/answers.json" monitors input)"
 ```
+
+**Cross-surface slices the writer needs to *integrate* go in too.** Several writers reference
+selections the user made in a *different* component — and historically didn't see them
+(defects #11/#12/#14/#17). The cross-surface slices for each writer:
+
+- `window-rules` writer → `widgets utilities notifications` (so blur namespaces for
+  `widgets.system` and `utilities.osd_route` land — see `_shared/namespaces.md`)
+- `keybinds` writer → `widgets utilities gaming lock_screen` (so the expected toggle/launch
+  binds for those surfaces land — see `_shared/expected-binds.md`)
+- `waybar` writer → `utilities notifications` (so `custom/power` and `custom/notification`
+  modules land — see `_shared/expected-binds.md` "Waybar modules")
+- `autostart` writer → `widgets utilities notifications` (so the shell autostart, swayosd
+  daemon, and notification daemon lines land in one consistent order)
+
+> **No jq at generation time.** Everything between A0 and the package install batch (A5
+> step 3) runs on a clean Arch box where `jq` is not yet on disk — `jq` is itself one of
+> the packages the rice installs. Generation-time tooling reads `answers.json` through
+> `scripts/answers.py` (`get` / `slice` / `list` / `has`) and writes through
+> `scripts/record-answer.py`; both depend only on the Python stdlib (Arch's `pacman` pulls
+> in `python3` as a base dep). Runtime helpers (`keybind-cheatsheet.sh`, eww data scripts,
+> rice CLI) keep using `jq` because they execute after the install.
 
 The main loop is responsible for:
 - The index file `hyprland.conf` (variables + `source=` lines — small, benefits from the
@@ -189,8 +237,8 @@ the interview (terminal, waybar, widgets, launcher, notifications, lock-screen),
 **Spawn one `hyprland-component-writer` agent per surface**, in parallel (one message with several
 Agent tool calls), passing each:
 - `SURFACE=<waybar|launcher|notifications|terminal|lock-screen|widgets>`
-- `ANSWERS=<jq slice of answers.json>` — e.g. for waybar:
-  `ANSWERS="$(jq '{bar, palette, fonts}' "$staging/answers.json")"`
+- `ANSWERS=<answers.py slice of answers.json>` — e.g. for waybar:
+  `ANSWERS="$(python3 "${CLAUDE_PLUGIN_ROOT}/scripts/answers.py" slice "$staging/answers.json" bar palette fonts)"`
 - `PALETTE=~/.config/hypr-rice/palette.conf`
 - `STAGING=<staging>` (each writer respects the `_shell/<app>/` layout)
 - `HYPR_VERSION=<x.y.z>`
@@ -237,9 +285,10 @@ file. These get backed up + installed alongside the Hyprland config in A5.
 
 ### A3c. Set up the shell & prompt (shell-prompt component)
 
-Read the shell pick from `answers.json` (`jq -r .shell_prompt.shell answers.json` → `fish`/`zsh`/
-`bash`/`keep-current`; same for `.shell_prompt.prompt`, `.shell_prompt.fetch`,
-`.shell_prompt.fish_colors`, `.shell_prompt.fisher`, `.shell_prompt.modern_cli`). Then configure
+Read the shell pick from `answers.json` (`python3 scripts/answers.py get answers.json
+shell_prompt.shell` → `fish`/`zsh`/`bash`/`keep-current`; same for `.shell_prompt.prompt`,
+`.shell_prompt.fetch`, `.shell_prompt.fish_colors`, `.shell_prompt.fisher`,
+`.shell_prompt.modern_cli`). Then configure
 the interactive shell, leaning on **`references/components/shell-prompt/template.md`** (managed
 block, guarded inits, parse-test) and **`components/shell-prompt/gotchas.md`** for *behavior* and
 the rice engine (A4) for *colors*:
@@ -274,20 +323,21 @@ each pick's package name(s) in the relevant `components/<x>/packages.md` slice, 
 already-present packages (`HAVE_*` from detection) with `# installed`. A reference shape:
 
 ```bash
+A="${CLAUDE_PLUGIN_ROOT}/scripts/answers.py"
 pkgs=()
-[ "$(jq -r .bar.strategy        answers.json)" = "waybar" ]   && pkgs+=(waybar)
-case "$(jq -r .launcher.tool      answers.json)" in
+[ "$(python3 "$A" get answers.json bar.strategy)" = "waybar" ]   && pkgs+=(waybar)
+case "$(python3 "$A" get answers.json launcher.tool)" in
   wofi)    pkgs+=(wofi) ;;
   rofi)    pkgs+=(rofi) ;;
   fuzzel)  pkgs+=(fuzzel) ;;
   …
 esac
-case "$(jq -r .notifications.daemon answers.json)" in
+case "$(python3 "$A" get answers.json notifications.daemon)" in
   mako)    pkgs+=(mako) ;;
   dunst)   pkgs+=(dunst) ;;
   swaync)  pkgs+=(swaync) ;;
 esac
-mapfile -t utils < <(jq -r '.utilities.selected[]' answers.json)
+mapfile -t utils < <(python3 "$A" list answers.json utilities.selected)
 for u in "${utils[@]}"; do …; done
 …
 ```
@@ -316,7 +366,7 @@ The colors/fonts from the `look-feel` component (palette, fonts, wallpaper sub-q
    `bash "${CLAUDE_PLUGIN_ROOT}/skills/rice/scripts/rice-init.sh"`
 2. Write `~/.config/hypr-rice/palette.conf` from `answers.json` — resolve the chosen source:
    - `.palette.source == "named"` → look up `.palette.scheme` in `references/theming/palettes.md`,
-   - `.palette.source == "wallpaper"` → `scripts/palette-from-wallpaper.sh "$(jq -r .wallpaper.path answers.json)"`
+   - `.palette.source == "wallpaper"` → `scripts/palette-from-wallpaper.sh "$(python3 "${CLAUDE_PLUGIN_ROOT}/scripts/answers.py" get answers.json wallpaper.path)"`
      (override the scheme type/mode/prefer with `MATUGEN_TYPE`/`MATUGEN_MODE`/`MATUGEN_PREFER` env vars
      if needed — `scheme-tonal-spot`/`dark`/`saturation` by default). **matugen 4.x note:** the script
      now writes a `[config]` table and passes `--prefer` (headless matugen needs it when an image has

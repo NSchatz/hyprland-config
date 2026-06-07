@@ -25,16 +25,39 @@ The corpus has shifted in the last year; pick the modern tool when adding to the
 | Surface | Older default | 2025-2026 default | Why |
 |---|---|---|---|
 | Screenshot annotation | `swappy` | **`satty`** | Active maintenance, better UI, pen pressure. |
-| Screen recording | `wf-recorder` | **`wl-screenrec`** (on AMD/Intel) | HW-encoded via VAAPI — drastically lower CPU, smaller files. |
+| Screen recording | (`wl-screenrec` was here briefly in 2025) | **`wf-recorder`** | Repo C package, no ffmpeg-next pin. See "Screen recorder default" below — `wl-screenrec` is opt-in only. |
 | Capture wrapper | bare `grim`+`slurp` | **`grimblast`** or `hyprshot` | Window-capture honors Hyprland geometry; output dir, edit-arg handling. |
 
 `hyprshot` and `satty` moved from AUR to `extra` in 2025-08; `swayosd` moved to `extra` earlier.
 `wl-screenrec`, `wlogout`, `bemoji`, and `grimblast` remain AUR-only.
 
 The shipped `screenshot.sh` auto-detects in the order **grimblast → hyprshot → bare `grim`+`slurp`**;
-`screenrecord.sh` prefers **wl-screenrec → wf-recorder**. Listing multiple capture/recording tools
-in the install batch is harmless — the script picks the first present, and a user who later
+`screenrecord.sh` prefers **`wf-recorder` → `wl-screenrec`**. Listing multiple capture/recording
+tools in the install batch is harmless — the script picks the first present, and a user who later
 uninstalls one still gets a working script via the fallback chain.
+
+## Screen recorder default — wf-recorder (repo), not wl-screenrec (AUR Rust)
+
+Defect #7. **Default to `wf-recorder`**, not `wl-screenrec`:
+
+- `wf-recorder` is in `extra`, written in C, no ffmpeg-next pin — it just keeps working as
+  `ffmpeg` moves.
+- `wl-screenrec` is an AUR Rust build that pins `ffmpeg-next 8.0.0`, whose hand-written
+  exhaustive matches don't cover ffmpeg-8 enum variants. The build fails with `E0004`s; with
+  batch-mode AUR installs, that one failure aborts the entire batch and the user loses every
+  AUR package that hadn't been built yet. The installer agent now installs AUR packages
+  individually (see `agents/hyprland-package-installer.md` step 3) so one broken build can't
+  poison the rest, but `wl-screenrec` should still be opt-in only.
+
+When the user explicitly opts in to `wl-screenrec` (Intel/AMD VAAPI HW-encoded MP4 — real
+benefit for long recordings on a laptop), include **both** `wf-recorder` and `wl-screenrec` in
+the install batch. `screenrecord.sh` prefers `wf-recorder` so a `wl-screenrec` build failure
+doesn't leave the user without a recorder.
+
+Broader rule: **prefer repo packages over AUR Rust builds when a functional equivalent exists**.
+The same logic applies to `eww` (Rust, AUR — but unique), `swww` (Rust, archived — fork is
+`awww`), `matugen` (Rust, AUR — but unique), `paru` itself: when there's a repo C/C++ tool that
+does the job, pick that one.
 
 ## Scripts auto-detect — listing multiple tools is fine
 

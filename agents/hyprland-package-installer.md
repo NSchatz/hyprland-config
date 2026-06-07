@@ -43,13 +43,44 @@ summary.
 
 2. **Detect / bootstrap the AUR helper.** If the package list (or `install.sh` `aur=` bucket) is
    non-empty:
-   - Prefer `paru`, then `yay`. If neither exists, ask once with `AskUserQuestion`:
+   - Prefer `paru`, then `yay`. **Probe that the helper actually runs**, not just that the binary
+     exists. Defect #5: `paru-bin` on the AUR is a prebuilt binary linked against a specific
+     `libalpm.so` version; when Arch's rolling `pacman` bumps libalpm (e.g. .15 → .16), the
+     prebuilt helper installs cleanly but **fails at runtime** with an ABI mismatch. So:
+     ```bash
+     helper_works() {
+         local h="$1"
+         command -v "$h" >/dev/null 2>&1 || return 1
+         "$h" --version >/dev/null 2>&1 || return 1
+         return 0
+     }
+     ```
+     Treat a helper that exists-but-doesn't-run as **absent** — fall through to the next
+     candidate (or the bootstrap).
+   - **If the broken helper is `paru-bin`, remove it AND its debug sibling together.** Defect #6:
+     `paru-bin-debug` is a separate split package, NOT a dep of `paru-bin`, so `pacman -Rns
+     paru-bin` orphans it. Building `paru` from source later produces `paru-debug`, which conflicts
+     with the orphaned `paru-bin-debug` file. Sweep both in one shot:
+     ```bash
+     mapfile -t _broken < <(pacman -Qq 2>/dev/null | grep -E '^paru-bin(-debug)?$')
+     [ "${#_broken[@]}" -gt 0 ] && sudo pacman -Rns --noconfirm "${_broken[@]}"
+     ```
+     Generalize the rule: whenever the installer removes any `*-bin` AUR helper, sweep for its
+     `*-bin-debug` sibling too (same logic for `yay-bin` / `yay-bin-debug`).
+   - If neither helper exists (or both were just removed), ask once with `AskUserQuestion`:
      "No AUR helper found. Install paru first?" (Yes / No, list AUR packages and let me install them
      manually).
-   - On yes, run the standard paru bootstrap:
-     `sudo pacman -S --needed base-devel git` →
-     `git clone https://aur.archlinux.org/paru.git /tmp/paru && (cd /tmp/paru && makepkg -si)`.
-     Verify with `command -v paru`.
+   - On yes, **build paru from source** — NOT `paru-bin` (see defect #5):
+     ```bash
+     sudo pacman -S --needed base-devel git rust    # rust is required to build paru, eww,
+                                                    # swww/awww, wl-screenrec, matugen
+     # Use the AUR `paru` package, not `paru-bin`
+     tmp="$(mktemp -d)"
+     git clone https://aur.archlinux.org/paru.git "$tmp/paru"
+     (cd "$tmp/paru" && makepkg -si --noconfirm)
+     ```
+     **Verify with `helper_works paru`** (runs `paru --version`) before trusting it; if the
+     verify fails, surface the build log and return `INSTALL=failed`.
 
 3. **Run the install.** When given a script:
    ```bash
@@ -59,7 +90,19 @@ summary.
    skill emits from each `components/<x>/packages.md`):
    - Partition with `pacman -Si <p>` (returns 0 → repo).
    - `sudo pacman -S --needed <repo_pkgs>` for the repo bucket.
-   - `paru -S --needed <aur_pkgs>` (or `yay`) for the AUR bucket.
+   - **AUR packages install ONE AT A TIME** (defect #7 second half) — `paru -S --needed <single>`
+     in a loop, *not* `paru -S --needed <all>` in a single batch. The aborted-batch failure mode:
+     one AUR build (typically `wl-screenrec` failing against the current `ffmpeg-next`) aborts the
+     whole batch and the rest never install. Per-package, one failure surfaces in the report but
+     the rest land:
+     ```bash
+     aur_failed=()
+     for p in "${aur_pkgs[@]}"; do
+         "$helper" -S --needed --noconfirm "$p" || aur_failed+=("$p")
+     done
+     ```
+     The same applies inside `install.sh` — the rice-generated script loops AUR packages
+     individually with `|| true` and reports the failures in the trailing summary.
 
 4. **Diagnose failures.** Read stderr; classify each failure:
    - **Transient** (HTTP 504/503, mirror down, makepkg sig timeout) → retry once with the same

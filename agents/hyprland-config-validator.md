@@ -101,7 +101,62 @@ is available, assume the latest stable syntax and say so in the report.
      `config.jsonc` strict-JSON parse, layerrule block form, hyprlock required-block list). Apply
      each one for the surface(s) present in the config under test.
 
-6. **Cross-surface coherence checks (from the v0.14 3-batch research pass).** These catch
+6. **Semantic lints (defect-class hardening).** Syntax validity ≠ correct output. Each lint
+   below corresponds to a concrete defect class the validator now blocks — the cross-cutting
+   `_shared/` registries (`namespaces.md`, `binaries.md`, `expected-binds.md`,
+   `helper-scripts.md`) are the source of truth.
+
+   - **No `rgb($var)` / `rgba($var)` / `#$var` double-wrap in emitted `*.conf`** (defect #3).
+     The rice's `colors.conf` already stores palette keys as `$accent = rgb(<hex>)` —
+     re-wrapping produces `rgb(rgb(<hex>))` which Hyprland rejects with "invalid color" and the
+     whole reload fails. Lint:
+     ```bash
+     if grep -nE '(rgb|rgba)\(\$[a-zA-Z_]+|#\$[a-zA-Z_]+' "$conf"; then
+         echo "ERROR: $conf has a double-wrap; palette vars in colors.conf are already
+                fully-formed rgb()/hex — emit \$var bare. See look-feel/template.md."
+         exit_status=1
+     fi
+     ```
+     This applies to every emitted Hyprland `*.conf` — `colors.conf`, `looknfeel.conf`,
+     `env.conf`, `windowrules.conf`, hyprlock, etc.
+
+   - **Rofi themes must define the global `*` block AND the full element state matrix**
+     (defect #4). Rofi overlays the user theme on top of its base theme; unstyled selectors
+     inherit base-theme (usually light) colors. Required selectors:
+     `* { … }`, `listview`, `element-text`, `element-icon`, and `element {normal,alternate,selected}.{normal,urgent,active}` (9 element-state blocks total).
+     Lint per `components/launcher/validation.md` → "Rofi theme.rasi is SELF-CONTAINED".
+
+   - **No literal `swww-daemon` / `swww img` / `awww-daemon` / `awww img` outside the binary
+     registry** (defect #8). Search emitted *.conf and shipped scripts for these strings;
+     except in `_shared/binaries.md`, `set-wallpaper.sh`, `render-templates.sh`, and a binary-
+     agnostic `sh -c …` launcher, the literal must not appear. Lint:
+     ```bash
+     if grep -nE '\b(swww-daemon|awww-daemon|swww img|awww img)\b' "$conf" \
+            | grep -vE 'sh -c|binaries\.md|set-wallpaper|render-templates|restore-theme'; then
+         echo "ERROR: $conf hard-codes a SWWW binary name; emit \$SWWW_DAEMON_BIN via detection
+                (see _shared/binaries.md) or the binary-agnostic launcher."
+         exit_status=1
+     fi
+     ```
+
+   - **Every `match:namespace = X` in `windowrules.conf` corresponds to a declared namespace
+     in `_shared/namespaces.md`** AND the owner of that namespace is selected in
+     `answers.json` (defects #11/#14). Build a set of declared+selected namespaces from the
+     registry, then grep `match:namespace = (.+)$` and check each match is in the set. Emit
+     WARNING for an unmatched namespace (it's not a parse error, just a silent no-op blur).
+
+   - **Every gate in `_shared/expected-binds.md` whose condition holds in `answers.json` has a
+     matching `bind = …, exec, <cmd>` line in `binds.conf`** (defects #12/#17). For each row
+     in the registry, evaluate the gate; if true, search the emitted binds.conf for a line
+     whose tail matches the declared command. Missing → ERROR.
+
+   - **NVIDIA package recommendation matches the detected `NVIDIA_DRIVER_BRANCH`** (defect #15).
+     If `install.sh` pulls `nvidia` (bare) and detection reports
+     `NVIDIA_GENERATION ∈ {volta,pascal,maxwell,kepler,fermi}`, ERROR — the bare `nvidia`
+     package no longer exists for those generations; the user needs the legacy AUR branch.
+     Suggest the exact package set from `components/env/gotchas.md` "NVIDIA package branch".
+
+7. **Cross-surface coherence checks (from the v0.14 3-batch research pass).** These catch
    real-world breakage observed across the corpus. All cite the upstream evidence; check
    against the per-component `validation.md` / `gotchas.md` for the full rationale.
    - **fuzzel layerrule namespace** — `layerrule = blur, fuzzel` and `layerrule { match:namespace = fuzzel; … }`
@@ -136,7 +191,7 @@ is available, assume the latest stable syntax and say so in the report.
      A camelCase name silently falls back to the base theme. Verified against
      `Keyitdev/sddm-astronaut-theme/Themes/`.
 
-7. **Ecosystem / companion checks.** Read
+8. **Ecosystem / companion checks.** Read
    `${CLAUDE_PLUGIN_ROOT}/skills/hyprland-reference/references/ecosystem.md` for tool/command
    reference, and
    `${CLAUDE_PLUGIN_ROOT}/skills/rice/references/components/companion-daemons/gotchas.md` +

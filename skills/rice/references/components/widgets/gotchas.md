@@ -12,8 +12,9 @@ waybar` from `hyprland.conf` (or never write it in the first place). The autosta
 `widgets.system` and gates the waybar line:
 
 ```bash
-if [ "$(jq -r .widgets.system answers.json)" != "none" ] && \
-   [ "$(jq -r .widgets.system answers.json)" != "eww" ]; then
+A="${CLAUDE_PLUGIN_ROOT}/scripts/answers.py"
+sys="$(python3 "$A" get answers.json widgets.system)"
+if [ "$sys" != "none" ] && [ "$sys" != "eww" ]; then
   # full shell owns the bar — skip waybar
   :
 else
@@ -38,12 +39,12 @@ shell, set `notifications.daemon = "none"` (the notifications component's gate).
 component reads `widgets.{system,enabled}` and short-circuits its own interview:
 
 ```bash
-sys=$(jq -r .widgets.system answers.json)
-enabled=$(jq -r '.widgets.enabled[]' answers.json)
+A="${CLAUDE_PLUGIN_ROOT}/scripts/answers.py"
+sys=$(python3 "$A" get answers.json widgets.system)
 case "$sys" in
   ags|quickshell|hyprpanel|turnkey)
-    if echo "$enabled" | grep -qx notification-center; then
-      record-answer.sh answers.json notifications.daemon none
+    if python3 "$A" list answers.json widgets.enabled | grep -qx notification-center; then
+      bash "${CLAUDE_PLUGIN_ROOT}/scripts/record-answer.sh" answers.json notifications.daemon none
     fi ;;
 esac
 ```
@@ -71,6 +72,36 @@ for any shell), the engine **does not** register a widget manifest line. Instead
 visibly differ from waybar / kitty / rofi if both are running. The cohesion point is the
 wallpaper — pick one matugen-driven wallpaper and the shell's palette stays aligned to the
 engine's named-scheme picks within rounding error.
+
+## OSD owner: pick exactly one (defect #13)
+
+Two of the rice's components can render volume / brightness OSDs: the widget shell
+(`widgets.enabled ∋ OSD`) and `swayosd` (`utilities.osd_route == swayosd`). When the user
+opts in to both, both render the same key-press, the two OSDs flicker over each other on top
+of the bar, and the rice "feels broken." The interview-time check that prevents this:
+
+```bash
+A="${CLAUDE_PLUGIN_ROOT}/scripts/answers.py"
+osd_widget="$(python3 "$A" list answers.json widgets.enabled | grep -qFx 'OSD (volume / brightness)' && echo 1 || echo 0)"
+osd_route="$(python3 "$A" get answers.json utilities.osd_route)"
+if [ "$osd_widget" = "1" ] && [ "$osd_route" = "swayosd" ]; then
+    # Conflict — ask the user which one should own OSDs (in_shell:in-shell or swayosd:swayosd),
+    # then drop the other:
+    #   if they pick "shell OSD" → record utilities.osd_route = in-shell (route to shell IPC)
+    #   if they pick "swayosd" → remove OSD from widgets.enabled
+    : # (handled in the rice-skill orchestrator, not silently — see SKILL.md A1)
+fi
+```
+
+The orchestrator (`SKILL.md` A1, after the review pass) runs this check. When it fires, it
+asks the user — *don't* silently drop one side. Defaults if the user has no preference: prefer
+the widget shell's OSD when `widgets.system` is a "full shell" (ags/quickshell/hyprpanel/turnkey,
+which can't easily relinquish OSD rendering); prefer swayosd when `widgets.system` is `eww`
+(eww's OSD is opt-in, not the shell's responsibility).
+
+The notification-daemon-OSD route (`utilities.osd_route == "notification"`) doesn't conflict
+with widget-shell OSDs — they fire at different points in the pipeline — so no check is
+needed there.
 
 ## eww quirks — `grass`-SCSS pitfalls
 

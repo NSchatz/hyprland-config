@@ -10,7 +10,7 @@ deduplicates (many tools share `grim`, `slurp`, `wl-clipboard`, `jq`), and appen
 | Selected value | Required packages | Optional / preferred | Repo / AUR | Notes |
 |---|---|---|---|---|
 | `screenshot` | `grim` `slurp` `jq` `wl-clipboard` | `hyprshot` (extra), `grimblast` (AUR: `grimblast-git`), `satty` (extra), `swappy` (extra) | repo + AUR | Auto-detect at runtime — install the wrapper(s) and annotator(s) the user picked; bare `grim`+`slurp` is the fallback. As of 2025-08, `hyprshot` and `satty` moved from AUR to `extra`. |
-| `screen-record` | `slurp` | `wl-screenrec` (AUR), `wf-recorder` (extra) | repo + AUR | `wl-screenrec` is HW-encoded (VAAPI) — preferred on AMD/Intel; `wf-recorder` is the software fallback. Both is harmless (auto-detect). |
+| `screen-record` | `wf-recorder` `slurp` | `wl-screenrec` (AUR — opt-in only) | repo (extra) + optional AUR | **Default: `wf-recorder`** (extra, C, no ffmpeg-next pin). `wl-screenrec` is opt-in only — AUR Rust build pinning `ffmpeg-next 8.0.0` that breaks on every ffmpeg cliff (defect #7). When the user explicitly opts in to HW-encoded recording, include BOTH so a broken `wl-screenrec` build still leaves the user with a working recorder. `screenrecord.sh` prefers `wf-recorder`. |
 | `ocr` | `tesseract` `tesseract-data-eng` `grim` `slurp` `wl-clipboard` | `tesseract-data-<lang>` per extra language | repo (extra) | English is the floor; add per-language data packs as the user requests. |
 | `color-picker` | `hyprpicker` `wl-clipboard` | | repo (extra) | |
 | `power-menu` (rofi flavor) | `rofi` `hyprlock` | | repo (extra) | Repo `rofi` ≥ 2.0 (released 2025-09-01) ships native Wayland — the old AUR `rofi-wayland` is obsolete. systemd is base; no separate package. |

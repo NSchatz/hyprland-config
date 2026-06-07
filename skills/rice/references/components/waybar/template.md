@@ -124,6 +124,29 @@ linters (see `gotchas.md`).
 }
 ```
 
+Append `"custom/notification"` to `modules-right` (after `tray`).
+
+**Power-menu addendum (defect #17).** When `utilities.selected` ∋ `power-menu`, the waybar
+writer emits a `custom/power` module wired to the same `powermenu.sh` / `wlogout` the keybind
+fires — without it the power utility is selected but never appears on the bar. The bar-module
+contract is declared in [`_shared/expected-binds.md`](../../_shared/expected-binds.md) →
+"Waybar modules". Append to `modules-right` (right of `tray`):
+
+```jsonc
+"custom/power": {
+  // rofi flavor — driven by the shipped powermenu.sh
+  "format": "⏻",
+  "tooltip": false,
+  "on-click": "~/.config/hypr/scripts/powermenu.sh"
+  // wlogout flavor — substitute "wlogout -p layer-shell" for the on-click instead
+}
+```
+
+The writer reads `utilities.selected` and the power-menu flavor (rofi vs wlogout) from
+`utilities.power_menu_tool` (see `components/utilities/schema.md`) to pick the `on-click`
+target. This is the same shape as the `keybinds` writer's `$mainMod, Escape` / `$mainMod
+SHIFT, M` bind — both consume the contract instead of one writer guessing.
+
 ## MDI glyph table (verified, 4-byte safe)
 
 These are the codepoints the writer must use for module icons. Authoring through Python's

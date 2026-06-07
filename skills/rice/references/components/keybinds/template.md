@@ -255,6 +255,24 @@ bind = $mainMod, Print, exec, grim - | wl-copy
 {{#if cliphist}}bind = $mainMod SHIFT, V, exec, cliphist list | $dmenu -i -p "Clipboard" | cliphist decode | wl-copy{{/if}}
 # Note the cliphist bind uses $dmenu (NOT $menu) — see gotchas.md.
 
+# ----- Widget-shell binds (defect #12) -----
+# When widgets.system != none, the chosen widget shell needs toggle binds for its windows
+# (dashboard, music, sysinfo, notification-center). The list of expected binds per shell
+# lives in _shared/expected-binds.md — the keybinds writer reads from there. Without these,
+# the user opens the desktop, sees no bar/dashboard, and assumes the rice is broken.
+{{#eq widgets.system "eww"}}
+{{#contains widgets.enabled "dashboard"}}bind = $mainMod SHIFT, D, exec, eww open --toggle dashboard{{/contains}}
+{{#contains widgets.enabled "music"}}bind = $mainMod SHIFT, M, exec, eww open --toggle music{{/contains}}
+{{#contains widgets.enabled "sysinfo"}}bind = $mainMod SHIFT, I, exec, eww open --toggle sysinfo{{/contains}}
+{{#contains widgets.enabled "notification-center"}}bind = $mainMod SHIFT, N, exec, eww open --toggle notifications{{/contains}}
+{{/eq}}
+{{#eq widgets.system "ags"}}
+bind = $mainMod, A, exec, ags request "toggle bar"
+{{/eq}}
+{{#eq widgets.system "quickshell"}}
+bind = $mainMod, A, exec, qs ipc call shell toggleBar
+{{/eq}}
+
 # ----- Util-script binds (gated on keybinds.extras + utilities.selected) -----
 # Scripts ship in assets/scripts/ and land at ~/.config/hypr/scripts/.
 {{#if util_cheatsheet}}bind = $mainMod, slash,   exec, ~/.config/hypr/scripts/keybind-cheatsheet.sh{{/if}}
@@ -338,3 +356,10 @@ bind = $mainMod SHIFT, comma,  layoutmsg, consume
 | `theme_dark` / `theme_light` | `keybinds.theme_dark` / `keybinds.theme_light` |
 | `plugin_hyprexpo` / `plugin_hy3` | `plugins.selected` contains the slug (line emitted commented) |
 | `filemanager` | `default_apps.files != null` |
+| widget toggle binds (eww/ags/quickshell) | `widgets.system != none` — emit per `_shared/expected-binds.md`. The keybinds writer needs the `widgets` slice in its ANSWERS; without it, defect #12 (no toggle bind for the chosen widget shell) returns. |
+
+> **Cross-component contract**: the binds in the "Widget-shell binds" / "Ecosystem binds" /
+> "Util-script binds" sections all reflect choices made in *other* components. Owner-of-bind
+> is declared in [`_shared/expected-binds.md`](../../_shared/expected-binds.md); the keybinds
+> writer reads from there. When a sibling component is selected but its bind doesn't appear,
+> that's defects #12/#17 returning — file an issue.

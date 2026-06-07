@@ -12,15 +12,33 @@ use placeholders (`DP-1`, `HDMI-A-1`, `eDP-1`) and note "adjust after first relo
 
 ## Sub-questions
 
-**1a. Monitor setup**
-- Single monitor, auto-detect **(default)** → `monitor = , preferred, auto, auto`
+**1a. Monitor setup** — reorder so the *detected native mode* is the first option when
+`hyprctl monitors` reports one (defect #9; native almost always beats `highrr` because
+high-refresh-rate signalling is usually only available at lower resolutions on ultrawide /
+4K panels, and `highrr` will silently downgrade resolution for the refresh win — see
+`gotchas.md`).
+
+- **Pin the detected native mode** (e.g. `3440x1440@60`) → `monitor = NAME, <native>, auto, auto`
+  — listed first when detection reports the current preferred mode; this is the recommended
+  pick for most displays.
+- Single monitor, auto-detect → `monitor = , preferred, auto, auto`
 - Single, specific resolution/refresh → ask res + refresh (e.g. `2560x1440@144`)
 - Dual side-by-side → ask both names/res; place the second at `<width>x0`
 - More than two / complex → collect each monitor's name, mode, position, scale
 
-For unknown hardware the `, highrr, auto, 1` / `, highres, auto, 1` / `, maxwidth, auto, 1`
-"magic" modes pick the highest refresh / highest resolution / widest resolution from the EDID
-mode list. Use detected names where possible.
+The `highrr` / `highres` / `maxwidth` "magic" modes pick from the EDID mode list when the user
+doesn't want to pin a specific mode:
+
+- `highres` — **highest resolution; recommended** for most displays. Picks the panel's native
+  resolution at the *best* refresh rate available *at that resolution*.
+- `highrr` — **highest refresh rate; may drop resolution.** Useful when frame rate matters more
+  than pixel count (some games), but on an ultrawide / 4K / OLED panel the highest advertised
+  refresh is often only available at 1080p, so `highrr` silently picks `1920x1080@<hz>` on a
+  `3440x1440` panel. Surface as opt-in for "I'd rather have refresh than resolution."
+- `maxwidth` — widest horizontal resolution. Niche; useful for ultrawide-aware setups.
+
+Use detected names where possible (the catch-all `monitor = , …` form is a safety net, not the
+preferred shape — see `gotchas.md` "Use detected names").
 
 **1b. Fractional scaling?** (HiDPI / laptop panels)
 - No, scale 1 **(default)**

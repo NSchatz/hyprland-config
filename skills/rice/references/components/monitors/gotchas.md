@@ -28,6 +28,30 @@ the exact "fractional scaling is broken" complaint from real-world omarchy build
 The flag for "we pinned a fractional scale" is `monitors.scaling != 1.0`. Every downstream
 writer keys off that single value, not off iterating `monitors.list[*].scale`.
 
+## Magic modes resolve against the EDID mode list — and can pick a surprising resolution
+
+Defect #9. The Hyprland `highrr` / `highres` / `maxwidth` keywords don't read the panel's
+native resolution; they walk the EDID-advertised mode list and pick the one that maximizes the
+named axis. On ultrawide / 4K / OLED panels the highest **refresh** rate is often only
+available at the **lowest** resolution — so `highrr` on a `3440x1440@60` panel can resolve to
+`1920x1080@120`, which is correctly-but-uselessly downgrading the desktop. The user picked the
+ultrawide for a reason.
+
+Rule of thumb:
+
+- **For "I want it to look right" pick `highres`** (or, better, pin the detected native mode).
+  This is the recommended default for everyone except the "I want max refresh for games"
+  audience.
+- **`highrr` is opt-in** for users who explicitly want refresh over resolution, with a clear
+  note that resolution may drop.
+- **When detection reports the panel's preferred mode** (via `hyprctl monitors -j`'s `mode`
+  field on the running compositor), offer "pin the detected native mode at its best refresh"
+  as the FIRST option — it skips the magic-mode resolution ambiguity entirely.
+
+`scripts/detect-version.sh` already emits `MONITOR_COUNT`; the per-monitor mode is not yet
+emitted as a kv pair but the `EXISTING_CONFIG` reader can extract it from `hyprctl monitors -j`
+output passed to the interviewer.
+
 ## Use detected names, not placeholders
 
 `hyprctl monitors` is authoritative — its `Monitor <name>` lines are the names Hyprland accepts in

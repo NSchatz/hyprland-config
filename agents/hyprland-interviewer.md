@@ -15,13 +15,17 @@ sees one short tool result, not a sprawling history that downstream steps would 
 ## FIRST — confirm you can actually ask questions
 
 Some Claude Code harnesses **disable `AskUserQuestion` inside subagents** (it errors with
-"AskUserQuestion is not available inside subagents"). You cannot run the interview without it, and you
-must **never fabricate answers the user never saw** — that produces a config divorced from their real
-preferences, the exact drift this flow exists to prevent. So make your **first** action a single
-trivial `AskUserQuestion` probe. If it errors as unavailable, **stop immediately** and return
-`INTERVIEW=blocked` with a one-line reason + the `answers.json` path you seeded — do NOT proceed and do
-NOT guess. The orchestrator (rice SKILL.md A1) detects `INTERVIEW=blocked` and runs the interview inline
-in the main loop instead. If the probe succeeds, continue normally.
+"AskUserQuestion is not available inside subagents"). You cannot run the interview without it,
+and you must **never fabricate answers the user never saw** — that produces a config divorced
+from their real preferences, the exact drift this flow exists to prevent.
+
+The orchestrator (rice `SKILL.md` A1) is **supposed to probe `AskUserQuestion` availability
+itself before spawning you** and pick the inline path when subagent prompting is blocked. If
+you were spawned anyway, make your first action a single trivial probe. If it errors as
+unavailable, stop immediately and return `INTERVIEW=blocked` with a one-line reason + the
+`answers.json` path you seeded — do NOT proceed and do NOT guess. The orchestrator runs the
+interview inline in the main loop in that case (defect #2 — the inline path is co-equal, not a
+fallback). If the probe succeeds, continue normally.
 
 ## STRICT — ASK EVERY QUESTION
 
@@ -125,9 +129,11 @@ each start with a gate question. **Always ask the gate.** On "no" record `<group
 or the equivalent shape, then move on without asking the rest of that group.
 
 Don't try to "remember" each answer in your own context for later — once it's in the JSON file,
-it's safe; you can `jq` the file at any time. After every ~5 groups, run
-`jq . "$STAGING/answers.json"` and confirm the shape matches each component's `schema.md` so you
-catch a typo'd key path early.
+it's safe. After every ~5 groups, dump it (`python3 -c "import json,sys; print(json.dumps(json.load(open(sys.argv[1])), indent=2))" "$STAGING/answers.json"`)
+and confirm the shape matches each component's `schema.md` so you catch a typo'd key path early.
+**Generation-time tooling reads answers via `scripts/answers.py` (`get` / `slice` / `list` /
+`has`), not `jq`** — `jq` is one of the packages the rice itself installs; the interview runs
+before that batch lands.
 
 **Check your call count.** Running totals: groups 1–5 should be ~6–8 calls; through group 10
 ~14–18; through group 17 ~22–28; through group 23 **28–38**. If you're consistently low — e.g.
@@ -143,19 +149,18 @@ arguments]`, and any that came from `EXISTING_CONFIG` with `[from existing confi
 can spot something they didn't actually pick:
 
 ```bash
-jq -r '"
-  palette:     \(.palette.scheme) (\(.palette.accent))
-  fonts:       UI \(.fonts.ui) · Mono \(.fonts.mono)
-  bar:         \(.bar.strategy) \(.bar.archetype) \(.bar.form)
-  launcher:    \(.launcher.tool) (\(.launcher.mode))
-  terminal:    \(.terminal.emulator) @ \(.terminal.font_size)pt
-  notif:       \(.notifications.daemon) (\(.notifications.position), \(.notifications.timeout)s)
-  shell:       \(.shell_prompt.shell) · \(.shell_prompt.prompt) · \(.shell_prompt.fetch)
-  monitors:    \(.monitors.setup)
-  laptop:      \(.laptop.enabled)
-  gaming:      \(.gaming.enabled)
-  plugins:     \(.plugins.enabled)
-"' "$STAGING/answers.json"
+A="${CLAUDE_PLUGIN_ROOT}/scripts/answers.py"
+cat <<EOF
+  palette:     $(python3 "$A" get "$STAGING/answers.json" palette.scheme) ($(python3 "$A" get "$STAGING/answers.json" palette.accent))
+  fonts:       UI $(python3 "$A" get "$STAGING/answers.json" fonts.ui) · Mono $(python3 "$A" get "$STAGING/answers.json" fonts.mono)
+  bar:         $(python3 "$A" get "$STAGING/answers.json" bar.strategy) $(python3 "$A" get "$STAGING/answers.json" bar.archetype) $(python3 "$A" get "$STAGING/answers.json" bar.form)
+  launcher:    $(python3 "$A" get "$STAGING/answers.json" launcher.tool) ($(python3 "$A" get "$STAGING/answers.json" launcher.mode))
+  terminal:    $(python3 "$A" get "$STAGING/answers.json" terminal.emulator) @ $(python3 "$A" get "$STAGING/answers.json" terminal.font_size)pt
+  notif:       $(python3 "$A" get "$STAGING/answers.json" notifications.daemon)
+  shell:       $(python3 "$A" get "$STAGING/answers.json" shell_prompt.shell) · $(python3 "$A" get "$STAGING/answers.json" shell_prompt.prompt)
+  monitors:    $(python3 "$A" get "$STAGING/answers.json" monitors.setup)
+  opt-in:      laptop=$(python3 "$A" get "$STAGING/answers.json" laptop.enabled) gaming=$(python3 "$A" get "$STAGING/answers.json" gaming.enabled) plugins=$(python3 "$A" get "$STAGING/answers.json" plugins.enabled)
+EOF
 ```
 
 Then ask: **"These picks look right? Approve / fix one or more groups / start over"**.
@@ -175,7 +180,10 @@ return; they can hand-edit `answers.json` or run `edit-config` later.
 Before returning, make sure the file parses and the must-have keys are populated:
 
 ```bash
-jq -e '.palette.scheme and .fonts.mono and .bar.strategy and .terminal.emulator and .notifications.daemon and .launcher.tool' "$STAGING/answers.json"
+A="${CLAUDE_PLUGIN_ROOT}/scripts/answers.py"
+for k in palette.scheme fonts.mono bar.strategy terminal.emulator notifications.daemon launcher.tool; do
+    python3 "$A" has "$STAGING/answers.json" "$k" || { echo "missing required key: $k" >&2; exit 1; }
+done
 ```
 
 If any are missing, ask for them now (you've left a hole — don't return a half-filled file).
@@ -201,7 +209,8 @@ Summary:
   monitors: <setup>
   opt-in:   laptop=<bool> gaming=<bool> plugins=<bool> widgets=<system>
 
-Next: caller reads <STAGING>/answers.json with jq for every downstream step (A3, A3b, A3c, A3d, A4).
+Next: caller reads <STAGING>/answers.json with scripts/answers.py for every downstream step
+(A3, A3b, A3c, A3d, A4). `jq` is not available at generation time.
 ```
 
 ## Rules

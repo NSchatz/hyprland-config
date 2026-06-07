@@ -10,7 +10,7 @@ keyed off `widgets.system` (and `widgets.look` for the matugen branch).
 | `widgets.system` | Package | Repo / AUR | Notes |
 |---|---|---|---|
 | `none` | (nothing) | — | No widget shell. |
-| `eww` | `eww` | AUR (`eww`) | The yuck-and-SCSS widget toolkit. Standalone GTK3 binary; daemon + on-demand windows. SCSS compiled via the **grass** Rust engine (eww `Cargo.toml`: `grass = "0.13.4"`). |
+| `eww` | `eww` | AUR (`eww`) | The yuck-and-SCSS widget toolkit. Standalone GTK3 binary; daemon + on-demand windows. SCSS compiled via the **grass** Rust engine (eww `Cargo.toml`: `grass = "0.13.4"`). **Also pull in the eww-data-helper deps** so the shipped `~/.config/eww/scripts/{sysinfo,audio,player,toggles}` actually work: `wireplumber` (for `wpctl`), `brightnessctl`, `playerctl`, `networkmanager` (for `nmcli`), `bluez-utils` (for `bluetoothctl`). See `_shared/helper-scripts.md`. |
 | `ags` | `aylurs-gtk-shell` | AUR | The AGS v3 (Astal + Gnim) CLI. Pulls in `astal-*` libs as transitive deps. The plugin targets v3 (the latest release line — v3.1.x as of mid-2026), not the deprecated v1. |
 | `quickshell` | `quickshell` | AUR (`quickshell` or `quickshell-git`) | The QML / Qt 6 shell. Builds from source — see `gotchas.md` → "Heavy shells take real build time". |
 | `hyprpanel` | `ags-hyprpanel-git` | AUR | **Archived 2026-04-27** (read-only; successor *Wayle* in Rust) but still installs and runs. The canonical AUR name is **`ags-hyprpanel-git`**; a plain `hyprpanel` also exists. Depends on `aylurs-gtk-shell` (AGS v3). |
@@ -51,14 +51,17 @@ prefers `matugen-bin` to keep the install batch fast.
 ## Assembly rule
 
 ```bash
-case "$(jq -r .widgets.system answers.json)" in
+A="${CLAUDE_PLUGIN_ROOT}/scripts/answers.py"
+case "$(python3 "$A" get answers.json widgets.system)" in
   none)      ;;                       # nothing to install
-  eww)       pkgs+=(eww) ;;
+  eww)       pkgs+=(eww wireplumber brightnessctl playerctl networkmanager bluez-utils) ;;
+                # eww + the runtime deps the shipped eww/scripts/{sysinfo,audio,player,toggles}
+                # use. See _shared/helper-scripts.md.
   ags)       pkgs+=(aylurs-gtk-shell) ;;
   quickshell) pkgs+=(quickshell) ;;
   hyprpanel) pkgs+=(ags-hyprpanel-git aylurs-gtk-shell) ;;  # explicit; usually transitive
   turnkey)
-    case "$(jq -r .widgets.turnkey answers.json)" in
+    case "$(python3 "$A" get answers.json widgets.turnkey)" in
       end-4)         pkgs+=(quickshell) ;;          # plus the project's own install.sh
       caelestia)     pkgs+=(caelestia-shell-git caelestia-cli-git) ;;
       noctalia)      pkgs+=(noctalia-shell) ;;     # pulls noctalia-qs (their QS fork)
@@ -68,8 +71,8 @@ case "$(jq -r .widgets.system answers.json)" in
 esac
 
 # matugen branch
-look=$(jq -r .widgets.look answers.json)
-sys=$(jq -r .widgets.system answers.json)
+look=$(python3 "$A" get answers.json widgets.look)
+sys=$(python3 "$A" get answers.json widgets.system)
 case "$look:$sys" in
   material-you:*|*:hyprpanel|*:turnkey) pkgs+=(matugen-bin) ;;
 esac

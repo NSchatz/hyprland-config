@@ -49,6 +49,48 @@ set via `hl.env()` / `env.conf`). The "always pass `VAR=value`" rule is safe; th
 names" rule works **iff** the calling shell's env already matches what you want exported. We
 keep the explicit form as the recommendation but document both — community rices are split.
 
+## NVIDIA package branch is gated on the *GPU generation* (defect #15)
+
+The repo `nvidia` package — historically the right answer for everyone — was retired in 2025.
+Repos now ship `nvidia-open` / `nvidia-open-dkms` only, and only Turing-and-newer (compute
+capability ≥ 7.5) cards are supported there. Older NVIDIA GPUs need the legacy AUR branches:
+
+| Generation              | First device id range | Repo / AUR        | Package set                                                      |
+|---|---|---|---|
+| Blackwell (5xxx)        | `0x2900` and up       | repo              | `nvidia-open` (+ `nvidia-open-dkms` if you build other kernels) |
+| Ada Lovelace (4xxx)     | `0x2600`–`0x28ff`     | repo              | `nvidia-open`                                                    |
+| Ampere (3xxx)           | `0x2000`–`0x25ff`     | repo              | `nvidia-open`                                                    |
+| Turing (1660 / 2xxx)    | `0x1e00`–`0x1fff`     | repo              | `nvidia-open`                                                    |
+| Volta (Titan V / V100)  | `0x1d00`–`0x1dff`     | **AUR (legacy)**  | `nvidia-580xx-dkms` + `nvidia-580xx-utils` + `nvidia-580xx-settings` + `linux-headers` |
+| Pascal (1xxx)           | `0x1b00`–`0x1cff`     | **AUR (legacy)**  | `nvidia-580xx-dkms` (same set)                                  |
+| Maxwell (750 / 9xx)     | `0x1300`–`0x14ff`     | **AUR (legacy)**  | `nvidia-580xx-dkms` (same set)                                  |
+| Kepler (6xx / 7xx)      | `0x0f00`–`0x12ff`     | **AUR (legacy)**  | `nvidia-470xx-dkms` + `nvidia-470xx-utils` + `nvidia-470xx-settings` |
+| Fermi (4xx / 5xx)       | `0x0600`–`0x0eff`     | **AUR (legacy)**  | `nvidia-390xx-dkms` + `nvidia-390xx-utils` + `nvidia-390xx-settings` |
+| Older (Tesla, Curie, …) | < `0x0600`            | unsupported       | nouveau is the only path — proprietary driver discontinued.     |
+
+`scripts/detect-version.sh` emits `NVIDIA_GENERATION=<gen>` and `NVIDIA_DRIVER_BRANCH=<branch>`
+based on the lowercased device id from `lspci -nn`. The rice's env writer reads these and:
+
+1. **If `NVIDIA_DRIVER_BRANCH=nvidia-open`**: pull `nvidia-open` (or `nvidia-open-dkms` if the
+   user is on a custom kernel) into the install batch. This is the "nvidia recommended" path.
+2. **If `NVIDIA_DRIVER_BRANCH=nvidia-580xx`** (Maxwell/Pascal/Volta): pull
+   `nvidia-580xx-dkms` + `nvidia-580xx-utils` + `nvidia-580xx-settings` + `linux-headers`
+   from the AUR. **Surface a warning at install time**: "this is the legacy NVIDIA driver
+   branch — the repo `nvidia` package no longer supports your GPU generation (Pascal et al.).
+   The driver is maintained but frozen on the 580 release branch and will eventually be
+   end-of-lifed." Include `linux-headers` explicitly — DKMS rebuilds need them.
+3. **If `NVIDIA_DRIVER_BRANCH=nvidia-470xx`** (Kepler): pull the matching 470xx legacy AUR
+   set. Same warning, dimmer outlook.
+4. **If `NVIDIA_DRIVER_BRANCH=nvidia-390xx`** (Fermi): pull the matching 390xx legacy AUR set.
+   These cards are largely better off on nouveau — surface that as the alternative.
+5. **If `NVIDIA_DRIVER_BRANCH=unknown`** AND `NVIDIA_PCI_ID` was detected: don't pick a
+   package; surface the device id and ask the user which branch they want.
+
+**Never emit a bare `nvidia` line in the install batch** when the detected device falls outside
+the Turing+ range. The validator agent flags any `install.sh` line that adds `nvidia` (without
+the `-open` / `-580xx-*` / `-470xx-*` / `-390xx-*` suffix) when `NVIDIA_GENERATION` ∈
+`{volta,pascal,maxwell,kepler,fermi}`.
+
 ## NVIDIA env is gated on the *active driver*, not the card
 
 `scripts/detect-version.sh` prints both `GPU_DRIVER=…` and `NVIDIA_PROPRIETARY=…`. Emit the

@@ -1,5 +1,132 @@
 # Changelog
 
+## 0.19.0
+
+End-to-end production-shakedown release. A complete `/hyprland-config:rice` run on Arch +
+Hyprland 0.55.2 (Pascal/nouveau, ultrawide, uwsm, plugin v0.18.0) surfaced 17 defects spanning
+templates, agents, the validator, and a missing cross-writer contract layer. v0.19 fixes them
+at the recipe / writer / contract level (no patches in generated output) and adds the
+matching semantic lints so the same defect classes can't ship silently again.
+
+### Cross-writer integration contracts (new `_shared/` registries)
+
+Defects #8, #11, #12, #14, and #17 are the same shape: writer A emits something writer B is
+supposed to match (binary name, layer-shell namespace, keybind, bar module, helper script),
+and they don't see each other's answers. Four new registries — the single source of truth —
+are now consumed by every writer that needs the cross-component view:
+
+- **`references/_shared/namespaces.md`** — every layer-shell namespace and window class any
+  writer emits or matches. Eww uses `eww-<name>`; swayosd uses `swayosd`; quickshell uses
+  `quickshell:*`; fuzzel uses `launcher` (not `fuzzel`). Window-rules reads from here.
+- **`references/_shared/binaries.md`** — the detected-binary registry. SWWW resolves to
+  `swww-daemon` (upstream, archived) or `awww-daemon` (fork). Every writer that emits a
+  binary takes it from this registry or emits the agnostic `sh -c …` launcher when detection
+  ran pre-install.
+- **`references/_shared/expected-binds.md`** — when component X is selected, the keybind /
+  waybar module that goes with it. Eww widgets, power-menu, blur-toggle, theme-switch are all
+  declared here. The keybinds + waybar writers read this so a selection actually wires up.
+- **`references/_shared/helper-scripts.md`** — the runtime helper scripts each surface needs.
+  Eww's `sysinfo` / `audio` / `player` / `toggles` are declared here; the installer copies
+  them. Without this registry, eww shipped as styled-empty widgets.
+
+### Defect fixes (priority order)
+
+- **#1 — generation-time jq dependency dropped.** `scripts/record-answer.py` (new) implements
+  the answers-persistence helper in Python stdlib; `record-answer.sh` is now a thin wrapper.
+  New `scripts/answers.py` (`get` / `slice` / `list` / `has`) replaces every generation-time
+  `jq` invocation across SKILL.md, the interviewer, the component-writer, and the widgets
+  gotchas. Runtime scripts (`keybind-cheatsheet.sh`, eww data scripts) keep using jq.
+- **#2 — inline interview path is co-equal.** `SKILL.md` A1 now probes `AskUserQuestion`
+  availability up-front and picks the agent vs inline path deterministically; the inline path
+  is documented as a peer, not a fallback. The interviewer agent's message reflects the
+  orchestrator pre-check.
+- **#3 — `rgb($bg)` double-wrap removed.** `look-feel/template.md` emits `background_color =
+  $bg` (palette vars in `colors.conf` are already `rgb(<hex>)`; re-wrapping fails the reload).
+  Validator agent now lints `rgb($var)` / `rgba($var)` / `#$var` patterns in emitted `*.conf`.
+- **#4 — rofi theme is self-contained.** `launcher/template.md` ships the global `*` block
+  + explicit `background-color` on listview/element/element-text/element-icon + the full
+  nine-state element matrix (`{normal,alternate,selected}.{normal,urgent,active}`). The base
+  theme no longer bleeds through. Validator + `launcher/validation.md` lint each required
+  selector.
+- **#5/#6 — paru bootstrap rebuilt.** `agents/hyprland-package-installer.md` probes that the
+  helper actually runs (`paru --version`), builds `paru` from source (not `paru-bin` —
+  prebuilt fails on libalpm ABI bumps), and sweeps both `paru-bin` AND `paru-bin-debug`
+  together before the source build (otherwise `paru-debug` from the new build conflicts with
+  the orphan).
+- **#7 — wf-recorder default + per-package AUR install.** `utilities/interview.md` /
+  `template.md` / `packages.md` / `gotchas.md` default screen-record to `wf-recorder` (repo,
+  C, no ffmpeg-next pin); `wl-screenrec` is opt-in with the AUR-Rust-build warning.
+  `screenrecord.sh` prefers `wf-recorder` first. Installer agent now installs AUR packages
+  individually so one broken build (typical: `wl-screenrec`) can't abort the whole batch.
+- **#8 — SWWW binary threaded through.** `autostart/template.md` reads `SWWW_DAEMON_BIN`
+  from `detect-version.sh` when present and otherwise emits the binary-agnostic launcher
+  `sh -c 'command -v swww-daemon >/dev/null && exec swww-daemon || exec awww-daemon'`.
+  Validator lints any literal `exec-once = swww-daemon` / `awww-daemon` outside the
+  detector.
+- **#9 — monitor magic-mode picker reworded.** `monitors/interview.md` lists the detected
+  native mode first when one is reported, then `highres` (recommended, native resolution)
+  before `highrr` (highest refresh, may downgrade resolution). `gotchas.md` documents why
+  `highrr` can silently land at 1080p on an ultrawide.
+- **#10 — eww helper scripts ship.** `assets/scripts/eww/{sysinfo,audio,player,toggles}` are
+  new POSIX-shell helpers; the contract lives in `_shared/helper-scripts.md`; the installer
+  copies them under `~/.config/eww/scripts/` and `chmod +x`s. `components/widgets/template.md`
+  references the canonical paths and lists the runtime deps (`wireplumber`, `brightnessctl`,
+  `playerctl`, `networkmanager`, `bluez-utils`); `widgets/packages.md` pulls them.
+- **#11 — eww blur layerrule matches `eww-.*`.** `window-rules/template.md` matches the
+  family namespace (not bare `eww`, which exists nowhere); the contract is declared in
+  `_shared/namespaces.md`. Validator lints every `match:namespace` against the registry.
+- **#12 — keybind contract.** `keybinds/template.md` emits widget-toggle binds gated on
+  `widgets.system`/`widgets.enabled`, per `_shared/expected-binds.md`. Same contract used
+  for #17.
+- **#13 — OSD owner cross-validate.** `widgets/gotchas.md` documents the conflict-resolution
+  rule when `widgets.enabled` ∋ OSD AND `utilities.osd_route == swayosd`. The orchestrator
+  asks the user which side owns OSDs and drops the other instead of letting both render.
+- **#14 — swayosd blur via the same namespace contract.** `window-rules/template.md`
+  emits a `match:namespace = swayosd` block when `utilities.osd_route == "swayosd"`;
+  `SKILL.md` A3b threads the utilities slice to the window-rules writer.
+- **#15 — NVIDIA driver branch mapping.** `scripts/detect-version.sh` reads the PCI device
+  id, maps it to a generation (blackwell/ada/ampere/turing/volta/pascal/maxwell/kepler/
+  fermi), and emits `NVIDIA_GENERATION=` + `NVIDIA_DRIVER_BRANCH=`
+  (`nvidia-open` for Turing+, `nvidia-580xx` for Volta/Pascal/Maxwell,
+  `nvidia-470xx` for Kepler, `nvidia-390xx` for Fermi). `env/gotchas.md` documents the
+  package set per branch + the AUR caveats. Validator lints a bare `nvidia` package install
+  on Pascal-or-older.
+- **#16 — cursor `no_hardware_cursors` comment fixed.** `look-feel/template.md` now says
+  "0 = HW cursors / 1 = software / 2 = auto" plainly, instead of the confusing original
+  "disable/enable/auto".
+- **#17 — power-menu module on waybar.** `waybar/template.md` emits a `custom/power`
+  module wired to `powermenu.sh` (rofi flavor) or `wlogout -p layer-shell` (wlogout
+  flavor) when `utilities.selected ∋ power-menu`. Declared in
+  `_shared/expected-binds.md` → "Waybar modules".
+
+### Validator semantic lints (defect-class hardening)
+
+`agents/hyprland-config-validator.md` step 6 (new) blocks each defect class above:
+
+- No `rgb($var)` / `rgba($var)` / `#$var` double-wrap in emitted `*.conf`.
+- Rofi themes declare the global `*` block AND the full nine-state element matrix.
+- No literal `swww-daemon` / `awww-daemon` outside the binary registry and detector.
+- Every `match:namespace` in `windowrules.conf` corresponds to a declared namespace whose
+  owner is selected.
+- Every gate in `expected-binds.md` that holds in `answers.json` has a matching `bind = …,
+  exec, <cmd>` line.
+- NVIDIA package recommendation matches the detected `NVIDIA_DRIVER_BRANCH`.
+
+### Tests
+
+- **`tests/test_record_answer.sh`**: now exercises the Python implementation and asserts
+  `record-answer.py` runs with no `jq` on `PATH`.
+- **`tests/test_answers.sh`** (new): full `get` / `slice` / `list` / `has` coverage for the
+  new jq-free read helper; pins jq-independence.
+- **`tests/test_semantic_lints.sh`** (new): regression tests for the recipe state the
+  validator agent enforces — `rgb($var)` absence, the rofi state matrix, the SWWW exec-once
+  literal absence, the `_shared/*` registry shape, the expected-binds emission. Catches each
+  defect class at the template level.
+
+### Skill
+
+- **`SKILL.md`**: bumped to `0.19.0`.
+
 ## 0.18.0
 
 Final orchestrator decision originally flagged: lock-screen wallpaper strategy. The

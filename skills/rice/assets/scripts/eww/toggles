@@ -1,0 +1,107 @@
+#!/usr/bin/env bash
+# eww helper: read + toggle wifi / bluetooth / do-not-disturb / mic. Used by the dashboard's
+# quick-toggle row.
+#   toggles            → one-shot JSON
+#   toggles --watch    → emit every 2s (no clean dbus subscribe for all four together)
+#   toggles wifi       → toggle wifi state
+#   toggles bt         → toggle bluetooth state
+#   toggles dnd        → toggle notification daemon DND (mako / dunst / swaync)
+#   toggles mic        → toggle source mute
+# JSON keys: wifi (bool), bt (bool), dnd (bool), mic_mute (bool).
+# Deps: nmcli (NetworkManager) optional; bluetoothctl optional; mako/dunst/swaync (one);
+#       wpctl OR pactl for mic.
+set -uo pipefail
+
+wifi_state() {
+    if command -v nmcli >/dev/null 2>&1; then
+        nmcli -t -f WIFI g 2>/dev/null | grep -qx enabled && echo true || echo false
+    else
+        echo null
+    fi
+}
+
+bt_state() {
+    if command -v bluetoothctl >/dev/null 2>&1; then
+        bluetoothctl show 2>/dev/null | grep -q 'Powered: yes' && echo true || echo false
+    else
+        echo null
+    fi
+}
+
+dnd_state() {
+    # Cooperate with whichever daemon owns notifications. Each has its own DND read shape.
+    if pgrep -x swaync >/dev/null 2>&1 && command -v swaync-client >/dev/null 2>&1; then
+        swaync-client -D 2>/dev/null | grep -qx true && echo true || echo false
+    elif pgrep -x mako >/dev/null 2>&1 && command -v makoctl >/dev/null 2>&1; then
+        # mako: "modes" includes "do-not-disturb" when DND is active.
+        makoctl mode 2>/dev/null | grep -qF do-not-disturb && echo true || echo false
+    elif pgrep -x dunst >/dev/null 2>&1 && command -v dunstctl >/dev/null 2>&1; then
+        # dunst: paused == DND.
+        [ "$(dunstctl is-paused 2>/dev/null)" = "true" ] && echo true || echo false
+    else
+        echo false
+    fi
+}
+
+mic_mute_state() {
+    if command -v wpctl >/dev/null 2>&1; then
+        wpctl get-volume @DEFAULT_AUDIO_SOURCE@ 2>/dev/null | grep -qF "[MUTED]" && echo true || echo false
+    elif command -v pactl >/dev/null 2>&1; then
+        pactl get-source-mute @DEFAULT_SOURCE@ 2>/dev/null | grep -qE 'yes$' && echo true || echo false
+    else
+        echo null
+    fi
+}
+
+emit_one() {
+    printf '{"wifi":%s,"bt":%s,"dnd":%s,"mic_mute":%s}\n' \
+        "$(wifi_state)" "$(bt_state)" "$(dnd_state)" "$(mic_mute_state)"
+}
+
+toggle_wifi() {
+    if command -v nmcli >/dev/null 2>&1; then
+        local s; s="$(wifi_state)"
+        if [ "$s" = "true" ]; then nmcli radio wifi off; else nmcli radio wifi on; fi
+    fi
+}
+
+toggle_bt() {
+    if command -v bluetoothctl >/dev/null 2>&1; then
+        local s; s="$(bt_state)"
+        if [ "$s" = "true" ]; then bluetoothctl power off; else bluetoothctl power on; fi
+    fi
+}
+
+toggle_dnd() {
+    if pgrep -x swaync >/dev/null 2>&1 && command -v swaync-client >/dev/null 2>&1; then
+        swaync-client -t -sw   # toggle DND, suppress output
+    elif pgrep -x mako >/dev/null 2>&1 && command -v makoctl >/dev/null 2>&1; then
+        # mako toggles by entering/exiting "do-not-disturb" mode.
+        if makoctl mode 2>/dev/null | grep -qF do-not-disturb; then
+            makoctl mode -r do-not-disturb
+        else
+            makoctl mode -a do-not-disturb
+        fi
+    elif pgrep -x dunst >/dev/null 2>&1 && command -v dunstctl >/dev/null 2>&1; then
+        if [ "$(dunstctl is-paused 2>/dev/null)" = "true" ]; then
+            dunstctl set-paused false
+        else
+            dunstctl set-paused true
+        fi
+    fi
+}
+
+toggle_mic() {
+    if command -v wpctl >/dev/null 2>&1; then wpctl set-mute @DEFAULT_AUDIO_SOURCE@ toggle
+    elif command -v pactl >/dev/null 2>&1; then pactl set-source-mute @DEFAULT_SOURCE@ toggle
+    fi
+}
+
+case "${1:-}" in
+    wifi)    toggle_wifi ;;
+    bt)      toggle_bt ;;
+    dnd)     toggle_dnd ;;
+    mic)     toggle_mic ;;
+    --watch) emit_one; while :; do sleep 2; emit_one; done ;;
+    *)       emit_one ;;
+esac

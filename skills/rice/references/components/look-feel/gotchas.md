@@ -161,8 +161,15 @@ When to emit each:
 
 Hyprland draws a solid fallback color until the wallpaper daemon paints. Upstream's default is
 `0xff111111` (near-black). On a paletted rice that's a jarring transition from "boot splash → split
-second of black → wallpaper." Set `misc:background_color = rgb($bg)` so the brief flash is the
-palette base, not raw black.
+second of black → wallpaper." Set `misc:background_color = $bg` so the brief flash is the palette
+base, not raw black.
+
+> **Do not wrap `$bg` (or any other palette var) in `rgb(...)`.** The rice's `colors.conf`
+> already stores each palette key as `$accent = rgb(cba6f7)` — wrapping again produces
+> `rgb(rgb(cba6f7))` which Hyprland rejects with "invalid color" and the whole reload fails.
+> Use `$bg` / `$accent` / `$surface` bare. (Caelestia's `background_color = rgb($surfaceContainer)`
+> pattern works *only* because their palette stores bare hex; the rice's stores already-wrapped
+> values.) Defect #3.
 
 Verified `misc:background_color` (Color, default `0xff111111`) at `src/config/values/ConfigValues.cpp`
 v0.55.2 line 465; same key at v0.46.0 ConfigManager.cpp line 383.
