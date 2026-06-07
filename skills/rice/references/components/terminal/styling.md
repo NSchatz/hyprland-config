@@ -138,17 +138,20 @@ the colors file.
 ```conf
 include colors.conf
 
-font_family            {{font_mono}}     # a Nerd Font, e.g. JetBrainsMono Nerd Font
+# a Nerd Font, e.g. JetBrainsMono Nerd Font
+font_family            {{font_mono}}
 font_size              11.0
 
 background_opacity     0.92
-background_blur        1                 # pair with Hyprland decoration blur
+# pair with Hyprland decoration blur
+background_blur        1
 window_padding_width   12
 
 cursor_shape           beam
 cursor_blink_interval  0.5
 
-hide_window_decorations yes              # let Hyprland draw the border/gaps
+# let Hyprland draw the border/gaps
+hide_window_decorations yes
 tab_bar_style          powerline
 confirm_os_window_close 0
 ```

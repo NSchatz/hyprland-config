@@ -29,26 +29,36 @@ font_family            {{font_mono}}
 font_size              {{font_size}}
 
 background_opacity     {{opacity}}
-background_blur        1                 # pair with Hyprland decoration blur
+# pair with Hyprland decoration blur
+background_blur        1
 window_padding_width   {{padding}}
 
 cursor_shape           {{cursor.shape}}
+# seconds; supports CSS easing per upstream docs
 {{#if cursor.blink}}cursor_blink_interval  0.5
-cursor_stop_blinking_after  1{{else}}cursor_blink_interval  0{{/if}}    # seconds; supports CSS easing per upstream docs
+cursor_stop_blinking_after  1{{else}}cursor_blink_interval  0{{/if}}
 
-hide_window_decorations yes                    # yes | no | titlebar-only | titlebar-and-corners
+# yes | no | titlebar-only | titlebar-and-corners
+hide_window_decorations yes
 
 # Tab bar — the recipe ships powerline + slanted because the colors.conf chrome
 # (active_tab_*/inactive_tab_*/tab_bar_background) is wired specifically for it.
 # Set `tab_bar_style hidden` to suppress the strip; the colors are then unused but harmless.
-tab_bar_style          powerline               # fade | slant | separator | powerline | hidden | custom
-tab_powerline_style    slanted                 # angled | round | slanted (community default)
-tab_bar_min_tabs       2                       # hide strip until a second tab opens (Matt-FTW, Dank)
+# fade | slant | separator | powerline | hidden | custom
+tab_bar_style          powerline
+# angled | round | slanted (community default)
+tab_powerline_style    slanted
+# hide strip until a second tab opens (Matt-FTW, Dank)
+tab_bar_min_tabs       2
 
-{{#if extras.no-confirm-close}}confirm_os_window_close 0{{/if}}     # 0 = never confirm; >0 = confirm if N+ children alive
-{{#if extras.bell-off}}enable_audio_bell      no{{/if}}             # yes | no
-{{#if extras.scrollback-10k}}scrollback_lines       10000{{/if}}    # int; default 2000
-{{#if extras.ligatures}}disable_ligatures      never{{else}}disable_ligatures      always{{/if}}  # never | cursor | always
+# 0 = never confirm; >0 = confirm if N+ children alive
+{{#if extras.no-confirm-close}}confirm_os_window_close 0{{/if}}
+# yes | no
+{{#if extras.bell-off}}enable_audio_bell      no{{/if}}
+# int; default 2000
+{{#if extras.scrollback-10k}}scrollback_lines       10000{{/if}}
+# never | cursor | always
+{{#if extras.ligatures}}disable_ligatures      never{{else}}disable_ligatures      always{{/if}}
 
 # Optional: kitty has a `shell` directive (default `.` = $SHELL). Rice does not write it —
 # the user's chsh / login shell wins. Set explicitly only if the user picks a per-terminal
@@ -122,7 +132,8 @@ bold-text-in-bright=no
 {{#if extras.scrollback-10k}}lines=10000{{/if}}
 
 [cursor]
-style={{cursor.shape}}            # block | beam | underline | hollow
+# block | beam | underline | hollow
+style={{cursor.shape}}
 {{#if cursor.blink}}blink=yes{{else}}blink=no{{/if}}
 
 [bell]
@@ -177,14 +188,16 @@ font-family = {{font_mono}}
 font-size = {{font_size}}
 
 background-opacity = {{opacity}}
-background-blur = 20                                     # integer = intensity; `true` aliases to 20, `false` to 0
+# integer = intensity; `true` aliases to 20, `false` to 0
+background-blur = 20
 window-padding-x = {{padding}}
 window-padding-y = {{padding}}
 window-decoration = none
 # Catppuccin discipline — keep bold in the regular palette.
 bold-is-bright = false
 
-cursor-style = {{cursor.ghostty_style}}                 # block | bar | underline
+# block | bar | underline
+cursor-style = {{cursor.ghostty_style}}
 cursor-style-blink = {{#if cursor.blink}}true{{else}}false{{/if}}
 
 {{#if extras.bell-off}}audible-bell = false{{/if}}

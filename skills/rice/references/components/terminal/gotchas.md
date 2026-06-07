@@ -226,6 +226,19 @@ when the bar isn't dominated by green/red. Both HyDE (`Wall-Ways/cava.dcol`) and
 (`wallust/templates/colors-cava`) use all 8 stops; v0.13.1-research extended the .tmpl to match.
 `gradient_count = 8` is set explicitly so cava reads exactly 8 stops.
 
+## kitty rejects trailing inline comments on typed value lines
+
+kitty has no comment-stripping on value lines — it reads everything after the key as the value.
+So `background_blur 1  # pair with Hyprland decoration blur` is parsed as
+`background_blur = "1  # pair with Hyprland decoration blur"`, which is not a valid int/bool, and
+kitty silently disables the setting on every launch. (No diagnostic surfaces unless you run
+`kitty +runpy "from kitty.config import load_config; …"` — see `validation.md`.)
+
+The same hazard applies to other strict-parser configs the rice writes: **foot.ini**, **ghostty
+config**, **qt6ct INI** all require comments on their own lines. TOML (alacritty) and Lua
+(wezterm) accept trailing comments; everything else does not. The recipe in `template.md`
+matches this rule and the parse lint in `validation.md` (step 1) enforces it on every emit.
+
 ## Version branch — none today
 
 No Hyprland-version cliffs touch this component's templates (the swallow keys have been stable
