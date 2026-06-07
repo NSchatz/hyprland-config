@@ -1,5 +1,120 @@
 # Changelog
 
+## 0.21.0
+
+The browser-theming release deferred from v0.20.0. Closes the last two of the 16 v0.19.0
+shakedown defects (Issues 14 + 15.1/15.2/15.3): Firefox chrome theming opt-in via a new
+`components/browser/` tree, profile bootstrap that resolves the dynamic profile dir, a
+restart hook that re-themes the running browser with session restore, and a
+`rice apply` footer for surfaces that can't hot-reload.
+
+### Issue 14 — Firefox chrome theming (userChrome route)
+
+New `components/browser/` opt-in component. Master gate: `default_apps.browser ==
+"firefox"` AND `browser_theming.opt_in == true`. Off by default — most users haven't asked
+for browser theming; the small minority who care about a coherently themed browser opt in.
+Two routes documented; one (userChrome) is fully wired.
+
+- **`components/browser/firefox.tmpl`** — engine-rendered palette-only `:root{--rice-*}`
+  block (12 CSS custom properties from `palette.conf`) → `<profile>/chrome/rice-colors.css`.
+  Re-rendered on every `rice apply`.
+- **`components/browser/userChrome.css`** — palette-agnostic static mapping of `--rice-*`
+  onto Firefox chrome via the `lwt-*` lightweight-theme custom properties + direct
+  selectors (tab bar, URL bar, nav bar, menus, sidebar). Copied once into the profile via
+  the bootstrap script; `@import "rice-colors.css"` makes re-themes pick up automatically.
+- **`components/browser/user.js`** — locks two prefs in the profile, re-applied on every
+  startup: `toolkit.legacyUserProfileCustomizations.stylesheets = true` (without it the
+  userChrome.css is dead — Firefox stopped processing it by default years ago) and
+  `browser.startup.page = 3` (session restore — the restart hook would lose tabs
+  otherwise).
+- **`gotchas.md`** + **`packages.md`** + **`schema.md`** + **`interview.md`** +
+  **`validation.md`** + **`README.md`** flesh out the component (the four big traps:
+  dead-without-the-pref, dynamic profile dirs, restart-flash, pywalfox vs userChrome
+  mixing).
+
+The **pywalfox** route (wallpaper-engine + content theming) is documented in `gotchas.md`
+but not auto-wired — it needs the AUR package + the in-browser add-on, both manual. Pick
+it when the rice uses a wallpaper-driven engine and content theming matters; pick
+userChrome otherwise.
+
+Chromium / Brave / Zen / LibreWolf are out of scope for v0.21 (Chromium/Brave have no
+userChrome equivalent; Zen + LibreWolf inherit the mechanism but ship selectors this
+template doesn't cover — documented as follow-ups).
+
+### Issue 15.1 — `firefox-bootstrap.sh`
+
+New `assets/scripts/firefox-bootstrap.sh`. Resolves the default Firefox profile by parsing
+`~/.mozilla/firefox/profiles.ini` (the profile dir prefix is random —
+`xxxxxxxx.default-release`; hardcoding it breaks ESR / Developer Edition). If no
+`profiles.ini` exists, runs `firefox --headless --no-remote --CreateProfile default-release`
+to create one. Copies `userChrome.css` + `user.js` into `<profile>/chrome/` idempotently
+— appends `@import "rice-colors.css"` to an existing userChrome.css rather than
+clobbering it; merges user.js prefs by key. Emits
+`FIREFOX_PROFILE=` / `FIREFOX_CHROME=` / `FIREFOX_RICE_COLORS=` on stdout so `install.sh`
+can substitute the resolved path into the firefox manifest line.
+
+### Issue 15.2 — `firefox-restart.sh`
+
+New `assets/scripts/firefox-restart.sh` — the manifest's reload-cmd. No-op if Firefox
+isn't running; otherwise `pkill -x firefox`, poll for the profile-lock release (up to
+~5s), relaunch detached with `setsid` + `disown`. ~1s blank-window flash; session restore
+brings every non-private tab back. If `browser_theming.restart_hook == false` the
+manifest's reload-cmd is empty instead and Firefox goes in the "applies on next launch"
+footer below.
+
+### Issue 15.3 — `templates.list` 5th column + needs-relaunch footer
+
+`render-templates.sh` learns an optional 5th column on manifest lines: the `next-X` hint
+that classifies surfaces whose effect lands on the next launch / lock / server restart,
+not on the current `rice apply`. Known values: `next-launch`, `next-lock`,
+`server-restart`, `restart`. Empty 5th column is allowed for surfaces that pick up via
+file-watch (eww, ags, wofi, rofi, gtk4 — their existing lines unchanged) — only surfaces
+that need an external trigger declare the hint.
+
+After every render pass, the script prints one grouped footer per hint value:
+
+```
+$ rice apply
+RENDERED qt6ct -> ~/.config/qt6ct/colors/rice.conf
+RENDERED gtk3  -> ~/.config/gtk-3.0/gtk.css
+RENDERED hyprlock -> ~/.config/hypr/hyprlock.conf
+RENDERED swayosd -> ~/.config/swayosd/style.css
+2 surfaces apply on next launch: qt6ct, gtk3
+1 surface applies on next lock: hyprlock
+1 surface applies on server restart: swayosd
+RENDER=done
+```
+
+Closes the "switch looks half-applied" gap the v0.20.0 Issue-10/11/12/13 surfaces all hit
+— `rice apply` now tells the user exactly what won't re-paint until the next trigger
+event.
+
+`theming/engine.md` "Manifest format" section rewritten with the 5-column schema + the
+footer example. `SKILL.md` A4.3 matrix gets a `next-X` column showing which hint each
+themable surface declares. `agents/hyprland-config-validator.md` gains a lint that WARNs
+(not ERRORs — the engine still works without the hint) when a manifest line with empty
+reload-cmd ships no 5th column.
+
+### Wiring
+
+- **`SKILL.md` A4.3** — matrix updated with the firefox row (gated on
+  `browser_theming.opt_in == true`) AND the new `next-X` column. Documents the
+  install.sh integration recipe: run `firefox-bootstrap.sh`, capture
+  `FIREFOX_RICE_COLORS=`, substitute into the manifest line.
+- **`agents/hyprland-config-validator.md`** — firefox row in render-manifest-completeness
+  matrix; lint for next-X-hint coverage.
+- **`theming/apps.md`** — firefox row added.
+- **`default-apps/template.md`** — the "Firefox is not auto-themed (out of scope for
+  v0.13)" note replaced with a pointer to `components/browser/`.
+- **`rice-init.sh`** — copies `firefox-bootstrap.sh` + `firefox-restart.sh` +
+  the static `userChrome.css` + `user.js` into `~/.config/hypr-rice/` so a user opting
+  in post-install doesn't need to re-init.
+
+### Version bumps
+
+- **`SKILL.md`**, **`.claude-plugin/plugin.json`**, **`.claude-plugin/marketplace.json`**:
+  bumped to `0.21.0`.
+
 ## 0.20.0
 
 Second end-to-end production-shakedown release. A two-session full rice run against v0.19.0
