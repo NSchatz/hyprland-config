@@ -102,6 +102,12 @@ rice restore <apply-id>         # put every file that apply wrote back, as one s
 - **`~/.config/hypr` is not part of this.** The Hyprland config dir has its own backup and
   rollback (`backup-config.sh` / `safe-apply.sh`, see `hyprland-reference/references/testing.md`);
   it is never enrolled in a restore point and `rice restore` never touches or reports on it.
+  That holds in both directions: a path that CONTAINS it (`backup-path.sh ~/.config`) is refused
+  enrolment too, because a directory goes back wholesale and putting an ancestor back would take
+  that directory with it. `backup-path.sh` still copies such a path exactly as it always has - a
+  copy touches nothing - and says `NOT_ENROLLED <path>`: that backup is yours to put back by
+  hand, not `rice restore`'s. A write that would need such a path enrolled (the engine's own
+  fail-safe) is skipped instead, like any other surface with no way back.
 
 ## Manifest format (`templates.list`)
 

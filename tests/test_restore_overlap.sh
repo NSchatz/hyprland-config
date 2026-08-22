@@ -9,6 +9,7 @@
 #   B. file enrolled first, then the directory around it (render pass, then edit-config step 2)
 #   C. a restore of A/B interrupted partway and re-invoked to completion       (AC12)
 #   D. a path the apply CREATED inside a directory it also enrolled            (AC7)
+#   E. a path that CONTAINS the surface this item must never touch             (AC2 boundary)
 #
 # What must hold in every case: the single restore returns every covered surface to its PRIOR
 # state - never the apply's own output - exits 0, and clears the point (AC2, AC11, AC12).
@@ -182,4 +183,61 @@ else
     fail "D/AC2: the whole directory is byte-identical to its prior state" \
          "$(diff -r "$HOME/.config/waybar" "$tmp/orig-waybar" 2>&1)"
 fi
+
+# --- E. a path that CONTAINS the surface with its own separate restore -----------------------
+# Containment cuts both ways. A-D are entries that overlap EACH OTHER; this is an entry that
+# would swallow the one surface AC2 says this command never touches. A directory is put back
+# wholesale (rm -rf + cp -a), so enrolling an ancestor of that surface would revert it too, from
+# the other direction. Enrolment is refused; the plain backup this script has always taken is
+# still taken, because a copy touches nothing.
+seed_waybar
+excluded_dir="$HOME/.config/hypr"                                                    # RP_EXCLUDE
+mkdir -p "$excluded_dir"
+printf 'AT-APPLY-TIME\n' > "$excluded_dir/its-own.conf"
+printf 'HELLO\n' > "$HOME/.bashrc"
+export RICE_APPLY_ID="apply-ancestor"
+eout="$(bash "$BACKUP" "$HOME/.config" "$HOME/.bashrc" 2>&1)"
+eledger="$RICE_RESTORE_DIR/apply-ancestor/entries.tsv"
+if [ -f "$eledger" ] && awk -F'\t' -v t="$HOME/.config" '$2 == t {f=1} END{exit !f}' "$eledger"; then
+    fail "E/AC2: a path that contains that surface is left out of the restore point" "$(cat "$eledger")"
+else
+    pass "E/AC2: a path that contains that surface is left out of the restore point"
+fi
+assert_file_exists "$HOME/.config.bak.apply-ancestor/waybar/config.jsonc" \
+    "E: the plain backup this script has always taken is still taken"
+if printf '%s\n' "$eout" | grep -q "^NOT_ENROLLED $HOME/.config "; then
+    pass "E: the caller is told that backup is not this mechanism's to put back"
+else
+    fail "E: the caller is told that backup is not this mechanism's to put back" "$eout"
+fi
+# A WRITE to such a path has no way back that respects the boundary, so it is refused outright.
+eprc=0; eprot="$(bash "$PLUGIN_ROOT/scripts/restore-point.sh" record "$HOME/.config" 2>&1)" || eprc=$?
+assert_eq "1" "$eprc" "E/AC10: enrolling a path that contains that surface is refused, so nothing writes over it"
+
+# The surface moves on under its own separate contract after the apply. The restore must not
+# know or care - it puts the enrolled file back and leaves that directory exactly as it found it.
+printf 'CHANGED-BY-ITS-OWN-CONTRACT\n' > "$excluded_dir/its-own.conf"
+printf 'HELLO\nexport RICE=1\n' > "$HOME/.bashrc"
+erout="$(bash "$RESTORE" apply-ancestor 2>&1)"; erc=$?
+assert_eq "0" "$erc" "E/AC2: the restore of the rest of that apply still succeeds"
+assert_eq "HELLO" "$(cat "$HOME/.bashrc" 2>/dev/null)" \
+    "E/AC2: the surface that WAS enrolled is back to its prior state"
+assert_eq "CHANGED-BY-ITS-OWN-CONTRACT" "$(cat "$excluded_dir/its-own.conf" 2>/dev/null)" \
+    "E/AC2: nothing under the out-of-scope surface is reverted by this restore"
+
+# Defence in depth: a ledger hand-edited to hold such a path is refused, not acted on.
+mkdir -p "$RICE_RESTORE_DIR/apply-forged"
+cp -a "$HOME/.config" "$tmp/forged-backup"
+printf 'file\t%s\t%s\n' "$HOME/.config" "$tmp/forged-backup" > "$RICE_RESTORE_DIR/apply-forged/entries.tsv"
+printf 'CHANGED-AGAIN\n' > "$excluded_dir/its-own.conf"
+efout="$(bash "$RESTORE" apply-forged 2>&1)"; efrc=$?
+assert_eq "1" "$efrc" "E/AC2: a forged ledger entry that would swallow that surface is not a success"
+assert_eq "CHANGED-AGAIN" "$(cat "$excluded_dir/its-own.conf" 2>/dev/null)" \
+    "E/AC2: the forged entry did not revert anything under that surface"
+if printf '%s\n' "$efout" | grep -q "^RESTORE_FAILED $HOME/.config "; then
+    pass "E/AC9: the refused path is reported by path, with the reason"
+else
+    fail "E/AC9: the refused path is reported by path, with the reason" "$efout"
+fi
+rm -rf "$excluded_dir" "$RICE_RESTORE_DIR/apply-forged"
 unset RICE_APPLY_ID

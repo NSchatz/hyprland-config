@@ -74,7 +74,10 @@ you want it undone with that apply instead. Two rules that come with it:
 - **`BACKUP <path> -> FAILED (<why>)`** (and a non-zero exit) means that path could not be backed
   up: **do not edit it**. Report the reason and stop on that surface.
 - The Hyprland dir keeps its own separate backup (`backup-config.sh` above); it is never part of
-  a `rice restore` and `rice restore` never touches it.
+  a `rice restore` and `rice restore` never touches it. Neither is a path that *contains* it:
+  `~/.config` is copied like anything else but reported as **`NOT_ENROLLED <path>`**, because
+  putting a directory back means replacing it wholesale, which would take the Hyprland dir with
+  it. Pass the specific surfaces you are editing (`~/.config/waybar`), not their parent.
 
 ### 3. Make the change in the right file
 

@@ -81,6 +81,15 @@ while IFS=$'\t' read -r kind target backup; do
     if rp_excluded "$target"; then
         continue
     fi
+    # The other direction of the same guard: a directory goes back wholesale, so putting a path
+    # back that CONTAINS an out-of-scope surface would take that surface with it. The recorder
+    # refuses to enrol such a path in the first place; this refuses to act on one if a ledger is
+    # ever hand-edited to hold it, and says so by path rather than skipping it quietly.
+    if rp_contains_excluded "$target"; then
+        echo "RESTORE_FAILED $target (refusing: it contains a surface this command must never touch)"
+        failed=$((failed + 1))
+        continue
+    fi
     if ! rp_safe_target "$target"; then
         echo "RESTORE_FAILED $target (refusing to touch that path)"
         failed=$((failed + 1))

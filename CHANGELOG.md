@@ -40,6 +40,13 @@ live-test and auto-rollback, and the new restore command never reads, calls, wra
   the nested entries have the last word. Either way `rice restore` returns the prior state and
   never the apply's own output, and a nested file put back by an earlier partial attempt is
   replayed - not skipped - when a later attempt replaces the directory around it.
+- **Containment respects the boundary in both directions.** `~/.config/hypr` is not only never
+  enrolled itself: a path that *contains* it (`backup-path.sh ~/.config`) is refused enrolment
+  too, because a directory is put back wholesale and restoring an ancestor would revert that
+  directory along with it. Such a path is still copied exactly as `backup-path.sh` always has -
+  a copy touches nothing - and reported as `NOT_ENROLLED <path>`: yours to put back by hand, not
+  `rice restore`'s. A ledger hand-edited to hold such a path is refused by the restore command
+  and reported by path rather than acted on.
 
 ### Fail-safe writes
 
@@ -64,13 +71,14 @@ live-test and auto-rollback, and the new restore command never reads, calls, wra
 ### Tests
 
 `tests/test_restore_point.sh`, `tests/test_restore_command.sh`,
-`tests/test_restore_interrupt.sh` and `tests/test_restore_overlap.sh` (117 assertions): a render
+`tests/test_restore_interrupt.sh` and `tests/test_restore_overlap.sh` (129 assertions): a render
 over known-content files backed up under one shared id and restored byte-identical; applies killed
 mid-manifest, between stages, mid-browser-theming and mid-shell-rc; an unwritable backup
 destination; a damaged backup; an unwritable restore target; a restore run twice; a restore killed
 partway and re-invoked; a restore point holding a directory and a file inside it, in both
-enrolment orders, plus the partial-then-retry and created-nested-file variants; and the boundary
-itself, i.e. that no code path or test here reads, calls or wraps `~/.config/hypr`'s own restore.
+enrolment orders, plus the partial-then-retry and created-nested-file variants; a path that
+contains `~/.config/hypr`, which no restore here may put back; and the boundary itself, i.e. that
+no code path or test here reads, calls or wraps `~/.config/hypr`'s own restore.
 
 ## 0.21.0
 

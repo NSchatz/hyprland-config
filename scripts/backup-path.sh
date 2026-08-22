@@ -8,6 +8,9 @@
 #   BACKUP <original> -> <backup>            (copied)
 #   BACKUP <original> -> none (did not exist)
 #   BACKUP <original> -> FAILED (<why>)      (could not be backed up: DO NOT edit that path)
+#   NOT_ENROLLED <original>                  (copied, but left out of the restore point: it
+#                                             contains a surface with its own separate restore,
+#                                             so `rice restore` must never put it back)
 # and one trailing line:
 #   RESTORE_POINT=<apply-id>                 (undo the whole set: rice restore <apply-id>)
 #
@@ -47,9 +50,12 @@ rc=0
 
 for p in "$@"; do
     p="$(rp_expand "$p")"
-    if rp_excluded "$p"; then
-        # Out of the restore point's scope: back it up exactly as this script always has, but
-        # do not enrol it - that directory's restore is a separate contract.
+    if rp_excluded "$p" || rp_contains_excluded "$p"; then
+        # Out of the restore point's scope, in both directions: that directory's restore is a
+        # separate contract, and a path that CONTAINS it could only be put back by replacing it
+        # wholesale, which would take that directory with it. Either way, back it up exactly as
+        # this script always has - a copy touches nothing - but do not enrol it, so no restore
+        # here ever writes over that contract.
         if [ -e "$p" ] || [ -L "$p" ]; then
             b="${p%/}.bak.${id}"
             if cp -a "$p" "$b" 2>/dev/null; then
@@ -60,6 +66,9 @@ for p in "$@"; do
             fi
         else
             echo "BACKUP $p -> none (did not exist)"
+        fi
+        if rp_contains_excluded "$p"; then
+            echo "NOT_ENROLLED $p (it contains a surface with its own separate restore; put this backup back by hand, not with rice restore)"
         fi
         continue
     fi

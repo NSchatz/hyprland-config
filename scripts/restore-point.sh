@@ -39,13 +39,16 @@
 # RP_EXCLUDE: the Hyprland config dir (~/.config/hypr) is NEVER enrolled here. It has its own,
 # separate backup/restore contract that this file does not read, call, or duplicate; see
 # rp_excluded below. Nothing under it is ever put in a restore point, so no restore ever
-# touches it.
+# touches it - and neither is any path that CONTAINS it (rp_contains_excluded), because a
+# directory is restored wholesale and putting an ancestor back would take that directory with
+# it. Enrolment is refused there, so the caller does not write; a plain copy of such a path is
+# still allowed, it just is not this mechanism's to restore.
 #
 # No `set` here on purpose: this file is sourced, and changing the caller's shell options
 # behind its back (e.g. dropping its `set -e`) would be a bug in every caller at once.
 
 RP_LAST_ERROR=""    # why the last rp_protect refused (empty on success)
-RP_LAST_STATE=""    # file | new | covered | already-{file,new,covered} | excluded
+RP_LAST_STATE=""    # file | new | covered | already-{file,new,covered} | excluded | contains-excluded
 RP_LAST_BACKUP=""   # the sidecar holding the prior content (empty when there was none)
 RP_LAST_ID=""       # the apply id the last rp_protect enrolled under
 RP_LAST_COVER=""    # for a `covered` state: the enrolled surface that holds the prior content
@@ -66,17 +69,41 @@ rp_expand() {
     printf '%s\n' "$p"
 }
 
-# RP_EXCLUDE: true for any path inside the Hyprland config dir. Those paths are out of this
-# mechanism's scope entirely - they are never backed up here, never enrolled, never restored
-# here, and never reported on by the restore command. Their backup/restore is somebody else's
-# contract and this file neither reads nor invokes it.
+# RP_EXCLUDE: the one directory this mechanism must never enrol, restore, or report on. Its
+# backup/restore is somebody else's contract and this file neither reads nor invokes it.
+rp_excluded_dir() {
+    local d="${HYPR_DIR:-$HOME/.config/hypr}"   # RP_EXCLUDE
+    rp_canon "$d"
+}
+
+# True for any path inside the excluded dir. Those paths are out of this mechanism's scope
+# entirely - never backed up here, never enrolled, never restored here, never reported on.
 rp_excluded() {
     local p d
-    p="$(rp_expand "${1:-}")"
-    d="${HYPR_DIR:-$HOME/.config/hypr}"   # RP_EXCLUDE
-    d="${d%/}"
+    p="$(rp_canon "$(rp_expand "${1:-}")")"
+    d="$(rp_excluded_dir)"
     case "$p" in
         "$d"|"$d"/*) return 0 ;;
+    esac
+    return 1
+}
+
+# True when the excluded dir sits INSIDE this path. Containment cuts both ways and the guard has
+# to answer both questions: rp_excluded asks "is this path inside it?", this one asks "does this
+# path swallow it?". A directory is restored wholesale (rm -rf + cp -a), so putting an ancestor of
+# the excluded dir back would revert that directory too - the one thing no restore here may do.
+# The test is lexical, like rp_excluded's: it holds whether or not that directory exists yet.
+rp_contains_excluded() {
+    local p d
+    p="$(rp_canon "$(rp_expand "${1:-}")")"
+    [ -n "$p" ] || return 1
+    d="$(rp_excluded_dir)"
+    if [ "$p" = "/" ]; then
+        case "$d" in /?*) return 0 ;; esac
+        return 1
+    fi
+    case "$d" in
+        "$p"/*) return 0 ;;
     esac
     return 1
 }
@@ -224,6 +251,17 @@ rp_protect() {
     if rp_excluded "$target"; then
         RP_LAST_STATE="excluded"
         return 0
+    fi
+    if rp_contains_excluded "$target"; then
+        # The excluded dir sits inside this path, so restoring it would replace that directory
+        # wholesale along with everything else - the one thing this mechanism never does. There is
+        # no way back from this write that respects that boundary, so there is no write: the same
+        # fail-safe the caller applies to a backup that cannot be taken. (A plain COPY of such a
+        # path is still fine and scripts/backup-path.sh still takes one - a copy touches nothing;
+        # what is refused is making this mechanism responsible for putting it back.)
+        RP_LAST_ERROR="refusing to enrol a path that contains a surface with its own separate restore"
+        RP_LAST_STATE="contains-excluded"
+        return 1
     fi
     if ! rp_ensure_apply_id; then
         RP_LAST_ERROR="unusable apply id '${RICE_APPLY_ID:-}' (no '/', no whitespace, no leading dot)"
