@@ -10,6 +10,7 @@
 #   C. a restore of A/B interrupted partway and re-invoked to completion       (AC12)
 #   D. a path the apply CREATED inside a directory it also enrolled            (AC7)
 #   E. a path that CONTAINS the surface this item must never touch             (AC2 boundary)
+#   F. D in the other order - created first, directory enrolled after it       (AC7 under B)
 #
 # What must hold in every case: the single restore returns every covered surface to its PRIOR
 # state - never the apply's own output - exits 0, and clears the point (AC2, AC11, AC12).
@@ -240,4 +241,45 @@ else
     fail "E/AC9: the refused path is reported by path, with the reason" "$efout"
 fi
 rm -rf "$excluded_dir" "$RICE_RESTORE_DIR/apply-forged"
+unset RICE_APPLY_ID
+
+# --- F. D in the other order: the apply CREATES the file, THEN enrols the directory -----------
+# D enrols the directory first, so its backup predates the created file and the wholesale copy
+# never brings it back. Reverse the order - render first (kind `new`), edit-config joins the same
+# apply afterwards (rice SKILL A4 step 4 before an A5-style backup of the same tree) - and the
+# directory's backup now HOLDS the file this apply created. Putting the directory back therefore
+# re-creates it, and only the container-first replay lets the `new` entry have the last word and
+# take it away again. Without that ordering AC7 fails silently while the restore reports success.
+seed_waybar
+rm -f "$HOME/.config/waybar/colors.css"      # the nested output does not exist beforehand
+rm -rf "$tmp/orig-waybar"; cp -a "$HOME/.config/waybar" "$tmp/orig-waybar"
+export RICE_APPLY_ID="apply-created-then-dir"
+fout="$(render)"                                          # creates ~/.config/waybar/colors.css
+assert_file_exists "$HOME/.config/waybar/colors.css" "F: precondition - the apply created the nested file"
+bash "$BACKUP" "$HOME/.config/waybar" >/dev/null 2>&1     # the dir backup now holds that file
+printf 'RICE-BAR\n' > "$HOME/.config/waybar/config.jsonc"
+assert_file_exists "$HOME/.config/waybar.bak.apply-created-then-dir/colors.css" \
+    "F: precondition - the directory's backup does hold the file this apply created"
+frout="$(bash "$RESTORE" apply-created-then-dir 2>&1)"; frc=$?
+assert_eq "0" "$frc" "F/AC2: the restore reports success"
+if [ ! -e "$HOME/.config/waybar/colors.css" ]; then
+    pass "F/AC7: the created file is removed even though the later directory backup restored it"
+else
+    fail "F/AC7: the created file is removed even though the later directory backup restored it" \
+         "colors.css survives with: $(cat "$HOME/.config/waybar/colors.css" 2>/dev/null)
+$frout"
+fi
+assert_eq "USER-BAR" "$(cat "$HOME/.config/waybar/config.jsonc" 2>/dev/null)" \
+    "F/AC2: the directory's own prior content is back"
+if diff -r "$HOME/.config/waybar" "$tmp/orig-waybar" >/dev/null 2>&1; then
+    pass "F/AC2: the whole directory is byte-identical to its prior state"
+else
+    fail "F/AC2: the whole directory is byte-identical to its prior state" \
+         "$(diff -r "$HOME/.config/waybar" "$tmp/orig-waybar" 2>&1)"
+fi
+if [ ! -d "$RICE_RESTORE_DIR/apply-created-then-dir" ]; then
+    pass "F/AC11: the restore point is cleared after the successful restore"
+else
+    fail "F/AC11: the restore point is cleared after the successful restore" "the point survives"
+fi
 unset RICE_APPLY_ID

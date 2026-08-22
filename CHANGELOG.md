@@ -71,12 +71,14 @@ live-test and auto-rollback, and the new restore command never reads, calls, wra
 ### Tests
 
 `tests/test_restore_point.sh`, `tests/test_restore_command.sh`,
-`tests/test_restore_interrupt.sh` and `tests/test_restore_overlap.sh` (129 assertions): a render
+`tests/test_restore_interrupt.sh` and `tests/test_restore_overlap.sh` (136 assertions): a render
 over known-content files backed up under one shared id and restored byte-identical; applies killed
 mid-manifest, between stages, mid-browser-theming and mid-shell-rc; an unwritable backup
 destination; a damaged backup; an unwritable restore target; a restore run twice; a restore killed
 partway and re-invoked; a restore point holding a directory and a file inside it, in both
-enrolment orders, plus the partial-then-retry and created-nested-file variants; a path that
+enrolment orders, plus the partial-then-retry variant and the created-nested-file variant in both
+orders - including the one where the directory's backup was taken after the apply created that
+file, so only the container-first replay can still take it away again; a path that
 contains `~/.config/hypr`, which no restore here may put back; and the boundary itself, i.e. that
 no code path or test here reads, calls or wraps `~/.config/hypr`'s own restore.
 
