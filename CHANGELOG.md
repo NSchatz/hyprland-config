@@ -1,5 +1,87 @@
 # Changelog
 
+## 0.22.0
+
+Restore points. Everything the rice writes on a machine **outside** `~/.config/hypr` can now be
+put back the way it was, as one set, with one command, by someone who never read the code.
+`~/.config/hypr` itself is untouched by this release: it keeps its own separate backup,
+live-test and auto-rollback, and the new restore command never reads, calls, wraps or touches it.
+
+### One restore point per apply
+
+- **`scripts/restore-point.sh`** (new) is the backup-before-write mechanism and the ledger over
+  it. Every apply has an id (`RICE_APPLY_ID`, a `YYYYmmdd-HHMMSS` stamp); before any surface is
+  written its existing content is copied to `<path>.bak.<apply-id>` and the path is appended to
+  `${XDG_STATE_HOME:-~/.local/state}/hypr-rice/restore/<apply-id>/entries.tsv`. A path that did
+  not exist is recorded as `new`, so restoring removes the file the apply created instead of
+  orphaning it.
+- **One id spans every stage of one apply**: the render pass, the Firefox profile bootstrap and
+  any `backup-path.sh` call for a shell rc file all enrol in the same point when the caller
+  exports `RICE_APPLY_ID` (the rice skill now does, in A4 step 0). Entries are written *before*
+  the write they protect, so an apply killed partway through still leaves a restore point
+  covering everything already written by every stage.
+
+### The undo
+
+- **`scripts/rice-restore.sh`** (new) + **`rice restore <apply-id>`** / **`rice restore --list`**
+  put every file that apply wrote back the way it was: overwritten files copied back,
+  created files removed. The point is cleared on a fully successful restore, so a second run
+  reports `RESTORE=nothing-to-restore` rather than restoring again; the `.bak.<apply-id>` copies
+  stay on disk.
+- **Per-file resilient.** A missing or unreadable backup, or a target that cannot be written, is
+  reported by path (`RESTORE_FAILED …`) while every other file in the point is still restored,
+  and the point is kept so a re-run finishes the job. Re-running after an interrupted restore is
+  always safe: files already put back are skipped, not restored twice.
+- **Overlapping paths in one point are correct in both orders.** An apply routinely enrols a whole
+  directory (`backup-path.sh ~/.config/waybar`) *and* files the render pass writes inside it. A
+  path enrolled while a surface around it is already in the point folds into that surface
+  (`covered` in the ledger) rather than taking a second `.bak` copy inside the directory a restore
+  replaces wholesale; in the other order the restore replays containers before their contents, so
+  the nested entries have the last word. Either way `rice restore` returns the prior state and
+  never the apply's own output, and a nested file put back by an earlier partial attempt is
+  replayed - not skipped - when a later attempt replaces the directory around it.
+- **Containment respects the boundary in both directions.** `~/.config/hypr` is not only never
+  enrolled itself: a path that *contains* it (`backup-path.sh ~/.config`) is refused enrolment
+  too, because a directory is put back wholesale and restoring an ancestor would revert that
+  directory along with it. Such a path is still copied exactly as `backup-path.sh` always has -
+  a copy touches nothing - and reported as `NOT_ENROLLED <path>`: yours to put back by hand, not
+  `rice restore`'s. A ledger hand-edited to hold such a path is refused by the restore command
+  and reported by path rather than acted on.
+
+### Fail-safe writes
+
+- **A surface whose backup cannot be written is not rendered.** `render-templates.sh` prints
+  `RENDER_SKIPPED <name> -> <output> (<why>)` and carries on with the rest of the manifest.
+  That includes a brand-new output with nothing to overwrite: if the "this apply created it"
+  record cannot be persisted, the file is not created, because nothing could ever take it back.
+- **`scripts/backup-path.sh`** now exits non-zero and prints `BACKUP <path> -> FAILED (<why>)`
+  for any path it could not back up, and ends with `RESTORE_POINT=<apply-id>`. The edit-config
+  skill relays that id as the undo line for a shell-rc or desktop-shell edit.
+- **`firefox-bootstrap.sh`** backs up `userChrome.css` and `user.js` through the same mechanism
+  under the apply's id (replacing its own ad-hoc `.bak.<epoch>` copy), and skips a profile file
+  it could not back up. A `chrome/` directory it *creates* is enrolled too, so a restore takes it
+  away again instead of leaving an empty orphan in the profile.
+- **A write that failed is reported as failed.** `render-templates.sh` prints
+  `RENDER_FAILED <name> -> <output> (<why>)` when the backup succeeded but the output could not be
+  written, instead of claiming `RENDERED` for a file that is not there.
+- **The pre-baked lock-screen blur** (`~/.cache/hypr-rice/lock-blur.png`) is enrolled like any
+  other surface the render pass writes, so a restore puts the previous one back or removes the
+  one the apply created.
+
+### Tests
+
+`tests/test_restore_point.sh`, `tests/test_restore_command.sh`,
+`tests/test_restore_interrupt.sh` and `tests/test_restore_overlap.sh` (136 assertions): a render
+over known-content files backed up under one shared id and restored byte-identical; applies killed
+mid-manifest, between stages, mid-browser-theming and mid-shell-rc; an unwritable backup
+destination; a damaged backup; an unwritable restore target; a restore run twice; a restore killed
+partway and re-invoked; a restore point holding a directory and a file inside it, in both
+enrolment orders, plus the partial-then-retry variant and the created-nested-file variant in both
+orders - including the one where the directory's backup was taken after the apply created that
+file, so only the container-first replay can still take it away again; a path that
+contains `~/.config/hypr`, which no restore here may put back; and the boundary itself, i.e. that
+no code path or test here reads, calls or wraps `~/.config/hypr`'s own restore.
+
 ## 0.21.0
 
 The browser-theming release deferred from v0.20.0. Closes the last two of the 16 v0.19.0

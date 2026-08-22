@@ -3,7 +3,7 @@ name: rice
 description: This skill should be used when the user runs "/hyprland-config:rice" or asks to build, theme, or restyle their Hyprland desktop — i.e. (1) GENERATE a config from scratch ("generate/create my hyprland.conf", "set up Hyprland from scratch", "make me a new config", "build a hyprland config"); (2) THEME/recolor/set fonts ("theme my desktop", "apply Catppuccin/Gruvbox/Nord/Tokyo Night/Dracula/Everforest/Kanagawa/Solarized/Rosé Pine", "change my color scheme/accent", "match my colors to my wallpaper", "set up matugen/wallust", "change my font"); (3) manage named theme PROFILES / "rices" ("save my theme as X", "switch to nord", "list my themes", "load my <name> rice", "pin my accent"); or (4) set/change/cycle the WALLPAPER ("set my wallpaper", "random wallpaper", "make my theme match my wallpaper"). It runs one interactive interview, generates a modular version-matched config, and drives a self-contained rice engine (~/.config/hypr-rice/ — one palette.conf + templates + a `rice` CLI + profiles + a user-override cascade) that themes Hyprland, hyprlock, waybar, notifications, launcher, terminal, GTK/Qt/cursor/icons/fonts and the wallpaper consistently — backing up, live-testing, and reloading after every change.
 argument-hint: "[what you want, e.g. 'set up from scratch', 'catppuccin mocha', 'switch to nord', 'wallpaper ~/x.png and theme from it']"
 allowed-tools: AskUserQuestion, Bash, Read, Write, Edit, Glob, Grep, Agent
-version: 0.21.0
+version: 0.22.0
 ---
 
 # Rice — Build & Theme the Hyprland Desktop
@@ -362,6 +362,14 @@ The colors/fonts from the `look-feel` component (palette, fonts, wallpaper sub-q
 `palette.conf` is the materialized form (key contract in `_shared/palette-schema.md`). Read
 `references/theming/engine.md`. Then:
 
+0. **Open ONE restore point for the whole apply, first.** Every stage below (the render pass,
+   the browser theming step, the shell-rc edits in A5) enrols in it, so the user can undo the lot
+   with one command:
+   ```bash
+   export RICE_APPLY_ID="$(bash "${CLAUDE_PLUGIN_ROOT}/scripts/restore-point.sh" new-id)"
+   ```
+   Keep that value exported for the rest of the session and relay it in A6 (`rice restore <id>`).
+   Skip this and each stage mints its own id: still restorable, but as several sets, not one.
 1. Scaffold (idempotent — never clobbers an existing palette):
    `bash "${CLAUDE_PLUGIN_ROOT}/skills/rice/scripts/rice-init.sh"`
 2. Write `~/.config/hypr-rice/palette.conf` from `answers.json` — resolve the chosen source:
@@ -411,10 +419,18 @@ The colors/fonts from the `look-feel` component (palette, fonts, wallpaper sub-q
    `bash ~/.config/hypr-rice/firefox-bootstrap.sh` from the install batch to resolve the
    default profile from `profiles.ini` and copy `userChrome.css` + `user.js` into
    `<profile>/chrome/`. Capture `FIREFOX_RICE_COLORS=` from its stdout and substitute that
-   path into the firefox manifest line's `output` column.
+   path into the firefox manifest line's `output` column. Run it with `RICE_APPLY_ID` still
+   exported (A4 step 0) so both profile files it touches join the same restore point as every
+   rendered surface; a `FIREFOX_SKIPPED <path> (<why>)` line means that file was left alone
+   because its backup could not be written.
 4. **Only after a successful install** (A5 returns `ok`/`installed-untested`), run
    `bash ~/.config/hypr-rice/rice apply` so any already-present apps pick up the palette. **Skip it on
    `rolled-back`/`install-failed`** — it would re-render outside the safe-apply harness.
+
+   Every surface it writes is backed up first and enrolled in `RICE_APPLY_ID`'s restore point; the
+   run ends with `RESTORE_POINT=<apply-id>`. Read any `RENDER_SKIPPED <name> -> <output> (<why>)`
+   line out loud to the user: that surface was deliberately NOT rendered because its backup could
+   not be written (usually a read-only directory), and the rest of the manifest still applied.
 
 **Restore-on-login script (v0.14+).** When the rice uses a dynamic engine (matugen/wallust/wallbash),
 invoke `render-templates.sh` with `RICE_THEMING_ENGINE=<engine>` in env so it writes
@@ -449,7 +465,10 @@ omit both the env var and the `exec-once` line.
 5. **Install the shell configs:** only after `ok`/`installed-untested`, back up then install the staged
    `_shell/<app>/` tree to `~/.config/<app>/`: first
    `bash "${CLAUDE_PLUGIN_ROOT}/scripts/backup-path.sh" ~/.config/waybar ~/.config/wofi ~/.config/rofi ~/.config/mako ~/.config/dunst ~/.config/kitty …`
-   (only the dirs you're writing), then copy each staged dir into place. Reload running apps with
+   (only the dirs you're writing), then copy each staged dir into place. With `RICE_APPLY_ID`
+   exported (A4 step 0) those backups join the apply's restore point too. `backup-path.sh` exits
+   non-zero and prints `BACKUP <path> -> FAILED (<why>)` for any path it could not back up:
+   **do not write that path**; report it instead. Reload running apps with
    `bash "${CLAUDE_PLUGIN_ROOT}/skills/rice/scripts/apply-theme.sh"` (waybar `SIGUSR2`, mako/dunst
    reload — only if running). Skip on `rolled-back`/`install-failed`.
    - **GTK dark theming needs settings.ini, not just gsettings.** Also stage + install
@@ -471,6 +490,12 @@ Summarize version, files, backup, validator verdict, **`INSTALL=` package instal
 `SAFE_APPLY`/`VERIFY` result, the chosen palette/fonts (now in `palette.conf` as the source of
 truth), and how to restore the backup (`rm -rf ~/.config/hypr && cp -a ~/.config/hypr.bak.<ts>
 ~/.config/hypr && hyprctl reload`).
+
+**Give the user the undo for everything else.** One line, one command: every surface outside
+`~/.config/hypr` that this apply wrote (rendered app configs, Firefox profile files, shell rc
+files) goes back with `rice restore <apply-id>`, using the `RESTORE_POINT=`/`RICE_APPLY_ID` value
+from A4. `rice restore --list` shows what is still undoable. It is a different mechanism from the
+Hyprland-dir backup above, on purpose: that directory keeps its own separate restore.
 
 If the user declined the install batch at A5, point them at `~/.config/hypr/install.sh` so the bar,
 wallpaper daemon, and notification daemon below have something to launch (it's idempotent — safe to

@@ -42,6 +42,14 @@ for t in "$SRC"/references/components/*/*.tmpl \
     if [ ! -e "$dest" ] || [ "$force" -eq 1 ]; then cp "$t" "$dest"; fi
 done
 
+# Restore points: the engine must be able to back up and put back without the plugin, so the
+# library and the restore command are installed beside it (always refreshed, plugin-owned code).
+PLUGIN_SCRIPTS="$(cd "$SRC/../.." && pwd)/scripts"
+cp "$PLUGIN_SCRIPTS/restore-point.sh"      "$RICE_DIR/restore-point.sh"
+cp "$PLUGIN_SCRIPTS/rice-restore.sh"       "$RICE_DIR/rice-restore.sh"
+cp "$PLUGIN_SCRIPTS/backup-path.sh"        "$RICE_DIR/backup-path.sh"
+chmod +x "$RICE_DIR"/restore-point.sh "$RICE_DIR"/rice-restore.sh "$RICE_DIR"/backup-path.sh
+
 # Install the engine + CLI + wallpaper helpers (always refresh — plugin-owned code).
 cp "$SRC/scripts/render-templates.sh"      "$RICE_DIR/render-templates.sh"
 cp "$SRC/scripts/set-wallpaper.sh"         "$RICE_DIR/set-wallpaper.sh"

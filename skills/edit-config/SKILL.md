@@ -65,6 +65,20 @@ bash "${CLAUDE_PLUGIN_ROOT}/scripts/backup-path.sh" ~/.config/waybar ~/.bashrc �
 Pass only the paths actually being touched. Record the `BACKUP=` path — that's the session's rollback
 target.
 
+`backup-path.sh` also opens a **restore point** covering everything in that invocation and prints
+`RESTORE_POINT=<apply-id>`. Record that too: `rice restore <apply-id>` puts the whole change set
+back with one command, and it is what you hand the user in step 6. A standalone edit gets its own
+id; export `RICE_APPLY_ID` first if this edit belongs to a theming apply already in progress and
+you want it undone with that apply instead. Two rules that come with it:
+
+- **`BACKUP <path> -> FAILED (<why>)`** (and a non-zero exit) means that path could not be backed
+  up: **do not edit it**. Report the reason and stop on that surface.
+- The Hyprland dir keeps its own separate backup (`backup-config.sh` above); it is never part of
+  a `rice restore` and `rice restore` never touches it. Neither is a path that *contains* it:
+  `~/.config` is copied like anything else but reported as **`NOT_ENROLLED <path>`**, because
+  putting a directory back means replacing it wholesale, which would take the Hyprland dir with
+  it. Pass the specific surfaces you are editing (`~/.config/waybar`), not their parent.
+
 ### 3. Make the change in the right file
 
 - **Hyprland modular set:** put the change in the right sourced file (new bind → `binds.conf`; gap
@@ -121,8 +135,9 @@ issues a clean reload won't flag. Surface its report.
 
 ### 6. Report
 
-Summarize what changed (which file, which surface), the verify result, the backup path, and any
-follow-up the user needs to see the change (shell: open a new terminal or `exec <shell>`; live theme
+Summarize what changed (which file, which surface), the verify result, the backup path, **the undo
+line** (`rice restore <apply-id>` from step 2: one command, whole change set), and any follow-up
+the user needs to see the change (shell: open a new terminal or `exec <shell>`; live theme
 reload: applies immediately; companion daemon: visible on next start).
 
 ## Previewing a single Hyprland option (no file write)
@@ -182,6 +197,10 @@ Recipes are organized per-component under `../rice/references/components/<x>/`. 
   swaync (only if running).
 - **`${CLAUDE_PLUGIN_ROOT}/skills/rice/scripts/backup-config.sh`** — timestamped backup of
   `~/.config/hypr`.
-- **`${CLAUDE_PLUGIN_ROOT}/scripts/backup-path.sh`** — timestamped backup of arbitrary paths.
+- **`${CLAUDE_PLUGIN_ROOT}/scripts/backup-path.sh`** - timestamped backup of arbitrary paths,
+  enrolled in a restore point (`RESTORE_POINT=<apply-id>`).
+- **`${CLAUDE_PLUGIN_ROOT}/scripts/rice-restore.sh`** - the undo: `rice-restore.sh <apply-id>`
+  puts every path of that change set back (`--list` shows what is still undoable). Mechanism +
+  guarantees: `../rice/references/theming/engine.md` -> "Restore points".
 - **`${CLAUDE_PLUGIN_ROOT}/skills/rice/scripts/detect-version.sh`** — installed version + ecosystem
   probe.

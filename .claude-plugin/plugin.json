@@ -1,6 +1,6 @@
 {
   "name": "hyprland-config",
-  "version": "0.21.0",
+  "version": "0.22.0",
   "description": "A Hyprland rice engine for Claude Code: generate/edit/live-test the config, install the packages it needs (after one confirmation), theme the whole desktop from one palette (named/wallpaper-generated/manual) via a self-contained rice engine with profiles and a user-override cascade, set wallpapers with dynamic theming, configure the terminal + desktop shell, and version-control it all in git — using a dedicated interviewer agent that persists picks to answers.json (so downstream steps read picks deterministically rather than recalling them), parallel component-writer agents per surface, and backups + verification after every change.",
   "author": {
     "name": "Noah Schatz",

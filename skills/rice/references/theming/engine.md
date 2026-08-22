@@ -33,7 +33,10 @@ palette.conf       # source of truth: KEY=hex (+ scheme, wallpaper, fonts). Also
 templates/         # <app>.tmpl files using {{key}} placeholders (user-editable)
 templates.list     # manifest: name <TAB> template <TAB> output <TAB> reload-cmd
 render-templates.sh# the render engine (palette.conf -> outputs -> reload)
-rice               # the CLI: `rice apply`, `rice palette`, …
+rice               # the CLI: `rice apply`, `rice restore`, `rice palette`, …
+restore-point.sh   # backup-before-write + the per-apply ledger behind `rice restore`
+rice-restore.sh    # the restore command itself (`rice restore <apply-id>`)
+backup-path.sh     # timestamped backup of any path, enrolled in the same restore point
 profiles/          # saved theme profiles (rice skill)
 wallpapers.tsv     # curated theme-tagged wallpaper catalog (copied from the plugin)
 ```
@@ -50,11 +53,61 @@ it.
 `rice apply` → `render-templates.sh`:
 
 1. Loads `palette.conf` into shell variables (`bg=...`, `accent=...`, `font_ui=...`, …).
-2. For each manifest line: substitute `{{key}}` in the template → write the output file.
+2. For each manifest line: back the existing output up and enrol it in this apply's restore
+   point, then substitute `{{key}}` in the template → write the output file.
 3. Run the app's reload hook (guarded — a no-op if the app isn't running).
 
 Re-theming = rewrite `palette.conf` and `rice apply`. Adding an app = drop a `<name>.tmpl` in
 `templates/` and add a TAB-separated manifest line; no code changes.
+
+## Restore points (one apply, one way back)
+
+Every apply has an id: `RICE_APPLY_ID`, a `YYYYmmdd-HHMMSS` stamp minted by `rice apply` (or by
+the render pass when nothing set one). Before any surface is written, the engine copies the
+existing file to `<output>.bak.<apply-id>` and appends a line to
+`${XDG_STATE_HOME:-~/.local/state}/hypr-rice/restore/<apply-id>/entries.tsv`. A path that did not
+exist is recorded too, as `new`, so restoring can remove the file the apply created rather than
+orphaning it.
+
+```
+rice apply                      # renders, prints RESTORE_POINT=<apply-id>
+rice restore --list             # what can still be undone, newest first
+rice restore <apply-id>         # put every file that apply wrote back, as one set
+```
+
+- **One id spans the whole apply.** Export `RICE_APPLY_ID` once
+  (`export RICE_APPLY_ID="$(bash ~/.config/hypr-rice/restore-point.sh new-id)"`) and every stage
+  of that apply (the template pass, `firefox-bootstrap.sh`, and any `backup-path.sh` call for a
+  shell rc file) enrols in the same point, so one `rice restore` puts all of it back.
+- **Entries are written before the write they protect**, so an apply killed partway through
+  still leaves a restore point covering everything already written by every stage.
+- **Overlapping paths are handled, not assumed away.** One apply routinely enrols both a whole
+  directory (`backup-path.sh ~/.config/waybar`) and files the render pass writes inside it. A path
+  enrolled while a surface around it is already in the point folds into that surface (`covered` in
+  the ledger) instead of getting a second, nested `.bak` copy - which would sit inside the very
+  directory a restore replaces wholesale. In the other order, the restore replays containers
+  before their contents, so the nested entries always have the last word. Either way one
+  `rice restore` returns the prior state, never the apply's own output.
+- **A surface whose backup cannot be written is not rendered.** The engine prints
+  `RENDER_SKIPPED <name> -> <output> (<why>)` and carries on with the rest of the manifest, so a
+  read-only directory can never cost you a file you had no copy of. A surface whose backup
+  succeeded but whose write then failed is reported as `RENDER_FAILED <name> -> <output> (<why>)`,
+  never as rendered.
+- **The restore is per-file resilient.** A missing backup or an unwritable target is reported by
+  path (`RESTORE_FAILED …`), everything else is still restored, and the point is kept so a re-run
+  finishes the job. Re-running is always safe: files already put back are skipped.
+- **The point is cleared on a fully successful restore**, so restoring the same id twice reports
+  `RESTORE=nothing-to-restore` instead of restoring again. The `.bak.<apply-id>` copies stay on
+  disk, yours to keep or delete.
+- **`~/.config/hypr` is not part of this.** The Hyprland config dir has its own backup and
+  rollback (`backup-config.sh` / `safe-apply.sh`, see `hyprland-reference/references/testing.md`);
+  it is never enrolled in a restore point and `rice restore` never touches or reports on it.
+  That holds in both directions: a path that CONTAINS it (`backup-path.sh ~/.config`) is refused
+  enrolment too, because a directory goes back wholesale and putting an ancestor back would take
+  that directory with it. `backup-path.sh` still copies such a path exactly as it always has - a
+  copy touches nothing - and says `NOT_ENROLLED <path>`: that backup is yours to put back by
+  hand, not `rice restore`'s. A write that would need such a path enrolled (the engine's own
+  fail-safe) is skipped instead, like any other surface with no way back.
 
 ## Manifest format (`templates.list`)
 
@@ -303,6 +356,8 @@ Two reasons the engine stops at the palette boundary:
 ```
 rice apply              # render all + reload
 rice apply --no-reload  # render only
+rice restore <apply-id> # undo one apply: every file it wrote, back as one set
+rice restore --list     # restore points that can still be undone, newest first
 rice palette            # show current palette
 rice templates          # show the manifest
 rice wallpaper <img>    # set wallpaper -> regenerate palette -> re-render -> reload
