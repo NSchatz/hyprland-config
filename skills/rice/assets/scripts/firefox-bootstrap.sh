@@ -17,6 +17,11 @@
 #   FIREFOX_PROFILE=<absolute-path>          # resolved profile directory
 #   FIREFOX_CHROME=<absolute-path>           # the chrome/ subdir we wrote
 #   FIREFOX_RICE_COLORS=<absolute-path>      # rice-colors.css render target
+#   RESTORE_POINT=<apply-id>                 # undo it: rice restore <apply-id>
+#
+# Every profile file this touches is backed up first and enrolled in the apply's restore point,
+# under the SAME apply id as every other surface of that apply when RICE_APPLY_ID is exported by
+# the caller. A file whose backup cannot be written is not written at all (FIREFOX_SKIPPED).
 #
 # Exit codes:
 #   0  bootstrap succeeded
@@ -29,6 +34,21 @@ RICE_DIR="${RICE_DIR:-$HOME/.config/hypr-rice}"
 ASSETS="${FIREFOX_ASSETS_DIR:-$RICE_DIR/browser}"
 auto_create=1
 profile_override=""
+
+# Restore-point library: next to this script when installed into $RICE_DIR, else in the plugin.
+_rp_lib=""
+for _c in "$(cd "$(dirname "$0")" && pwd)/restore-point.sh" \
+          "$(cd "$(dirname "$0")" && pwd)/../../../../scripts/restore-point.sh" \
+          "${CLAUDE_PLUGIN_ROOT:-}/scripts/restore-point.sh" \
+          "$RICE_DIR/restore-point.sh"; do
+    if [ -n "$_c" ] && [ -f "$_c" ]; then _rp_lib="$_c"; break; fi
+done
+if [ -z "$_rp_lib" ]; then
+    echo "ERROR: restore-point library not found (looked next to $0, in \$CLAUDE_PLUGIN_ROOT/scripts, and in $RICE_DIR). Refusing to touch a Firefox profile without a way back - re-run rice-init.sh." >&2
+    exit 2
+fi
+# shellcheck source=../../../../scripts/restore-point.sh
+. "$_rp_lib"
 
 while [ $# -gt 0 ]; do
     case "$1" in
@@ -113,32 +133,41 @@ mkdir -p "$chrome_dir"
 
 # Copy the static files. Don't clobber a user-modified userChrome.css
 # without a backup — leave it intact and append an @import line if missing.
+# The backup + restore-point enrolment happens BEFORE either write, under this apply's id, so
+# `rice restore <apply-id>` puts the profile back with the rest of the apply.
 if [ -f "$ASSETS/userChrome.css" ]; then
-    if [ -e "$chrome_dir/userChrome.css" ] && \
-       ! grep -q 'rice-colors.css' "$chrome_dir/userChrome.css"; then
-        cp "$chrome_dir/userChrome.css" "$chrome_dir/userChrome.css.bak.$(date +%s)"
-        printf '\n/* hypr-rice: pull in rice-colors.css */\n@import "rice-colors.css";\n' \
-            >> "$chrome_dir/userChrome.css"
+    if rp_protect "$chrome_dir/userChrome.css"; then
+        if [ -e "$chrome_dir/userChrome.css" ] && \
+           ! grep -q 'rice-colors.css' "$chrome_dir/userChrome.css"; then
+            printf '\n/* hypr-rice: pull in rice-colors.css */\n@import "rice-colors.css";\n' \
+                >> "$chrome_dir/userChrome.css"
+        else
+            cp "$ASSETS/userChrome.css" "$chrome_dir/userChrome.css"
+        fi
     else
-        cp "$ASSETS/userChrome.css" "$chrome_dir/userChrome.css"
+        echo "FIREFOX_SKIPPED $chrome_dir/userChrome.css ($RP_LAST_ERROR)" >&2
     fi
 fi
 
 # user.js — merge prefs idempotently (don't clobber user settings).
 if [ -f "$ASSETS/user.js" ]; then
-    touch "$profile_dir/user.js"
-    while IFS= read -r line; do
-        case "$line" in
-            'user_pref('*)
-                key="$(printf '%s' "$line" | sed -n 's/^user_pref("\([^"]*\)".*$/\1/p')"
-                [ -n "$key" ] || continue
-                if ! grep -qF "user_pref(\"$key\"" "$profile_dir/user.js"; then
-                    printf '%s\n' "$line" >> "$profile_dir/user.js"
-                fi
-                ;;
-            *) : ;;
-        esac
-    done < "$ASSETS/user.js"
+    if rp_protect "$profile_dir/user.js"; then
+        touch "$profile_dir/user.js"
+        while IFS= read -r line; do
+            case "$line" in
+                'user_pref('*)
+                    key="$(printf '%s' "$line" | sed -n 's/^user_pref("\([^"]*\)".*$/\1/p')"
+                    [ -n "$key" ] || continue
+                    if ! grep -qF "user_pref(\"$key\"" "$profile_dir/user.js"; then
+                        printf '%s\n' "$line" >> "$profile_dir/user.js"
+                    fi
+                    ;;
+                *) : ;;
+            esac
+        done < "$ASSETS/user.js"
+    else
+        echo "FIREFOX_SKIPPED $profile_dir/user.js ($RP_LAST_ERROR)" >&2
+    fi
 fi
 
 # Emit the paths so install.sh can wire the manifest line + render the
@@ -146,3 +175,6 @@ fi
 echo "FIREFOX_PROFILE=$profile_dir"
 echo "FIREFOX_CHROME=$chrome_dir"
 echo "FIREFOX_RICE_COLORS=$chrome_dir/rice-colors.css"
+if [ -n "${RICE_APPLY_ID:-}" ]; then
+    echo "RESTORE_POINT=$RICE_APPLY_ID"
+fi

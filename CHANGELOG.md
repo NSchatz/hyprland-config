@@ -1,5 +1,61 @@
 # Changelog
 
+## 0.22.0
+
+Restore points. Everything the rice writes on a machine **outside** `~/.config/hypr` can now be
+put back the way it was, as one set, with one command, by someone who never read the code.
+`~/.config/hypr` itself is untouched by this release: it keeps its own separate backup,
+live-test and auto-rollback, and the new restore command never reads, calls, wraps or touches it.
+
+### One restore point per apply
+
+- **`scripts/restore-point.sh`** (new) is the backup-before-write mechanism and the ledger over
+  it. Every apply has an id (`RICE_APPLY_ID`, a `YYYYmmdd-HHMMSS` stamp); before any surface is
+  written its existing content is copied to `<path>.bak.<apply-id>` and the path is appended to
+  `${XDG_STATE_HOME:-~/.local/state}/hypr-rice/restore/<apply-id>/entries.tsv`. A path that did
+  not exist is recorded as `new`, so restoring removes the file the apply created instead of
+  orphaning it.
+- **One id spans every stage of one apply**: the render pass, the Firefox profile bootstrap and
+  any `backup-path.sh` call for a shell rc file all enrol in the same point when the caller
+  exports `RICE_APPLY_ID` (the rice skill now does, in A4 step 0). Entries are written *before*
+  the write they protect, so an apply killed partway through still leaves a restore point
+  covering everything already written by every stage.
+
+### The undo
+
+- **`scripts/rice-restore.sh`** (new) + **`rice restore <apply-id>`** / **`rice restore --list`**
+  put every file that apply wrote back the way it was: overwritten files copied back,
+  created files removed. The point is cleared on a fully successful restore, so a second run
+  reports `RESTORE=nothing-to-restore` rather than restoring again; the `.bak.<apply-id>` copies
+  stay on disk.
+- **Per-file resilient.** A missing or unreadable backup, or a target that cannot be written, is
+  reported by path (`RESTORE_FAILED …`) while every other file in the point is still restored,
+  and the point is kept so a re-run finishes the job. Re-running after an interrupted restore is
+  always safe: files already put back are skipped, not restored twice.
+
+### Fail-safe writes
+
+- **A surface whose backup cannot be written is not rendered.** `render-templates.sh` prints
+  `RENDER_SKIPPED <name> -> <output> (<why>)` and carries on with the rest of the manifest.
+  That includes a brand-new output with nothing to overwrite: if the "this apply created it"
+  record cannot be persisted, the file is not created, because nothing could ever take it back.
+- **`scripts/backup-path.sh`** now exits non-zero and prints `BACKUP <path> -> FAILED (<why>)`
+  for any path it could not back up, and ends with `RESTORE_POINT=<apply-id>`. The edit-config
+  skill relays that id as the undo line for a shell-rc or desktop-shell edit.
+- **`firefox-bootstrap.sh`** backs up `userChrome.css` and `user.js` through the same mechanism
+  under the apply's id (replacing its own ad-hoc `.bak.<epoch>` copy), and skips a profile file
+  it could not back up.
+
+### Tests
+
+`tests/test_restore_point.sh`, `tests/test_restore_command.sh` and
+`tests/test_restore_interrupt.sh` (85 assertions): a render over known-content files backed up
+under one shared id and restored byte-identical; applies killed mid-manifest, between stages,
+mid-browser-theming and mid-shell-rc; an unwritable backup destination; a damaged backup; an
+unwritable restore target; a restore run twice; a restore killed partway and re-invoked; and the
+boundary itself, i.e. that no code path or test here reads, calls or wraps `~/.config/hypr`'s own
+restore.
+
 ## 0.21.0
 
 The browser-theming release deferred from v0.20.0. Closes the last two of the 16 v0.19.0

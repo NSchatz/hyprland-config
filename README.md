@@ -155,6 +155,8 @@ glyphs) — and applies them across GTK, kitty, and waybar.
 
 ```bash
 rice apply               # re-render every app from palette.conf and reload
+rice restore --list      # applies you can still undo, newest first
+rice restore <apply-id>  # undo one apply: every file it wrote, back the way it was
 rice wallpaper PIC.png   # set wallpaper, regenerate palette from it, re-theme everything
 rice random ~/Pictures   # random wallpaper + re-theme (bind it to a key or a timer)
 rice wallpapers nord     # list curated, theme-matched wallpapers you can download
@@ -199,6 +201,27 @@ are untouched. Rebuild with `/hyprland-config:rice` or extend with `edit-config`
 rm -rf ~/.config/hypr && mv ~/.config/hypr.bak.<timestamp> ~/.config/hypr
 ```
 
+### Undoing an apply (everything outside `~/.config/hypr`)
+
+Every apply gets one id, and every file it writes anywhere else (the rendered app configs, the
+Firefox profile files, the shell rc files an edit touched) is copied to
+`<path>.bak.<apply-id>` before it is overwritten and listed in that apply's restore point:
+
+```bash
+rice restore --list       # 20260517-142233   14 file(s)
+rice restore 20260517-142233
+```
+
+One command, the whole set: overwritten files come back byte-for-byte, files the apply created
+are removed again, and the restore point is cleared so a second run tells you there is nothing
+left to restore. A file it cannot put back (backup gone, target now read-only) is reported by
+path and the rest still goes back: the point stays until every file in it is done, so re-running
+is always safe. If a backup cannot be written during an apply, that surface is skipped rather
+than overwritten (`RENDER_SKIPPED …`).
+
+`~/.config/hypr` is deliberately not part of this: it keeps its own separate backup and
+auto-rollback (see "Restoring a backup" above).
+
 ## Prerequisites
 
 - **Arch Linux + pacman** (the install step targets `pacman` directly; an AUR helper — paru or yay —
@@ -240,6 +263,8 @@ hyprland-config/
 │   └── hyprland-component-writer.md       # one surface per agent, spawned in parallel
 ├── scripts/                               # shared across skills
 │   ├── backup-path.sh                     # timestamped backup of arbitrary paths
+│   ├── restore-point.sh                   # backup-before-write + one restore point per apply
+│   ├── rice-restore.sh                    # the undo: rice restore <apply-id>
 │   ├── dotfiles.sh                        # git versioning: bare / stow / chezmoi
 │   └── record-answer.sh                   # jq setpath into <staging>/answers.json
 ├── skills/

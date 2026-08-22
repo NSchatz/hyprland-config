@@ -18,9 +18,32 @@
 # the script groups them and prints a footer like:
 #     "3 surfaces apply on next launch: gtk3, qt6ct, hyprlock"
 # so a `rice apply` against a fresh palette doesn't look half-applied.
+#
+# Every output this pass writes is backed up first and enrolled in ONE restore point (one apply
+# id shared by every file of the apply), so `rice restore <apply-id>` puts the whole set back -
+# including the files this apply created, which it removes again. A surface whose backup cannot
+# be written is NOT rendered: it is skipped with RENDER_SKIPPED and the rest of the manifest
+# carries on. Set RICE_APPLY_ID in the environment to share one restore point across every stage
+# of one apply (render pass, browser theming, shell-rc edit); leave it unset and this pass mints
+# its own and prints it as RESTORE_POINT=.
 set -uo pipefail
 
 RICE_DIR="${RICE_DIR:-$HOME/.config/hypr-rice}"
+
+# Restore-point library: next to this script when installed into $RICE_DIR, else in the plugin.
+_rp_lib=""
+for _c in "$(cd "$(dirname "$0")" && pwd)/restore-point.sh" \
+          "$(cd "$(dirname "$0")" && pwd)/../../../scripts/restore-point.sh" \
+          "${CLAUDE_PLUGIN_ROOT:-}/scripts/restore-point.sh" \
+          "$RICE_DIR/restore-point.sh"; do
+    if [ -n "$_c" ] && [ -f "$_c" ]; then _rp_lib="$_c"; break; fi
+done
+if [ -z "$_rp_lib" ]; then
+    echo "ERROR: restore-point library not found (looked next to $0, in \$CLAUDE_PLUGIN_ROOT/scripts, and in $RICE_DIR). Refusing to render without a way back - re-run rice-init.sh." >&2
+    exit 2
+fi
+# shellcheck source=../../../scripts/restore-point.sh
+. "$_rp_lib"
 reload=1
 if [ "${1:-}" = "--no-reload" ]; then reload=0; shift; fi
 palette="${1:-$RICE_DIR/palette.conf}"
@@ -69,6 +92,12 @@ while IFS=$'\t' read -r name tmpl out rcmd next_hint; do
     case "$name" in ''|\#*) continue ;; esac
     tmpl="${tmpl/#\~/$HOME}"; out="${out/#\~/$HOME}"
     if [ ! -f "$tmpl" ]; then echo "SKIP $name (no template: $tmpl)"; continue; fi
+    # Back up + enrol BEFORE the write. If that fails there is no way back from this render, so
+    # the surface is left exactly as it was and the reason is reported.
+    if ! rp_protect "$out"; then
+        echo "RENDER_SKIPPED $name -> $out ($RP_LAST_ERROR)"
+        continue
+    fi
     render_one "$tmpl" "$out"
     echo "RENDERED $name -> $out"
     if [ "$reload" -eq 1 ] && [ -n "${rcmd:-}" ]; then
@@ -169,5 +198,11 @@ write_lock_blur() {
     fi
 }
 write_lock_blur
+
+# Offer the way back. Printed whether the pass rendered everything or skipped surfaces; an apply
+# killed before this line still leaves the point on disk (`rice restore --list` finds it).
+if [ -n "${RICE_APPLY_ID:-}" ]; then
+    echo "RESTORE_POINT=$RICE_APPLY_ID (undo every file this apply wrote: rice restore $RICE_APPLY_ID)"
+fi
 
 echo "RENDER=done"

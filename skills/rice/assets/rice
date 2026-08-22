@@ -9,10 +9,22 @@ cmd="${1:-help}"; shift 2>/dev/null || true
 
 case "$cmd" in
     apply)
-        # Render every template from palette.conf and reload apps.
+        # Render every template from palette.conf and reload apps. One restore point per apply:
+        # mint the id here so every stage this command runs shares it and `rice restore <id>`
+        # puts the whole set back.
+        if [ -z "${RICE_APPLY_ID:-}" ] && [ -f "$RICE_DIR/restore-point.sh" ]; then
+            RICE_APPLY_ID="$(bash "$RICE_DIR/restore-point.sh" new-id)"; export RICE_APPLY_ID
+        fi
         bash "$RICE_DIR/render-templates.sh" "$@"
         # Apply recorded GTK/cursor/font settings, if present.
         if [ -f "$RICE_DIR/apply-extra.sh" ]; then bash "$RICE_DIR/apply-extra.sh" || true; fi
+        ;;
+    restore)
+        # Put every file one apply wrote back the way it was, as one set.
+        #   rice restore <apply-id>   undo that apply
+        #   rice restore --list       what can be undone (newest first)
+        [ -f "$RICE_DIR/rice-restore.sh" ] || { echo "no restore command installed ($RICE_DIR/rice-restore.sh): re-run rice-init.sh" >&2; exit 1; }
+        bash "$RICE_DIR/rice-restore.sh" "$@"
         ;;
     wallpaper)
         # Set wallpaper, regenerate the palette from it, then re-theme everything.
@@ -212,6 +224,10 @@ hypr-rice — desktop theme engine ($RICE_DIR)
 
   rice apply              render all templates from palette.conf and reload apps
   rice apply --no-reload  render only (no app reloads)
+  rice restore <apply-id> put every file that apply wrote back the way it was (one command,
+                          whole set: rendered surfaces, browser profile files, shell rc files;
+                          files the apply created are removed again)
+  rice restore --list     list what can still be undone, newest first
   rice wallpaper <img>    set wallpaper, regenerate palette from it, and re-theme
   rice wallpaper <img> --no-theme   set wallpaper only
   rice random [dir]       random wallpaper from dir (default ~/Pictures/wallpapers) + re-theme
