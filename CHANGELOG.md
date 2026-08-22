@@ -32,6 +32,14 @@ live-test and auto-rollback, and the new restore command never reads, calls, wra
   reported by path (`RESTORE_FAILED …`) while every other file in the point is still restored,
   and the point is kept so a re-run finishes the job. Re-running after an interrupted restore is
   always safe: files already put back are skipped, not restored twice.
+- **Overlapping paths in one point are correct in both orders.** An apply routinely enrols a whole
+  directory (`backup-path.sh ~/.config/waybar`) *and* files the render pass writes inside it. A
+  path enrolled while a surface around it is already in the point folds into that surface
+  (`covered` in the ledger) rather than taking a second `.bak` copy inside the directory a restore
+  replaces wholesale; in the other order the restore replays containers before their contents, so
+  the nested entries have the last word. Either way `rice restore` returns the prior state and
+  never the apply's own output, and a nested file put back by an earlier partial attempt is
+  replayed - not skipped - when a later attempt replaces the directory around it.
 
 ### Fail-safe writes
 
@@ -44,17 +52,25 @@ live-test and auto-rollback, and the new restore command never reads, calls, wra
   skill relays that id as the undo line for a shell-rc or desktop-shell edit.
 - **`firefox-bootstrap.sh`** backs up `userChrome.css` and `user.js` through the same mechanism
   under the apply's id (replacing its own ad-hoc `.bak.<epoch>` copy), and skips a profile file
-  it could not back up.
+  it could not back up. A `chrome/` directory it *creates* is enrolled too, so a restore takes it
+  away again instead of leaving an empty orphan in the profile.
+- **A write that failed is reported as failed.** `render-templates.sh` prints
+  `RENDER_FAILED <name> -> <output> (<why>)` when the backup succeeded but the output could not be
+  written, instead of claiming `RENDERED` for a file that is not there.
+- **The pre-baked lock-screen blur** (`~/.cache/hypr-rice/lock-blur.png`) is enrolled like any
+  other surface the render pass writes, so a restore puts the previous one back or removes the
+  one the apply created.
 
 ### Tests
 
-`tests/test_restore_point.sh`, `tests/test_restore_command.sh` and
-`tests/test_restore_interrupt.sh` (85 assertions): a render over known-content files backed up
-under one shared id and restored byte-identical; applies killed mid-manifest, between stages,
-mid-browser-theming and mid-shell-rc; an unwritable backup destination; a damaged backup; an
-unwritable restore target; a restore run twice; a restore killed partway and re-invoked; and the
-boundary itself, i.e. that no code path or test here reads, calls or wraps `~/.config/hypr`'s own
-restore.
+`tests/test_restore_point.sh`, `tests/test_restore_command.sh`,
+`tests/test_restore_interrupt.sh` and `tests/test_restore_overlap.sh` (117 assertions): a render
+over known-content files backed up under one shared id and restored byte-identical; applies killed
+mid-manifest, between stages, mid-browser-theming and mid-shell-rc; an unwritable backup
+destination; a damaged backup; an unwritable restore target; a restore run twice; a restore killed
+partway and re-invoked; a restore point holding a directory and a file inside it, in both
+enrolment orders, plus the partial-then-retry and created-nested-file variants; and the boundary
+itself, i.e. that no code path or test here reads, calls or wraps `~/.config/hypr`'s own restore.
 
 ## 0.21.0
 

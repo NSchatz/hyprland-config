@@ -69,18 +69,23 @@ load_kv "$palette"
 user_override="$RICE_DIR/palette.user.conf"
 [ -f "$user_override" ] && load_kv "$user_override"
 
+# Returns 0 only when the output was actually written: this runs under `set -uo pipefail` with no
+# `-e`, so an unchecked redirection into a read-only directory would otherwise be reported as
+# RENDERED for a file that is not there.
 render_one() {
     local tmpl="$1" out="$2" content k
-    content="$(cat "$tmpl")"
+    content="$(cat "$tmpl")" || return 1
     for k in "${!P[@]}"; do
         content="${content//\{\{$k\}\}/${P[$k]}}"
     done
-    mkdir -p "$(dirname "$out")"
+    mkdir -p "$(dirname "$out")" 2>/dev/null || return 1
     # If the output is a symlink (e.g. ~/.config/gtk-4.0/gtk.css pointing at a system GTK theme),
     # writing through it can fail with "Permission denied" (root-owned target) or clobber the theme.
     # Replace the symlink with a real, rice-owned file instead.
-    [ -L "$out" ] && rm -f "$out"
-    printf '%s' "$content" > "$out"
+    if [ -L "$out" ]; then rm -f "$out"; fi
+    # Grouped so the redirection's own failure message is swallowed too - the caller reports it.
+    { printf '%s' "$content" > "$out"; } 2>/dev/null || return 1
+    return 0
 }
 
 # Track surfaces whose effect lands on the NEXT-X event, not now. Keys are the
@@ -98,7 +103,10 @@ while IFS=$'\t' read -r name tmpl out rcmd next_hint; do
         echo "RENDER_SKIPPED $name -> $out ($RP_LAST_ERROR)"
         continue
     fi
-    render_one "$tmpl" "$out"
+    if ! render_one "$tmpl" "$out"; then
+        echo "RENDER_FAILED $name -> $out (the output could not be written)"
+        continue
+    fi
     echo "RENDERED $name -> $out"
     if [ "$reload" -eq 1 ] && [ -n "${rcmd:-}" ]; then
         if eval "$rcmd" >/dev/null 2>&1; then echo "RELOADED $name"; else echo "RELOAD_SKIPPED $name"; fi
@@ -189,6 +197,13 @@ write_lock_blur() {
     elif command -v convert >/dev/null 2>&1; then im=convert
     else echo "LOCK_BLUR_SKIPPED ImageMagick not installed (install 'imagemagick'); hyprlock will see a missing file" >&2; return 0; fi
     mkdir -p "$(dirname "$out")"
+    # This pass writes it, so it is enrolled like any other surface it writes: a restore puts the
+    # previous blur back, or removes the one this apply created. Same fail-safe as the manifest
+    # loop - no way back, no write.
+    if ! rp_protect "$out"; then
+        echo "LOCK_BLUR_SKIPPED $out ($RP_LAST_ERROR)" >&2
+        return 0
+    fi
     # 0x12 sigma matches hyprlock blur_passes=3,blur_size=7 perceptually. -resize caps work to
     # the largest panel width we expect; hyprlock renders to monitor anyway.
     if "$im" "$wp" -resize '2560x>' -blur 0x12 "$out" 2>/dev/null; then

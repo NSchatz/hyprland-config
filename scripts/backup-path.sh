@@ -68,6 +68,11 @@ for p in "$@"; do
             file|already-file) echo "BACKUP $p -> $RP_LAST_BACKUP" ;;
             new)               echo "BACKUP $p -> none (did not exist)" ;;
             already-new)       echo "BACKUP $p -> none (created by this apply; restoring removes it)" ;;
+            covered|already-covered)
+                # Inside a surface this same apply already enrolled: that surface's backup holds
+                # this path's prior content and puts it back. A second copy here would sit inside
+                # the surface the restore replaces wholesale, so it is deliberately not taken.
+                echo "BACKUP $p -> covered by $RP_LAST_COVER (restore point $id puts it back)" ;;
             *)                 echo "BACKUP $p -> none (did not exist)" ;;
         esac
     else

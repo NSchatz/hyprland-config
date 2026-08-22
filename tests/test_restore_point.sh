@@ -173,6 +173,28 @@ else
     fail "AC5: no second backup shape beside the apply's own" "$odd"
 fi
 
+# AC7/F7: a chrome/ directory the browser step CREATES is a surface this apply wrote, so a
+# restore has to take it away again rather than leave an empty orphan in the profile.
+profile_new="$HOME/.mozilla/firefox/eeee5678.default-release"
+mkdir -p "$profile_new"
+export RICE_APPLY_ID="apply-ffnew"
+ffnew="$(bash "$FFBOOT" --profile "$profile_new" 2>&1)"
+if awk -F'\t' '$1=="new" && $2 ~ /eeee5678\.default-release\/chrome$/ {f=1} END{exit !f}' \
+       "$RICE_RESTORE_DIR/apply-ffnew/entries.tsv" 2>/dev/null; then
+    pass "AC7/F7: a chrome/ dir the browser step created is enrolled as created"
+else
+    fail "AC7/F7: a chrome/ dir the browser step created is enrolled as created" \
+         "$(cat "$RICE_RESTORE_DIR/apply-ffnew/entries.tsv" 2>/dev/null)
+$ffnew"
+fi
+ffrest="$(bash "$PLUGIN_ROOT/scripts/rice-restore.sh" apply-ffnew 2>&1)"
+if [ ! -e "$profile_new/chrome" ]; then
+    pass "AC7/F7: restoring the apply takes that chrome/ dir away, no empty orphan is left"
+else
+    fail "AC7/F7: restoring the apply takes that chrome/ dir away" "$ffrest"
+fi
+export RICE_APPLY_ID="apply-two"   # back to the apply the sections below are about
+
 # --- AC6: a shell rc edit inside an apply shares its id -------------------------------------
 printf 'export PATH="$HOME/bin:$PATH"\n' > "$HOME/.bashrc"
 cp -a "$HOME/.bashrc" "$tmp/orig-bashrc"
@@ -273,5 +295,27 @@ else
         fail "AC10/F6: no untrackable file is left on disk when its restore-point entry failed" "appc/new.conf exists"
     fi
     assert_eq "PRECIOUS A" "$(cat "$HOME/.config/appa/colors.conf")" "AC10/F6: existing outputs were left alone too"
+fi
+
+# --- The report tells the truth about a write that did not happen ---------------------------
+# The backup succeeds here (the directory is writable), the WRITE fails (the output file is
+# read-only). Reporting RENDERED for a file that was not written would undercut the whole
+# reporting contract AC10 exists to protect.
+export RICE_APPLY_ID="apply-wfail"
+printf 'PRECIOUS A\n' > "$HOME/.config/appa/colors.conf"
+if [ "$(id -u)" -eq 0 ]; then
+    skip "the render reports a write that failed as failed, not RENDERED" "running as root ignores the permission bits"
+else
+    chmod 400 "$HOME/.config/appa/colors.conf"
+    wfout="$(bash "$RICE_DIR/render-templates.sh" --no-reload "$tmp/pal.conf" "$tmp/manifest.list" 2>&1)"
+    chmod 600 "$HOME/.config/appa/colors.conf"
+    if printf '%s\n' "$wfout" | grep -q '^RENDER_FAILED appa' && \
+       ! printf '%s\n' "$wfout" | grep -q '^RENDERED appa'; then
+        pass "the render reports a write that failed as failed, not RENDERED"
+    else
+        fail "the render reports a write that failed as failed, not RENDERED" "$wfout"
+    fi
+    assert_eq "PRECIOUS A" "$(cat "$HOME/.config/appa/colors.conf")" "the output that could not be written is unchanged"
+    assert_eq "accent=ff0000" "$(cat "$HOME/.config/appb/colors.conf")" "one failed write does not stop the rest of the manifest"
 fi
 unset RICE_APPLY_ID

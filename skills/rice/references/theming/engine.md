@@ -81,9 +81,18 @@ rice restore <apply-id>         # put every file that apply wrote back, as one s
   shell rc file) enrols in the same point, so one `rice restore` puts all of it back.
 - **Entries are written before the write they protect**, so an apply killed partway through
   still leaves a restore point covering everything already written by every stage.
+- **Overlapping paths are handled, not assumed away.** One apply routinely enrols both a whole
+  directory (`backup-path.sh ~/.config/waybar`) and files the render pass writes inside it. A path
+  enrolled while a surface around it is already in the point folds into that surface (`covered` in
+  the ledger) instead of getting a second, nested `.bak` copy - which would sit inside the very
+  directory a restore replaces wholesale. In the other order, the restore replays containers
+  before their contents, so the nested entries always have the last word. Either way one
+  `rice restore` returns the prior state, never the apply's own output.
 - **A surface whose backup cannot be written is not rendered.** The engine prints
   `RENDER_SKIPPED <name> -> <output> (<why>)` and carries on with the rest of the manifest, so a
-  read-only directory can never cost you a file you had no copy of.
+  read-only directory can never cost you a file you had no copy of. A surface whose backup
+  succeeded but whose write then failed is reported as `RENDER_FAILED <name> -> <output> (<why>)`,
+  never as rendered.
 - **The restore is per-file resilient.** A missing backup or an unwritable target is reported by
   path (`RESTORE_FAILED …`), everything else is still restored, and the point is kept so a re-run
   finishes the job. Re-running is always safe: files already put back are skipped.

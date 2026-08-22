@@ -16,10 +16,22 @@
 # Store layout ($RICE_RESTORE_DIR, default ${XDG_STATE_HOME:-~/.local/state}/hypr-rice/restore):
 #   <store>/<apply-id>/entries.tsv   kind <tab> target <tab> backup   (append-only)
 #   <store>/<apply-id>/done.tsv      one target per line, appended as a restore completes it
-# kind is `file` (the target existed; the backup holds its prior content) or `new` (the target
-# did not exist; restoring removes it again). The backup copy itself is the sidecar
-# <target>.bak.<apply-id> - the same shape scripts/backup-path.sh has always written, now with a
-# ledger over it so a whole apply restores as one set.
+# kind is `file` (the target existed; the backup holds its prior content), `new` (the target did
+# not exist; restoring removes it again) or `covered` (the target sits inside a surface already
+# enrolled in this same point; column 3 names that surface, which restores it). The backup copy
+# itself is the sidecar <target>.bak.<apply-id> - the same shape scripts/backup-path.sh has always
+# written, now with a ledger over it so a whole apply restores as one set.
+#
+# Containment. One apply legitimately writes both a directory (~/.config/waybar) and files inside
+# it, so entries in one point are NOT disjoint paths. Two rules keep that honest:
+#   * enrolling a path that sits inside an already-enrolled surface folds into that surface
+#     (kind `covered`) instead of writing a second, nested sidecar. The enclosing backup was
+#     taken before this apply wrote anything here, so it already holds the nested path's prior
+#     content - and a nested sidecar would live INSIDE the surface the restore replaces
+#     wholesale, which would destroy it;
+#   * enrolling a surface that CONTAINS already-enrolled paths is allowed as-is: the restore
+#     replays containers before their contents, so the nested entries correct whatever the
+#     wholesale copy brought back.
 #
 # Entries are appended BEFORE the write they protect, so an apply killed at any point - during
 # any stage or between stages - leaves a restore point covering everything written so far.
@@ -33,9 +45,10 @@
 # behind its back (e.g. dropping its `set -e`) would be a bug in every caller at once.
 
 RP_LAST_ERROR=""    # why the last rp_protect refused (empty on success)
-RP_LAST_STATE=""    # file | new | already-file | already-new | excluded
+RP_LAST_STATE=""    # file | new | covered | already-{file,new,covered} | excluded
 RP_LAST_BACKUP=""   # the sidecar holding the prior content (empty when there was none)
 RP_LAST_ID=""       # the apply id the last rp_protect enrolled under
+RP_LAST_COVER=""    # for a `covered` state: the enrolled surface that holds the prior content
 
 # Where restore points live.
 rp_state_dir() {
@@ -111,11 +124,68 @@ rp_point_dir() {
     printf '%s/%s\n' "$(rp_state_dir)" "${1:-}"
 }
 
+# Strip trailing slashes so `~/.config/waybar/` and `~/.config/waybar` are one path. Containment
+# is decided by string prefix, so the ledger has to be canonical about this.
+rp_canon() {
+    local p="${1:-}"
+    while [ "${#p}" -gt 1 ] && [ "${p%/}" != "$p" ]; do p="${p%/}"; done
+    printf '%s\n' "$p"
+}
+
 # Print the kind recorded for a target in one entries file; non-zero when it is not enrolled.
 rp_entry_kind() {
     local f="${1:-}" t="${2:-}"
     [ -f "$f" ] || return 1
     awk -F'\t' -v t="$t" '$2 == t { print $1; found = 1; exit } END { exit !found }' "$f"
+}
+
+# Print the surface a `covered` entry folds into; non-zero when there is no such entry.
+rp_entry_cover() {
+    local f="${1:-}" t="${2:-}"
+    [ -f "$f" ] || return 1
+    awk -F'\t' -v t="$t" '$1 == "covered" && $2 == t { print $3; found = 1; exit } END { exit !found }' "$f"
+}
+
+# Print the deepest already-enrolled surface that strictly CONTAINS <target>, if any. `covered`
+# entries are never answers: they hold no backup of their own, so folding into one would fold
+# into nothing. The deepest real container is the one whose backup is closest in time to this
+# write, and it is the one the restore replays immediately before this path.
+rp_enrolled_ancestor() {
+    local f="${1:-}" t="${2:-}"
+    [ -f "$f" ] || return 1
+    awk -F'\t' -v t="$t" '
+        $1 == "covered" { next }
+        NF >= 2 {
+            a = $2
+            sub(/\/+$/, "", a)
+            if (a != "" && index(t, a "/") == 1 && length(a) > length(best)) best = a
+        }
+        END { if (best != "") { print best; exit 0 } exit 1 }
+    ' "$f"
+}
+
+# Drop the done-marks of everything nested inside <parent>. A surface restored wholesale replaces
+# its whole content, so anything inside it that an earlier (interrupted or partial) attempt had
+# already put back has just been overwritten and must be replayed.
+rp_unmark_below() {
+    local dir="${1:-}" parent="${2:-}" tmpf
+    [ -n "$dir" ] && [ -n "$parent" ] || return 1
+    [ -f "$dir/done.tsv" ] || return 0
+    parent="$(rp_canon "$parent")"
+    tmpf="$dir/done.tsv.$$"
+    awk -v p="$parent/" 'index($0, p) != 1' "$dir/done.tsv" > "$tmpf" 2>/dev/null || { rm -f "$tmpf"; return 1; }
+    mv -f "$tmpf" "$dir/done.tsv" 2>/dev/null || { rm -f "$tmpf"; return 1; }
+}
+
+# Replay order for one entries file: a surface always comes BEFORE anything enrolled inside it.
+# Depth (the number of '/' in the target) decides that on its own - a container always has fewer
+# path components than what it contains - and entries at equal depth keep their enrolment order,
+# so an apply's own write order is otherwise untouched.
+rp_replay_order() {
+    local f="${1:-}"
+    [ -f "$f" ] || return 1
+    awk -F'\t' 'BEGIN { OFS = "\t" } NF { t = $2; n = gsub(/\//, "/", t); print n, NR, $0 }' "$f" \
+        | sort -k1,1n -k2,2n | cut -f3-
 }
 
 rp_append() {
@@ -144,9 +214,9 @@ rp_safe_target() {
 #   THAT is exactly as fatal as failing to copy a backup - the caller skips the surface either
 #   way rather than writing a file nothing can take back.
 rp_protect() {
-    local target backup id dir kind
-    RP_LAST_ERROR=""; RP_LAST_STATE=""; RP_LAST_BACKUP=""; RP_LAST_ID=""
-    target="$(rp_expand "${1:-}")"
+    local target backup id dir kind ancestor
+    RP_LAST_ERROR=""; RP_LAST_STATE=""; RP_LAST_BACKUP=""; RP_LAST_ID=""; RP_LAST_COVER=""
+    target="$(rp_canon "$(rp_expand "${1:-}")")"
     if [ -z "$target" ]; then
         RP_LAST_ERROR="empty path"
         return 1
@@ -171,9 +241,27 @@ rp_protect() {
         # Already enrolled earlier in this same apply. The first enrollment holds the prior
         # state; re-copying now would capture this apply's own output as "what was there before".
         RP_LAST_STATE="already-$kind"
-        if [ "$kind" = "file" ]; then
-            RP_LAST_BACKUP="${target%/}.bak.${id}"
+        case "$kind" in
+            file)    RP_LAST_BACKUP="${target%/}.bak.${id}" ;;
+            covered) RP_LAST_COVER="$(rp_entry_cover "$dir/entries.tsv" "$target")" || RP_LAST_COVER="" ;;
+        esac
+        return 0
+    fi
+    ancestor="$(rp_enrolled_ancestor "$dir/entries.tsv" "$target")" || ancestor=""
+    if [ -n "$ancestor" ]; then
+        # This path sits inside a surface already enrolled in this apply. That surface was copied
+        # before this apply wrote anything under it, so its backup already holds this path's prior
+        # content - and a sidecar written here would live INSIDE the surface a restore replaces
+        # wholesale, which is exactly how it would be destroyed. Fold into the surface instead:
+        # the entry records what holds the prior content, and the restore replays the surface
+        # first. Failing to persist THAT is as fatal as a failed copy, for the same reason the
+        # `new` branch below is: the caller must not write what nothing can take back.
+        if ! rp_append "$dir" covered "$target" "$ancestor"; then
+            RP_LAST_ERROR="restore point entry could not be written: $dir/entries.tsv"
+            return 1
         fi
+        RP_LAST_STATE="covered"
+        RP_LAST_COVER="$ancestor"
         return 0
     fi
     if [ -e "$target" ] || [ -L "$target" ]; then
@@ -265,7 +353,7 @@ if [ "${BASH_SOURCE[0]}" = "$0" ]; then
             [ -n "${RP_LAST_ID:-}" ] && printf 'RESTORE_POINT=%s\n' "$RP_LAST_ID"
             exit "$_rp_rc"
             ;;
-        help|-h|--help) sed -n '2,16p' "$0" ;;
+        help|-h|--help) sed -n '2,23p' "$0" ;;
         *) echo "unknown command: $_rp_cmd (try: restore-point.sh help)" >&2; exit 2 ;;
     esac
 fi

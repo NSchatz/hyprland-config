@@ -246,6 +246,7 @@ new_files=(
     "$PLUGIN_ROOT/tests/test_restore_point.sh"
     "$PLUGIN_ROOT/tests/test_restore_command.sh"
     "$PLUGIN_ROOT/tests/test_restore_interrupt.sh"
+    "$PLUGIN_ROOT/tests/test_restore_overlap.sh"
 )
 hypr_dir_re='\.config/hypr([^-]|$)'                                                  # RP_EXCLUDE
 offenders=""

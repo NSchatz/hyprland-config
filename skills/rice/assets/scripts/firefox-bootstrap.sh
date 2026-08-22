@@ -129,6 +129,16 @@ if [ ! -d "$profile_dir" ]; then
 fi
 
 chrome_dir="$profile_dir/chrome"
+# A chrome/ dir this step CREATES is a surface this apply wrote too: enrol it so the restore
+# removes it again instead of leaving an empty orphan in the profile. An existing one is left to
+# the per-file enrolments below - it was not created here, and folding its files into a
+# directory-wide backup would drop the per-file sidecars the profile step has always written.
+if [ ! -d "$chrome_dir" ]; then
+    if ! rp_protect "$chrome_dir"; then
+        echo "FIREFOX_SKIPPED $chrome_dir ($RP_LAST_ERROR)" >&2
+        exit 2
+    fi
+fi
 mkdir -p "$chrome_dir"
 
 # Copy the static files. Don't clobber a user-modified userChrome.css

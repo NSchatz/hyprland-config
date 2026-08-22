@@ -8,6 +8,14 @@
 # For every file in the restore point:
 #   the apply overwrote it -> the backup taken before that write is copied back   (RESTORED)
 #   the apply created it   -> it is removed, so no orphan is left behind          (REMOVED)
+#   it sits inside another surface in the same point -> that surface puts it back (RESTORED with)
+#
+# One apply writes both a directory and files inside it, so the entries are not disjoint paths.
+# They are replayed CONTAINER FIRST (rp_replay_order): a surface is put back wholesale before
+# anything enrolled inside it, so a nested entry always has the last word and can never be undone
+# by the copy that follows it. A nested path enrolled while its container was already in the point
+# carries no backup of its own (kind `covered`) - the container's backup predates every write this
+# apply made under it, so it already holds that path's prior content.
 #
 # One unreadable backup, or one target that cannot be written, does not abort the run: every
 # other file in the point is still restored, the failure is reported by path, and the restore
@@ -19,6 +27,9 @@
 #   1  partially restored: some files failed; the point is kept, fix them and re-run
 #   2  usage error, or the restore-point library could not be found
 #   3  nothing to restore for that identifier (never applied under it, or already restored)
+#      (a cleared point is the normal, successful end state, so this is what a second restore
+#       against the same identifier reports - it is deliberately NOT exit 0, which would be
+#       "success with nothing restored")
 set -uo pipefail
 
 here="$(cd "$(dirname "$0")" && pwd)"
@@ -39,7 +50,7 @@ fi
 id="${1:-}"
 case "$id" in
     ''|-h|--help)
-        sed -n '2,21p' "$0"
+        sed -n '2,32p' "$0"
         exit 2
         ;;
     --list|list)
@@ -101,6 +112,10 @@ while IFS=$'\t' read -r kind target backup; do
             if err="$(cp -a "$backup" "$target" 2>&1)"; then
                 echo "RESTORED $target"
                 restored=$((restored + 1))
+                # Wholesale replacement overwrote everything inside it, including anything an
+                # earlier attempt had already put back. Those entries are replayed after this one
+                # (container first), so their done-marks have to go.
+                [ -d "$backup" ] && rp_unmark_below "$dir" "$target"
                 rp_mark_done "$dir" "$target"
             else
                 echo "RESTORE_FAILED $target (cannot write target: ${err##*cp: })"
@@ -108,6 +123,8 @@ while IFS=$'\t' read -r kind target backup; do
             fi
             ;;
         new)
+            was_dir=0
+            [ -d "$target" ] && [ ! -L "$target" ] && was_dir=1
             if [ ! -e "$target" ] && [ ! -L "$target" ]; then
                 echo "REMOVED $target (already gone)"
                 removed=$((removed + 1))
@@ -115,9 +132,28 @@ while IFS=$'\t' read -r kind target backup; do
             elif err="$(rm -rf "$target" 2>&1)"; then
                 echo "REMOVED $target"
                 removed=$((removed + 1))
+                [ "$was_dir" -eq 1 ] && rp_unmark_below "$dir" "$target"
                 rp_mark_done "$dir" "$target"
             else
                 echo "RESTORE_FAILED $target (cannot remove the file this apply created: ${err##*rm: })"
+                failed=$((failed + 1))
+            fi
+            ;;
+        covered)
+            # Folded into an enclosing surface at enrolment time: that surface holds this path's
+            # prior content and was replayed just above. Nothing to copy here - a nested backup
+            # would have been destroyed by the wholesale replacement, which is why none was taken.
+            if [ -n "${backup:-}" ] && rp_is_done "$dir" "$backup"; then
+                if [ -e "$target" ] || [ -L "$target" ]; then
+                    echo "RESTORED $target (with $backup)"
+                    restored=$((restored + 1))
+                else
+                    echo "REMOVED $target (with $backup)"
+                    removed=$((removed + 1))
+                fi
+                rp_mark_done "$dir" "$target"
+            else
+                echo "RESTORE_FAILED $target (the surface that holds it was not restored: ${backup:-unknown})"
                 failed=$((failed + 1))
             fi
             ;;
@@ -126,7 +162,7 @@ while IFS=$'\t' read -r kind target backup; do
             failed=$((failed + 1))
             ;;
     esac
-done < "$entries"
+done < <(rp_replay_order "$entries")
 
 if [ "$failed" -eq 0 ]; then
     rp_clear "$id"
