@@ -59,8 +59,17 @@ the install step at A5 installs whatever's missing.
 
 ```bash
 bash "${CLAUDE_PLUGIN_ROOT}/skills/rice/scripts/detect-version.sh"      # Hyprland version + env facts
+bash "${CLAUDE_PLUGIN_ROOT}/skills/rice/scripts/config-language.sh"     # which config LANGUAGE this Hyprland reads
 bash "${CLAUDE_PLUGIN_ROOT}/skills/rice/scripts/detect-theme-tools.sh"  # current gsettings + font families
 ```
+
+**The config language is a detection fact, not a default.** Since 0.55 Hyprland reads
+`hyprland.lua` and loads it *instead of* `hyprland.conf`, and since 0.56.0 a fresh install
+autogenerates one. `config-language.sh` reports `CONFIG_LANGUAGE=`, `CONFIG_FILE=` and
+`CONFIG_LANGUAGE_RANGE=`; on an undetectable version it exits non-zero, prints
+`EMITTABLE_LANGUAGES=lua hyprlang` with each option's range, and **requires an explicit
+`HYPR_CONFIG_LANG=lua|hyprlang`**. Relay that question to the user - do not pick for them. A wrong
+guess is not an error, it is a config the compositor never reads.
 
 Use these factual fields: `HYPR_VERSION=` (version-sensitive syntax — see `deprecations.md`),
 `GPU_DRIVER=`/`NVIDIA_PROPRIETARY=` (gates the NVIDIA env block under the proprietary driver only),
@@ -459,9 +468,16 @@ omit both the env var and the `exec-once` line.
    — it timestamp-backs up the **entire** `~/.config/hypr`, installs, then `hyprctl reload` +
    `configerrors`, and **auto-rolls-back** if the new config fails. Read the final `SAFE_APPLY=` line:
    `ok` (installed + clean), `rolled-back` (errors shown; restored — fix + retry),
-   `installed-untested` (no running Hyprland; test next login), `install-failed`/`errors-no-backup`
-   (surface + stop). Relay the `BACKUP=` path. Respect a `HYPR_DIR` override. (`install-config.sh` /
+   `installed-untested` (no running Hyprland; test next login), `refused` (install-config.sh
+   declined and changed **nothing**: read the `REFUSED=`/`SHADOWED_BY=` lines above it),
+   `install-failed`/`errors-no-backup` (surface + stop). Relay the `BACKUP=` and
+   `CONFIG_LANGUAGE=` lines. Respect a `HYPR_DIR` override. (`install-config.sh` /
    `verify-config.sh` exist for running a step alone — see `hyprland-reference/references/testing.md`.)
+   - **`REFUSED=lua-config-takes-precedence`** means `~/.config/hypr/hyprland.lua` is already
+     there, so a hyprlang `.conf` would be installed and then ignored. Do not work around it by
+     deleting the lua file: regenerate in lua (`HYPR_CONFIG_LANG=lua`), or offer the user
+     `bash "${CLAUDE_PLUGIN_ROOT}/skills/rice/scripts/migrate-config.sh"` (an offer that changes
+     nothing; `--convert` accepts it and keeps the `.conf` as a backup).
 5. **Install the shell configs:** only after `ok`/`installed-untested`, back up then install the staged
    `_shell/<app>/` tree to `~/.config/<app>/`: first
    `bash "${CLAUDE_PLUGIN_ROOT}/scripts/backup-path.sh" ~/.config/waybar ~/.config/wofi ~/.config/rofi ~/.config/mako ~/.config/dunst ~/.config/kitty …`
@@ -768,7 +784,8 @@ that surface.
   `GTK_THEME=`, icon-theme vs GTK-theme, root-owned `gtk.css` symlink, `gsettings`-alone-misses-GTK3).
 - **`scripts/`** — `detect-version.sh`, `detect-theme-tools.sh`, `rice-init.sh`, `render-templates.sh`,
   `apply-theme.sh`, `set-wallpaper.sh`, `palette-from-wallpaper.sh`, `safe-apply.sh`,
-  `install-config.sh`, `verify-config.sh`, `verify-shell.sh`, `backup-config.sh`, `reset-config.sh`.
+  `install-config.sh`, `verify-config.sh`, `verify-shell.sh`, `backup-config.sh`, `reset-config.sh`,
+  `config-language.sh`, `emit-config.sh`, `migrate-config.sh`.
 - **`${CLAUDE_PLUGIN_ROOT}/scripts/record-answer.sh`** — `jq`-based `setpath` into `answers.json`.
   Called by the interviewer agent after every `AskUserQuestion` so picks land on disk before the
   next question.

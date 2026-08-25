@@ -147,10 +147,12 @@ If `default_apps.files` is `yazi` or `ranger`, the `$fileManager` variable in `h
 
 As of Hyprland 0.55, the shipped default config is `hyprland.lua`, and the wiki's Binds page
 opens with: "Since Hyprland 0.55, hyprlang is deprecated in favor of lua. Looking for the old
-hyprlang syntax? Check the 0.54 wiki pages." The classic `bind = …` `.conf` syntax we emit here
-**still parses and runs on 0.55+** — the wiki explicitly states `.conf` "remains functional for
-several releases." We keep emitting `.conf` because every existing tutorial, rice, and dotfile
-out there does. Track when to migrate via the rice's version detector.
+hyprlang syntax? Check the 0.54 wiki pages." The classic `bind = …` `.conf` syntax below
+**still parses and runs on 0.55+**, but only for a while: upstream supports hyprlang for
+**1 - 2 releases starting from 0.55** and drops it after that. So `.conf` is no longer the
+default emission: `scripts/config-language.sh` resolves the language from the detected version
+(0.55+ emits `hyprland.lua`), and a `.conf` is never installed into a directory that already
+holds a `hyprland.lua`, because the lua file is what the compositor would actually load.
 
 For reference, the Lua-API equivalents of the bind flags compose differently — there's no
 suffix-letter mash; instead, each flag is a key in an options table:

@@ -26,8 +26,12 @@ if [ -n "$version" ]; then
     echo "HYPR_VERSION=${version}"
     echo "HYPR_SOURCE=${source}"
 else
+    # Do NOT assume a syntax here. Since 0.55 the config LANGUAGE is a version
+    # cliff (hyprlang .conf vs hyprland.lua), and guessing it wrong produces a
+    # config the compositor never reads. `config-language.sh` turns an unknown
+    # version into an explicit choice instead of a guess.
     echo "HYPR_VERSION=unknown"
-    echo "HYPR_SOURCE=none (hyprctl/Hyprland not found — assume latest stable syntax)"
+    echo "HYPR_SOURCE=none (hyprctl/Hyprland not found; the config language cannot be assumed - see config-language.sh)"
 fi
 
 # Protocol-capability flags downstream branches on (better than parsing the version string

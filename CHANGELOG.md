@@ -1,5 +1,44 @@
 # Changelog
 
+## Unreleased
+
+Emit the config language the machine actually loads (roadmap phase LUA-4).
+
+Since Hyprland 0.55 hyprlang is deprecated in favour of lua, and a `hyprland.lua` in the config
+dir is loaded **instead of** `hyprland.conf`. Since 0.56.0 a freshly installed Hyprland
+autogenerates one into that very directory. The plugin emitted hyprlang `.conf` and only hyprlang
+`.conf`, so on a current machine it could print a clean `SAFE_APPLY=ok` for a change the
+compositor never read. This release closes that.
+
+- **`scripts/config-language.sh`** (new) resolves the config language from the detected version
+  (0.55 or higher is lua, below is hyprlang) and reports the Hyprland range that language is valid
+  for. On an undetectable version it does **not** assume: it prints
+  `EMITTABLE_LANGUAGES=lua hyprlang` with each option's range and exits non-zero until an explicit
+  `HYPR_CONFIG_LANG=lua|hyprlang` is supplied. `detect-version.sh` no longer tells the reader to
+  "assume latest stable syntax".
+- **`scripts/emit-config.sh`** (new) is the emitter pair: a lua writer beside the hyprlang one,
+  selected by that resolution. Every generated config now carries a
+  `CONFIG_LANGUAGE=` / `CONFIG_LANGUAGE_RANGE=` header, so a user reading the file on their own
+  machine can tell what it is and what it is good for. `reset-config.sh` generates through it, and
+  generates **before** the wipe, so a run that cannot pick a language leaves the config untouched.
+- **`scripts/install-config.sh`** refuses to install a hyprlang `.conf` into a directory that
+  already holds a `hyprland.lua`, naming the file and saying that the lua config takes precedence
+  (`REFUSED=lua-config-takes-precedence`). It also refuses, before taking any backup, when the
+  target exists but cannot be written to, and it installs `*.lua` sets as well as `*.conf` ones.
+  `safe-apply.sh` surfaces those as `SAFE_APPLY=refused`, never as ok.
+- **`scripts/migrate-config.sh`** (new) offers to convert an existing `.conf` set to lua. The bare
+  invocation is the offer and changes nothing; `--convert` accepts it. The `.conf` is kept, never
+  deleted, and a verified readable copy is written beside it. It refuses, changing nothing, when a
+  `hyprland.lua` is already there, when a `.conf` does not parse, when a construct has no
+  documented lua mapping (all-or-nothing on purpose: a partial conversion would silently drop the
+  rest), and when the backup step does not produce a readable copy.
+- **The stated hyprlang support window is now the published one.** Five places claimed `.conf`
+  "remains functional for several releases"; upstream says **1 - 2 releases starting from 0.55**,
+  after which hyprlang is dropped. The version matrix no longer says the rice still emits `.conf`
+  on 0.55+, because it does not.
+- **Tests:** `tests/test_lua_emit.sh`, `tests/test_lua_install.sh`, `tests/test_lua_migrate.sh`
+  (`bash tests/run.sh lua`).
+
 ## 0.22.0
 
 Restore points. Everything the rice writes on a machine **outside** `~/.config/hypr` can now be

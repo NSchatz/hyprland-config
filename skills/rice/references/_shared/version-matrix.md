@@ -24,7 +24,7 @@ this file summarizes the *branches the rice components have to make* on top of t
 | **0.55+** | `decoration:shadow:ignore_window` **removed** — behavior is now always on. | `look-feel`. |
 | **0.55+** | `render:cm_fs_passthrough` **removed** — automatic when `render:cm_auto_hdr` is set. | (rarely used; uninvolved in defaults). |
 | **0.55+** | `hyprctl setenv` **REMOVED** (gone in the Lua rewrite). Runtime env-set is now `hyprctl keyword env NAME,value` (drives the same `env` config keyword). | `env` (runtime propagation example). |
-| **0.55+** | **Lua is the default config language** (`~/.config/hypr/hyprland.lua`); hyprlang `.conf` "remains functional for several releases." | All components — rice still emits `.conf` on 0.55+; track when to switch. |
+| **0.55+** | **Lua is the config language** (`~/.config/hypr/hyprland.lua`), and a `hyprland.lua` in the config dir is loaded **instead of** `hyprland.conf` (the check runs once, at startup). hyprlang is deprecated from 0.55 and supported for **1 - 2 releases starting from 0.55**, after which it is dropped ([upstream announcement](https://hypr.land/news/26_lua/)). From **0.56.0** a freshly installed Hyprland auto-generates a `hyprland.lua` into that directory the first time it starts, so the shadowing case is the default one, not an edge case. | **All components: the config LANGUAGE is itself a branch here.** `scripts/config-language.sh` resolves it (0.55+ -> lua, below -> hyprlang) and REFUSES to guess when the version is unknown; `scripts/emit-config.sh` writes in the resolved language; `scripts/install-config.sh` refuses to install a `.conf` into a directory that already holds a `hyprland.lua`; `scripts/migrate-config.sh` converts an existing `.conf` set. |
 | **0.55+** | `decoration { glow {} }` (new effect), spring-based animation curve `animation = …, …, …, spring` — **but only via the Lua config API**. Hyprlang `.conf` `animation =` parser at v0.55.2 line 1454 still calls `bezierExists()` and rejects spring names. | `look-feel` (spring curves not emittable from `.conf`). |
 | **0.55+** | Other additions: per-output ICC `icc = "<path>"`, dispatcher `moveintoorcreategroup`, `groupbar:middle_click_close`, scrolling-layout rules/messages (`scrolling_width`, `expel`/`consume`/`consume_or_expel`, `rotatesplit`), input device tags, windowrule `confine_pointer`. | (additive — opt-in surfaces). |
 
@@ -45,7 +45,13 @@ this file summarizes the *branches the rice components have to make* on top of t
 ```
 detect-version → HYPR_VERSION
 
+if HYPR_VERSION is unknown:
+  - the CONFIG LANGUAGE cannot be assumed. config-language.sh reports both
+    emittable languages and stops until an explicit choice is supplied
+    (HYPR_CONFIG_LANG=lua|hyprlang).
+
 if HYPR_VERSION ≥ 0.55:
+  - config LANGUAGE is lua -> emit hyprland.lua, never hyprland.conf
   - emit debug:vfr instead of misc:vfr
   - omit dwindle:pseudotile from layout block
   - omit decoration:shadow:ignore_window
@@ -55,6 +61,7 @@ if HYPR_VERSION ≥ 0.55:
   - hyprctl setenv → hyprctl keyword env NAME,value
 
 elif HYPR_VERSION ≥ 0.54:
+  - config LANGUAGE is hyprlang -> emit hyprland.conf
   - layerrule → block form (HARD: bare-keyword line form fails parse)
   - scrolling layout core (this is the actual cliff)
   - keep misc:vfr (not yet moved)
@@ -96,6 +103,15 @@ emitted against the wrong target.
 bash "${CLAUDE_PLUGIN_ROOT}/skills/rice/scripts/detect-version.sh"
 # HYPR_VERSION=0.54.3
 # HYPR_VERSION_MAJOR=0  HYPR_VERSION_MINOR=54  HYPR_VERSION_PATCH=3
+
+bash "${CLAUDE_PLUGIN_ROOT}/skills/rice/scripts/config-language.sh"
+# CONFIG_LANGUAGE=hyprlang
+# CONFIG_FILE=hyprland.conf
+# CONFIG_LANGUAGE_RANGE=Hyprland up to 0.54; deprecated since 0.55 and supported for 1 - 2 releases starting from 0.55, after which hyprlang is dropped
 ```
 
-If neither `hyprctl` nor `Hyprland` is on PATH, assume the latest stable syntax and tell the user.
+If neither `hyprctl` nor `Hyprland` is on PATH the version is `unknown`. **Do not assume a
+syntax and do not assume a language.** `config-language.sh` exits non-zero, reports the languages
+it can emit with the version range of each, and waits for an explicit `HYPR_CONFIG_LANG` choice;
+relay that to the user rather than picking for them. Guessing the language wrong does not produce
+an error, it produces a config the compositor never reads.

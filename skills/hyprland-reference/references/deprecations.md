@@ -134,9 +134,13 @@ them. Branch on `hyprctl version`.
 
 ### 0.55 also *adds* (not deprecations, but worth knowing when on 0.55+)
 
-- **Lua configs are now the default config language** (`~/.config/hypr/hyprland.lua`). hyprlang
-  `.conf` configs "remain functional for several releases," so emitting `.conf` is still correct —
-  but the wiki has fully switched to Lua. See the Lua notes in `config-syntax.md` / `keybindings.md`.
+- **Lua is the config language** (`~/.config/hypr/hyprland.lua`), and a `hyprland.lua` is loaded
+  **instead of** `hyprland.conf` when both are present. hyprlang is supported for **1 - 2 releases
+  starting from 0.55**, after which it is dropped, and no new config features are added to it
+  ([upstream](https://hypr.land/news/26_lua/)), so `.conf` is a closing window, not an
+  indefinite one. What this plugin emits is decided by
+  `${CLAUDE_PLUGIN_ROOT}/skills/rice/scripts/config-language.sh`, not assumed. See the Lua notes in
+  `config-syntax.md` / `keybindings.md`.
 - **User-defined layouts** — a Layout API to define custom layouts in-config, per-workspace /
   per-monitor / globally (`layout = <name>`).
 - **Spring animations** — a spring-based curve in addition to bezier (`animation = …, …, …, spring`).
