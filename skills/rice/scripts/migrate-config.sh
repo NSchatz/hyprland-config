@@ -15,19 +15,33 @@
 # It REFUSES, changing nothing, when:
 #   - the directory already holds a `hyprland.lua` (or a `.lua` counterpart of any
 #     sourced file): it will not overwrite a lua config it did not write;
-#   - a `.conf` offered for conversion does not parse as hyprlang, or uses a
-#     construct this converter has no documented lua mapping for. A partial
-#     conversion is the WORST outcome available here: the moment a `hyprland.lua`
-#     exists the compositor stops reading the `.conf`, so anything left behind
-#     silently stops applying. So it is all or nothing, and the leftovers are
-#     named by file and line;
+#   - a `.conf` offered for conversion DOES NOT PARSE as hyprlang. The offending
+#     lines are named (`UNPARSEABLE=`) and nothing is written;
+#   - a `source =` line cannot be resolved to a concrete `.conf` inside the config
+#     dir (a glob, a missing file, a file outside the dir). Then the converter
+#     cannot even see the whole configuration, let alone report what a conversion
+#     would cost, so it declines the lot (`UNRESOLVED_SOURCE=`);
 #   - the backup step does not produce a readable, byte-identical copy of every
 #     `.conf` it is about to convert. Then it aborts BEFORE writing any lua.
 #
-# Constructs it converts (everything else is refused by name):
+# A construct that PARSES but has no documented lua mapping is NOT a refusal.
+# Refusing there means the configs this plugin itself generates - which use
+# `bezier`, `animation` and `gesture`, none of which has a documented lua form -
+# get no conversion at all, on exactly the 0.56 machines where the compositor has
+# stopped reading their `.conf`. Instead each such line is CARRIED ACROSS into the
+# lua as a `-- NOT APPLIED` comment at its original position, reported line by
+# line (`WOULD_NOT_APPLY=` in the offer, `NOT_APPLIED=` in the run), summarised in
+# the header of every file that has one, and left intact in the `.conf`, which is
+# kept. Nothing is dropped silently; the run says `MIGRATE=ok-with-unmapped`.
+#
+# Constructs it converts:
 #   comments, blank lines, `$var = value` (expanded textually, as hyprlang does),
 #   `source = <a .conf under the config dir>` -> `require("<stem>")`,
 #   `section { key = value }` (nestable) -> `hl.config({ section = { ... } })`,
+#     a key that is not a lua identifier (`col.active_border`, `tap-to-click`)
+#     becomes a bracket key: `["col.active_border"] = ...`,
+#   `windowrule { match:class = ... }` -> `hl.window_rule({ match = { class = ... } })`,
+#   `layerrule { match:namespace = ... }` -> `hl.layer_rule({ match = { ... } })`,
 #   `monitor = out, mode, pos, scale` -> `hl.monitor({...})`,
 #   `bind[flags] = MODS, KEY, DISPATCHER[, ARGS]` -> `hl.bind(..., hl.dsp.*)`,
 #   `exec-once = cmd` -> `hl.exec_cmd("cmd")`,
@@ -35,13 +49,14 @@
 #
 # Output:
 #   MIGRATE_OFFER=<what would happen>   (offer mode)
-#   WOULD_WRITE= / WOULD_KEEP= / WOULD_BACK_UP=
-#   BACKUP=<dir> / BACKED_UP=<path> / WROTE=<path> / KEPT=<path>
-#   MIGRATE=ok | nothing-to-convert | refused-existing-lua | refused-unparseable
+#   WOULD_WRITE= / WOULD_KEEP= / WOULD_BACK_UP= / WOULD_NOT_APPLY=
+#   BACKUP=<dir> / BACKED_UP=<path> / WROTE=<path> / KEPT=<path> / NOT_APPLIED=
+#   MIGRATE=ok | ok-with-unmapped | offered | nothing-to-convert
+#         | refused-existing-lua | refused-unparseable | refused-unresolvable-source
 #         | aborted-backup-failed
 #
 # Exit: 0 converted / offered / nothing to convert,
-#       2 bad usage, 3 refused (unparseable or unmappable),
+#       2 bad usage, 3 refused (unparseable, or an unresolvable `source =`),
 #       4 refused (a lua config is already there), 5 aborted (backup failed).
 set -uo pipefail
 # Config values routinely contain `*` and `?` (window-rule regexes, exec commands).
@@ -53,7 +68,7 @@ mode="offer"
 case "${1:-}" in
     "")          ;;
     --convert)   mode="convert" ;;
-    -h|--help)   sed -n '2,40p' "$0"; exit 0 ;;
+    -h|--help)   sed -n '2,62p' "$0"; exit 0 ;;
     *)           echo "ERROR: usage: migrate-config.sh [--convert]" >&2; exit 2 ;;
 esac
 
@@ -61,9 +76,12 @@ here="$(cd "$(dirname "$0")" && pwd)"
 # shellcheck source=config-language.sh
 source "$here/config-language.sh"
 
-target="${HYPR_DIR:-$HOME/.config/hypr}"
+target="${HYPR_DIR:-${HOME:-}/.config/hypr}"
 backup_dir="${HYPR_BACKUP_DIR:-$target}"
 main="$target/hyprland.conf"
+# The DEFAULT config dir a `source = ~/.config/hypr/...` line names, which is not
+# the same thing as the dir being converted when HYPR_DIR overrides it.
+home_config_dir="${HOME:-}/.config/hypr"
 
 echo "TARGET=${target}"
 
@@ -74,7 +92,7 @@ if [ ! -f "$main" ]; then
 fi
 
 # --- Refusal 1: never overwrite a lua config we did not write -------------------------------
-if [ -e "$target/hyprland.lua" ]; then
+if config_lang_present "$target/hyprland.lua"; then
     echo "ERROR: '$target/hyprland.lua' already exists; refusing to replace it." >&2
     echo "       That file is what Hyprland actually loads. Move it aside first if you" >&2
     echo "       really want this conversion to produce a new one." >&2
@@ -87,9 +105,12 @@ fi
 # Conversion
 # ---------------------------------------------------------------------------------------------
 declare -A VARS=()
-declare -a ERRORS=()
+declare -a PARSE_ERRORS=()
+declare -a SOURCE_ERRORS=()
+declare -a UNMAPPED=()
 declare -a QUEUE=()
 declare -a SEEN=()
+file_unmapped=0
 
 trim() {
     local s="$1"
@@ -141,6 +162,23 @@ lua_value() {
     lua_string "$v"
 }
 
+# `lua_key <hyprlang key>` - the same key as a lua table key. hyprlang option names
+# are not all lua identifiers (`col.active_border`, `tap-to-click`), and lua's own
+# bracket-key syntax is how a table holds one. No hyprlang name is invented here;
+# the key is carried across verbatim.
+lua_key() {
+    local k="$1"
+    case "$k" in
+        and|break|do|else|elseif|end|false|for|function|goto|if|in|local|nil|not|or|repeat|return|then|true|until|while)
+            printf '[%s]' "$(lua_string "$k")"; return ;;
+    esac
+    if [[ "$k" =~ ^[A-Za-z_][A-Za-z0-9_]*$ ]]; then
+        printf '%s' "$k"
+    else
+        printf '[%s]' "$(lua_string "$k")"
+    fi
+}
+
 indent() { printf '%*s' $(( 4 * $1 )) ''; }
 
 lua_stem() {
@@ -149,19 +187,43 @@ lua_stem() {
     printf '%s' "${p%.conf}"
 }
 
-note_error() { ERRORS+=("$1"); }
+# A line that is not valid hyprlang. AC-9's refusal: nothing is written.
+note_parse_error()  { PARSE_ERRORS+=("$1"); }
+# A `source =` the converter cannot resolve. It cannot see the whole config, so it
+# declines rather than convert a set it has not read.
+note_source_error() { SOURCE_ERRORS+=("$1"); }
 
-# convert_file <input.conf> <output.lua>
+# `note_unmapped <in> <lineno> <why> <text> <out> <indent-level>` - a line that
+# parses but has no documented lua mapping. Carried across as a comment at its
+# original position, and reported. Never dropped, never silent.
+note_unmapped() {
+    local in="$1" lineno="$2" why="$3" text="$4" out="$5" lvl="$6"
+    UNMAPPED+=("${in}:${lineno}: ${why}: ${text}")
+    file_unmapped=$((file_unmapped + 1))
+    { indent "$lvl"; printf -- '-- NOT APPLIED (%s): %s\n' "$why" "$text"; } >> "$out"
+}
+
+# hyprlang keywords that may appear more than once in one scope. A lua table cannot
+# hold the same key twice, and none of these has a documented lua table form, so
+# they are carried across rather than silently collapsed to the last one.
+is_repeatable_keyword() {
+    case "$1" in
+        bezier|animation|gesture|windowrule|windowrulev2|layerrule|layerrulev2) return 0 ;;
+        workspace|blurls|permission|submap|plugin|source|monitor|monitorv2) return 0 ;;
+        env|envd|exec|exec-once|exec-shutdown|unbind) return 0 ;;
+        bind|bind[a-z]*) return 0 ;;
+    esac
+    return 1
+}
+
+# convert_file <input.conf> <body.lua>   (the provenance header is composed later)
 convert_file() {
     local in="$1" out="$2" lineno=0 depth=0
-    local raw line body key val name rest
+    local raw line body key val name rest t
+    local rule_open="" rule_skip=0 mk
+    declare -a rule_match=() rule_props=()
+    file_unmapped=0
     : > "$out"
-    {
-        config_lang_provenance lua
-        printf -- '-- Converted from %s by the hyprland-config plugin.\n' "${in#"$target"/}"
-        printf -- '-- The original .conf is kept as a backup; see the BACKUP= line of the run.\n'
-        printf -- '\n'
-    } >> "$out"
 
     while IFS= read -r raw || [ -n "$raw" ]; do
         lineno=$((lineno + 1))
@@ -170,11 +232,50 @@ convert_file() {
 
         if [ -z "$line" ]; then
             # Keep whole-line comments; a trailing comment is dropped (the .conf
-            # backup still has it).
-            local t; t="$(trim "$raw")"
-            case "$t" in
-                '#'*) printf -- '--%s\n' "${t#\#}" >> "$out" ;;
-                '')   printf '\n' >> "$out" ;;
+            # backup still has it). Inside a buffered rule block there is nowhere
+            # to put one, so it waits for the rule to be flushed.
+            t="$(trim "$raw")"
+            if [ -z "$rule_open" ]; then
+                case "$t" in
+                    '#'*) printf -- '--%s\n' "${t#\#}" >> "$out" ;;
+                    '')   printf '\n' >> "$out" ;;
+                esac
+            fi
+            continue
+        fi
+
+        # --- inside a windowrule / layerrule block (buffered until its `}`) ------
+        if [ -n "$rule_open" ]; then
+            if [ "$rule_skip" -gt 0 ]; then
+                case "$line" in
+                    *'{') rule_skip=$((rule_skip + 1)) ;;
+                    '}')  rule_skip=$((rule_skip - 1)) ;;
+                esac
+                continue
+            fi
+            if [ "$line" = "}" ]; then
+                flush_rule "$rule_open" "$out"
+                rule_open=""
+                rule_match=(); rule_props=()
+                continue
+            fi
+            if [[ "$line" =~ ^([A-Za-z_][A-Za-z0-9_:.-]*)[[:space:]]*\{$ ]]; then
+                note_unmapped "$in" "$lineno" "a nested block inside a ${rule_open} has no documented lua mapping" "$line" "$out" 0
+                rule_skip=1
+                continue
+            fi
+            if [[ "$line" != *"="* ]]; then
+                note_parse_error "${in}:${lineno}: not a hyprlang assignment or section: ${line}"
+                continue
+            fi
+            key="$(trim "${line%%=*}")"
+            val="$(expand_vars "$(trim "${line#*=}")")"
+            case "$key" in
+                match:*)
+                    mk="${key#match:}"
+                    rule_match+=("$(lua_key "$mk") = $(lua_value "$val"),") ;;
+                *)
+                    rule_props+=("$(lua_key "$key") = $(lua_value "$val"),") ;;
             esac
             continue
         fi
@@ -182,7 +283,7 @@ convert_file() {
         # Block close
         if [ "$line" = "}" ]; then
             if [ "$depth" -eq 0 ]; then
-                note_error "${in}:${lineno}: stray '}' with no open section"
+                note_parse_error "${in}:${lineno}: stray '}' with no open section"
                 continue
             fi
             depth=$((depth - 1))
@@ -195,16 +296,18 @@ convert_file() {
         fi
 
         # Block open:  name {
-        if [[ "$line" =~ ^([A-Za-z_][A-Za-z0-9_:-]*)[[:space:]]*\{$ ]]; then
+        if [[ "$line" =~ ^([A-Za-z_][A-Za-z0-9_:.-]*)[[:space:]]*\{$ ]]; then
             name="${BASH_REMATCH[1]}"
-            if [[ ! "$name" =~ ^[A-Za-z_][A-Za-z0-9_]*$ ]]; then
-                note_error "${in}:${lineno}: section name '${name}' has no lua table-key form: ${line}"
-                continue
-            fi
             if [ "$depth" -eq 0 ]; then
-                { printf 'hl.config({\n'; indent 1; printf '%s = {\n' "$name"; } >> "$out"
+                case "$name" in
+                    windowrule|windowrulev2)
+                        rule_open="window_rule"; rule_match=(); rule_props=(); continue ;;
+                    layerrule|layerrulev2)
+                        rule_open="layer_rule";  rule_match=(); rule_props=(); continue ;;
+                esac
+                { printf 'hl.config({\n'; indent 1; printf '%s = {\n' "$(lua_key "$name")"; } >> "$out"
             else
-                { indent $((depth + 1)); printf '%s = {\n' "$name"; } >> "$out"
+                { indent $((depth + 1)); printf '%s = {\n' "$(lua_key "$name")"; } >> "$out"
             fi
             depth=$((depth + 1))
             continue
@@ -212,7 +315,7 @@ convert_file() {
 
         # key = value
         if [[ "$line" != *"="* ]]; then
-            note_error "${in}:${lineno}: not a hyprlang assignment or section: ${line}"
+            note_parse_error "${in}:${lineno}: not a hyprlang assignment or section: ${line}"
             continue
         fi
         key="$(trim "${line%%=*}")"
@@ -222,7 +325,7 @@ convert_file() {
         if [ "${key:0:1}" = '$' ]; then
             name="${key:1}"
             if [[ ! "$name" =~ ^[A-Za-z_][A-Za-z0-9_]*$ ]]; then
-                note_error "${in}:${lineno}: variable name '${key}' is not usable: ${line}"
+                note_parse_error "${in}:${lineno}: variable name '${key}' is not usable: ${line}"
                 continue
             fi
             VARS["$name"]="$(expand_vars "$val")"
@@ -234,11 +337,13 @@ convert_file() {
 
         # Inside a section: a plain table entry.
         if [ "$depth" -gt 0 ]; then
-            if [[ ! "$key" =~ ^[A-Za-z_][A-Za-z0-9_]*$ ]]; then
-                note_error "${in}:${lineno}: '${key}' is a dotted/namespaced hyprlang key with no documented lua mapping: ${line}"
+            if is_repeatable_keyword "$key"; then
+                note_unmapped "$in" "$lineno" \
+                    "'${key}' is a repeatable hyprlang keyword with no documented lua mapping" \
+                    "$line" "$out" $((depth + 1))
                 continue
             fi
-            { indent $((depth + 1)); printf '%s = %s,\n' "$key" "$(lua_value "$val")"; } >> "$out"
+            { indent $((depth + 1)); printf '%s = %s,\n' "$(lua_key "$key")" "$(lua_value "$val")"; } >> "$out"
             continue
         fi
 
@@ -248,7 +353,7 @@ convert_file() {
                 convert_source "$in" "$lineno" "$val" "$out"
                 ;;
             monitor)
-                convert_monitor "$in" "$lineno" "$val" "$out"
+                convert_monitor "$in" "$lineno" "$val" "$out" "$line"
                 ;;
             exec-once)
                 { printf 'hl.exec_cmd(%s)\n' "$(lua_string "$val")"; } >> "$out"
@@ -258,49 +363,81 @@ convert_file() {
                 name="$(trim "${val%%,*}")"
                 rest="$(trim "${val#*,}")"
                 if [ "$name" = "$val" ]; then
-                    note_error "${in}:${lineno}: ${key} needs NAME,value: ${line}"
+                    note_parse_error "${in}:${lineno}: ${key} needs NAME,value: ${line}"
                 else
                     printf 'hl.env(%s, %s)\n' "$(lua_string "$name")" "$(lua_string "$rest")" >> "$out"
                 fi
                 ;;
             bind*)
-                convert_bind "$in" "$lineno" "$key" "$val" "$out"
+                convert_bind "$in" "$lineno" "$key" "$val" "$out" "$line"
                 ;;
             *)
-                note_error "${in}:${lineno}: '${key}' has no documented lua mapping in this converter: ${line}"
+                note_unmapped "$in" "$lineno" \
+                    "'${key}' has no documented lua mapping in this converter" "$line" "$out" 0
                 ;;
         esac
     done < "$in"
 
-    if [ "$depth" -ne 0 ]; then
-        note_error "${in}: ${depth} section(s) opened and never closed"
+    if [ -n "$rule_open" ]; then
+        note_parse_error "${in}: a ${rule_open} block was opened and never closed"
     fi
+    if [ "$depth" -ne 0 ]; then
+        note_parse_error "${in}: ${depth} section(s) opened and never closed"
+    fi
+}
+
+# `flush_rule <window_rule|layer_rule> <out>` - emit the buffered block. The shape
+# (`name`, a `match = { ... }` sub-table, then the properties) is the one the
+# reference layer documents at references/components/window-rules/template.md and
+# references/components/launcher/gotchas.md.
+flush_rule() {
+    local kind="$1" out="$2" e
+    {
+        printf 'hl.%s({\n' "$kind"
+        if [ "${#rule_match[@]}" -gt 0 ]; then
+            printf '    match = {\n'
+            for e in "${rule_match[@]}"; do printf '        %s\n' "$e"; done
+            printf '    },\n'
+        fi
+        for e in ${rule_props[@]+"${rule_props[@]}"}; do printf '    %s\n' "$e"; done
+        printf '})\n'
+    } >> "$out"
 }
 
 convert_source() {
     local in="$1" lineno="$2" val="$3" out="$4" p base
     case "$val" in
         *'*'*|*'?'*)
-            note_error "${in}:${lineno}: 'source' with a glob has no deterministic lua form: source = ${val}"
+            note_source_error "${in}:${lineno}: 'source' with a glob cannot be resolved to a fixed set of files: source = ${val}"
             return ;;
     esac
     p="$val"
     case "$p" in
-        '~/'*) p="$HOME/${p#\~/}" ;;
+        '~/'*) p="${HOME:-}/${p#\~/}" ;;
         /*)    ;;
         *)     p="$(dirname "$in")/$p" ;;
     esac
+    # HYPR_DIR override. Every writing script in this repo resolves its target as
+    # ${HYPR_DIR:-$HOME/.config/hypr}; a `source = ~/.config/hypr/...` line - the
+    # form this plugin's own generator writes - names the DEFAULT dir. Rebase it
+    # onto the dir actually being converted, or the two disagree and a perfectly
+    # good config looks unresolvable whenever HYPR_DIR is set.
+    if [ -n "$home_config_dir" ] && [ "$target" != "$home_config_dir" ]; then
+        case "$p" in
+            "$home_config_dir"/*) p="${target}/${p#"$home_config_dir"/}" ;;
+        esac
+    fi
     case "$p" in
         *.conf) ;;
-        *) note_error "${in}:${lineno}: 'source' of a non-.conf file: source = ${val}"; return ;;
+        *) note_source_error "${in}:${lineno}: 'source' of a non-.conf file: source = ${val}"; return ;;
     esac
     if [ ! -f "$p" ]; then
-        note_error "${in}:${lineno}: sourced file does not exist: ${p}"
+        note_source_error "${in}:${lineno}: sourced file does not exist: ${p}"
         return
     fi
     case "$p" in
         "$target"/*) ;;
-        *) note_error "${in}:${lineno}: sourced file lives outside ${target}: ${p}"; return ;;
+        *) note_source_error "${in}:${lineno}: sourced file lives outside ${target}: ${p}"; return ;;
     esac
     base="$(lua_stem "$p")"
     printf 'require(%s)\n' "$(lua_string "$base")" >> "$out"
@@ -308,13 +445,15 @@ convert_source() {
 }
 
 convert_monitor() {
-    local in="$1" lineno="$2" val="$3" out="$4"
+    local in="$1" lineno="$2" val="$3" out="$4" line="$5"
     local IFS=','
     # shellcheck disable=SC2206
     local parts=($val)
     unset IFS
     if [ "${#parts[@]}" -ne 4 ]; then
-        note_error "${in}:${lineno}: only the 4-field 'monitor = output, mode, position, scale' form has a documented lua mapping: monitor = ${val}"
+        note_unmapped "$in" "$lineno" \
+            "only the 4-field 'monitor = output, mode, position, scale' form has a documented lua mapping" \
+            "$line" "$out" 0
         return
     fi
     printf 'hl.monitor({ output = %s, mode = %s, position = %s, scale = %s })\n' \
@@ -339,13 +478,14 @@ bind_option_for_flag() {
 }
 
 convert_bind() {
-    local in="$1" lineno="$2" key="$3" val="$4" out="$5"
+    local in="$1" lineno="$2" key="$3" val="$4" out="$5" line="$6"
     local flags="${key#bind}" has_description=0 opts="" i ch opt
     for (( i=0; i<${#flags}; i++ )); do
         ch="${flags:i:1}"
         if [ "$ch" = "d" ]; then has_description=1; continue; fi
         if ! opt="$(bind_option_for_flag "$ch")"; then
-            note_error "${in}:${lineno}: bind flag '${ch}' in '${key}' has no documented lua option: ${key} = ${val}"
+            note_unmapped "$in" "$lineno" \
+                "bind flag '${ch}' in '${key}' has no documented lua option" "$line" "$out" 0
             return
         fi
         opts="${opts}${opts:+, }${opt} = true"
@@ -365,11 +505,12 @@ convert_bind() {
     fi
     dispatcher="$(trim "${parts[$next]:-}")"
     if [ -z "$keyname" ] || [ -z "$dispatcher" ]; then
-        note_error "${in}:${lineno}: bind needs MODS, KEY, DISPATCHER: ${key} = ${val}"
+        note_parse_error "${in}:${lineno}: bind needs MODS, KEY, DISPATCHER: ${key} = ${val}"
         return
     fi
     if [[ ! "$dispatcher" =~ ^[A-Za-z_][A-Za-z0-9_]*$ ]]; then
-        note_error "${in}:${lineno}: dispatcher '${dispatcher}' is not a lua identifier: ${key} = ${val}"
+        note_unmapped "$in" "$lineno" \
+            "dispatcher '${dispatcher}' is not a lua identifier, so it has no hl.dsp.* form" "$line" "$out" 0
         return
     fi
 
@@ -408,6 +549,27 @@ convert_bind() {
     fi
 }
 
+# `compose_file <original.conf> <body.lua> <final.lua> <unmapped-count>` - the
+# provenance header AC-3 asks for, then the carry-over summary when there is one,
+# then the converted body.
+compose_file() {
+    local in="$1" body="$2" final="$3" count="$4"
+    {
+        config_lang_provenance lua
+        printf -- '-- Converted from %s by the hyprland-config plugin.\n' "${in#"$target"/}"
+        printf -- '-- The original .conf is kept as a backup; see the BACKUP= line of the run.\n'
+        if [ "$count" -gt 0 ]; then
+            printf -- '--\n'
+            printf -- '-- NOT APPLIED: %d line(s) below have no documented lua mapping and were\n' "$count"
+            printf -- '-- carried across as comments marked `NOT APPLIED`. They DO NOT take effect:\n'
+            printf -- '-- Hyprland loads hyprland.lua INSTEAD of hyprland.conf. The original .conf is\n'
+            printf -- '-- kept (see the KEPT= line of the run) so you can port them by hand.\n'
+        fi
+        printf -- '\n'
+        cat "$body"
+    } > "$final"
+}
+
 # --- Walk the whole .conf set, into a scratch dir; the target is not touched ------------------
 scratch="$(mktemp -d "${TMPDIR:-/tmp}/hypr-migrate.XXXXXX")" || {
     echo "ERROR: could not create a scratch directory" >&2
@@ -431,28 +593,41 @@ while [ "${#QUEUE[@]}" -gt 0 ]; do
 
     stem="$(lua_stem "$src")"
     lua_target="${target}/${stem}.lua"
-    if [ -e "$lua_target" ]; then
+    if config_lang_present "$lua_target"; then
         echo "ERROR: '$lua_target' already exists; refusing to replace it." >&2
         echo "DECLINED_TO_REPLACE=${lua_target}"
         echo "MIGRATE=refused-existing-lua"
         exit 4
     fi
     mkdir -p "$(dirname "$scratch/$stem.lua")"
-    convert_file "$src" "$scratch/$stem.lua"
+    convert_file "$src" "$scratch/$stem.body"
+    compose_file "$src" "$scratch/$stem.body" "$scratch/$stem.lua" "$file_unmapped"
     CONVERTED_FROM+=("$src")
     CONVERTED_TO+=("$lua_target")
 done
 
-if [ "${#ERRORS[@]}" -gt 0 ]; then
-    echo "ERROR: this configuration cannot be converted faithfully, so nothing was changed." >&2
-    echo "       Hyprland loads hyprland.lua INSTEAD of hyprland.conf, so a partial" >&2
-    echo "       conversion would silently drop the lines below. Move them by hand, or" >&2
-    echo "       keep using the .conf while it is still supported." >&2
-    for e in "${ERRORS[@]}"; do
-        echo "UNCONVERTIBLE=${e}"
+# --- Refusal 2: the config does not parse as hyprlang (AC-9) ----------------------------------
+if [ "${#PARSE_ERRORS[@]}" -gt 0 ]; then
+    echo "ERROR: this configuration does not parse as hyprlang, so nothing was changed." >&2
+    echo "       Fix the lines below and re-run; the converter will not guess at them." >&2
+    for e in "${PARSE_ERRORS[@]}"; do
+        echo "UNPARSEABLE=${e}"
     done
-    echo "UNCONVERTIBLE_COUNT=${#ERRORS[@]}"
+    echo "UNPARSEABLE_COUNT=${#PARSE_ERRORS[@]}"
     echo "MIGRATE=refused-unparseable"
+    exit 3
+fi
+
+# --- Refusal 3: a `source =` the converter cannot resolve -------------------------------------
+if [ "${#SOURCE_ERRORS[@]}" -gt 0 ]; then
+    echo "ERROR: a 'source =' line could not be resolved, so nothing was changed." >&2
+    echo "       The converter cannot read the whole configuration, and it will not" >&2
+    echo "       convert a set it has not seen: whole files would stop loading." >&2
+    for e in "${SOURCE_ERRORS[@]}"; do
+        echo "UNRESOLVED_SOURCE=${e}"
+    done
+    echo "UNRESOLVED_SOURCE_COUNT=${#SOURCE_ERRORS[@]}"
+    echo "MIGRATE=refused-unresolvable-source"
     exit 3
 fi
 
@@ -467,6 +642,16 @@ if [ "$mode" = "offer" ]; then
         echo "WOULD_KEEP=${CONVERTED_FROM[$i]}"
         echo "WOULD_BACK_UP=${backup_dir}/$(basename "${CONVERTED_FROM[$i]}").pre-lua.${ts}"
     done
+    if [ "${#UNMAPPED[@]}" -gt 0 ]; then
+        echo "WARNING: ${#UNMAPPED[@]} line(s) have no documented lua mapping. They would be" >&2
+        echo "         carried across as '-- NOT APPLIED' comments and would STOP APPLYING," >&2
+        echo "         because Hyprland loads hyprland.lua instead of hyprland.conf. The .conf" >&2
+        echo "         is kept either way, so you can port them by hand afterwards." >&2
+        for e in "${UNMAPPED[@]}"; do
+            echo "WOULD_NOT_APPLY=${e}"
+        done
+        echo "WOULD_NOT_APPLY_COUNT=${#UNMAPPED[@]}"
+    fi
     echo "ACCEPT_WITH=migrate-config.sh --convert"
     echo "MIGRATE=offered"
     exit 0
@@ -513,4 +698,17 @@ done
 
 echo "CONFIG_LANGUAGE=lua"
 echo "CONFIG_LANGUAGE_RANGE=$(config_lang_range lua)"
+
+if [ "${#UNMAPPED[@]}" -gt 0 ]; then
+    echo "WARNING: ${#UNMAPPED[@]} line(s) had no documented lua mapping. They are in the" >&2
+    echo "         converted files as '-- NOT APPLIED' comments and DO NOT take effect." >&2
+    echo "         Every original .conf was kept, so port them by hand from there." >&2
+    for e in "${UNMAPPED[@]}"; do
+        echo "NOT_APPLIED=${e}"
+    done
+    echo "NOT_APPLIED_COUNT=${#UNMAPPED[@]}"
+    echo "MIGRATE=ok-with-unmapped"
+    exit 0
+fi
+
 echo "MIGRATE=ok"

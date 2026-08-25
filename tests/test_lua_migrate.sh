@@ -130,6 +130,102 @@ assert_file_contains "$dir/extra.lua" 'hl.exec_cmd("waybar")' \
     "AC-4: exec-once lines became hl.exec_cmd"
 
 # --------------------------------------------------------------------------------------------
+# AC-4, the shape the plugin ACTUALLY installs: the modular `source = ~/.config/hypr/*.conf`
+# set the rice interview generates. `skills/rice/examples/sample-config/` is this repo's own
+# canonical instance of "a .conf written by an earlier release of this plugin", so it is the
+# population AC-4 names. Impl-gate loop 1 finding F1: the converter refused it outright.
+# Impl-gate loop 1 finding F3: the `~` form was resolved against $HOME while the config set was
+# resolved against $HYPR_DIR, which is why no test here had ever exercised the real shape.
+# --------------------------------------------------------------------------------------------
+sample="$PLUGIN_ROOT/skills/rice/examples/sample-config"
+dir="$tmp/plugin-generated"
+mkdir -p "$dir"
+cp -a "$sample"/. "$dir"/
+assert_file_contains "$dir/hyprland.conf" 'source = ~/.config/hypr/env.conf' \
+    "AC-4: the sample set really does use the ~ source form"
+
+# F3: HYPR_DIR is a scratch dir and HOME is left alone, exactly as every other test here
+# drives these scripts. The ~ form must still resolve against the dir being converted.
+out="$(HYPR_DIR="$dir" bash "$migrate" 2>&1)"; rc=$?
+assert_eq "0" "$rc" "AC-4: the plugin's own generated config set is offered a conversion"
+if printf '%s\n' "$out" | grep -q '^MIGRATE_OFFER=convert 9 '; then
+    pass "AC-4: the offer covers all 9 files of the source= closure"
+else
+    fail "AC-4: the offer covers all 9 files of the source= closure" "$out"
+fi
+if printf '%s\n' "$out" | grep -q '^UNRESOLVED_SOURCE='; then
+    fail "F3: a HYPR_DIR override does not make the ~ source form unresolvable" "$out"
+else
+    pass "F3: a HYPR_DIR override does not make the ~ source form unresolvable"
+fi
+if [ -e "$dir/hyprland.lua" ]; then
+    fail "AC-4: the offer on the plugin's own set writes nothing"
+else
+    pass "AC-4: the offer on the plugin's own set writes nothing"
+fi
+
+conf_before="$(cat "$dir/hyprland.conf")"
+out="$(HYPR_DIR="$dir" bash "$migrate" --convert 2>&1)"; rc=$?
+assert_eq "0" "$rc" "AC-4: the plugin's own generated config set converts"
+if printf '%s\n' "$out" | grep -q '^MIGRATE=ok-with-unmapped'; then
+    pass "AC-4: the run reports the conversion and what did not map"
+else
+    fail "AC-4: the run reports the conversion and what did not map" "$out"
+fi
+assert_file_exists "$dir/hyprland.lua" "AC-4: a lua config is produced for the plugin's own set"
+for m in env colors monitors input looknfeel binds windowrules autostart; do
+    assert_file_exists "$dir/$m.lua" "AC-4: sourced module $m.conf was converted too"
+    assert_file_exists "$dir/$m.conf" "AC-4: sourced module $m.conf was kept"
+    assert_file_contains "$dir/hyprland.lua" "require(\"$m\")" \
+        "AC-4: the main lua requires the converted $m module"
+done
+assert_eq "$conf_before" "$(cat "$dir/hyprland.conf")" "AC-4: the main .conf is byte-identical"
+for b in "$dir"/*.conf.pre-lua.*; do
+    orig="${b%%.pre-lua.*}"
+    if [ -r "$b" ] && cmp -s "$orig" "$b"; then
+        pass "AC-4: $(basename "$orig") has a readable, faithful backup"
+    else
+        fail "AC-4: $(basename "$orig") has a readable, faithful backup" "$b"
+    fi
+done
+
+# The documented lua vocabulary the plugin's own output needs.
+assert_grep '^\s+\["col\.active_border"\] = "rgb\(cba6f7\) rgb\(89b4fa\) 45deg",$' "$dir/looknfeel.lua" \
+    "AC-4: a hyprlang key that is not a lua identifier becomes a lua bracket key, \$vars expanded"
+assert_grep '^\s+\["tap-to-click"\] = true,$' "$dir/input.lua" \
+    "AC-4: a hyphenated hyprlang key becomes a lua bracket key too"
+assert_file_contains "$dir/windowrules.lua" 'hl.window_rule({' \
+    "AC-4: a windowrule block became hl.window_rule"
+assert_file_contains "$dir/windowrules.lua" 'hl.layer_rule({' \
+    "AC-4: a layerrule block became hl.layer_rule"
+assert_grep '^\s+class = "\^\(pavucontrol\|nm-connection-editor\|blueman-manager\)\$",$' \
+    "$dir/windowrules.lua" "AC-4: match:class selectors became a match = { ... } sub-table"
+assert_file_contains "$dir/monitors.lua" 'hl.monitor({ output = ""' \
+    "AC-4: the monitor line became hl.monitor"
+
+# ... and what it cannot map is carried across, marked, counted and reported - never dropped.
+if printf '%s\n' "$out" | grep -q '^NOT_APPLIED_COUNT=18$'; then
+    pass "AC-4: all 18 unmappable lines (5 bezier, 12 animation, 1 gesture) are reported"
+else
+    fail "AC-4: all 18 unmappable lines (5 bezier, 12 animation, 1 gesture) are reported" \
+        "$(printf '%s\n' "$out" | grep '^NOT_APPLIED_COUNT=' || echo '<none>')"
+fi
+assert_grep "^ +-- NOT APPLIED \('animation' is a repeatable" "$dir/looknfeel.lua" \
+    "AC-4: the animation lines are in the lua as marked comments, not dropped"
+assert_grep "^-- NOT APPLIED \('gesture' has no documented" "$dir/input.lua" \
+    "AC-4: the gesture line is in the lua as a marked comment, not dropped"
+if grep -qE '^\s*(bezier|animation|gesture) = ' "$dir/looknfeel.lua" "$dir/input.lua"; then
+    fail "AC-4: no unmapped hyprlang keyword leaked into the lua as a table key"
+else
+    pass "AC-4: no unmapped hyprlang keyword leaked into the lua as a table key"
+fi
+if printf '%s\n' "$out" | grep -q '^UNPARSEABLE='; then
+    fail "F1: the plugin's own generated config is never called unparseable" "$out"
+else
+    pass "F1: the plugin's own generated config is never called unparseable"
+fi
+
+# --------------------------------------------------------------------------------------------
 # AC-9 - a .conf that does not parse as hyprlang is refused by name
 # --------------------------------------------------------------------------------------------
 dir="$tmp/unparseable"
@@ -148,12 +244,12 @@ if printf '%s\n' "$out" | grep -q '^MIGRATE=refused-unparseable'; then
 else
     fail "AC-9: the refusal is reported as unparseable" "$out"
 fi
-if printf '%s\n' "$out" | grep -q 'UNCONVERTIBLE=.*hyprland.conf:.*this line is not hyprlang at all'; then
+if printf '%s\n' "$out" | grep -q 'UNPARSEABLE=.*hyprland.conf:.*this line is not hyprlang at all'; then
     pass "AC-9: the refusal names the line it could not parse"
 else
     fail "AC-9: the refusal names the line it could not parse" "$out"
 fi
-if printf '%s\n' "$out" | grep -q "UNCONVERTIBLE=.*stray '}'"; then
+if printf '%s\n' "$out" | grep -q "UNPARSEABLE=.*stray '}'"; then
     pass "AC-9: the refusal names the stray brace too"
 else
     fail "AC-9: the refusal names the stray brace too" "$out"
@@ -162,21 +258,85 @@ assert_eq "$conf_before" "$(cat "$dir/hyprland.conf")" "AC-9: the original .conf
 assert_eq "$before_listing" "$(cd "$dir" && ls -A | sort | tr '\n' ' ')" \
     "AC-9: the install target is unchanged - no lua, no backup, nothing added"
 
-# A construct with no documented lua mapping is refused the same way, rather than
-# being dropped from a config that would then silently stop applying.
+# The offer mode of an unparseable config refuses identically - it never claims a
+# conversion it cannot perform.
+out="$(HYPR_DIR="$dir" bash "$migrate" 2>&1)"; rc=$?
+assert_eq "3" "$rc" "AC-9: the OFFER for an unparseable config refuses too"
+if printf '%s\n' "$out" | grep -q '^MIGRATE_OFFER='; then
+    fail "AC-9: no offer is made for a config that does not parse" "$out"
+else
+    pass "AC-9: no offer is made for a config that does not parse"
+fi
+
+# AC-9's boundary. A construct that PARSES but has no documented lua mapping is a
+# different thing, and must not be reported as unparseable: that is what made the
+# plugin's own generated config unconvertible at impl-gate loop 1 (finding F1).
+# It is carried across as a marked comment and reported line by line instead.
 dir="$tmp/unmappable"
 seed_conf "$dir"
 printf '\nbezier = wind, 0.05, 0.9, 0.1, 1.05\n' >> "$dir/hyprland.conf"
-before_listing="$(cd "$dir" && ls -A | sort | tr '\n' ' ')"
+conf_before="$(cat "$dir/hyprland.conf")"
 out="$(HYPR_DIR="$dir" bash "$migrate" --convert 2>&1)"; rc=$?
-assert_eq "3" "$rc" "AC-9: a construct with no documented lua mapping is refused"
-if printf '%s\n' "$out" | grep -q "UNCONVERTIBLE=.*'bezier' has no documented lua mapping"; then
-    pass "AC-9: the refusal names the construct it could not map"
+assert_eq "0" "$rc" "AC-9 boundary: a parseable-but-unmappable construct is NOT refused"
+if printf '%s\n' "$out" | grep -q '^MIGRATE=ok-with-unmapped'; then
+    pass "AC-9 boundary: the run says plainly that something did not map"
 else
-    fail "AC-9: the refusal names the construct it could not map" "$out"
+    fail "AC-9 boundary: the run says plainly that something did not map" "$out"
+fi
+if printf '%s\n' "$out" | grep -q '^MIGRATE=refused-unparseable'; then
+    fail "AC-9 boundary: an unmappable construct is not called unparseable" "$out"
+else
+    pass "AC-9 boundary: an unmappable construct is not called unparseable"
+fi
+if printf '%s\n' "$out" | grep -q "^NOT_APPLIED=.*hyprland\.conf:.*'bezier' has no documented lua mapping"; then
+    pass "AC-9 boundary: the run names the construct it could not map, by file and line"
+else
+    fail "AC-9 boundary: the run names the construct it could not map, by file and line" "$out"
+fi
+assert_grep '^-- NOT APPLIED \(.*bezier = wind, 0\.05' "$dir/hyprland.lua" \
+    "AC-9 boundary: the unmapped line is carried into the lua verbatim, marked NOT APPLIED"
+assert_grep '^-- NOT APPLIED: 1 line' "$dir/hyprland.lua" \
+    "AC-9 boundary: the produced file's header counts what does not apply"
+assert_eq "$conf_before" "$(cat "$dir/hyprland.conf")" \
+    "AC-9 boundary: the .conf still holds the line, so it can be ported by hand"
+
+# The offer says so BEFORE anything is accepted.
+dir="$tmp/unmappable-offer"
+seed_conf "$dir"
+printf '\nbezier = wind, 0.05, 0.9, 0.1, 1.05\n' >> "$dir/hyprland.conf"
+before_listing="$(cd "$dir" && ls -A | sort | tr '\n' ' ')"
+out="$(HYPR_DIR="$dir" bash "$migrate" 2>&1)"; rc=$?
+assert_eq "0" "$rc" "AC-4: the offer for a partly-unmappable config still succeeds"
+if printf '%s\n' "$out" | grep -q "^WOULD_NOT_APPLY=.*'bezier'"; then
+    pass "AC-4: the offer warns which lines would stop applying, before you accept"
+else
+    fail "AC-4: the offer warns which lines would stop applying, before you accept" "$out"
 fi
 assert_eq "$before_listing" "$(cd "$dir" && ls -A | sort | tr '\n' ' ')" \
-    "AC-9: nothing was written for the unmappable config"
+    "AC-4: that offer still changed nothing"
+
+# --------------------------------------------------------------------------------------------
+# A `source =` the converter cannot resolve is a refusal, not a carry-over: it cannot
+# report what a conversion would cost for a file it has never read.
+# --------------------------------------------------------------------------------------------
+dir="$tmp/bad-source"
+seed_conf "$dir"
+printf '\nsource = %s/missing.conf\n' "$dir" >> "$dir/hyprland.conf"
+before_listing="$(cd "$dir" && ls -A | sort | tr '\n' ' ')"
+out="$(HYPR_DIR="$dir" bash "$migrate" --convert 2>&1)"; rc=$?
+assert_eq "3" "$rc" "a source= that cannot be resolved is refused"
+if printf '%s\n' "$out" | grep -q '^MIGRATE=refused-unresolvable-source'; then
+    pass "the unresolvable source is reported as its own refusal, not as unparseable"
+else
+    fail "the unresolvable source is reported as its own refusal, not as unparseable" "$out"
+fi
+if printf '%s\n' "$out" | grep -q '^UNRESOLVED_SOURCE=.*missing.conf'; then
+    pass "the refusal names the source it could not resolve"
+else
+    fail "the refusal names the source it could not resolve" "$out"
+fi
+assert_eq "$before_listing" "$(cd "$dir" && ls -A | sort | tr '\n' ' ')" \
+    "nothing was written for the unresolvable source"
 
 # --------------------------------------------------------------------------------------------
 # AC-10 - a failed backup aborts BEFORE any lua is written

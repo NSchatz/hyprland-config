@@ -252,6 +252,10 @@ auto-rollback (see "Restoring a backup" above).
   bash skills/rice/scripts/migrate-config.sh           # offer to convert an existing .conf set
   bash skills/rice/scripts/migrate-config.sh --convert # accept; the .conf is kept as a backup
   ```
+  The conversion follows `source =` lines, so a modular set converts as one unit. A line with no
+  documented lua mapping (`bezier`, `animation`, `gesture`) is carried across as a `-- NOT APPLIED`
+  comment and reported (`NOT_APPLIED=`, `MIGRATE=ok-with-unmapped`) rather than silently dropped:
+  it stops taking effect once the lua exists, and the kept `.conf` is where you port it from.
 - `HYPR_BACKUP_DIR`: where `migrate-config.sh` writes its `.pre-lua.<timestamp>` backups
   (default: `$HYPR_DIR`).
 

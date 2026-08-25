@@ -95,6 +95,15 @@ config_lang_provenance() {
     printf '%s CONFIG_LANGUAGE_RANGE=%s\n' "$c" "$range"
 }
 
+# `config_lang_present <path>` - is a config file THERE, for shadowing purposes?
+# `-e` alone is not enough: a DANGLING symlink (what stow/chezmoi leave when the
+# dotfiles tree is not checked out yet) fails `-e` while still occupying the name
+# Hyprland looks up and the name a write would have to clobber. Treat the name as
+# taken whenever anything holds it.
+config_lang_present() {
+    [ -e "${1:-}" ] || [ -L "${1:-}" ]
+}
+
 # `config_lang_for_version <version>` - lua | hyprlang | unknown.
 # lua-language version   = 0.55 or higher (or any 1.x+)
 # hyprlang-language version = below 0.55

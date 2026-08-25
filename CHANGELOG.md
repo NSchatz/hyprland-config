@@ -25,19 +25,30 @@ compositor never read. This release closes that.
   already holds a `hyprland.lua`, naming the file and saying that the lua config takes precedence
   (`REFUSED=lua-config-takes-precedence`). It also refuses, before taking any backup, when the
   target exists but cannot be written to, and it installs `*.lua` sets as well as `*.conf` ones.
-  `safe-apply.sh` surfaces those as `SAFE_APPLY=refused`, never as ok.
-- **`scripts/migrate-config.sh`** (new) offers to convert an existing `.conf` set to lua. The bare
-  invocation is the offer and changes nothing; `--convert` accepts it. The `.conf` is kept, never
-  deleted, and a verified readable copy is written beside it. It refuses, changing nothing, when a
-  `hyprland.lua` is already there, when a `.conf` does not parse, when a construct has no
-  documented lua mapping (all-or-nothing on purpose: a partial conversion would silently drop the
-  rest), and when the backup step does not produce a readable copy.
+  A staging dir that mixes the two languages is refused (`REFUSED=mixed-staging`) rather than
+  half-installed, a `hyprland.lua` that is a **dangling symlink** trips the shadow guard just like
+  a real one, and a staged config that carries no `CONFIG_LANGUAGE=` header of its own gets one
+  added on install (`PROVENANCE=`). `safe-apply.sh` surfaces the refusals as `SAFE_APPLY=refused`,
+  never as ok.
+- **`scripts/migrate-config.sh`** (new) offers to convert an existing `.conf` set to lua, including
+  the modular `source = ~/.config/hypr/*.conf` set the rice interview generates, resolved against
+  `HYPR_DIR`. The bare invocation is the offer and changes nothing; `--convert` accepts it. Every
+  `.conf` is kept, never deleted, and a verified readable copy is written beside it. It refuses,
+  changing nothing, when a `hyprland.lua` is already there, when a `.conf` does not parse
+  (`MIGRATE=refused-unparseable`), when a `source =` cannot be resolved to a concrete file inside
+  the config dir (`MIGRATE=refused-unresolvable-source`), and when the backup step does not produce
+  a readable copy. A construct that parses but has **no documented lua mapping** (`bezier`,
+  `animation`, `gesture`) is not a refusal: it is carried across as a `-- NOT APPLIED` comment at
+  its original position, counted in the file's header, reported line by line
+  (`NOT_APPLIED=`/`MIGRATE=ok-with-unmapped`), and left intact in the kept `.conf`. Nothing is
+  dropped in silence, and a config this plugin wrote is never called unparseable.
 - **The stated hyprlang support window is now the published one.** Five places claimed `.conf`
   "remains functional for several releases"; upstream says **1 - 2 releases starting from 0.55**,
   after which hyprlang is dropped. The version matrix no longer says the rice still emits `.conf`
   on 0.55+, because it does not.
 - **Tests:** `tests/test_lua_emit.sh`, `tests/test_lua_install.sh`, `tests/test_lua_migrate.sh`
-  (`bash tests/run.sh lua`).
+  (`bash tests/run.sh lua`), plus `tests/test_regress_0018_F1/F2/F3.sh`
+  (`bash tests/run.sh regress_0018`), which pin the three holes the implementation review found.
 
 ## 0.22.0
 

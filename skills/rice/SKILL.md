@@ -474,10 +474,20 @@ omit both the env var and the `exec-once` line.
    `CONFIG_LANGUAGE=` lines. Respect a `HYPR_DIR` override. (`install-config.sh` /
    `verify-config.sh` exist for running a step alone — see `hyprland-reference/references/testing.md`.)
    - **`REFUSED=lua-config-takes-precedence`** means `~/.config/hypr/hyprland.lua` is already
-     there, so a hyprlang `.conf` would be installed and then ignored. Do not work around it by
-     deleting the lua file: regenerate in lua (`HYPR_CONFIG_LANG=lua`), or offer the user
-     `bash "${CLAUDE_PLUGIN_ROOT}/skills/rice/scripts/migrate-config.sh"` (an offer that changes
-     nothing; `--convert` accepts it and keeps the `.conf` as a backup).
+     there (the default on 0.56+, which autogenerates one), so a hyprlang `.conf` would be
+     installed and then ignored. **This interview generates hyprlang only**: the component
+     templates under `references/components/` are `.conf`, and `HYPR_CONFIG_LANG` is read by
+     `config-language.sh`/`emit-config.sh`/`reset-config.sh`, *not* by A3. So do not offer
+     "regenerate the rice in lua"; it is not a thing this skill can do yet. Do not delete the
+     user's lua file either. Offer, in this order: (a) convert an existing `.conf` set with
+     `bash "${CLAUDE_PLUGIN_ROOT}/skills/rice/scripts/migrate-config.sh"`, an offer that
+     changes nothing, where `--convert` accepts it, keeps every `.conf` as a backup, and names any
+     line it could not map (`NOT_APPLIED=`, `MIGRATE=ok-with-unmapped`); (b) ask the user to
+     move `hyprland.lua` aside themselves and re-run; (c) a bare lua baseline via
+     `HYPR_CONFIG_LANG=lua bash "${CLAUDE_PLUGIN_ROOT}/skills/rice/scripts/reset-config.sh"`,
+     which is a minimal config, not this rice.
+   - **`REFUSED=mixed-staging`** means the staging dir holds files in both config languages;
+     only one set would be installed. Stage exactly one language and re-run.
 5. **Install the shell configs:** only after `ok`/`installed-untested`, back up then install the staged
    `_shell/<app>/` tree to `~/.config/<app>/`: first
    `bash "${CLAUDE_PLUGIN_ROOT}/scripts/backup-path.sh" ~/.config/waybar ~/.config/wofi ~/.config/rofi ~/.config/mako ~/.config/dunst ~/.config/kitty …`

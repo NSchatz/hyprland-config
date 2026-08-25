@@ -12,6 +12,10 @@
 #     `hyprland.lua`. Since Hyprland 0.55 the lua file is loaded INSTEAD of the
 #     `.conf`, so that install would report success for a change the compositor
 #     never reads. This check runs FIRST and nothing is touched when it fires.
+#   - REFUSES a staging dir that mixes the two languages - a `hyprland.lua` beside
+#     a `hyprland.conf`, or either main config beside companions in the other
+#     language. Only one language's files would be installed; the rest would be
+#     dropped without a word.
 #   - REFUSES, before taking a backup or writing anything, when the target exists
 #     but cannot be written to; the target is left exactly as it was.
 #   - If the target exists and is non-empty, it is copied to
@@ -24,12 +28,13 @@
 #   CONFIG_LANGUAGE=<lua|hyprlang>
 #   CONFIG_LANGUAGE_RANGE=<the Hyprland versions that language is valid for>
 #   INSTALLED=<file>          (one line per installed file)
+#   PROVENANCE=added to <file> (only when the staged config carried none)
 #   TARGET=<dir>
 #   DONE=ok
 #
 # Exit: 0 installed, 2 bad usage / unusable staging dir,
 #       3 refused (the target is shadowed by a hyprland.lua, or staging is
-#         ambiguous because it holds both languages),
+#         ambiguous/mixed because it holds both languages),
 #       4 refused (the target exists but cannot be written to).
 set -euo pipefail
 
@@ -66,9 +71,13 @@ fi
 if [ "$has_lua" -eq 1 ]; then
     language="lua"
     config_files=("$staging"/*.lua)
+    stray=("$staging"/*.conf)
+    stray_lang="hyprlang"
 elif [ "$has_conf" -eq 1 ]; then
     language="hyprlang"
     config_files=("$staging"/*.conf)
+    stray=("$staging"/*.lua)
+    stray_lang="lua"
 else
     echo "ERROR: staging dir is missing a main config (no hyprland.lua and no hyprland.conf)" >&2
     exit 2
@@ -78,12 +87,25 @@ if [ ${#config_files[@]} -eq 0 ]; then
     exit 2
 fi
 
+# The file list above is the resolved language's files ONLY. A companion in the
+# other language would be left behind with no INSTALLED= line and no warning -
+# a silent partial install, which is the failure class this whole script exists
+# to refuse. Say so instead.
+if [ ${#stray[@]} -gt 0 ]; then
+    echo "ERROR: staging dir '$staging' holds a ${language} config plus ${#stray[@]} ${stray_lang} file(s)." >&2
+    echo "       Only the ${language} files would be installed and the rest would be dropped" >&2
+    echo "       without a word. Stage exactly one config language:" >&2
+    for f in "${stray[@]}"; do echo "STRAY=$(basename "$f")"; done
+    echo "REFUSED=mixed-staging"
+    exit 3
+fi
+
 target="${HYPR_DIR:-$HOME/.config/hypr}"
 
 # --- Fail-safe 1: never install a hyprlang .conf into a lua-shadowed directory ---------------
 # The failure this closes is not a crash. It is a success message for a change
 # the compositor never read.
-if [ "$language" = "hyprlang" ] && [ -e "$target/hyprland.lua" ]; then
+if [ "$language" = "hyprlang" ] && config_lang_present "$target/hyprland.lua"; then
     echo "ERROR: '$target/hyprland.lua' already exists." >&2
     echo "       Since Hyprland 0.55 a hyprland.lua TAKES PRECEDENCE over hyprland.conf:" >&2
     echo "       the lua config is loaded and the .conf is ignored. Installing a hyprlang" >&2
@@ -143,6 +165,19 @@ for f in "${config_files[@]}"; do
     cp -f "$f" "$target/"
     echo "INSTALLED=$(basename "$f")"
 done
+
+# A config produced by something other than emit-config.sh (the rice interview's
+# staging dir, say) carries no provenance of its own. Add it, so the file on the
+# user's disk says what language it is and what Hyprland range that is good for -
+# the KEY=value lines above scroll away, the header does not.
+installed_main="$target/$(config_lang_file "$language")"
+if [ -f "$installed_main" ] && ! grep -q 'CONFIG_LANGUAGE=' "$installed_main"; then
+    header="$(mktemp "${TMPDIR:-/tmp}/hypr-provenance.XXXXXX")"
+    { config_lang_provenance "$language"; echo; cat "$installed_main"; } > "$header"
+    cat "$header" > "$installed_main"
+    rm -f "$header"
+    echo "PROVENANCE=added to $(basename "$installed_main")"
+fi
 
 echo "TARGET=${target}"
 echo "DONE=ok"

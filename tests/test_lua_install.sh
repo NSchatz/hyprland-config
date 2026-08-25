@@ -210,4 +210,76 @@ else
     pass "AC-1: the ambiguous refusal wrote nothing"
 fi
 
+# --------------------------------------------------------------------------------------------
+# Impl-gate loop 1, finding F5: the file list is picked by language (*.lua XOR *.conf), so a
+# companion in the other language would be left behind with no INSTALLED= line and no warning.
+# A silent partial install is exactly the class this script refuses everywhere else.
+# --------------------------------------------------------------------------------------------
+mixed="$tmp/stage-mixed"
+mkdir -p "$mixed"
+cp "$stage_lua/hyprland.lua" "$mixed/"
+printf '# a hyprlang companion nobody would be told about\n' > "$mixed/colors.conf"
+dest="$tmp/dest-mixed"
+out="$(HYPR_DIR="$dest" bash "$install_sh" "$mixed" 2>&1)"; rc=$?
+assert_eq "3" "$rc" "F5: a lua staging set with a .conf companion is refused"
+if printf '%s\n' "$out" | grep -q '^REFUSED=mixed-staging'; then
+    pass "F5: the refusal says the staging dir mixes the two languages"
+else
+    fail "F5: the refusal says the staging dir mixes the two languages" "$out"
+fi
+if printf '%s\n' "$out" | grep -q '^STRAY=colors.conf'; then
+    pass "F5: the refusal names the companion that would have been dropped"
+else
+    fail "F5: the refusal names the companion that would have been dropped" "$out"
+fi
+if [ -d "$dest" ]; then
+    fail "F5: the mixed refusal wrote nothing" "$(ls -A "$dest")"
+else
+    pass "F5: the mixed refusal wrote nothing"
+fi
+
+# The mirror case: a hyprlang staging set with a stray .lua companion.
+mixed2="$tmp/stage-mixed2"
+mkdir -p "$mixed2"
+cp "$stage_conf/hyprland.conf" "$mixed2/"
+printf -- '-- a lua companion nobody would be told about\n' > "$mixed2/extra.lua"
+out="$(HYPR_DIR="$tmp/dest-mixed2" bash "$install_sh" "$mixed2" 2>&1)"; rc=$?
+assert_eq "3" "$rc" "F5: a hyprlang staging set with a .lua companion is refused too"
+
+# --------------------------------------------------------------------------------------------
+# Impl-gate loop 1, finding F6: AC-3 asks that any generated configuration record its language
+# and range IN THE OUTPUT. A config staged by something other than emit-config.sh - the rice
+# interview's staging dir - carries none, so install-config.sh adds it.
+# --------------------------------------------------------------------------------------------
+bare_stage="$tmp/stage-no-provenance"
+mkdir -p "$bare_stage"
+printf '# a config with no provenance of its own\nmonitor = , preferred, auto, auto\n' \
+    > "$bare_stage/hyprland.conf"
+dest="$tmp/dest-provenance"
+out="$(HYPR_DIR="$dest" bash "$install_sh" "$bare_stage" 2>&1)"; rc=$?
+assert_eq "0" "$rc" "F6: a config with no provenance header still installs"
+if printf '%s\n' "$out" | grep -q '^PROVENANCE=added to hyprland.conf'; then
+    pass "F6: the run says it added the provenance the staged file lacked"
+else
+    fail "F6: the run says it added the provenance the staged file lacked" "$out"
+fi
+assert_grep '^# CONFIG_LANGUAGE=hyprlang$' "$dest/hyprland.conf" \
+    "F6/AC-3: the installed file records the language it is"
+assert_grep '^# CONFIG_LANGUAGE_RANGE=Hyprland up to 0\.54' "$dest/hyprland.conf" \
+    "F6/AC-3: the installed file records the range that language is valid for"
+assert_file_contains "$dest/hyprland.conf" 'monitor = , preferred, auto, auto' \
+    "F6: the staged content itself is untouched"
+
+# A config that already carries provenance is not given a second copy.
+dest2="$tmp/dest-provenance2"
+out="$(HYPR_DIR="$dest2" bash "$install_sh" "$stage_conf" 2>&1)"; rc=$?
+assert_eq "0" "$rc" "F6: an emitter-written config installs unchanged"
+if printf '%s\n' "$out" | grep -q '^PROVENANCE='; then
+    fail "F6: no second provenance header is added to a config that has one" "$out"
+else
+    pass "F6: no second provenance header is added to a config that has one"
+fi
+assert_eq "1" "$(grep -c '^# CONFIG_LANGUAGE=' "$dest2/hyprland.conf")" \
+    "F6: exactly one CONFIG_LANGUAGE= header in the installed file"
+
 rm -rf "$tmp"
