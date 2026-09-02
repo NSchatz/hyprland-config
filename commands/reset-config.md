@@ -20,9 +20,14 @@ before anything is removed, and the script rolls back to it if the bare config f
 - **Left intact:** configs that live elsewhere (`~/.config/waybar`, `~/.config/rofi`,
   `~/.config/dunst`, etc.) — they are not under `~/.config/hypr`. Their daemons just won't be
   autostarted anymore, since the bare config has no `exec-once` lines.
-- **Result:** the directory contains only a minimal `hyprland.conf` (monitor auto-detect, basic
+- **Result:** the directory contains only a minimal config (monitor auto-detect, basic
   input, a small set of essential keybinds — terminal, close, exit, launcher, focus, workspaces 1–5,
   mouse move/resize). Enough to have a usable session and build back up from.
+- **In the language this Hyprland reads.** On 0.55+ that is `hyprland.lua`; below it,
+  `hyprland.conf`. The script resolves it with `scripts/config-language.sh` and never guesses:
+  if the version cannot be detected it refuses and asks for `HYPR_CONFIG_LANG=lua|hyprlang`.
+  The generated file carries a `CONFIG_LANGUAGE=` / `CONFIG_LANGUAGE_RANGE=` header saying which
+  language it is and which Hyprland versions that language is good for.
 
 ## Steps
 
@@ -62,6 +67,10 @@ before anything is removed, and the script rolls back to it if the bare config f
      apply on next login.
    - `RESET=rolled-back` / `errors-no-backup` — surface the printed errors (this should not happen
      for a minimal config; investigate before retrying).
+   - `RESET=refused-undecided`: the Hyprland version could not be detected, so the config
+     language was not guessed. **Nothing was changed.** Relay the `LANGUAGE_OPTION=` lines the
+     script printed, ask the user which language they want, and re-run with
+     `HYPR_CONFIG_LANG=lua` or `HYPR_CONFIG_LANG=hyprlang`.
 
 5. **Tell the user how to restore and how to rebuild:**
    - Restore: `rm -rf ~/.config/hypr && cp -a <BACKUP> ~/.config/hypr && hyprctl reload`

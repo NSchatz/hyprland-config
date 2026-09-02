@@ -41,16 +41,21 @@ another.
 
 ### 1. Read & understand the current state
 
-- **Hyprland scope:** read `~/.config/hypr/hyprland.conf`, then follow every `source=` line
-  (resolve `~` and globs) and read those too. Build a picture of monitors, layout, binds, rules,
-  autostart. Companion configs (`hyprlock.conf`, `hypridle.conf`, `hyprpaper.conf`) are read by their
-  own daemons, not `source=`d — read them only when the change concerns them.
+- **Hyprland scope:** read the config the compositor actually loads. If
+  `~/.config/hypr/hyprland.lua` exists it is loaded **instead of** `hyprland.conf` (0.55+), so read
+  the `.lua` and follow every `require(...)`; editing the `.conf` in that case changes nothing the
+  compositor reads. Otherwise read `hyprland.conf` and follow every `source=` line (resolve `~` and
+  globs). Build a picture of monitors, layout, binds, rules, autostart. Companion configs
+  (`hyprlock.conf`, `hypridle.conf`, `hyprpaper.conf`) are read by their own daemons, not
+  `source=`d: read them only when the change concerns them.
 - **Shell scope:** read the rc file(s) and any `conf.d/` snippets the chosen shell auto-sources.
 - **Desktop-shell scope:** read the existing `config.jsonc`/`style.css`/`config`/`dunstrc` so edits
   preserve the user's structure.
 - Detect the Hyprland version when relevant:
   `bash "${CLAUDE_PLUGIN_ROOT}/skills/rice/scripts/detect-version.sh"` — emit syntax matching it
-  (window-rule block vs line form, `gesture=` vs `gestures{}`, etc.).
+  (window-rule block vs line form, `gesture=` vs `gestures{}`, etc.). The config **language** comes
+  from `bash "${CLAUDE_PLUGIN_ROOT}/skills/rice/scripts/config-language.sh"`, which refuses to
+  guess on an undetectable version; edit in the language of the file that is actually loaded.
 - If the user only asked to **read/inspect/explain**, do that now and stop — no backup needed.
 
 ### 2. Back up once, before the first edit (per surface)

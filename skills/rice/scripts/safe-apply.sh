@@ -16,6 +16,11 @@
 #   SAFE_APPLY=rolled-back         new config errored; previous config restored
 #   SAFE_APPLY=errors-no-backup    new config errored and there was no backup to restore
 #   SAFE_APPLY=install-failed      install step failed; nothing changed
+#   SAFE_APPLY=refused             install-config.sh REFUSED and changed nothing: the
+#                                  target already holds a hyprland.lua that would shadow
+#                                  a hyprlang .conf, the target is unwritable, or the
+#                                  staging dir holds both languages. The refusal lines
+#                                  above (SHADOWED_BY=/REFUSED=/TARGET=) say which.
 set -uo pipefail
 
 staging="${1:-}"
@@ -27,9 +32,17 @@ fi
 here="$(cd "$(dirname "$0")" && pwd)"
 target="${HYPR_DIR:-$HOME/.config/hypr}"
 
-# 1. Install (also prints BACKUP=, TARGET=, INSTALLED=...).
-if ! install_out="$(bash "$here/install-config.sh" "$staging")"; then
+# 1. Install (also prints BACKUP=, TARGET=, CONFIG_LANGUAGE=, INSTALLED=...).
+install_out="$(bash "$here/install-config.sh" "$staging" 2>&1)"
+irc=$?
+if [ "$irc" -ne 0 ]; then
     printf '%s\n' "$install_out"
+    # 3 and 4 are install-config.sh's REFUSALS: it declined before changing
+    # anything. Never let that read as an ordinary failure, and never as ok.
+    if [ "$irc" -eq 3 ] || [ "$irc" -eq 4 ]; then
+        echo "SAFE_APPLY=refused (install-config.sh declined; nothing was changed)"
+        exit 2
+    fi
     echo "SAFE_APPLY=install-failed"
     exit 2
 fi

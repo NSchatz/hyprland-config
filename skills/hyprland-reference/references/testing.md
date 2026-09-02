@@ -61,6 +61,11 @@ The plugin implements this:
   `VERIFY=ok|errors|skipped`; exit 0/1/2.
 - `skills/rice/scripts/safe-apply.sh` — full cycle: install a staged config, verify,
   and auto-rollback to the backup on failure. Prints `SAFE_APPLY=ok|rolled-back|installed-untested|…`.
+- `skills/rice/scripts/config-language.sh`: step 0, and the one nobody used to do. **Which
+  config language does this Hyprland read?** From 0.55 a `hyprland.lua` is loaded *instead of*
+  `hyprland.conf`, so a reload of a `.conf` that is shadowed by a `.lua` reports clean while
+  changing nothing. `install-config.sh` refuses that install outright rather than verifying a file
+  the compositor never parsed.
 
 Run verify after **every** change to a live config — generation, an incremental edit, or a
 hand-applied fix — so a broken edit never silently persists.

@@ -96,11 +96,12 @@ This component's catalog (`interview.md` 23b) **must not** list it. The validato
 
 ## 0.55+ cliff — hyprlang is "deprecated", lua is the default, plugin custom-keyword API broke
 
-Hyprland 0.55.0 (released 2026-05-09) ships **lua as the default config language** —
-`~/.config/hypr/hyprland.lua` is the new entry point. Hyprlang `.conf` files still parse ("legacy
-remains functional for several releases" per the upstream wiki), but the **plugin custom-keyword
-API was rebuilt at the same time**, and the old `plugin { name { … } }` block syntax now has a
-caveat: the upstream sandwichfarm/hyprexpo docs explicitly warn
+Hyprland 0.55.0 (released 2026-05-09) ships **lua as the config language**:
+`~/.config/hypr/hyprland.lua` is the new entry point, and it is loaded *instead of*
+`hyprland.conf`. Hyprlang `.conf` files still parse, but only for **1 - 2 releases starting from
+0.55**, after which hyprlang is dropped. The **plugin custom-keyword API was rebuilt at the same
+time**, and the old `plugin { name { … } }` block syntax now has a caveat: the upstream
+sandwichfarm/hyprexpo docs explicitly warn
 
 > *Hyprland 0.55 deprecated the custom keyword API that older HyprExpo configs used. HyprExpo no
 > longer registers `hyprexpo_gesture` or `hyprexpo_workspace_method`. Use

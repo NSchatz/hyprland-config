@@ -242,6 +242,22 @@ auto-rollback (see "Restoring a backup" above).
   ```bash
   HYPR_DIR=/tmp/hypr-test bash skills/rice/scripts/install-config.sh <staging-dir>
   ```
+- `HYPR_CONFIG_LANG`: force the config language (`lua` or `hyprlang`) instead of resolving it
+  from the detected Hyprland version. Since 0.55 a `hyprland.lua` is loaded *instead of*
+  `hyprland.conf`, so the language is a correctness decision, not a preference; when the version
+  cannot be detected the plugin refuses to guess and asks for this variable.
+  ```bash
+  bash skills/rice/scripts/config-language.sh          # what would be emitted, and why
+  HYPR_CONFIG_LANG=lua bash skills/rice/scripts/emit-config.sh /tmp/hypr-stage
+  bash skills/rice/scripts/migrate-config.sh           # offer to convert an existing .conf set
+  bash skills/rice/scripts/migrate-config.sh --convert # accept; the .conf is kept as a backup
+  ```
+  The conversion follows `source =` lines, so a modular set converts as one unit. A line with no
+  documented lua mapping (`bezier`, `animation`, `gesture`) is carried across as a `-- NOT APPLIED`
+  comment and reported (`NOT_APPLIED=`, `MIGRATE=ok-with-unmapped`) rather than silently dropped:
+  it stops taking effect once the lua exists, and the kept `.conf` is where you port it from.
+- `HYPR_BACKUP_DIR`: where `migrate-config.sh` writes its `.pre-lua.<timestamp>` backups
+  (default: `$HYPR_DIR`).
 
 ## Installation (local testing)
 
