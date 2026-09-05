@@ -62,7 +62,10 @@ jobs:
           docker build -t hyprland-config-test tests/integration
           docker save hyprland-config-test -o /tmp/hypr-image.tar
 
+      # `integration` (not `integration_docker`) is the filter on purpose: it is the command
+      # S0028-hyprland-config-preflight-5 grades AC-4 by, and it picks up every integration
+      # test file rather than one named one.
       - name: Run integration test
         env:
           RUN_INTEGRATION: "1"
-        run: bash tests/run.sh integration_docker
+        run: RUN_INTEGRATION=1 bash tests/run.sh integration

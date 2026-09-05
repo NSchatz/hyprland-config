@@ -2,6 +2,48 @@
 
 ## Unreleased
 
+Prove the config parses before writing a byte of it (roadmap phase PREFLIGHT-5).
+
+`safe-apply.sh` installed first and tested second, so every failure path started from a machine
+whose desktop had already been overwritten and depended on a rollback working. And `VERIFY=ok`
+came from one fact, `hyprctl configerrors` printing nothing, which is also exactly what a config
+that was never parsed produces. Both are closed here.
+
+- **`scripts/preflight-config.sh`** (new) runs the compositor's own offline check
+  (`Hyprland --verify-config`) against the **staged** files, before any backup and any write. The
+  staged set is copied into a throwaway sandbox whose `HOME` is the sandbox, so the
+  `source = ~/.config/hypr/<file>` lines a generated config carries resolve to the staged
+  companions and not to whatever is already installed: the verdict is about the files you are
+  about to install and nothing else. Errors are surfaced against the staged paths, so the file in
+  the message is a file you can open. Prints
+  `PREFLIGHT=ok|errors|unverified|uncheckable`.
+  `unverified` (no binary offering the check on this host) is deliberately **not** `ok`; and
+  `uncheckable` is deliberately **not** `errors`, because `Hyprland --verify-config` exits 1 both
+  for "your config is broken" and for "you invoked me wrong", and confusing the two would turn a
+  packaging change into a refusal that blames the user's config.
+- **`scripts/safe-apply.sh`** runs that preflight first and refuses on it, with
+  `SAFE_APPLY=preflight-failed` / `SAFE_APPLY=preflight-uncheckable` and a target directory that
+  is byte-identical afterwards: no backup taken, nothing written, nothing to restore. The
+  existing install / live-test / rollback path stays exactly as it was behind it, as the second
+  net, and keeps every one of its outcome words.
+- **`scripts/loaded-config.sh`** (new) asks the running compositor which config file it actually
+  loaded. `hyprctl` has no command for it, but Hyprland logs `Using config: <path>` for every file
+  it reads and re-logs them on each reload, so `hyprctl rollinglog` (or the instance log) names
+  them. Prints `LOADED_CONFIG=<path>`, or `LOADED_CONFIG=unknown` rather than a guess.
+- **`scripts/verify-config.sh`** gains `--expect <file>`: with it, `VERIFY=ok` means the
+  compositor confirmed it loaded that file, and a mismatch or a non-answer is the new
+  `VERIFY=unconfirmed` (which names what *was* loaded). `safe-apply.sh` always passes it, so
+  `SAFE_APPLY=ok` is now a claim the compositor backed rather than a silence. A mismatch reports
+  `SAFE_APPLY=unconfirmed` and does **not** roll back, because the config is not what is broken. Called
+  without `--expect`, the script behaves exactly as it always did.
+- **CI** re-derives the `--verify-config` contract against the real binary on every integration
+  run and adds a **negative control**: a deliberately broken generated config is put through the
+  offline check inside the container, and the build fails if it is reported clean. The measured
+  contract (exit codes, the parsing-result marker that separates a broken config from a rejected
+  invocation, `~`-expands-from-`$HOME`, the lua form, and the fact that the check completes with
+  no session and no `/dev/dri`) is written down in `tests/integration/offline-check-contract.md`,
+  which answers the roadmap phase's open question.
+
 Emit the config language the machine actually loads (roadmap phase LUA-4).
 
 Since Hyprland 0.55 hyprlang is deprecated in favour of lua, and a `hyprland.lua` in the config
