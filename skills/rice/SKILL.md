@@ -465,14 +465,46 @@ omit both the env var and the `exec-once` line.
    with the config install anyway (some failures are non-blocking — e.g. an optional utility); the
    user can re-run `install.sh` later. On no, skip ahead and surface the `install.sh` path in A6.
 4. **Safe install (Hyprland):** `bash "${CLAUDE_PLUGIN_ROOT}/skills/rice/scripts/safe-apply.sh" /tmp/hypr-gen-<id>`
-   — it timestamp-backs up the **entire** `~/.config/hypr`, installs, then `hyprctl reload` +
-   `configerrors`, and **auto-rolls-back** if the new config fails. Read the final `SAFE_APPLY=` line:
-   `ok` (installed + clean), `rolled-back` (errors shown; restored — fix + retry),
+   It **preflights the staged config offline first**, then timestamp-backs up the **entire**
+   `~/.config/hypr`, installs, then `hyprctl reload` + `configerrors` + "is the file I wrote the
+   one you loaded", and **auto-rolls-back** if the new config fails. Read the final `SAFE_APPLY=`
+   line: `ok` (installed, clean, and the compositor confirms it is what it loaded),
+   `rolled-back` (errors shown; restored, so fix + retry),
    `installed-untested` (no running Hyprland; test next login), `refused` (install-config.sh
    declined and changed **nothing**: read the `REFUSED=`/`SHADOWED_BY=` lines above it),
+   `preflight-failed`/`preflight-uncheckable`/`unconfirmed` (below),
    `install-failed`/`errors-no-backup` (surface + stop). Relay the `BACKUP=` and
    `CONFIG_LANGUAGE=` lines. Respect a `HYPR_DIR` override. (`install-config.sh` /
-   `verify-config.sh` exist for running a step alone — see `hyprland-reference/references/testing.md`.)
+   `verify-config.sh` / `preflight-config.sh` exist for running a step alone, see
+   `hyprland-reference/references/testing.md`.)
+   - **`SAFE_APPLY=preflight-failed`**: the compositor's own offline check
+     (`Hyprland --verify-config`) parsed the **staged** files and found errors, so the apply
+     stopped before any backup and any write. `~/.config/hypr` is byte-identical; there is
+     nothing to roll back and nothing to restore. The `PREFLIGHT_ERROR=` lines above name the
+     staged file and line number, so open those paths, fix the generated config, re-run. This is
+     the outcome to *want*: a refusal costs the user nothing, where the old order made every
+     failure start from an already-overwritten desktop.
+   - **`SAFE_APPLY=preflight-uncheckable`**: the offline check could not be *run* at all, so
+     nothing was checked and nothing was installed. Read `PREFLIGHT_REASON=`:
+     `no-main-config` / `ambiguous-staging` (the staging dir has no `hyprland.conf`/`hyprland.lua`,
+     or has both, so regenerate it), `staged-main-unreadable` (fix the permissions on the staged
+     file), `invocation-rejected` (the compositor refused the invocation before parsing anything,
+     which is a *bug in this plugin or a Hyprland CLI change*, not a problem with the user's
+     config; report it with the stderr lines above). Never read this as "the config is bad".
+   - **`PREFLIGHT=unverified`** is not an outcome, it is a note: this host has no Hyprland
+     binary offering `--verify-config`, so nothing was proven either way and the apply carried
+     on to the install / live-test / rollback path exactly as it always did. Say "not
+     pre-checked", never "checked and clean".
+   - **`SAFE_APPLY=unconfirmed`**: the config installed cleanly and `hyprctl configerrors` is
+     empty, but the running compositor did **not** confirm it loaded the file that was just
+     written. The `LOADED_CONFIG=` line names what it *did* load. An empty error list is also
+     exactly what a config that was never parsed produces, so this is not reported as success.
+     Nothing is rolled back, because the config on disk is fine, it is just not what is running.
+     The usual cause is a `~/.config/hypr/hyprland.lua` shadowing the `.conf` (see
+     `REFUSED=lua-config-takes-precedence` below for the remedies), or a session started with
+     `Hyprland -c <somewhere else>`. If `LOADED_CONFIG=unknown`, the compositor simply never
+     named its config, so the change may well be live: say so, and have the user check visually
+     or log out and back in.
    - **`REFUSED=lua-config-takes-precedence`** means `~/.config/hypr/hyprland.lua` is already
      there (the default on 0.56+, which autogenerates one), so a hyprlang `.conf` would be
      installed and then ignored. **This interview generates hyprlang only**: the component

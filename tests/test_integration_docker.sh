@@ -65,6 +65,64 @@ rc=$?
     echo "  ── end container stdout ──"
 } >&2
 
+# ---------------------------------------------------------------------------------------------
+# S0028 AC-4 - the offline check, and the NEGATIVE CONTROL that keeps it honest.
+#
+# Asserted FIRST and unconditionally: the container prints this block before it tries to
+# start Hyprland, so it reports in both the live and the parse-only mode, and it is exactly
+# the evidence the roadmap's open question asks for (does `--verify-config` complete with no
+# session and no /dev/dri?).
+# ---------------------------------------------------------------------------------------------
+marker_value() { sed -n "s/^$1=//p" "$run_log" | tail -n1; }
+
+if grep -q '^OFFLINE_CHECK=done' "$run_log"; then
+    pass "offline check ran inside the container"
+else
+    fail "offline check ran inside the container" "no OFFLINE_CHECK=done marker; see $run_log"
+fi
+
+# The contract, re-derived every run rather than trusted:
+#   a clean config           -> exit 0, and it really parsed (marker present)
+#   a broken config          -> exit 1, and it really parsed (marker present)
+#   a rejected invocation    -> exit 1, and it did NOT parse (marker absent)
+# The third row is the whole reason exit status alone cannot be the verdict.
+assert_eq "0"   "$(marker_value OFFLINE_CONTRACT_CLEAN_RC)"      "AC-4: --verify-config exits 0 on a clean config, with no session and no /dev/dri"
+assert_eq "yes" "$(marker_value OFFLINE_CONTRACT_CLEAN_MARKER)"  "AC-4: a clean config really reached the parser"
+assert_eq "1"   "$(marker_value OFFLINE_CONTRACT_BROKEN_RC)"     "AC-4: --verify-config exits 1 on a broken config"
+assert_eq "yes" "$(marker_value OFFLINE_CONTRACT_BROKEN_MARKER)" "AC-4: a broken config really reached the parser"
+assert_eq "1"   "$(marker_value OFFLINE_CONTRACT_REJECT_RC)"     "AC-4: a rejected invocation also exits 1 (why exit status alone cannot be the verdict)"
+assert_eq "no"  "$(marker_value OFFLINE_CONTRACT_REJECT_MARKER)" "AC-4: a rejected invocation never reaches the parser (the discriminator holds)"
+
+# The property the preflight's sandbox rests on, measured against the real binary.
+assert_eq "1"   "$(marker_value OFFLINE_CONTRACT_SOURCE_RC)" \
+    'AC-4: an error in a sourced companion fails the offline check'
+assert_eq "yes" "$(marker_value OFFLINE_CONTRACT_SOURCE_NAMES_COMPANION)" \
+    'AC-4: ~ in a source= line expands from $HOME and the companion is named (the sandbox premise)'
+
+assert_eq "ok" "$(marker_value OFFLINE_CHECK_GOOD)" \
+    "AC-4: the plugin's preflight passes the known-good generated config"
+
+# THE negative control. If a deliberately broken generated config is reported clean, the
+# preflight is worthless and this build must go red.
+bad_verdict="$(marker_value OFFLINE_CHECK_BAD)"
+case "$bad_verdict" in
+    errors)
+        pass "AC-4: a deliberately broken generated config is reported as errors" ;;
+    ok)
+        fail "AC-4: a deliberately broken generated config was reported CLEAN" \
+             "OFFLINE_CHECK_BAD=ok - the offline check is not checking anything. See $run_log" ;;
+    *)
+        fail "AC-4: a deliberately broken generated config is reported as errors" \
+             "OFFLINE_CHECK_BAD=${bad_verdict:-<missing>}; see $run_log" ;;
+esac
+assert_eq "yes" "$(marker_value OFFLINE_CHECK_BAD_NAMES_STAGED)" \
+    "AC-4: the error is surfaced against the staged companion that carries it"
+
+assert_eq "preflight-failed" "$(marker_value PREFLIGHT_REFUSED_INSTALL)" \
+    "AC-4: safe-apply refuses the broken config with its own outcome word"
+assert_eq "yes" "$(marker_value PREFLIGHT_TARGET_UNCHANGED)" \
+    "AC-4: the refused apply left the target byte-identical"
+
 # Two possible success modes the container reports via INTEGRATION_PHASE:
 #   "config-parse-ok-backend-cannot-init-on-ci" — Hyprland's parser accepted the config,
 #       backend then failed (CI has no /dev/dri). Live `hyprctl reload` is unreachable here.
