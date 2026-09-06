@@ -74,6 +74,14 @@ PLUGIN_SCRIPTS="$(cd "$SRC/../.." && pwd)/scripts"
 cp "$PLUGIN_SCRIPTS/restore-point.sh"      "$RICE_DIR/restore-point.sh"
 cp "$PLUGIN_SCRIPTS/rice-restore.sh"       "$RICE_DIR/rice-restore.sh"
 cp "$PLUGIN_SCRIPTS/backup-path.sh"        "$RICE_DIR/backup-path.sh"
+# The install record and the package-install routine that writes it: the generated install.sh
+# ships to new machines with the dotfiles and must be able to record what it did there, without
+# the plugin. Same for the browser-preference record and its removal path - a preference this
+# plugin set has to be removable from the machine it was set on.
+cp "$PLUGIN_SCRIPTS/install-record.sh"     "$RICE_DIR/install-record.sh"
+cp "$PLUGIN_SCRIPTS/install-packages.sh"   "$RICE_DIR/install-packages.sh"
+cp "$PLUGIN_SCRIPTS/firefox-prefs.sh"      "$RICE_DIR/firefox-prefs.sh"
+chmod +x "$RICE_DIR"/install-record.sh "$RICE_DIR"/install-packages.sh "$RICE_DIR"/firefox-prefs.sh
 # The engine must answer "where does configuration live?" the same way the plugin does when
 # it runs without the plugin, so the one decision ships beside it. Every installed script
 # above looks for it next to itself first.

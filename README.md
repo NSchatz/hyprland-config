@@ -157,6 +157,9 @@ glyphs) — and applies them across GTK, kitty, and waybar.
 rice apply               # re-render every app from palette.conf and reload
 rice restore --list      # applies you can still undo, newest first
 rice restore <apply-id>  # undo one apply: every file it wrote, back the way it was
+rice installs            # what was put on this machine: installed / already there / failed
+rice prefs               # the Firefox preferences this plugin set, and where
+rice prefs remove        # take those preferences back off (a restore cannot: see below)
 rice wallpaper PIC.png   # set wallpaper, regenerate palette from it, re-theme everything
 rice random ~/Pictures   # random wallpaper + re-theme (bind it to a key or a timer)
 rice wallpapers nord     # list curated, theme-matched wallpapers you can download
@@ -222,6 +225,46 @@ than overwritten (`RENDER_SKIPPED …`).
 `~/.config/hypr` is deliberately not part of this: it keeps its own separate backup and
 auto-rollback (see "Restoring a backup" above).
 
+### What was put on the machine (and what a restore cannot take back)
+
+Two things this plugin does outlive an apply. Both are written down, on the machine, so you can
+find out afterwards what happened and act on it.
+
+**Packages.** Every install transaction leaves a record naming every package it installed, every
+one that was already there, every one that failed (with the reason the install reported), and any
+AUR helper it built from source, with the URL it was cloned from:
+
+```bash
+rice installs             # 20260517-142233   9 package(s): 6 installed, 2 already present, 1 failed
+rice installs 20260517-142233   # that transaction in full
+```
+
+The records live under `$XDG_STATE_HOME/hypr-rice/installs` (`~/.local/state/…` by default) and
+stay there. Nothing here uninstalls anything: what to do about a package you no longer want is
+your call, and removing software you may now depend on is not a decision this plugin makes for
+you. If the record cannot be written, the install says so, prints the whole transaction, and does
+**not** claim to have recorded it.
+
+Before it builds an AUR helper from source it says what it is about to build, that it will be
+built from source on this machine, and the repository URL it will be cloned from - and asks. A
+declined build clones nothing and builds nothing.
+
+**Firefox preferences.** The browser theming merges two preferences into `<profile>/user.js`
+(`toolkit.legacyUserProfileCustomizations.stylesheets` and `browser.startup.page`). Firefox
+re-applies those at every start and does not show them as changed in its own UI, so `rice
+restore` genuinely cannot undo them: the lines have to leave the file:
+
+```bash
+rice prefs                # what was set, in which profile, whether it is still set
+rice prefs remove         # take exactly those lines back off
+```
+
+Removing `toolkit.legacyUserProfileCustomizations.stylesheets` turns this plugin's browser
+theming off entirely (Firefox stops reading `userChrome.css` at all), which is why it is a
+command you run rather than something that happens to you. The removal backs the file up first
+(and enrols it in a restore point), removes only the lines it recorded, leaves every other line
+byte-identical, and leaves alone (reporting) any line you have changed by hand since.
+
 ## Prerequisites
 
 - **Arch Linux + pacman** (the install step targets `pacman` directly; an AUR helper — paru or yay —
@@ -281,6 +324,9 @@ hyprland-config/
 │   ├── backup-path.sh                     # timestamped backup of arbitrary paths
 │   ├── restore-point.sh                   # backup-before-write + one restore point per apply
 │   ├── rice-restore.sh                    # the undo: rice restore <apply-id>
+│   ├── install-packages.sh                # the one install routing + AUR-build disclosure
+│   ├── install-record.sh                  # what was put on the machine: rice installs
+│   ├── firefox-prefs.sh                   # the prefs a restore can't undo: rice prefs remove
 │   ├── dotfiles.sh                        # git versioning: bare / stow / chezmoi
 │   └── record-answer.sh                   # jq setpath into <staging>/answers.json
 ├── skills/

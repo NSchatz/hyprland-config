@@ -68,6 +68,25 @@ fi
 # shellcheck source=../../../../scripts/restore-point.sh
 . "$_rp_lib"
 
+# Preference-record library: the prefs merged below are re-applied by Firefox at every start and
+# are not visible as changed in the browser's own UI, so a config restore does not undo them.
+# Recording which ones this profile received is what makes the documented removal path
+# (firefox-prefs.sh remove) possible at all - so a missing library is a refusal, exactly like a
+# missing restore-point library, rather than a merge nobody can take back.
+_fp_lib=""
+for _c in "$(cd "$(dirname "$0")" && pwd)/firefox-prefs.sh" \
+          "$(cd "$(dirname "$0")" && pwd)/../../../../scripts/firefox-prefs.sh" \
+          "${CLAUDE_PLUGIN_ROOT:-}/scripts/firefox-prefs.sh" \
+          "$RICE_DIR/firefox-prefs.sh"; do
+    if [ -n "$_c" ] && [ -f "$_c" ]; then _fp_lib="$_c"; break; fi
+done
+if [ -z "$_fp_lib" ]; then
+    echo "ERROR: preference-record library not found (looked next to $0, in \$CLAUDE_PLUGIN_ROOT/scripts, and in $RICE_DIR). Refusing to set preferences it cannot record or remove - re-run rice-init.sh." >&2
+    exit 2
+fi
+# shellcheck source=../../../../scripts/firefox-prefs.sh
+. "$_fp_lib"
+
 while [ $# -gt 0 ]; do
     case "$1" in
         --profile)            shift; profile_override="${1:-}";;
@@ -178,21 +197,39 @@ if [ -f "$ASSETS/userChrome.css" ]; then
 fi
 
 # user.js — merge prefs idempotently (don't clobber user settings).
+# Firefox re-applies every line here at each start and shows none of them as changed in its own
+# UI, so these are the writes a config restore cannot undo. Each one this step ACTUALLY adds is
+# recorded against this profile's absolute path before it is written, so `firefox-prefs.sh
+# remove` can take exactly those lines back off later. A pref already in the file is left alone
+# and is NOT recorded: this plugin did not set it and must not offer to remove it.
 if [ -f "$ASSETS/user.js" ]; then
     if rp_protect "$profile_dir/user.js"; then
         touch "$profile_dir/user.js"
+        pref_record_failed=""
         while IFS= read -r line; do
             case "$line" in
                 'user_pref('*)
                     key="$(printf '%s' "$line" | sed -n 's/^user_pref("\([^"]*\)".*$/\1/p')"
                     [ -n "$key" ] || continue
                     if ! grep -qF "user_pref(\"$key\"" "$profile_dir/user.js"; then
+                        if ! fp_record "$profile_dir" "$line"; then
+                            pref_record_failed="$FP_LAST_ERROR"
+                            break
+                        fi
                         printf '%s\n' "$line" >> "$profile_dir/user.js"
+                        echo "FIREFOX_PREF_SET=$key"
                     fi
                     ;;
                 *) : ;;
             esac
         done < "$ASSETS/user.js"
+        if [ -n "$pref_record_failed" ]; then
+            # A preference that cannot be recorded is a preference nothing documents a way back
+            # from. Stop merging rather than set one: what was already recorded and written is
+            # still removable, and `rice restore <apply-id>` still covers the file.
+            echo "FIREFOX_PREFS_UNRECORDED $profile_dir/user.js ($pref_record_failed)" >&2
+        fi
+        echo "FIREFOX_PREF_RECORD=$(fp_record_file)"
     else
         echo "FIREFOX_SKIPPED $profile_dir/user.js ($RP_LAST_ERROR)" >&2
     fi

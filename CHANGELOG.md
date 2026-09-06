@@ -2,6 +2,56 @@
 
 ## Unreleased
 
+Say what was put on the machine, and what a restore cannot take back (roadmap phase INSTALL-7).
+
+A user who let this plugin install packages and theme their browser had no way, afterwards, to
+find out what landed. The installer agent returned counts in a verdict line that lived only in a
+chat transcript, and the two Firefox preferences merged into `<profile>/user.js` are re-applied by
+the browser at every start and hidden from its own UI, so a config restore does not undo them and
+nothing said how to.
+
+- **`scripts/install-record.sh`** (new) persists one transaction per install under
+  `<state>/hypr-rice/installs` (`$XDG_STATE_HOME`, else `~/.local/state` - the same state root
+  restore points already use, now `rp_state_root` so it is decided once). Each record names every
+  package installed, every one already present, every one that failed **with the one-line reason
+  the install reported**, and any AUR helper built from source with the URL it was cloned from.
+  `rice installs` lists them newest first, `rice installs <id>` prints one in full - no knowing
+  where they are stored required. If the record cannot be written, the failure is reported by
+  path, the whole transaction is still printed, and the install is **not** reported as recorded.
+  An install where nothing was installed, skipped or failed leaves no record: nothing invents a
+  history.
+- **`scripts/install-packages.sh`** (new) is now the ONE implementation of repo-vs-AUR routing,
+  the AUR-helper bootstrap, the non-Arch skip and the recording. The generated `install.sh` and
+  the installer agent's ad-hoc list both call it, so both leave the same record in the same place
+  and the same form - a record only one route writes is a record a user cannot rely on. It
+  refuses to install at all when it cannot find the record component.
+- **The AUR-helper build now discloses before it builds.** It names the package (`paru`), says it
+  will be built **from source on this machine**, shows `https://aur.archlinux.org/paru.git`, and
+  requires an explicit yes - an unanswered prompt is a decline. A decline clones nothing, builds
+  nothing, installs no AUR package, and reports `INSTALL=declined-aur-build`, which is its own
+  outcome and not a failed build.
+- **`scripts/firefox-prefs.sh`** (new) records which preferences the profile bootstrap actually
+  merged, against that profile's absolute path - never a key that was already there and left at
+  the user's value - and ships the way back: `rice prefs` / `rice prefs remove`. The removal backs
+  the file up before editing it (enrolled in a restore point, so the removal itself goes back with
+  `rice restore <apply-id>`), removes **only** the recorded lines leaving every other line
+  byte-identical, leaves a line changed by hand alone and reports it rather than deleting the
+  user's value, reports a profile file that is gone by path without creating it or abandoning the
+  other profiles, and on a second run says there is nothing left to remove. Removing
+  `toolkit.legacyUserProfileCustomizations.stylesheets` turns the browser theming off entirely,
+  which is why this is a command you run rather than something that happens to you - documented in
+  `references/components/browser/template.md` and the README.
+- `firefox-bootstrap.sh` refuses to merge a preference it cannot record, the same fail-safe it
+  already applies to a file it cannot back up.
+- **Regression guards for behaviour that already held**, asserted so it cannot go quietly:
+  `tests/test_firefox_profile_backup.sh` (every profile file backed up before it is replaced,
+  including a `userChrome.css` this plugin wrote before; a file that cannot be backed up is not
+  written and the skip names the path) and `tests/test_install_no_pacman.sh` (no pacman means the
+  list is printed, no package manager or helper is invoked at all, and the outcome reads as
+  skipped rather than failed). Neither changes behaviour.
+- Nothing here uninstalls anything. Removing software a user may now depend on is their decision;
+  the record is what makes it an informed one.
+
 Write where the platform says the config lives (roadmap phase XDG-6).
 
 Hyprland reads `$XDG_CONFIG_HOME/hypr/hyprland.lua`; `~/.config/hypr` is only the common case.

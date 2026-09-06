@@ -45,6 +45,31 @@ case "$cmd" in
         [ -f "$RICE_DIR/rice-restore.sh" ] || { echo "no restore command installed ($RICE_DIR/rice-restore.sh): re-run rice-init.sh" >&2; exit 1; }
         bash "$RICE_DIR/rice-restore.sh" "$@"
         ;;
+    installs)
+        # What this plugin put on the machine, and when.
+        #   rice installs          every recorded package transaction, newest first
+        #   rice installs <id>     one of them in full
+        # The record outlives the session that made it; nothing here removes a package.
+        [ -f "$RICE_DIR/install-record.sh" ] || { echo "no install record component installed ($RICE_DIR/install-record.sh): re-run rice-init.sh" >&2; exit 1; }
+        if [ -n "${1:-}" ]; then
+            bash "$RICE_DIR/install-record.sh" show "$1"
+        else
+            bash "$RICE_DIR/install-record.sh" list
+        fi
+        ;;
+    prefs)
+        # The browser preferences this plugin merged into a Firefox profile, and the way back.
+        #   rice prefs             what was set, where, and whether it is still set
+        #   rice prefs remove      remove them again (each profile file backed up first)
+        # These are the writes `rice restore` cannot help with once its point is used: Firefox
+        # re-applies them at every start until the line leaves user.js.
+        [ -f "$RICE_DIR/firefox-prefs.sh" ] || { echo "no preference record component installed ($RICE_DIR/firefox-prefs.sh): re-run rice-init.sh" >&2; exit 1; }
+        case "${1:-list}" in
+            remove) shift 2>/dev/null || true; bash "$RICE_DIR/firefox-prefs.sh" remove "$@" ;;
+            list)   bash "$RICE_DIR/firefox-prefs.sh" list ;;
+            *)      echo "usage: rice prefs [remove [<profile>]]" >&2; exit 1 ;;
+        esac
+        ;;
     wallpaper)
         # Set wallpaper, regenerate the palette from it, then re-theme everything.
         # Setting a wallpaper is always the source of truth: persist `wallpaper=` to
@@ -247,6 +272,14 @@ hypr-rice — desktop theme engine ($RICE_DIR)
                           whole set: rendered surfaces, browser profile files, shell rc files;
                           files the apply created are removed again)
   rice restore --list     list what can still be undone, newest first
+  rice installs           what this plugin put on the machine, newest first (packages installed,
+                          already present, failed, and any AUR helper built from source)
+  rice installs <id>      print one recorded install in full
+  rice prefs              the Firefox preferences this plugin set, and whether they are still set
+  rice prefs remove       remove those preferences again - the ONE thing a restore cannot undo,
+                          because Firefox re-applies them at every start. Each profile file is
+                          backed up before it is edited, and a line you changed by hand is left
+                          alone. Removing them turns this plugin's browser theming off
   rice wallpaper <img>    set wallpaper, regenerate palette from it, and re-theme
   rice wallpaper <img> --no-theme   set wallpaper only
   rice random [dir]       random wallpaper from dir (default ~/Pictures/wallpapers) + re-theme

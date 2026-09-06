@@ -13,7 +13,7 @@ choice to the user; both are off by default.
 | `template.md` | The full design: files this component owns, the manifest line, the install.sh integration recipe. |
 | `firefox.tmpl` | Engine-rendered palette-only `:root{--rice-*}` block → `<profile>/chrome/rice-colors.css`. |
 | `userChrome.css` | Palette-agnostic static mapping of `--rice-*` onto Firefox chrome (lwt-* properties + direct selectors). Copied once. |
-| `user.js` | Two prefs locked: `legacyUserProfileCustomizations.stylesheets` and `browser.startup.page = 3`. |
+| `user.js` | Two prefs locked: `legacyUserProfileCustomizations.stylesheets` and `browser.startup.page = 3`. Recorded per profile when merged; removed again with `rice prefs remove` (see `template.md` → "The two preferences, and how to take them back off"). |
 | `gotchas.md` | The dead-without-the-pref trap, dynamic profile dirs, restart-flash, pywalfox vs userChrome, Chromium has no equivalent. |
 | `packages.md` | (none — the static-file route needs no extra packages; pywalfox is opt-in AUR.) |
 | `validation.md` | Parse checks for rice-colors.css, user.js shape, bootstrap-emitted paths, the two required prefs. |
@@ -25,7 +25,8 @@ choice to the user; both are off by default.
   emitted only when `browser_theming.opt_in == true` AND `default_apps.browser == "firefox"`.
 - **Helper scripts:** `firefox-bootstrap.sh` (one-time, resolves profile + copies static
   files) and `firefox-restart.sh` (per-`rice apply` reload). Both ship under `assets/scripts/`
-  and are copied to `~/.config/hypr-rice/scripts/` by `rice-init.sh`.
+  and are copied to `~/.config/hypr-rice/scripts/` by `rice-init.sh`. The preference record and
+  its removal path are `scripts/firefox-prefs.sh`, copied beside them.
 - **install.sh integration:** see `template.md` → "install.sh integration".
 - **Validator assertion:** `agents/hyprland-config-validator.md` →
   "Render-manifest completeness".
