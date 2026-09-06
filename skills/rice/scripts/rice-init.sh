@@ -1,5 +1,6 @@
 #!/usr/bin/env bash
-# Scaffold a self-contained rice engine into ~/.config/hypr-rice/:
+# Scaffold a self-contained rice engine into the rice state directory ($RICE_DIR, default
+# <config base>/hypr-rice - see Env: below):
 #   - templates/        : the .tmpl color templates (copied from the plugin; user-editable)
 #   - templates.list    : the render manifest (name <tab> template <tab> output <tab> reload)
 #   - render-templates.sh + rice : the engine + CLI (so it runs without the plugin)
@@ -9,9 +10,34 @@
 # unless --force is passed.
 #
 # Usage: rice-init.sh [--force]
+#
+# Env:
+#   RICE_DIR  where the engine is scaffolded (explicit override; wins over XDG_CONFIG_HOME).
+#             Otherwise <config base>/hypr-rice, where the base is $XDG_CONFIG_HOME when it
+#             is an absolute path and $HOME/.config otherwise. scripts/xdg-config.sh makes
+#             that decision for the whole plugin - scaffolding into one directory while the
+#             render engine reads another is exactly the split it exists to prevent.
 set -euo pipefail
 
-RICE_DIR="${RICE_DIR:-$HOME/.config/hypr-rice}"
+_here_init="$(cd "$(dirname "$0")" && pwd)"
+_xdg_lib=""
+for _c in "$_here_init/xdg-config.sh" \
+          "$_here_init/../../../scripts/xdg-config.sh" \
+          "${CLAUDE_PLUGIN_ROOT:-}/scripts/xdg-config.sh"; do
+    if [ -n "$_c" ] && [ -f "$_c" ]; then _xdg_lib="$_c"; break; fi
+done
+if [ -z "$_xdg_lib" ]; then
+    echo "ERROR: the config-path library (scripts/xdg-config.sh) was not found next to $0, in \$CLAUDE_PLUGIN_ROOT/scripts, or in the plugin." >&2
+    exit 2
+fi
+# shellcheck source=../../../scripts/xdg-config.sh
+. "$_xdg_lib"
+
+if ! xdg_config_target hypr-rice "${RICE_DIR:-}"; then
+    echo "RICE_INIT=refused-no-config-dir"
+    exit 2
+fi
+RICE_DIR="$XDG_CONFIG_TARGET"
 # Prefer CLAUDE_PLUGIN_ROOT, but fall back to deriving the plugin's rice dir from this script's own
 # location (<plugin>/skills/rice/scripts/rice-init.sh) so it works even when the env var isn't
 # exported (e.g. invoked directly — which otherwise aborted with "CLAUDE_PLUGIN_ROOT not set").
@@ -48,7 +74,11 @@ PLUGIN_SCRIPTS="$(cd "$SRC/../.." && pwd)/scripts"
 cp "$PLUGIN_SCRIPTS/restore-point.sh"      "$RICE_DIR/restore-point.sh"
 cp "$PLUGIN_SCRIPTS/rice-restore.sh"       "$RICE_DIR/rice-restore.sh"
 cp "$PLUGIN_SCRIPTS/backup-path.sh"        "$RICE_DIR/backup-path.sh"
-chmod +x "$RICE_DIR"/restore-point.sh "$RICE_DIR"/rice-restore.sh "$RICE_DIR"/backup-path.sh
+# The engine must answer "where does configuration live?" the same way the plugin does when
+# it runs without the plugin, so the one decision ships beside it. Every installed script
+# above looks for it next to itself first.
+cp "$PLUGIN_SCRIPTS/xdg-config.sh"         "$RICE_DIR/xdg-config.sh"
+chmod +x "$RICE_DIR"/restore-point.sh "$RICE_DIR"/rice-restore.sh "$RICE_DIR"/backup-path.sh "$RICE_DIR"/xdg-config.sh
 
 # Install the engine + CLI + wallpaper helpers (always refresh — plugin-owned code).
 cp "$SRC/scripts/render-templates.sh"      "$RICE_DIR/render-templates.sh"

@@ -1,9 +1,28 @@
 #!/usr/bin/env bash
 # hypr-rice — self-contained desktop theme engine CLI.
-# Installed by the hyprland-config Claude Code plugin into ~/.config/hypr-rice/.
-# Keeps working without the plugin. Run `rice help`.
+# Installed by the hyprland-config Claude Code plugin into <config base>/hypr-rice/, the base
+# being $XDG_CONFIG_HOME when it is an absolute path and $HOME/.config otherwise. $RICE_DIR
+# overrides both. Keeps working without the plugin. Run `rice help`.
 set -uo pipefail
-RICE_DIR="${RICE_DIR:-$HOME/.config/hypr-rice}"
+
+# The one decision about where configuration lives, installed beside this CLI by rice-init.sh.
+_xdg_lib=""
+for _c in "$(cd "$(dirname "$0")" && pwd)/xdg-config.sh" \
+          "$(cd "$(dirname "$0")" && pwd)/../../../scripts/xdg-config.sh" \
+          "${CLAUDE_PLUGIN_ROOT:-}/scripts/xdg-config.sh"; do
+    if [ -n "$_c" ] && [ -f "$_c" ]; then _xdg_lib="$_c"; break; fi
+done
+if [ -z "$_xdg_lib" ]; then
+    echo "ERROR: the config-path library (xdg-config.sh) was not found next to $0 - re-run rice-init.sh." >&2
+    exit 2
+fi
+# shellcheck source=../../../scripts/xdg-config.sh
+. "$_xdg_lib"
+if ! xdg_config_target hypr-rice "${RICE_DIR:-}"; then
+    echo "RICE=refused-no-config-dir" >&2
+    exit 2
+fi
+RICE_DIR="$XDG_CONFIG_TARGET"
 
 cmd="${1:-help}"; shift 2>/dev/null || true
 

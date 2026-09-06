@@ -36,7 +36,8 @@
 # Entries are appended BEFORE the write they protect, so an apply killed at any point - during
 # any stage or between stages - leaves a restore point covering everything written so far.
 #
-# RP_EXCLUDE: the Hyprland config dir (~/.config/hypr) is NEVER enrolled here. It has its own,
+# RP_EXCLUDE: the Hyprland config dir (<config base>/hypr, resolved exactly as the writing
+# scripts resolve it - see scripts/xdg-config.sh) is NEVER enrolled here. It has its own,
 # separate backup/restore contract that this file does not read, call, or duplicate; see
 # rp_excluded below. Nothing under it is ever put in a restore point, so no restore ever
 # touches it - and neither is any path that CONTAINS it (rp_contains_excluded), because a
@@ -46,6 +47,24 @@
 #
 # No `set` here on purpose: this file is sourced, and changing the caller's shell options
 # behind its back (e.g. dropping its `set -e`) would be a bug in every caller at once.
+
+# The one decision about where configuration lives (xdg-config.sh). Both the RP_EXCLUDE
+# boundary and the `~` expansion below are answers to "which directory is that, really?",
+# and answering it differently from the scripts that WRITE there is how a backup ends up
+# taken from one directory while another is overwritten. Sourced by ${BASH_SOURCE[0]}, not
+# $0: this file is a library and $0 is whoever sourced it.
+if [ -z "${RP_XDG_LIB:-}" ]; then
+    RP_XDG_LIB=""
+    for _rp_x in "$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/xdg-config.sh" \
+                 "${CLAUDE_PLUGIN_ROOT:-}/scripts/xdg-config.sh"; do
+        if [ -n "$_rp_x" ] && [ -f "$_rp_x" ]; then RP_XDG_LIB="$_rp_x"; break; fi
+    done
+    if [ -n "$RP_XDG_LIB" ]; then
+        # shellcheck source=xdg-config.sh
+        . "$RP_XDG_LIB"
+    fi
+    unset _rp_x
+fi
 
 RP_LAST_ERROR=""    # why the last rp_protect refused (empty on success)
 RP_LAST_STATE=""    # file | new | covered | already-{file,new,covered} | excluded | contains-excluded
@@ -62,18 +81,31 @@ rp_state_dir() {
     fi
 }
 
-# Expand a leading ~ the way the rest of the engine does.
+# Expand a leading ~ the way the rest of the engine does - which now means routing a
+# `~/.config/...` path through the shared config base, so the path enrolled here is
+# byte-for-byte the path the render pass writes.
 rp_expand() {
     local p="${1:-}"
-    case "$p" in "~"*) p="${HOME}${p#\~}" ;; esac
+    if command -v xdg_expand_path >/dev/null 2>&1; then
+        xdg_expand_path "$p"
+        return 0
+    fi
+    case "$p" in "~"*) p="${HOME:-}${p#\~}" ;; esac
     printf '%s\n' "$p"
 }
 
 # RP_EXCLUDE: the one directory this mechanism must never enrol, restore, or report on. Its
 # backup/restore is somebody else's contract and this file neither reads nor invokes it.
+# It has to be the SAME directory install-config.sh / reset-config.sh write to; resolving it
+# any other way would quietly re-open the boundary for a user who moved XDG_CONFIG_HOME.
 rp_excluded_dir() {
-    local d="${HYPR_DIR:-$HOME/.config/hypr}"   # RP_EXCLUDE
-    rp_canon "$d"
+    local d
+    if command -v xdg_config_path >/dev/null 2>&1; then
+        d="$(xdg_config_path hypr "${HYPR_DIR:-}")" || d="${HYPR_DIR:-${HOME:-}/.config/hypr}"   # RP_EXCLUDE  XDG-OK: fallback only
+    else
+        d="${HYPR_DIR:-${HOME:-}/.config/hypr}"   # RP_EXCLUDE  XDG-OK: library absent, legacy answer
+    fi
+    rp_canon "$d"   # RP_EXCLUDE
 }
 
 # True for any path inside the excluded dir. Those paths are out of this mechanism's scope

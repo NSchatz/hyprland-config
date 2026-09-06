@@ -9,8 +9,9 @@
 #   0. preflight-config.sh -> the compositor's own OFFLINE check, against the staged
 #                             files, in a sandbox. Runs before any backup and any
 #                             write, so a bad config is refused with the user's
-#                             ~/.config/hypr never touched.
-#   1. install-config.sh   -> timestamped backup of ~/.config/hypr, then install staged files
+#                             the resolved config dir never touched.
+#   1. install-config.sh   -> timestamped backup of the resolved config dir, then install
+#                             the staged files into it
 #   2. verify-config.sh    -> hyprctl reload + configerrors + "is the file I wrote the
 #                             one you loaded?"
 #   3. on parse errors     -> restore the backup, reload again, report ROLLED_BACK
@@ -19,7 +20,10 @@
 # and still fail against a live compositor, so install / live-test / rollback stays
 # exactly as it was behind it.
 #
-# Honors HYPR_DIR (passed through to install-config.sh; default ~/.config/hypr).
+# Honors HYPR_DIR (passed through to install-config.sh). With no HYPR_DIR the target is
+# $XDG_CONFIG_HOME/hypr when XDG_CONFIG_HOME is an absolute path and $HOME/.config/hypr
+# otherwise - one decision, made in scripts/xdg-config.sh and shared with every script in
+# this directory so a backup and a rollback can never name different directories.
 # Output ends with one of:
 #   SAFE_APPLY=ok                     installed, verified clean, and the compositor
 #                                     confirms it loaded the file we wrote
@@ -46,6 +50,10 @@
 #                                     a hyprlang .conf, the target is unwritable, or the
 #                                     staging dir holds both languages. The refusal lines
 #                                     above (SHADOWED_BY=/REFUSED=/TARGET=) say which.
+#   SAFE_APPLY=no-config-dir          no config directory could be determined at all: no
+#                                     HYPR_DIR, no absolute XDG_CONFIG_HOME, no HOME.
+#                                     CONFIG_DIR=unresolved is printed and nothing is
+#                                     checked, backed up or written.
 set -uo pipefail
 
 staging="${1:-}"
@@ -57,7 +65,27 @@ fi
 here="$(cd "$(dirname "$0")" && pwd)"
 # shellcheck source=config-language.sh
 source "$here/config-language.sh"
-target="${HYPR_DIR:-$HOME/.config/hypr}"
+_xdg_lib=""
+for _c in "$here/xdg-config.sh" \
+          "$here/../../../scripts/xdg-config.sh" \
+          "${CLAUDE_PLUGIN_ROOT:-}/scripts/xdg-config.sh"; do
+    if [ -n "$_c" ] && [ -f "$_c" ]; then _xdg_lib="$_c"; break; fi
+done
+if [ -z "$_xdg_lib" ]; then
+    echo "ERROR: the config-path library (scripts/xdg-config.sh) was not found next to $0, in \$CLAUDE_PLUGIN_ROOT/scripts, or in the plugin. Refusing to guess where your config lives." >&2
+    exit 2
+fi
+# shellcheck source=../../../scripts/xdg-config.sh
+. "$_xdg_lib"
+
+# The SAME resolution install-config.sh, backup-config.sh and reset-config.sh use. This is
+# the file where a split would be lethal: a rollback that restores into a different
+# directory from the one the backup came out of has no inverse.
+if ! xdg_config_target hypr "${HYPR_DIR:-}"; then
+    echo "SAFE_APPLY=no-config-dir (nothing was checked, backed up or written)"
+    exit 2
+fi
+target="$XDG_CONFIG_TARGET"
 
 # 0. Preflight: the compositor's own offline check, against the STAGED files.
 #    Nothing below this point runs until it says the config is worth installing.
@@ -140,7 +168,7 @@ case "$backup" in
     /*)
         if [ -d "$backup" ]; then
             # Restore WITHOUT emptying the target dir. A running Hyprland regenerates a STUB
-            # hyprland.conf the instant ~/.config/hypr goes empty, which races `rm -rf` (causing a
+            # hyprland.conf the instant the config dir goes empty, which races `rm -rf` (causing a
             # "Directory not empty" failure) and leaves a nested-backup / stub mess. Instead:
             # overwrite every backup file back over the target, then prune only the files the failed
             # config ADDED (present in target, absent in backup). The dir is never empty.

@@ -16,6 +16,7 @@ trap 'rm -rf "$tmp"' EXIT
 
 # Sandbox: override HOME + state file + bare/stow dirs to land inside the tempdir, so the test
 # never touches the user's real ~/.dotfiles.
+unset XDG_CONFIG_HOME
 export HOME="$tmp"
 export DOTFILES_STATE="$tmp/state.conf"
 export DOTFILES_BARE_DIR="$tmp/.dotfiles"

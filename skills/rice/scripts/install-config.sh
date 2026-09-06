@@ -7,7 +7,10 @@
 #                  lua set (a main `hyprland.lua` plus other `*.lua`).
 #
 # Behavior:
-#   - Target dir is $HYPR_DIR (default: ~/.config/hypr).
+#   - Target dir is $HYPR_DIR when it is set; otherwise $XDG_CONFIG_HOME/hypr when
+#     XDG_CONFIG_HOME is an absolute path, otherwise $HOME/.config/hypr. A relative
+#     XDG_CONFIG_HOME is invalid and is ignored, loudly. See scripts/xdg-config.sh -
+#     that is the one place this plugin decides where configuration lives.
 #   - REFUSES to install a hyprlang `.conf` into a target that already holds a
 #     `hyprland.lua`. Since Hyprland 0.55 the lua file is loaded INSTEAD of the
 #     `.conf`, so that install would report success for a change the compositor
@@ -32,7 +35,8 @@
 #   TARGET=<dir>
 #   DONE=ok
 #
-# Exit: 0 installed, 2 bad usage / unusable staging dir,
+# Exit: 0 installed, 2 bad usage / unusable staging dir / no config directory could be
+#         determined,
 #       3 refused (the target is shadowed by a hyprland.lua, or staging is
 #         ambiguous/mixed because it holds both languages),
 #       4 refused (the target exists but cannot be written to).
@@ -41,6 +45,18 @@ set -euo pipefail
 here="$(cd "$(dirname "$0")" && pwd)"
 # shellcheck source=config-language.sh
 source "$here/config-language.sh"
+_xdg_lib=""
+for _c in "$here/xdg-config.sh" \
+          "$here/../../../scripts/xdg-config.sh" \
+          "${CLAUDE_PLUGIN_ROOT:-}/scripts/xdg-config.sh"; do
+    if [ -n "$_c" ] && [ -f "$_c" ]; then _xdg_lib="$_c"; break; fi
+done
+if [ -z "$_xdg_lib" ]; then
+    echo "ERROR: the config-path library (scripts/xdg-config.sh) was not found next to $0, in \$CLAUDE_PLUGIN_ROOT/scripts, or in the plugin. Refusing to guess where your config lives." >&2
+    exit 2
+fi
+# shellcheck source=../../../scripts/xdg-config.sh
+. "$_xdg_lib"
 
 staging="${1:-}"
 if [ -z "$staging" ]; then
@@ -100,7 +116,14 @@ if [ ${#stray[@]} -gt 0 ]; then
     exit 3
 fi
 
-target="${HYPR_DIR:-$HOME/.config/hypr}"
+# --- Where does this machine's configuration live? -------------------------------------------
+# One decision, shared with every other script here (scripts/xdg-config.sh). Nothing has been
+# written or backed up at this point, so a refusal here leaves the machine untouched.
+if ! xdg_config_target hypr "${HYPR_DIR:-}"; then
+    echo "REFUSED=no-config-directory"
+    exit 2
+fi
+target="$XDG_CONFIG_TARGET"
 
 # --- Fail-safe 1: never install a hyprlang .conf into a lua-shadowed directory ---------------
 # The failure this closes is not a crash. It is a success message for a change

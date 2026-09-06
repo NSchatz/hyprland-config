@@ -4,6 +4,20 @@
 # Also prints HYPR_SOURCE=<how it was detected> for context.
 set -uo pipefail
 
+# Config-path library, for the uwsm session-env files reported further down. Optional here:
+# this script only READS, so a missing library degrades to the historical $HOME/.config path
+# rather than stopping a version detection that has nothing to do with it.
+_xdg_lib=""
+for _c in "$(cd "$(dirname "$0")" && pwd)/xdg-config.sh" \
+          "$(cd "$(dirname "$0")" && pwd)/../../../scripts/xdg-config.sh" \
+          "${CLAUDE_PLUGIN_ROOT:-}/scripts/xdg-config.sh"; do
+    if [ -n "$_c" ] && [ -f "$_c" ]; then _xdg_lib="$_c"; break; fi
+done
+if [ -n "$_xdg_lib" ]; then
+    # shellcheck source=../../../scripts/xdg-config.sh
+    . "$_xdg_lib"
+fi
+
 version=""
 source=""
 
@@ -124,14 +138,19 @@ have_pkg kanshi         kanshi                                   # auto monitor 
 have_pkg shikane        shikane                                  # kanshi successor
 
 # --- Session env manager: uwsm (Universal Wayland Session Manager) ---
-# When Hyprland is launched via uwsm, ~/.config/uwsm/env (+ env-hyprland) is the AUTHORITATIVE
+# When Hyprland is launched via uwsm, <config base>/uwsm/env (+ env-hyprland) is the AUTHORITATIVE
 # session-environment source: it is exported before the compositor starts and OVERRIDES hypr
 # `env.conf` for app launches — notably GTK_THEME, XCURSOR_THEME/HYPRCURSOR_THEME, and QT_*.
 # So any cursor/GTK/toolkit env change must edit THOSE files too, not just env.conf/gsettings,
 # or GTK apps keep the old theme. Report the env files so the rice skill knows to update them.
 if command -v uwsm >/dev/null 2>&1; then echo "HAVE_uwsm=1"; else echo "MISSING_uwsm=1"; fi
-[ -f "$HOME/.config/uwsm/env" ]          && echo "UWSM_ENV=$HOME/.config/uwsm/env"
-[ -f "$HOME/.config/uwsm/env-hyprland" ] && echo "UWSM_ENV_HYPRLAND=$HOME/.config/uwsm/env-hyprland"
+# uwsm reads these from the XDG config base like every other XDG-aware program, so this
+# reports them from the base the rest of the plugin resolves (scripts/xdg-config.sh).
+if ! _uwsm_dir="$(xdg_config_path uwsm 2>/dev/null)" || [ -z "$_uwsm_dir" ]; then
+    _uwsm_dir="${HOME:-}/.config/uwsm"   # XDG-OK: last-resort fallback when the library is absent
+fi
+[ -f "$_uwsm_dir/env" ]          && echo "UWSM_ENV=$_uwsm_dir/env"
+[ -f "$_uwsm_dir/env-hyprland" ] && echo "UWSM_ENV_HYPRLAND=$_uwsm_dir/env-hyprland"
 # Active uwsm-managed session? (the systemd user unit is named wayland-wm@<compositor>.service)
 if systemctl --user list-units --type=service --state=active 2>/dev/null | grep -q 'wayland-wm@'; then
     echo "UWSM_SESSION=1"

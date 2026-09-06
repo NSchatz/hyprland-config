@@ -13,23 +13,45 @@
 #   dotfiles.sh status                    # short status
 #   dotfiles.sh method                    # print the configured method
 #
-# Method + repo location recorded in ~/.config/hypr-rice/dotfiles.conf.
+# Method + repo location recorded in <config base>/hypr-rice/dotfiles.conf, the base being
+# $XDG_CONFIG_HOME when it is an absolute path and $HOME/.config otherwise - the same one
+# decision every other script here makes (scripts/xdg-config.sh).
 set -uo pipefail
 
-STATE="${DOTFILES_STATE:-$HOME/.config/hypr-rice/dotfiles.conf}"
+_here_df="$(cd "$(dirname "$0")" && pwd)"
+_xdg_lib=""
+for _c in "$_here_df/xdg-config.sh" \
+          "${CLAUDE_PLUGIN_ROOT:-}/scripts/xdg-config.sh"; do
+    if [ -n "$_c" ] && [ -f "$_c" ]; then _xdg_lib="$_c"; break; fi
+done
+if [ -z "$_xdg_lib" ]; then
+    echo "ERROR: the config-path library (scripts/xdg-config.sh) was not found next to $0 or in \$CLAUDE_PLUGIN_ROOT/scripts." >&2
+    exit 2
+fi
+# shellcheck source=xdg-config.sh
+. "$_xdg_lib"
+
+if ! xdg_config_target hypr-rice; then
+    echo "DOTFILES=refused-no-config-dir"
+    exit 2
+fi
+CONFIG_BASE="$XDG_CONFIG_BASE"
+
+STATE="${DOTFILES_STATE:-$XDG_CONFIG_TARGET/dotfiles.conf}"
 BARE_DIR="${DOTFILES_BARE_DIR:-$HOME/.dotfiles}"
 STOW_DIR="${DOTFILES_STOW_DIR:-$HOME/dotfiles}"
 
 get_method() { sed -n 's/^method=//p' "$STATE" 2>/dev/null | head -1; }
 dotbare()    { git --git-dir="$BARE_DIR" --work-tree="$HOME" "$@"; }
 
+# The common desktop config surfaces, under whichever base this machine actually uses.
 DEFAULT_PATHS=(
-    "$HOME/.config/hypr" "$HOME/.config/hypr-rice" "$HOME/.config/waybar"
-    "$HOME/.config/kitty" "$HOME/.config/rofi" "$HOME/.config/wofi"
-    "$HOME/.config/mako" "$HOME/.config/dunst" "$HOME/.config/gtk-3.0"
-    "$HOME/.config/gtk-4.0" "$HOME/.config/qt5ct" "$HOME/.config/qt6ct"
-    "$HOME/.config/swaync" "$HOME/.config/wlogout" "$HOME/.config/fastfetch"
-    "$HOME/.config/starship.toml"
+    "$CONFIG_BASE/hypr" "$CONFIG_BASE/hypr-rice" "$CONFIG_BASE/waybar"
+    "$CONFIG_BASE/kitty" "$CONFIG_BASE/rofi" "$CONFIG_BASE/wofi"
+    "$CONFIG_BASE/mako" "$CONFIG_BASE/dunst" "$CONFIG_BASE/gtk-3.0"
+    "$CONFIG_BASE/gtk-4.0" "$CONFIG_BASE/qt5ct" "$CONFIG_BASE/qt6ct"
+    "$CONFIG_BASE/swaync" "$CONFIG_BASE/wlogout" "$CONFIG_BASE/fastfetch"
+    "$CONFIG_BASE/starship.toml"
 )
 
 cmd="${1:-help}"; shift 2>/dev/null || true
@@ -112,5 +134,5 @@ case "$cmd" in
         esac;;
 
     method) get_method || echo "(none)";;
-    help|*) sed -n '2,16p' "$0";;
+    help|*) sed -n '2,18p' "$0";;
 esac

@@ -1,5 +1,7 @@
 #!/usr/bin/env bash
-# Reset ~/.config/hypr to a minimal, working "bare bones" Hyprland config.
+# Reset the Hyprland config dir to a minimal, working "bare bones" config. That dir is
+# $HYPR_DIR when set, else $XDG_CONFIG_HOME/hypr when XDG_CONFIG_HOME is an absolute path,
+# else $HOME/.config/hypr (scripts/xdg-config.sh).
 #
 # Backs up the ENTIRE existing config (timestamped), WIPES the directory, writes a
 # single minimal config IN THE LANGUAGE THIS HYPRLAND READS (hyprland.lua on 0.55+,
@@ -9,7 +11,13 @@
 #
 # Usage: reset-config.sh
 # Env:
-#   HYPR_DIR         target dir          (default: ~/.config/hypr)
+#   HYPR_DIR         target dir          (explicit override; wins over XDG_CONFIG_HOME)
+#                    With no HYPR_DIR the target is $XDG_CONFIG_HOME/hypr when
+#                    XDG_CONFIG_HOME is an absolute path and $HOME/.config/hypr when it
+#                    is unset, empty or relative. That decision is made once, in
+#                    scripts/xdg-config.sh, and shared with every script here - this
+#                    script WIPES its target, so it must never resolve a different
+#                    directory from the one backup-config.sh copied.
 #   HYPR_VERSION     skip detection and resolve the language from this version
 #   HYPR_CONFIG_LANG explicit language choice (lua|hyprlang)
 #   BARE_TERMINAL    $terminal value     (default: kitty)
@@ -27,12 +35,52 @@
 #   RESET=errors-no-backup    bare config errored and there was no backup to restore
 #   RESET=refused-undecided   the Hyprland version could not be detected and no
 #                             language was chosen; NOTHING was changed
+#   RESET=refused-no-config-dir      no config directory could be determined (no HYPR_DIR,
+#                             no absolute XDG_CONFIG_HOME, no HOME); NOTHING was changed
+#   RESET=refused-target-not-writable  the resolved config dir exists but cannot be
+#                             written by this user; NOTHING was changed and no other
+#                             directory was tried
 #
-# Exit: 0 ok / untested, 1 errors, 2 could not generate, 3 no language chosen.
+# Exit: 0 ok / untested, 1 errors, 2 could not generate, 3 no language chosen,
+#       4 refused (no config directory, or the resolved one cannot be written).
 set -uo pipefail
 
 here="$(cd "$(dirname "$0")" && pwd)"
-target="${HYPR_DIR:-$HOME/.config/hypr}"
+_xdg_lib=""
+for _c in "$here/xdg-config.sh" \
+          "$here/../../../scripts/xdg-config.sh" \
+          "${CLAUDE_PLUGIN_ROOT:-}/scripts/xdg-config.sh"; do
+    if [ -n "$_c" ] && [ -f "$_c" ]; then _xdg_lib="$_c"; break; fi
+done
+if [ -z "$_xdg_lib" ]; then
+    echo "ERROR: the config-path library (scripts/xdg-config.sh) was not found next to $0, in \$CLAUDE_PLUGIN_ROOT/scripts, or in the plugin. Refusing to guess which directory to wipe." >&2
+    exit 4
+fi
+# shellcheck source=../../../scripts/xdg-config.sh
+. "$_xdg_lib"
+
+if ! xdg_config_target hypr "${HYPR_DIR:-}"; then
+    echo "RESET=refused-no-config-dir"
+    exit 4
+fi
+target="$XDG_CONFIG_TARGET"
+
+# 0. This script WIPES the target. Prove it is writable before anything else runs, so a
+#    permission problem is reported against the resolved path instead of half-emptying a
+#    directory - and never by silently reaching for another one.
+if [ -e "$target" ] && [ ! -d "$target" ]; then
+    echo "ERROR: reset target '$target' exists but is not a directory." >&2
+    echo "TARGET=${target}"
+    echo "RESET=refused-target-not-writable"
+    exit 4
+fi
+if [ -d "$target" ] && [ ! -w "$target" ]; then
+    echo "ERROR: reset target '$target' exists but cannot be written to (permission denied)." >&2
+    echo "       Nothing was changed. Fix the permissions on that directory and re-run." >&2
+    echo "TARGET=${target}"
+    echo "RESET=refused-target-not-writable"
+    exit 4
+fi
 
 # 1. Generate the bare config BEFORE touching anything. If the config language
 #    cannot be resolved, this refuses and the user's config is still there.
@@ -48,10 +96,12 @@ erc=$?
 printf '%s\n' "$emit_out"
 if [ "$erc" -eq 3 ]; then
     echo "Nothing was changed; ${target} is untouched."
+    echo "TARGET=${target}"
     echo "RESET=refused-undecided"
     exit 3
 fi
 if [ "$erc" -ne 0 ]; then
+    echo "TARGET=${target}"
     echo "RESET=refused-undecided"
     exit 2
 fi

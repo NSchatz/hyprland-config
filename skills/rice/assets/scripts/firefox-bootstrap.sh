@@ -30,7 +30,25 @@
 
 set -uo pipefail
 
-RICE_DIR="${RICE_DIR:-$HOME/.config/hypr-rice}"
+# Config-path library: next to this script when installed into $RICE_DIR, else in the plugin.
+# It is the one place this plugin decides where configuration lives.
+_xdg_lib=""
+for _c in "$(cd "$(dirname "$0")" && pwd)/xdg-config.sh" \
+          "$(cd "$(dirname "$0")" && pwd)/../../../../scripts/xdg-config.sh" \
+          "${CLAUDE_PLUGIN_ROOT:-}/scripts/xdg-config.sh"; do
+    if [ -n "$_c" ] && [ -f "$_c" ]; then _xdg_lib="$_c"; break; fi
+done
+if [ -z "$_xdg_lib" ]; then
+    echo "ERROR: the config-path library (xdg-config.sh) was not found next to $0, in \$CLAUDE_PLUGIN_ROOT/scripts, or in the plugin - re-run rice-init.sh." >&2
+    exit 2
+fi
+# shellcheck source=../../../../scripts/xdg-config.sh
+. "$_xdg_lib"
+if ! xdg_config_target hypr-rice "${RICE_DIR:-}"; then
+    echo "FIREFOX=refused-no-config-dir" >&2
+    exit 2
+fi
+RICE_DIR="$XDG_CONFIG_TARGET"
 ASSETS="${FIREFOX_ASSETS_DIR:-$RICE_DIR/browser}"
 auto_create=1
 profile_override=""

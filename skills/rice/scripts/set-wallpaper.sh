@@ -4,7 +4,9 @@
 # Persists hyprpaper.conf when hyprpaper is the backend. Does not touch the palette
 # (the `rice wallpaper` flow records the wallpaper path in palette.conf).
 #
-# Maintains ~/.config/hypr-rice/current-wallpaper as a symlink to the active image —
+# Maintains <config base>/hypr-rice/current-wallpaper as a symlink to the active image —
+# the base being $XDG_CONFIG_HOME when it is absolute and $HOME/.config otherwise; see
+# scripts/xdg-config.sh. $RICE_DIR and $HYPR_DIR still override outright —
 # the stable pointer every wallpaper consumer (autostart wallpaper-daemon exec-once,
 # hyprlock background, hypridle, widgets, dynamic-theme restore) references instead of
 # a literal path captured at generation time. Re-theme / re-pick changes one symlink,
@@ -22,7 +24,26 @@ case "$img" in /*) ;; *) img="$(cd "$(dirname "$img")" && pwd)/$(basename "$img"
 
 run() { if [ "$dry" -eq 1 ]; then echo "DRY: $*"; else eval "$*"; fi; }
 
-RICE_DIR="${RICE_DIR:-$HOME/.config/hypr-rice}"
+# Config-path library: next to this script when installed into $RICE_DIR, else in the plugin.
+_xdg_lib=""
+for _c in "$(cd "$(dirname "$0")" && pwd)/xdg-config.sh" \
+          "$(cd "$(dirname "$0")" && pwd)/../../../scripts/xdg-config.sh" \
+          "${CLAUDE_PLUGIN_ROOT:-}/scripts/xdg-config.sh"; do
+    if [ -n "$_c" ] && [ -f "$_c" ]; then _xdg_lib="$_c"; break; fi
+done
+if [ -z "$_xdg_lib" ]; then
+    echo "ERROR: the config-path library (xdg-config.sh) was not found next to $0, in \$CLAUDE_PLUGIN_ROOT/scripts, or in the plugin - re-run rice-init.sh." >&2
+    exit 2
+fi
+# shellcheck source=../../../scripts/xdg-config.sh
+. "$_xdg_lib"
+
+if ! xdg_config_target hypr-rice "${RICE_DIR:-}"; then
+    echo "SET_WALLPAPER=refused-no-config-dir" >&2
+    exit 2
+fi
+RICE_DIR="$XDG_CONFIG_TARGET"
+hypr_dir="$(xdg_config_path hypr "${HYPR_DIR:-}")" || hypr_dir=""
 link_current() {
     [ "$dry" -eq 1 ] && { echo "DRY: ln -sfn '$img' '$RICE_DIR/current-wallpaper'"; return; }
     mkdir -p "$RICE_DIR"
@@ -46,7 +67,14 @@ elif command -v hyprpaper >/dev/null 2>&1; then
     if [ "$dry" -eq 0 ]; then
         hyprctl hyprpaper preload "$img" >/dev/null 2>&1 || true
         hyprctl hyprpaper wallpaper ",$img" >/dev/null 2>&1 || true
-        printf 'preload = %s\nwallpaper = , %s\nsplash = false\n' "$img" "$img" > "$HOME/.config/hypr/hyprpaper.conf"
+        # No config dir, no persisted config: the live wallpaper is already set above, and a
+        # write to an unknown location is worse than none.
+        if [ -n "$hypr_dir" ]; then
+            mkdir -p "$hypr_dir"
+            printf 'preload = %s\nwallpaper = , %s\nsplash = false\n' "$img" "$img" > "$hypr_dir/hyprpaper.conf"
+        else
+            echo "HYPRPAPER_CONF_SKIPPED no config directory could be determined" >&2
+        fi
     else
         echo "DRY: hyprctl hyprpaper preload '$img' && wallpaper ',$img' && write hyprpaper.conf"
     fi

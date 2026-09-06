@@ -9,7 +9,11 @@
 #   migrate-config.sh --convert    accept the offer and perform the conversion.
 #
 # Env:
-#   HYPR_DIR          the config dir to convert  (default: ~/.config/hypr)
+#   HYPR_DIR          the config dir to convert  (explicit override; wins over
+#                     XDG_CONFIG_HOME). With no HYPR_DIR the dir is $XDG_CONFIG_HOME/hypr
+#                     when XDG_CONFIG_HOME is an absolute path and $HOME/.config/hypr when
+#                     it is unset, empty or relative - one decision, made in
+#                     scripts/xdg-config.sh and shared with every script here.
 #   HYPR_BACKUP_DIR   where the `.conf` backups are written (default: $HYPR_DIR)
 #
 # It REFUSES, changing nothing, when:
@@ -53,10 +57,11 @@
 #   BACKUP=<dir> / BACKED_UP=<path> / WROTE=<path> / KEPT=<path> / NOT_APPLIED=
 #   MIGRATE=ok | ok-with-unmapped | offered | nothing-to-convert
 #         | refused-existing-lua | refused-unparseable | refused-unresolvable-source
-#         | aborted-backup-failed
+#         | refused-no-config-dir | aborted-backup-failed
 #
 # Exit: 0 converted / offered / nothing to convert,
-#       2 bad usage, 3 refused (unparseable, or an unresolvable `source =`),
+#       2 bad usage or no config directory could be determined,
+#       3 refused (unparseable, or an unresolvable `source =`),
 #       4 refused (a lua config is already there), 5 aborted (backup failed).
 set -uo pipefail
 # Config values routinely contain `*` and `?` (window-rule regexes, exec commands).
@@ -68,20 +73,38 @@ mode="offer"
 case "${1:-}" in
     "")          ;;
     --convert)   mode="convert" ;;
-    -h|--help)   sed -n '2,62p' "$0"; exit 0 ;;
+    -h|--help)   sed -n '2,65p' "$0"; exit 0 ;;
     *)           echo "ERROR: usage: migrate-config.sh [--convert]" >&2; exit 2 ;;
 esac
 
 here="$(cd "$(dirname "$0")" && pwd)"
 # shellcheck source=config-language.sh
 source "$here/config-language.sh"
+_xdg_lib=""
+for _c in "$here/xdg-config.sh" \
+          "$here/../../../scripts/xdg-config.sh" \
+          "${CLAUDE_PLUGIN_ROOT:-}/scripts/xdg-config.sh"; do
+    if [ -n "$_c" ] && [ -f "$_c" ]; then _xdg_lib="$_c"; break; fi
+done
+if [ -z "$_xdg_lib" ]; then
+    echo "ERROR: the config-path library (scripts/xdg-config.sh) was not found next to $0, in \$CLAUDE_PLUGIN_ROOT/scripts, or in the plugin. Refusing to guess where your config lives." >&2
+    exit 2
+fi
+# shellcheck source=../../../scripts/xdg-config.sh
+. "$_xdg_lib"
 
-target="${HYPR_DIR:-${HOME:-}/.config/hypr}"
+if ! xdg_config_target hypr "${HYPR_DIR:-}"; then
+    echo "MIGRATE=refused-no-config-dir"
+    exit 2
+fi
+target="$XDG_CONFIG_TARGET"
 backup_dir="${HYPR_BACKUP_DIR:-$target}"
 main="$target/hyprland.conf"
-# The DEFAULT config dir a `source = ~/.config/hypr/...` line names, which is not
-# the same thing as the dir being converted when HYPR_DIR overrides it.
-home_config_dir="${HOME:-}/.config/hypr"
+# The dir a `source = ~/.config/hypr/...` line names, which is NOT the same thing as the
+# dir being converted. hyprlang expands a leading `~` to $HOME and nothing else - it has
+# never read XDG_CONFIG_HOME - so this stays literally $HOME/.config/hypr even when the
+# conversion target has moved. Rebasing it onto the target is convert_source's job, below.
+home_config_dir="${HOME:-}/.config/hypr"   # XDG-OK: what hyprlang's `~` means, not our target
 
 echo "TARGET=${target}"
 
@@ -417,11 +440,13 @@ convert_source() {
         /*)    ;;
         *)     p="$(dirname "$in")/$p" ;;
     esac
-    # HYPR_DIR override. Every writing script in this repo resolves its target as
-    # ${HYPR_DIR:-$HOME/.config/hypr}; a `source = ~/.config/hypr/...` line - the
-    # form this plugin's own generator writes - names the DEFAULT dir. Rebase it
-    # onto the dir actually being converted, or the two disagree and a perfectly
-    # good config looks unresolvable whenever HYPR_DIR is set.
+    # Target override. Every writing script in this repo resolves its target through
+    # scripts/xdg-config.sh (HYPR_DIR, else an absolute XDG_CONFIG_HOME, else
+    # $HOME/.config); a `source = ~/.config/hypr/...` line - the form this plugin's own
+    # generator writes - names $HOME/.config/hypr, because that is all hyprlang's `~`
+    # expansion can mean. Rebase it onto the dir actually being converted, or the two
+    # disagree and a perfectly good config looks unresolvable whenever the target has
+    # moved (HYPR_DIR set, or XDG_CONFIG_HOME pointing somewhere else).
     if [ -n "$home_config_dir" ] && [ "$target" != "$home_config_dir" ]; then
         case "$p" in
             "$home_config_dir"/*) p="${target}/${p#"$home_config_dir"/}" ;;
