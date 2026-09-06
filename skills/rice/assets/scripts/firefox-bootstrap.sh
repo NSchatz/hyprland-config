@@ -202,6 +202,19 @@ fi
 # recorded against this profile's absolute path before it is written, so `firefox-prefs.sh
 # remove` can take exactly those lines back off later. A pref already in the file is left alone
 # and is NOT recorded: this plugin did not set it and must not offer to remove it.
+
+# `ff_line_terminated <file>` - true when the file is empty or its last byte is a newline.
+# A `>>` append CONTINUES the last line of a file that does not end in one, which would glue a
+# preference this plugin sets onto the end of a line the user wrote: the line the record names
+# would then exist nowhere in the file, so the documented removal path could never take it back
+# off, and it would report the plugin's own write as one the user changed by hand. Command
+# substitution strips trailing newlines, so an unterminated last byte is the only thing that
+# comes back non-empty.
+ff_line_terminated() {
+    [ -s "$1" ] || return 0
+    [ -z "$(tail -c 1 "$1")" ]
+}
+
 if [ -f "$ASSETS/user.js" ]; then
     if rp_protect "$profile_dir/user.js"; then
         touch "$profile_dir/user.js"
@@ -216,6 +229,9 @@ if [ -f "$ASSETS/user.js" ]; then
                             pref_record_failed="$FP_LAST_ERROR"
                             break
                         fi
+                        # Terminate the user's last line first, and only when there is something
+                        # to append: a file this step adds nothing to is left byte-identical.
+                        ff_line_terminated "$profile_dir/user.js" || printf '\n' >> "$profile_dir/user.js"
                         printf '%s\n' "$line" >> "$profile_dir/user.js"
                         echo "FIREFOX_PREF_SET=$key"
                     fi

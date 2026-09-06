@@ -79,7 +79,7 @@ RP_LAST_COVER=""    # for a `covered` state: the enrolled surface that holds the
 # $XDG_STATE_HOME is the XDG base directory for state, and `$HOME/.local/state` is the default
 # the specification names when it is unset or empty.
 rp_state_root() {
-    printf '%s\n' "${XDG_STATE_HOME:-$HOME/.local/state}/hypr-rice"
+    printf '%s\n' "${XDG_STATE_HOME:-$HOME/.local/state}/hypr-rice"  # XDG-OK: this IS the one decision
 }
 
 # Where restore points live.

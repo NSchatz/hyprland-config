@@ -430,6 +430,10 @@ fi
 # $HOME/.config for itself has re-opened the split-resolution failure the spec names as the
 # irreversible one (a backup taken from directory A while a wipe empties directory B). Every
 # deliberate exception carries an `XDG-OK` marker saying why.
+#
+# The same rule for the STATE root ($HOME/.local/state, answered once by restore-point.sh's
+# rp_state_root): a second spelling is how a record gets written where `rice installs` and
+# `rice prefs` do not look. One scan, both bases, so neither can drift unnoticed.
 # =============================================================================================
 mapfile -t shipped < <(
     find "$PLUGIN_ROOT" -type f \( -name '*.sh' -o -name 'rice' \) \
@@ -437,24 +441,54 @@ mapfile -t shipped < <(
         -not -path '*/scripts/xdg-config.sh' \
     | sort
 )
-unmarked=""
-for f in "${shipped[@]}"; do
-    while IFS= read -r line; do
-        case "$line" in
-            *XDG-OK*) continue ;;
-        esac
-        # Comments describing the rule are prose, not a resolution.
-        body="${line#*:}"
-        case "$(printf '%s' "$body" | sed 's/^[[:space:]]*//')" in
-            '#'*) continue ;;
-        esac
-        unmarked+="$f: $line"$'\n'
-    done < <(grep -nE '\$\{?HOME[:}-]*\}?/\.config' "$f" || true)
-done
+scan_base() {   # <extended-regex> -> every unmarked, non-comment hit, one per line
+    local pattern="$1" f line body found=""
+    for f in "${shipped[@]}"; do
+        while IFS= read -r line; do
+            case "$line" in
+                *XDG-OK*) continue ;;
+            esac
+            # Comments describing the rule are prose, not a resolution.
+            body="${line#*:}"
+            case "$(printf '%s' "$body" | sed 's/^[[:space:]]*//')" in
+                '#'*) continue ;;
+            esac
+            found+="$f: $line"$'\n'
+        done < <(grep -nE "$pattern" "$f" || true)
+    done
+    printf '%s' "$found"
+}
+
+unmarked="$(scan_base '\$\{?HOME[:}-]*\}?/\.config')"
 if [ -z "$unmarked" ]; then
     pass "one decision: no shipped script resolves \$HOME/.config on its own (${#shipped[@]} scanned)"
 else
     fail "one decision: no shipped script resolves \$HOME/.config on its own" "$unmarked"
+fi
+
+unmarked="$(scan_base '\$\{?HOME[:}-]*\}?/\.local/state')"
+if [ -z "$unmarked" ]; then
+    pass "one decision: no shipped script resolves \$HOME/.local/state on its own (${#shipped[@]} scanned)"
+else
+    fail "one decision: no shipped script resolves \$HOME/.local/state on its own" "$unmarked"
+fi
+
+# The marker is an exception, not a licence. The deliberate state-root spellings are
+# rp_state_root (the decision itself) and the two library-missing fallbacks that mirror it word
+# for word; a marked line anywhere else is a fourth state root wearing a permission slip.
+stray=""
+while IFS= read -r hit; do
+    [ -n "$hit" ] || continue
+    case "${hit%%:*}" in
+        */scripts/restore-point.sh|*/scripts/install-record.sh|*/scripts/firefox-prefs.sh) continue ;;
+    esac
+    stray+="$hit"$'\n'
+done < <(grep -rn '\.local/state.*XDG-OK' --include='*.sh' --include='rice' "$PLUGIN_ROOT" 2>/dev/null \
+         | grep -v '/tests/' || true)
+if [ -z "$stray" ]; then
+    pass "one decision: only rp_state_root and its two library-missing fallbacks carry an XDG-OK marker"
+else
+    fail "one decision: only rp_state_root and its two library-missing fallbacks carry an XDG-OK marker" "$stray"
 fi
 
 rm -rf "$tmp"

@@ -130,6 +130,7 @@ re-implement the behaviour.
      sudo pacman -S --needed base-devel git rust    # rust is required to build paru, eww,
                                                     # swww/awww, wl-screenrec, matugen
      # Use the AUR `paru` package, not `paru-bin`
+     tmp="$(mktemp -d)"                             # a scratch clone dir, never a fixed path
      git clone https://aur.archlinux.org/paru.git "$tmp/paru"
      (cd "$tmp/paru" && makepkg -si --noconfirm)
      ```

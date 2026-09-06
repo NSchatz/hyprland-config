@@ -79,11 +79,16 @@ ir_state_dir() {
         printf '%s/installs\n' "$(rp_state_root)"
     else
         # Library absent (a partial install): the same answer, spelled once, as a last resort.
-        printf '%s\n' "${XDG_STATE_HOME:-${HOME:-}/.local/state}/hypr-rice/installs"
+        printf '%s\n' "${XDG_STATE_HOME:-${HOME:-}/.local/state}/hypr-rice/installs"  # XDG-OK: last resort, restore-point.sh absent
     fi
 }
 
-# A fresh record id: the timestamp, suffixed if one already exists for that second.
+# A fresh record id: the timestamp, plus an ordinal when a record already exists for that second.
+#
+# The ordinal is zero-padded because the identifier is also the sort key `ir_list` reads back:
+# "<base>-02" must sort after "<base>-01" as text, which "-2" and "-10" would not. Two records in
+# one second are ordinary - a re-run of an idempotent install.sh where everything is already
+# present finishes well inside a second - so this is the common path, not a corner.
 ir_new_id() {
     local base cand store n
     base="$(date +%Y%m%d-%H%M%S)" || return 1
@@ -91,7 +96,7 @@ ir_new_id() {
     cand="$base"
     n=1
     while [ -e "$store/$cand.tsv" ] && [ "$n" -lt 100 ]; do
-        cand="${base}-${n}"
+        cand="$(printf '%s-%02d' "$base" "$n")"
         n=$((n + 1))
     done
     printf '%s\n' "$cand"
@@ -197,19 +202,36 @@ ir_write() {
     return 0
 }
 
+# `ir_ids <store>` - the identifiers in a store, newest first.
+#
+# The order is taken over the IDENTIFIER, never over the file name. A second record minted in the
+# same second is "<base>-01", and "<base>-01.tsv" sorts BEFORE "<base>.tsv" ('-' is 0x2D, '.' is
+# 0x2E), so a descending sort over file names leads with the OLDER of the two - which is exactly
+# what "newest first" must not do. Over the identifiers, "<base>" is a prefix of "<base>-01" and
+# so sorts before it, and the padded ordinals sort among themselves. LC_ALL=C so that the
+# machine's locale cannot re-collate what the identifiers already order.
+ir_ids() {
+    local store="${1:-}" f base
+    [ -d "$store" ] || return 0
+    for f in "$store"/*.tsv; do
+        [ -f "$f" ] || continue
+        base="${f##*/}"
+        printf '%s\n' "${base%.tsv}"
+    done | LC_ALL=C sort -r
+}
+
 # `ir_list` - every recorded transaction, newest first. Says so plainly when there are none.
 ir_list() {
     local store f id found=0
     store="$(ir_state_dir)"
-    if [ -d "$store" ]; then
-        while IFS= read -r f; do
-            [ -s "$f" ] || continue
-            id="$(basename "$f" .tsv)"
-            printf '%s\t%s\t%s\n' "$id" "$(ir_summary_line "$f")" \
-                "route=$(sed -n 's/^# route\t//p' "$f" | head -n1)"
-            found=1
-        done < <(find "$store" -mindepth 1 -maxdepth 1 -name '*.tsv' -type f 2>/dev/null | sort -r)
-    fi
+    while IFS= read -r id; do
+        [ -n "$id" ] || continue
+        f="$store/$id.tsv"
+        [ -s "$f" ] || continue
+        printf '%s\t%s\t%s\n' "$id" "$(ir_summary_line "$f")" \
+            "route=$(sed -n 's/^# route\t//p' "$f" | head -n1)"
+        found=1
+    done < <(ir_ids "$store")
     if [ "$found" -eq 0 ]; then
         echo "(no install has been recorded yet, under $store)"
     fi

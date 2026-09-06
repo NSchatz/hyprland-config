@@ -78,7 +78,8 @@ fp_record_file() {
     elif command -v rp_state_root >/dev/null 2>&1; then
         printf '%s/browser-prefs.tsv\n' "$(rp_state_root)"
     else
-        printf '%s\n' "${XDG_STATE_HOME:-${HOME:-}/.local/state}/hypr-rice/browser-prefs.tsv"
+        # Library absent (a partial install): the same answer, spelled once, as a last resort.
+        printf '%s\n' "${XDG_STATE_HOME:-${HOME:-}/.local/state}/hypr-rice/browser-prefs.tsv"  # XDG-OK: last resort, restore-point.sh absent
     fi
 }
 

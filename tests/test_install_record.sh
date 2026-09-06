@@ -185,14 +185,58 @@ lst="$(PATH="$stub:$BIN_PATH" bash "$IR" list 2>&1)"
 assert_out_has "$rec_id" "$lst" "AC-6: the listing names the record just written"
 assert_out_has "1 installed" "$lst" "AC-6: the listing summarises what the transaction did"
 
-# A second, later record must list ABOVE the first one.
-sleep 1
+# A second, later record must list ABOVE the first one. Deliberately with NO `sleep` between the
+# two installs: an ordering that holds only when the wall clock happens to tick between two
+# transactions is not the ordering AC-6 asks for, and a re-run of an idempotent install.sh
+# finishes well inside a second.
 mk_arch_stubs "$stub" "waybar kitty rofi" "kitty waybar paru" "wl-screenrec"
 out2="$(PATH="$stub:$BIN_PATH" bash "$IP" --route package-list --noconfirm rofi 2>&1)"
 id2="$(field INSTALL_RECORD_ID "$out2")"
 lst="$(PATH="$stub:$BIN_PATH" bash "$IR" list 2>&1)"
 first_listed="$(printf '%s\n' "$lst" | head -n1 | cut -f1)"
 assert_eq "$id2" "$first_listed" "AC-6: the listing is newest first"
+
+# Two records in the SAME second, made to collide by construction rather than by luck: a frozen
+# `date` is the only way to assert this every run instead of on whichever machine is fast enough.
+# The ordinal that disambiguates them is also the sort key the listing reads back, so the newer
+# one has to lead - and `show` has to keep finding it under the identifier it was given.
+s6="$tmp/s6"; store6="$s6/store"; dstub="$s6/stubs"
+mkdir -p "$dstub"
+cat > "$dstub/date" <<'STUB'
+#!/usr/bin/env bash
+if [ "${1:-}" = "+%Y%m%d-%H%M%S" ]; then printf '20260101-121212\n'; exit 0; fi
+for d in /usr/bin/date /bin/date; do [ -x "$d" ] && exec "$d" "$@"; done
+exit 127
+STUB
+chmod +x "$dstub/date"
+
+o1="$(printf 'installed\tfirst-package\trepo\t\n' \
+      | RICE_INSTALL_RECORD_DIR="$store6" PATH="$dstub:$BIN_PATH" bash "$IR" record --route install.sh 2>&1)"
+o2="$(printf 'installed\tsecond-package\trepo\t\n' \
+      | RICE_INSTALL_RECORD_DIR="$store6" PATH="$dstub:$BIN_PATH" bash "$IR" record --route package-list 2>&1)"
+same1="$(field INSTALL_RECORD_ID "$o1")"
+same2="$(field INSTALL_RECORD_ID "$o2")"
+assert_eq "20260101-121212" "$same1" "AC-6: the first record of a second is the plain timestamp"
+assert_eq "20260101-121212-01" "$same2" "AC-6: a record minted in the same second takes an ordinal that sorts after it"
+lst6="$(RICE_INSTALL_RECORD_DIR="$store6" PATH="$BIN_PATH" bash "$IR" list 2>&1)"
+assert_eq "$same2" "$(printf '%s\n' "$lst6" | head -n1 | cut -f1)" \
+    "AC-6: two records written in the same second still list newest first"
+shown6="$(RICE_INSTALL_RECORD_DIR="$store6" PATH="$BIN_PATH" bash "$IR" show "$same2" 2>&1)"; s6rc=$?
+assert_eq "0" "$s6rc" "AC-6: show <id> still finds a record whose identifier carries an ordinal"
+assert_out_has "second-package" "$shown6" "AC-6: it shows that record, not the other one from the same second"
+
+# Ten transactions in one second: the ordinal is zero-padded precisely so "-10" sorts after
+# "-02" as text. Built by hand so the assertion is about the ORDER, not about minting speed.
+store7="$tmp/s7/store"; mkdir -p "$store7"
+for n in "" -01 -02 -03 -04 -05 -06 -07 -08 -09 -10; do
+    printf '# route\tinstall.sh\ninstalled\tpkg%s\trepo\t\n' "${n:-00}" > "$store7/20260101-121212$n.tsv"
+done
+lst7="$(RICE_INSTALL_RECORD_DIR="$store7" PATH="$BIN_PATH" bash "$IR" list 2>&1)"
+assert_eq "20260101-121212-10" "$(printf '%s\n' "$lst7" | head -n1 | cut -f1)" \
+    "AC-6: the tenth record of a second leads the listing"
+assert_eq "20260101-121212" "$(printf '%s\n' "$lst7" | tail -n1 | cut -f1)" \
+    "AC-6: the first record of that second is listed last"
+assert_eq "11" "$(printf '%s\n' "$lst7" | grep -c .)" "AC-6: every record in the store is listed"
 
 shown="$(PATH="$stub:$BIN_PATH" bash "$IR" show "$rec_id" 2>&1)"; srr=$?
 assert_eq "0" "$srr" "AC-6: show <id> prints that record"
