@@ -29,6 +29,15 @@ jobs:
       - name: Run test suite
         run: bash tests/run.sh
 
+      # The reference layer's version-cliff ledger, checked offline. This FAILS THE
+      # BUILD on a record with no upstream citation, on a citation that does not
+      # resolve to a specific artifact, and on a cliff asserted outside the ledger.
+      # Staleness against the newest release is REPORTED here and never fails on its
+      # own: upstream shipping a release is not a defect in this repo, and a build
+      # that goes red the day Hyprland tags a version teaches people to ignore it.
+      - name: Currency check (citations fail the build, staleness reports)
+        run: bash skills/rice/scripts/currency-check.sh
+
   integration:
     name: Hyprland headless integration
     runs-on: ubuntu-latest

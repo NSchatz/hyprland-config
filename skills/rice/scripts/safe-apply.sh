@@ -6,7 +6,13 @@
 #   <staging-dir>  Directory of generated *.conf files (same input as install-config.sh).
 #
 # Flow:
-#   0. preflight-config.sh -> the compositor's own OFFLINE check, against the staged
+#   0. validate-removed-keys.sh -> STATIC check of the staged files against the
+#                             version-cliff ledger's removed-key table. Runs FIRST,
+#                             before the compositor is consulted at all, because it
+#                             needs neither a binary nor a session: its verdict is
+#                             reached on hosts where the offline check can only say
+#                             `unverified`. Nothing is backed up or written behind it.
+#   0b. preflight-config.sh -> the compositor's own OFFLINE check, against the staged
 #                             files, in a sandbox. Runs before any backup and any
 #                             write, so a bad config is refused with the user's
 #                             the resolved config dir never touched.
@@ -45,6 +51,13 @@
 #                                     invocation). Nothing was changed. Distinct from
 #                                     preflight-failed on purpose: nothing was checked,
 #                                     so nothing was found wrong
+#   SAFE_APPLY=removed-keys-failed    the staged config sets a key the reference layer
+#                                     documents as REMOVED at the target version, where
+#                                     it is a hard parse error. Nothing was checked by
+#                                     the compositor, nothing was backed up, nothing was
+#                                     written; the target is untouched. The REMOVED_KEY=
+#                                     lines above name the key, the staged file and line,
+#                                     and the release that removed it
 #   SAFE_APPLY=refused                install-config.sh REFUSED and changed nothing: the
 #                                     target already holds a hyprland.lua that would shadow
 #                                     a hyprlang .conf, the target is unwritable, or the
@@ -87,7 +100,26 @@ if ! xdg_config_target hypr "${HYPR_DIR:-}"; then
 fi
 target="$XDG_CONFIG_TARGET"
 
-# 0. Preflight: the compositor's own offline check, against the STAGED files.
+# 0. Removed keys: a STATIC read of the staged files against the version-cliff
+#    ledger. First, and deliberately independent of everything below it - it needs
+#    no compositor, so a host that can only report `preflight-unverified` still gets
+#    a real verdict here. An unknown target version is NOT a refusal: whether a key
+#    is removed depends entirely on the target, so with no target the check reports
+#    that it reached no verdict and the apply carries on to the nets that do not
+#    need one. Refusing there would lock a user out of applying their own config.
+rk_out="$(bash "$here/validate-removed-keys.sh" "$staging" 2>&1)"
+rkrc=$?
+printf '%s\n' "$rk_out"
+if [ "$rkrc" -eq 1 ]; then
+    echo "Nothing was installed and nothing was backed up; ${target} is untouched."
+    echo "SAFE_APPLY=removed-keys-failed (the staged config sets a key removed at the target version)"
+    exit 2
+fi
+if [ "$rkrc" -eq 3 ]; then
+    echo "The removed-key check reached NO verdict (the target version is unknown); the checks below do not depend on one."
+fi
+
+# 0b. Preflight: the compositor's own offline check, against the STAGED files.
 #    Nothing below this point runs until it says the config is worth installing.
 #    A host with no offline check available reports `unverified` and falls through
 #    to the install/live-test/rollback path with its behaviour unchanged - that is

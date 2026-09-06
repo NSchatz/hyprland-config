@@ -508,18 +508,30 @@ omit both the env var and the `exec-once` line.
    (`rice installs <id>` prints it back). If the agent reports the record as `unwritten`, say so
    in as many words and include the printed transaction in the report: it exists nowhere else.
 4. **Safe install (Hyprland):** `bash "${CLAUDE_PLUGIN_ROOT}/skills/rice/scripts/safe-apply.sh" /tmp/hypr-gen-<id>`
-   It **preflights the staged config offline first**, then timestamp-backs up the **entire**
+   It **checks the staged config for keys removed at the target version, then preflights it
+   offline**, then timestamp-backs up the **entire**
    `~/.config/hypr`, installs, then `hyprctl reload` + `configerrors` + "is the file I wrote the
    one you loaded", and **auto-rolls-back** if the new config fails. Read the final `SAFE_APPLY=`
    line: `ok` (installed, clean, and the compositor confirms it is what it loaded),
    `rolled-back` (errors shown; restored, so fix + retry),
    `installed-untested` (no running Hyprland; test next login), `refused` (install-config.sh
    declined and changed **nothing**: read the `REFUSED=`/`SHADOWED_BY=` lines above it),
-   `preflight-failed`/`preflight-uncheckable`/`unconfirmed` (below),
+   `removed-keys-failed`/`preflight-failed`/`preflight-uncheckable`/`unconfirmed` (below),
    `install-failed`/`errors-no-backup` (surface + stop). Relay the `BACKUP=` and
    `CONFIG_LANGUAGE=` lines. Respect a `HYPR_DIR` override. (`install-config.sh` /
    `verify-config.sh` / `preflight-config.sh` exist for running a step alone, see
    `hyprland-reference/references/testing.md`.)
+   - **`SAFE_APPLY=removed-keys-failed`**: the staged config sets a key that
+     `references/_shared/version-matrix.md` records as REMOVED at or before the target version,
+     where it is a hard parse error. This runs FIRST, before the compositor is consulted at all,
+     so nothing was checked by Hyprland, nothing was backed up and nothing was written;
+     `~/.config/hypr` is byte-identical. Each `REMOVED_KEY=` line above names the key, the staged
+     file and line, and the release that removed it - open those paths, drop or rename the key
+     (the line names the replacement), re-run. This check needs no compositor, so it is the one
+     that still answers on a host where `PREFLIGHT=unverified`. A `REMOVED_KEYS=unknown-target-version`
+     line is **not** a refusal: the target version could not be read, so no verdict was reached
+     and the apply carried on to the checks that do not need one. Say "not checked for removed
+     keys", never "checked and clean".
    - **`SAFE_APPLY=preflight-failed`**: the compositor's own offline check
      (`Hyprland --verify-config`) parsed the **staged** files and found errors, so the apply
      stopped before any backup and any write. `~/.config/hypr` is byte-identical; there is
