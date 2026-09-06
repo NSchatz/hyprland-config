@@ -2,6 +2,41 @@
 
 ## Unreleased
 
+Write where the platform says the config lives (roadmap phase XDG-6).
+
+Hyprland reads `$XDG_CONFIG_HOME/hypr/hyprland.lua`; `~/.config/hypr` is only the common case.
+Every script here resolved `$HOME/.config` unconditionally, so a user who had moved
+`XDG_CONFIG_HOME` was told their desktop was configured while nothing about their desktop
+changed - the plugin had backed up, installed, live-tested and reported success against a
+directory the compositor never reads.
+
+- **`scripts/xdg-config.sh`** (new) is the one place this plugin decides where configuration
+  lives: an explicit override (`HYPR_DIR`, `RICE_DIR`) wins outright, else `$XDG_CONFIG_HOME`
+  when it is an **absolute** path, else `$HOME/.config`, else it refuses and writes nothing. A
+  *relative* `XDG_CONFIG_HOME` is invalid rather than merely unusual (the XDG base directory
+  specification says an implementation "should consider the path invalid and ignore it"), so it
+  is ignored - and the fallback is announced with `XDG_CONFIG_HOME_IGNORED=` plus the absolute
+  path actually used, never taken in silence.
+- It is one decision on purpose. `install-config.sh`, `backup-config.sh`, `safe-apply.sh`,
+  `reset-config.sh` and `migrate-config.sh` each used to resolve their own target; five
+  resolutions is how a backup gets taken from directory A while the reset wipes directory B,
+  and that wipe has no inverse. They now share one answer, and `tests/test_xdg_config_home.sh`
+  fails the build if any shipped script starts spelling `$HOME/.config` for itself again.
+- The **themed** surfaces follow too, not just `hypr`: the rice state directory
+  (`rice-init.sh`, `render-templates.sh`, `set-wallpaper.sh`, `palette-from-wallpaper.sh`, the
+  `rice` CLI) and a render manifest row whose output column reads `~/.config/<app>/...`. The
+  **cache** destination is untouched - `~/.cache/hypr-rice/lock-blur.png` is `XDG_CACHE_HOME`'s
+  base directory, a separate variable with a separate default, and this change is the config
+  one only.
+- **Reporting**: `backup-config.sh` now prints `TARGET=<dir>` (it printed only `BACKUP=`), and
+  `reset-config.sh` prints it on its refusal paths as well as its write path, so every script
+  that reports a write also says where. `safe-apply.sh`'s parse of `install-config.sh`'s
+  `TARGET=` line is unchanged.
+- **Fail-safes** on the way: `reset-config.sh` proves the resolved directory is writable
+  *before* it wipes anything (`RESET=refused-target-not-writable`), and `backup-config.sh`
+  reports a failed copy against the resolved path instead of dying with a bare `cp` error.
+  Neither ever falls back to another directory.
+
 Prove the config parses before writing a byte of it (roadmap phase PREFLIGHT-5).
 
 `safe-apply.sh` installed first and tested second, so every failure path started from a machine

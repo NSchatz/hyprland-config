@@ -7,7 +7,10 @@
 tmp="$(mktemp_test_dir render-templates)"
 trap 'rm -rf "$tmp"' EXIT
 
-# Sandbox HOME + the engine dir so nothing touches the user's real ~/.config.
+# Sandbox HOME + the engine dir so nothing touches the user's real config dir. XDG_CONFIG_HOME
+# goes with HOME: a `~/.config/...` manifest row now resolves under the config base, so leaving
+# an inherited XDG_CONFIG_HOME in place would send this test's writes outside its sandbox.
+unset XDG_CONFIG_HOME
 export HOME="$tmp"
 export RICE_DIR="$HOME/.config/hypr-rice"
 export CLAUDE_PLUGIN_ROOT="$PLUGIN_ROOT"

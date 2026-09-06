@@ -1,12 +1,32 @@
 #!/usr/bin/env bash
-# Generate ~/.config/hypr-rice/palette.conf from a wallpaper, using an installed generator.
+# Generate <config base>/hypr-rice/palette.conf from a wallpaper, using an installed generator.
+# The base is $RICE_DIR when set, else $XDG_CONFIG_HOME when it is an absolute path, else
+# $HOME/.config - one decision, made in scripts/xdg-config.sh.
 # Order of preference: matugen (Material You) > wallust / pywal (16-color, pywal-compatible JSON).
 # Best-effort: on failure it keeps the existing palette and reports.
 #
 # Usage: palette-from-wallpaper.sh <image>
 set -uo pipefail
 
-RICE_DIR="${RICE_DIR:-$HOME/.config/hypr-rice}"
+# Config-path library: next to this script when installed into $RICE_DIR, else in the plugin.
+_xdg_lib=""
+for _c in "$(cd "$(dirname "$0")" && pwd)/xdg-config.sh" \
+          "$(cd "$(dirname "$0")" && pwd)/../../../scripts/xdg-config.sh" \
+          "${CLAUDE_PLUGIN_ROOT:-}/scripts/xdg-config.sh"; do
+    if [ -n "$_c" ] && [ -f "$_c" ]; then _xdg_lib="$_c"; break; fi
+done
+if [ -z "$_xdg_lib" ]; then
+    echo "ERROR: the config-path library (xdg-config.sh) was not found next to $0, in \$CLAUDE_PLUGIN_ROOT/scripts, or in the plugin - re-run rice-init.sh." >&2
+    exit 2
+fi
+# shellcheck source=../../../scripts/xdg-config.sh
+. "$_xdg_lib"
+
+if ! xdg_config_target hypr-rice "${RICE_DIR:-}"; then
+    echo "PALETTE=refused-no-config-dir" >&2
+    exit 2
+fi
+RICE_DIR="$XDG_CONFIG_TARGET"
 img="${1:-}"
 [ -n "$img" ] || { echo "ERROR: usage: palette-from-wallpaper.sh <image>" >&2; exit 2; }
 case "$img" in "~"*) img="${HOME}${img#\~}";; esac

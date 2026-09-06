@@ -31,10 +31,19 @@ if [ "$#" -eq 0 ]; then
 fi
 
 here="$(cd "$(dirname "$0")" && pwd)"
+# Resolve $RICE_DIR the one way the plugin resolves it, so the last-resort lookup below
+# still finds an engine a user installed under a moved XDG_CONFIG_HOME.
+rice_dir="${RICE_DIR:-}"
+if [ -z "$rice_dir" ] && [ -f "$here/xdg-config.sh" ]; then
+    # shellcheck source=xdg-config.sh
+    . "$here/xdg-config.sh"
+    rice_dir="$(xdg_config_path hypr-rice)" || rice_dir="${HOME:-}/.config/hypr-rice"   # XDG-OK: fallback only
+fi
+[ -n "$rice_dir" ] || rice_dir="${HOME:-}/.config/hypr-rice"   # XDG-OK: library absent, legacy answer
 lib=""
 for c in "$here/restore-point.sh" \
          "${CLAUDE_PLUGIN_ROOT:-}/scripts/restore-point.sh" \
-         "${RICE_DIR:-$HOME/.config/hypr-rice}/restore-point.sh"; do
+         "$rice_dir/restore-point.sh"; do
     if [ -n "$c" ] && [ -f "$c" ]; then lib="$c"; break; fi
 done
 if [ -z "$lib" ]; then

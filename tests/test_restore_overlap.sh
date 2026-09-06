@@ -18,6 +18,9 @@
 tmp="$(mktemp_test_dir restore-overlap)"
 trap 'chmod -R u+rwX "$tmp" 2>/dev/null; rm -rf "$tmp"' EXIT
 
+# XDG_CONFIG_HOME goes with HOME: a `~/.config/...` path now resolves under the config base,
+# so an inherited value would send this test's writes outside its sandbox.
+unset XDG_CONFIG_HOME
 export HOME="$tmp"
 export RICE_DIR="$HOME/.config/hypr-rice"
 export CLAUDE_PLUGIN_ROOT="$PLUGIN_ROOT"
