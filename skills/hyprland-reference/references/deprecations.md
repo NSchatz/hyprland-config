@@ -117,10 +117,13 @@ older targets that reject the block form, keep the single-line form.
 |-------------------------------------|---------------------------------|
 | `bind = $m, J, togglesplit`         | `bind = $m, J, layoutmsg, togglesplit` (split toggle is a layout message) |
 
-## Removed / moved in 0.55 (latest stable)
+## Removed / moved in 0.55
 
-Hyprland 0.55 (latest stable upstream; this machine runs 0.54.3) dropped or relocated several
-options. Flag these when auditing a config that targets 0.55+:
+Hyprland 0.55 dropped or relocated several options. This section REFERENCES the cliff; the record
+and its citation live in the version-cliff ledger
+(`${CLAUDE_PLUGIN_ROOT}/skills/rice/references/_shared/version-matrix.md`), which also carries the
+newest upstream release this repo has been reconciled against. Flag these when auditing a config
+that targets 0.55+:
 
 | Old (≤0.54)                       | 0.55+                                                        |
 |-----------------------------------|-------------------------------------------------------------|

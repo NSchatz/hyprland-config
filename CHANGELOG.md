@@ -177,6 +177,54 @@ compositor never read. This release closes that.
   (`bash tests/run.sh lua`), plus `tests/test_regress_0018_F1/F2/F3.sh`
   (`bash tests/run.sh regress_0018`), which pin the three holes the implementation review found.
 
+### The reference layer can now be wrong out loud (roadmap phase CURRENCY-8)
+
+Every version claim this plugin ships is a claim about someone else's software, and until now
+none of them named the upstream that decided it and nothing noticed when one fell behind. A claim
+could rot for four releases in silence. The promise here is not that the reference layer is always
+current - nobody can keep that - but that the repo knows when it is not.
+
+- **`references/_shared/version-matrix.md` is now a declared LEDGER, not a summary.** Its new
+  "Version-cliff record format" section says what a version-cliff record is, that a cliff is
+  RECORDED there and only REFERENCED elsewhere, and what a citation has to resolve to: an `https`
+  URL naming a specific artifact - a release tag, a commit, a pull request, a wiki page - and not
+  a version number, a bare project name or a repository root. Both cliff tables carry a `Source`
+  column and **every one of the 25 records is cited**. Two new metadata rows carry the newest
+  upstream release the ledger has been reconciled against and the oldest Hyprland the rice
+  targets.
+- **The one row that could not be cited is gone.** The `kernel 6.8` external row said of itself
+  "rumored; couldn't verify primary source" and then said its own conclusion was moot because
+  Hyprland dropped wlroots. Nothing was lost by deleting it: the `0.42+` aquamarine row already
+  records that break, cites it, and already names `gaming` as the component that must not emit
+  `WLR_DRM_NO_ATOMIC`.
+- **`scripts/currency-check.sh`** (new) reads that ledger offline and deterministically. It FAILS
+  on a record with no citation, on a citation that does not resolve to an artifact, and on a
+  Hyprland cliff asserted in a component file that the ledger does not record. It REPORTS, without
+  failing, every record whose newest confirmed release is older than the newest release it was
+  given - and prose that calls an older release the latest stable, which is the exact sentence
+  `deprecations.md` carried for four releases. The newest release is an INPUT (`--newest-release`,
+  else the ledger's own metadata row); the check never fetches anything. No release supplied and
+  none readable, zero records matched, and a configured file it cannot read are each a loud
+  non-zero with the reason named, never a clean report.
+- **`scripts/validate-removed-keys.sh`** (new) reads the ledger's derived removed-key table and
+  refuses to install a generated config that sets a key removed at or before the target version,
+  naming the key, the staged file and line, and the release that removed it. It is version-aware,
+  not a blanket ban: the same config that is refused for a 0.55 target passes for 0.54, where the
+  key is valid. It is static - no Hyprland binary, no running compositor - so it reaches a real
+  verdict on hosts where `preflight-config.sh` can only say `unverified`. When the target version
+  cannot be determined it says so and reports NO verdict rather than assuming one, exactly as
+  `config-language.sh` refuses to guess a language.
+- **`safe-apply.sh` runs it first**, ahead of the offline preflight and ahead of any backup or
+  write, with its own outcome word `SAFE_APPLY=removed-keys-failed`. A refusal leaves the resolved
+  config directory byte-identical and takes no backup. An unknown target version is deliberately
+  NOT a refusal: whether a key is removed depends entirely on the target, and locking a user out
+  of applying their own config over a version this plugin could not read would be the worse
+  failure.
+- **CI runs the currency check** on every push and pull request, failing the build on an uncited
+  or unresolvable citation and reporting staleness without failing on it alone.
+- **Tests:** `tests/test_currency_citations.sh`, `tests/test_currency_staleness.sh`,
+  `tests/test_currency_removed_keys.sh` (`bash tests/run.sh currency`).
+
 ## 0.22.0
 
 Restore points. Everything the rice writes on a machine **outside** `~/.config/hypr` can now be
