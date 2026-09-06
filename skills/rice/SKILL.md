@@ -352,14 +352,48 @@ for u in "${utils[@]}"; do …; done
 ```
 
 (The actual mapping tables live in each `components/<x>/packages.md` — iterate the JSON, look up
-the right slice, emit names.) The emitted script **auto-routes at runtime** — it loops over `PKGS`,
-sends whatever `pacman -Si` knows to `pacman` and the rest to a detected `paru`/`yay` helper — so
-you never have to classify repo-vs-AUR (drift-proof), and `--needed` makes it idempotent (non-pacman
-systems just get the name list). The `login-boot` component's `packages.md` slice goes in a
+the right slice, emit names.) The `login-boot` component's `packages.md` slice goes in a
 commented `sudo` block; the `plugins` component's hyprpm entries go in the separate commented
 hyprpm section (never inline) with the build toolchain added to `PKGS`. Stage it at
 `<staging>/install.sh` (installs to `~/.config/hypr/install.sh`, travels with the config + its
 backup, version-controls with the dotfiles skill) and `chmod +x` it.
+
+**The emitted script resolves the list; it does NOT implement the install.** Routing repo-vs-AUR,
+the AUR-helper bootstrap and its disclosure, the non-Arch skip and the install record all live in
+one shipped routine, `install-packages.sh`, which the installer agent calls for an ad-hoc list
+too. That is what makes a scripted install and an ad-hoc one leave the SAME record in the same
+place: a record only one route writes is a record the user cannot rely on. So the tail of every
+emitted `install.sh` is this shape, verbatim:
+
+```bash
+# The one install routine: routing, the AUR-helper disclosure, and the record that says what
+# this put on the machine. Installed beside the engine by rice-init.sh, so this script still
+# works on a new machine without the plugin.
+#
+# Never spell $HOME/.config here. This script is installed INTO the hypr config dir, so the
+# rice dir is its sibling whatever the user set XDG_CONFIG_HOME to - which is the same answer
+# scripts/xdg-config.sh gives, arrived at without re-deciding it.
+_here="$(cd "$(dirname "$0")" && pwd)"
+INSTALLER=""
+for c in "${RICE_DIR:+$RICE_DIR/install-packages.sh}" \
+         "$_here/../hypr-rice/install-packages.sh" \
+         "${CLAUDE_PLUGIN_ROOT:-}/scripts/install-packages.sh"; do
+    [ -n "$c" ] && [ -f "$c" ] && { INSTALLER="$c"; break; }
+done
+if [ -z "$INSTALLER" ]; then
+    echo "ERROR: install-packages.sh not found (looked beside this script's rice dir and in" >&2
+    echo "       \$CLAUDE_PLUGIN_ROOT/scripts). Nothing was installed: an install that leaves no" >&2
+    echo "       record is not something this script does. Re-run rice-init.sh, then re-run this." >&2
+    exit 2
+fi
+bash "$INSTALLER" --route install.sh "${PKGS[@]}"
+echo "Done"
+```
+
+`--needed` idempotence, the `pacman -Si` partition, one-at-a-time AUR installs and the non-Arch
+name-list-only behaviour are all inside that routine: do not re-spell any of them in the emitted
+script. A re-run is safe and produces a second record showing everything as already present,
+which is exactly what it should say.
 
 The script is **also what A5 runs** to do the actual install — once written, you don't author a
 separate install path.
@@ -459,11 +493,20 @@ omit both the env var and the `exec-once` line.
    `# installed` annotations) and ask once with `AskUserQuestion` to confirm the install batch
    ("Install N packages now? Yes / No, I'll run install.sh later"). On yes, delegate to the
    **hyprland-package-installer** agent (Agent tool) passing the staged `install.sh`; it runs the
-   script, handles `paru`/`yay` detection (offering to install one if missing), distinguishes
-   transient retries from real failures, and returns a structured `INSTALL=ok|partial|failed`
-   verdict + the package list. On `partial`/`failed`, surface what failed and ask whether to proceed
-   with the config install anyway (some failures are non-blocking — e.g. an optional utility); the
-   user can re-run `install.sh` later. On no, skip ahead and surface the `install.sh` path in A6.
+   script, handles `paru`/`yay` detection (asking before it BUILDS one from source, naming the
+   package and the AUR URL), distinguishes transient retries from real failures, and returns a
+   structured `INSTALL=ok|partial|failed|declined-aur-build|skipped (non-arch)` verdict + the
+   package list + `Record:`, the path of the durable install record. On `partial`/`failed`,
+   surface what failed and ask whether to proceed with the config install anyway (some failures
+   are non-blocking, e.g. an optional utility); the user can re-run `install.sh` later. On
+   `declined-aur-build`, nothing was cloned or built and the AUR picks did not install: that is a
+   choice, not a fault, so report it plainly and carry on with what did install. On no, skip ahead
+   and surface the `install.sh` path in A6.
+
+   **Relay the record.** Packages are the one thing this whole flow does that a restore cannot
+   undo, so the record is what the user is owed: pass the `Record:` path and its id through to A6
+   (`rice installs <id>` prints it back). If the agent reports the record as `unwritten`, say so
+   in as many words and include the printed transaction in the report: it exists nowhere else.
 4. **Safe install (Hyprland):** `bash "${CLAUDE_PLUGIN_ROOT}/skills/rice/scripts/safe-apply.sh" /tmp/hypr-gen-<id>`
    It **preflights the staged config offline first**, then timestamp-backs up the **entire**
    `~/.config/hypr`, installs, then `hyprctl reload` + `configerrors` + "is the file I wrote the
@@ -554,6 +597,25 @@ truth), and how to restore the backup (`rm -rf ~/.config/hypr && cp -a ~/.config
 files) goes back with `rice restore <apply-id>`, using the `RESTORE_POINT=`/`RICE_APPLY_ID` value
 from A4. `rice restore --list` shows what is still undoable. It is a different mechanism from the
 Hyprland-dir backup above, on purpose: that directory keeps its own separate restore.
+
+**Say what a restore does NOT take back, and where the account of it is.** Two things outlive the
+apply, and both have their own surface:
+
+- **The packages.** Report the install record: `rice installs` lists every transaction newest
+  first and `rice installs <id>` prints one in full: every package installed, every one already
+  present, every one that failed with its reason, and any AUR helper built from source with the
+  URL it came from. It stays on the machine. Nothing here uninstalls anything: removing software
+  the user may now depend on is their decision, and the record is what makes it an informed one.
+- **The Firefox preferences**, if the browser theming ran. `firefox-bootstrap.sh` merged
+  `toolkit.legacyUserProfileCustomizations.stylesheets` and `browser.startup.page` into
+  `<profile>/user.js` (it prints `FIREFOX_PREF_SET=<key>` for each one it actually added).
+  Firefox re-applies those at every start and does not show them as changed in its own UI, so a
+  restore cannot undo them. Tell the user the way back: `rice prefs` shows what was set and
+  where, `rice prefs remove` takes exactly those lines off (backing the file up first, leaving
+  every other line byte-identical, and leaving alone any line they have changed by hand). Say the
+  consequence too: without
+  `toolkit.legacyUserProfileCustomizations.stylesheets` the browser theming stops working
+  entirely. Details in `references/components/browser/template.md`.
 
 If the user declined the install batch at A5, point them at `~/.config/hypr/install.sh` so the bar,
 wallpaper daemon, and notification daemon below have something to launch (it's idempotent — safe to

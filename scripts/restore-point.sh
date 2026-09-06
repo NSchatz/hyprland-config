@@ -72,12 +72,22 @@ RP_LAST_BACKUP=""   # the sidecar holding the prior content (empty when there wa
 RP_LAST_ID=""       # the apply id the last rp_protect enrolled under
 RP_LAST_COVER=""    # for a `covered` state: the enrolled surface that holds the prior content
 
+# Where this plugin's durable per-machine state lives - the base every state surface hangs off
+# (restore points, the install record, the browser-preference record). One answer, in one place,
+# for the same reason xdg-config.sh is the one answer for configuration: a second script spelling
+# its own `$HOME/.local/state` is how a record gets written where nothing later reads it.
+# $XDG_STATE_HOME is the XDG base directory for state, and `$HOME/.local/state` is the default
+# the specification names when it is unset or empty.
+rp_state_root() {
+    printf '%s\n' "${XDG_STATE_HOME:-$HOME/.local/state}/hypr-rice"  # XDG-OK: this IS the one decision
+}
+
 # Where restore points live.
 rp_state_dir() {
     if [ -n "${RICE_RESTORE_DIR:-}" ]; then
         printf '%s\n' "${RICE_RESTORE_DIR%/}"
     else
-        printf '%s\n' "${XDG_STATE_HOME:-$HOME/.local/state}/hypr-rice/restore"
+        printf '%s/restore\n' "$(rp_state_root)"
     fi
 }
 
