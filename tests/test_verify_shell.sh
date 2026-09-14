@@ -79,7 +79,9 @@ fi
 
 # Missing file → VERIFY_SHELL=error.
 out="$(bash "$script" "$tmp/does-not-exist" 2>&1)"; rc=$?
-assert_eq "2" "$rc" "missing file → exit 2"
+# S0138 AC-6: an rc file that is not there is a DEFECTIVE INPUT (5), told apart from a usage
+# error (2, no rcfile argument at all) and from a negative verdict (1, the file has errors).
+assert_eq "5" "$rc" "S0138 AC-6: missing file -> exit 5"
 if [[ "$out" == "VERIFY_SHELL=error"* ]]; then
     pass "missing file → VERIFY_SHELL=error"
 else

@@ -309,7 +309,9 @@ if PATH="/usr/bin:/bin" command -v Hyprland >/dev/null 2>&1; then
     skip "AC-6: the install path still runs"        "a real Hyprland is installed on this host"
 else
     out="$(PATH="$nobin:/usr/bin:/bin" bash "$RS/preflight-config.sh" "$ac6/stage" 2>&1)"; rc=$?
-    assert_eq "2" "$rc" "AC-6: no compositor binary => unverified (exit 2)"
+    # S0138 AC-3: a missing binary is an ABSENT CAPABILITY (3). Never 1 (a verdict) and never
+    # 4 (a refusal) - the caller carries on to install and live-test.
+    assert_eq "3" "$rc" "AC-6 / S0138 AC-3: no compositor binary => unverified (exit 3)"
     if printf '%s\n' "$out" | grep -q '^PREFLIGHT=unverified'; then
         pass "AC-6: unverified is reported, and it is not 'ok'"
     else
@@ -332,7 +334,7 @@ fi
 
 # The other half of AC-6: a binary that IS there but does not offer the check.
 out="$(PATH="$STUB_PATH" STUB_HYPR_NO_OFFLINE=1 bash "$RS/preflight-config.sh" "$ac6/stage" 2>&1)"; rc=$?
-assert_eq "2" "$rc" "AC-6: a compositor without --verify-config => unverified, not verified"
+assert_eq "3" "$rc" "AC-6 / S0138 AC-3: a compositor without --verify-config => unverified (exit 3), not verified"
 if printf '%s\n' "$out" | grep -q '^PREFLIGHT_REASON=no-offline-check$'; then
     pass "AC-6: the reason names the missing offline check"
 else
@@ -347,7 +349,9 @@ ac7="$tmp/ac7"; mkdir -p "$ac7"
 # (a) no main config in staging
 mkdir -p "$ac7/stage-nomain"; printf 'x = 1\n' > "$ac7/stage-nomain/other.conf"
 out="$(pf "$ac7/stage-nomain")"; rc=$?
-assert_eq "3" "$rc" "AC-7: an absent staged main config is uncheckable (exit 3)"
+# S0138 AC-6: `uncheckable` is a DEFECTIVE INPUT (5), distinct from `unverified` (3). The two
+# are never one code: 3 tells a caller to carry on, 5 tells it to refuse.
+assert_eq "5" "$rc" "AC-7 / S0138 AC-6: an absent staged main config is uncheckable (exit 5)"
 assert_eq "no-main-config" "$(printf '%s\n' "$out" | sed -n 's/^PREFLIGHT_REASON=//p')" \
     "AC-7: the reason for an absent main config is named"
 
@@ -358,7 +362,7 @@ if [ "$(id -u)" -eq 0 ] || [ -r "$ac7/stage-unread/hyprland.conf" ]; then
     skip "AC-7: an unreadable staged main config is uncheckable" "running as root; mode 000 is still readable"
 else
     out="$(pf "$ac7/stage-unread")"; rc=$?
-    assert_eq "3" "$rc" "AC-7: an unreadable staged main config is uncheckable (exit 3)"
+    assert_eq "5" "$rc" "AC-7 / S0138 AC-6: an unreadable staged main config is uncheckable (exit 5)"
 fi
 chmod 644 "$ac7/stage-unread/hyprland.conf"
 
@@ -368,7 +372,7 @@ chmod 644 "$ac7/stage-unread/hyprland.conf"
 #     that blames the user's config.
 stage_good "$ac7/stage"
 out="$(PATH="$STUB_PATH" STUB_HYPR_REJECT=1 bash "$RS/preflight-config.sh" "$ac7/stage" 2>&1)"; rc=$?
-assert_eq "3" "$rc" "AC-7: a rejected invocation is uncheckable (exit 3), not errors (exit 1)"
+assert_eq "5" "$rc" "AC-7 / S0138 AC-6: a rejected invocation is uncheckable (exit 5), not errors (exit 1)"
 assert_eq "invocation-rejected" "$(printf '%s\n' "$out" | sed -n 's/^PREFLIGHT_REASON=//p')" \
     "AC-7: a rejected invocation is named as such"
 if printf '%s\n' "$out" | grep -q '^PREFLIGHT=errors'; then

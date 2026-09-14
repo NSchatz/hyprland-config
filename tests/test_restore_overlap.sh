@@ -88,7 +88,8 @@ else
     fail "A/AC11: the restore point is cleared after the successful restore" "$arout"
 fi
 again="$(bash "$RESTORE" apply-dir-first 2>&1)"; agrc=$?
-assert_eq "3" "$agrc" "A/AC8: a second restore of the same id hits 'nothing to restore'"
+# S0138 AC-4: an identifier with no record under it is a NEGATIVE VERDICT (1).
+assert_eq "1" "$agrc" "A/AC8 / S0138 AC-4: a second restore of the same id hits 'nothing to restore' (exit 1)"
 
 # --- B. file enrolled first, then the directory around it -----------------------------------
 seed_waybar
@@ -143,7 +144,8 @@ else
     chmod 000 "$dir_backup"
     c1="$(bash "$RESTORE" apply-retry-overlap 2>&1)"; c1rc=$?
     chmod 700 "$dir_backup"
-    assert_eq "1" "$c1rc" "C/AC9: the attempt that could not replace the directory is not a success"
+    # S0138 AC-7: a restore that put some files back and not others is 6, not a verdict.
+    assert_eq "6" "$c1rc" "C/AC9 / S0138 AC-7: the attempt that could not replace the directory is not a success (exit 6)"
     assert_eq "ORIGINAL" "$(cat "$HOME/.config/waybar/colors.css" 2>/dev/null)" \
         "C/AC9: the nested file was still put back while the directory failed"
     if [ -s "$RICE_RESTORE_DIR/apply-retry-overlap/entries.tsv" ]; then
@@ -216,7 +218,9 @@ else
 fi
 # A WRITE to such a path has no way back that respects the boundary, so it is refused outright.
 eprc=0; eprot="$(bash "$PLUGIN_ROOT/scripts/restore-point.sh" record "$HOME/.config" 2>&1)" || eprc=$?
-assert_eq "1" "$eprc" "E/AC10: enrolling a path that contains that surface is refused, so nothing writes over it"
+# S0138 AC-5: a path this mechanism will not enrol is a REFUSAL (4), and the caller must not
+# write there. The original is byte-identical, because a backup is a copy.
+assert_eq "4" "$eprc" "E/AC10 / S0138 AC-5: enrolling a path that contains that surface is refused (exit 4), so nothing writes over it"
 
 # The surface moves on under its own separate contract after the apply. The restore must not
 # know or care - it puts the enrolled file back and leaves that directory exactly as it found it.
@@ -235,7 +239,7 @@ cp -a "$HOME/.config" "$tmp/forged-backup"
 printf 'file\t%s\t%s\n' "$HOME/.config" "$tmp/forged-backup" > "$RICE_RESTORE_DIR/apply-forged/entries.tsv"
 printf 'CHANGED-AGAIN\n' > "$excluded_dir/its-own.conf"
 efout="$(bash "$RESTORE" apply-forged 2>&1)"; efrc=$?
-assert_eq "1" "$efrc" "E/AC2: a forged ledger entry that would swallow that surface is not a success"
+assert_eq "6" "$efrc" "E/AC2 / S0138 AC-7: a forged ledger entry that would swallow that surface is not a success (exit 6)"
 assert_eq "CHANGED-AGAIN" "$(cat "$excluded_dir/its-own.conf" 2>/dev/null)" \
     "E/AC2: the forged entry did not revert anything under that surface"
 if printf '%s\n' "$efout" | grep -q "^RESTORE_FAILED $HOME/.config "; then

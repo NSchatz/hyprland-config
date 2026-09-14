@@ -170,7 +170,8 @@ fi
 cp "$prof/user.js" "$b/after-first"
 out="$(PATH="$BIN_PATH" bash "$FP" remove 2>&1)"; rc=$?
 assert_out_has "nothing-to-remove" "$out" "AC-19: a second removal says there is nothing left to remove"
-assert_eq "3" "$rc" "AC-19: it is not reported as a removal that did something"
+# S0138 AC-4: nothing recorded under that profile is a NEGATIVE VERDICT (1), never 0.
+assert_eq "1" "$rc" "AC-19 / S0138 AC-4: it is not reported as a removal that did something (exit 1)"
 if cmp -s "$prof/user.js" "$b/after-first"; then
     pass "AC-19: the second removal left the file unchanged"
 else
@@ -255,7 +256,9 @@ printf 'not a directory\n' > "$e/blocked"
 
 out="$(RICE_RESTORE_DIR="$e/blocked/restore" PATH="$BIN_PATH" bash "$FP" remove 2>&1)"; rc=$?
 assert_out_has "PREFS_SKIPPED=$prof/user.js" "$out" "backup fail-safe: the file it could not back up is named"
-assert_eq "1" "$rc" "backup fail-safe: the run reports that it could not finish"
+# S0138 AC-5: a file it could not back up is SKIPPED, not overwritten. That is a refusal (4),
+# and the profile file is byte-identical.
+assert_eq "4" "$rc" "backup fail-safe / S0138 AC-5: the run reports that it could not finish (exit 4)"
 if cmp -s "$prof/user.js" "$e/before"; then
     pass "backup fail-safe: the file was NOT edited"
 else

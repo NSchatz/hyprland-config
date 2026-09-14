@@ -221,7 +221,9 @@ cp "$stage_lua/hyprland.lua" "$mixed/"
 printf '# a hyprlang companion nobody would be told about\n' > "$mixed/colors.conf"
 dest="$tmp/dest-mixed"
 out="$(HYPR_DIR="$dest" bash "$install_sh" "$mixed" 2>&1)"; rc=$?
-assert_eq "3" "$rc" "F5: a lua staging set with a .conf companion is refused"
+# S0138 AC-6: a staging dir that mixes the two languages is an AMBIGUOUS input (5), not a
+# missing capability and not a verdict about the config's contents.
+assert_eq "5" "$rc" "F5 / S0138 AC-6: a lua staging set with a .conf companion is refused (exit 5)"
 if printf '%s\n' "$out" | grep -q '^REFUSED=mixed-staging'; then
     pass "F5: the refusal says the staging dir mixes the two languages"
 else
@@ -244,7 +246,7 @@ mkdir -p "$mixed2"
 cp "$stage_conf/hyprland.conf" "$mixed2/"
 printf -- '-- a lua companion nobody would be told about\n' > "$mixed2/extra.lua"
 out="$(HYPR_DIR="$tmp/dest-mixed2" bash "$install_sh" "$mixed2" 2>&1)"; rc=$?
-assert_eq "3" "$rc" "F5: a hyprlang staging set with a .lua companion is refused too"
+assert_eq "5" "$rc" "F5 / S0138 AC-6: a hyprlang staging set with a .lua companion is refused too (exit 5)"
 
 # --------------------------------------------------------------------------------------------
 # Impl-gate loop 1, finding F6: AC-3 asks that any generated configuration record its language

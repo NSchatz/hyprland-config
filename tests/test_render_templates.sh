@@ -82,7 +82,9 @@ rm -f "$RICE_DIR/palette.user.conf"
 
 # Step 7 — missing palette is reported, not silently rendered with empty values.
 mv "$RICE_DIR/palette.conf" "$RICE_DIR/palette.conf.away"
-assert_fail 2 "missing palette exits 2" bash "$RICE_DIR/render-templates.sh" --no-reload
+# S0138 AC-6: a palette file that is not there is a DEFECTIVE INPUT (5), told apart from a
+# usage error (2, an option this script does not have).
+assert_fail 5 "S0138 AC-6: missing palette exits 5" bash "$RICE_DIR/render-templates.sh" --no-reload
 mv "$RICE_DIR/palette.conf.away" "$RICE_DIR/palette.conf"
 
 # Step 8 — symlinked output path is replaced with a regular file (the gtk-4.0/gtk.css gotcha).

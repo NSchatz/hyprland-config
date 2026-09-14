@@ -41,9 +41,31 @@
 #                             written by this user; NOTHING was changed and no other
 #                             directory was tried
 #
-# Exit: 0 ok / untested, 1 errors, 2 could not generate, 3 no language chosen,
-#       4 refused (no config directory, or the resolved one cannot be written).
+# Example:
+#   HYPR_DIR=~/.config/hypr reset-config.sh
+#
+# Options: -h, --help, help
+# Subcommands: none
+#
+# Exit codes:
+#   0  ok: the bare config is in place, verified clean or with no compositor to test against
+#   1  verdict: the bare config did not parse, so the previous config was restored
+#   3  capability: the config-path library is not beside this script, or the Hyprland version
+#      could not be detected and no language was chosen, so no config could be generated.
+#      NOTHING was changed; a missing capability is never reported as a refusal
+#   4  refusal: it declined and wrote nothing - no config directory it will resolve, or the
+#      resolved one is not a writable directory. No other directory was tried
+#   5  input: the scratch directory or the generated config it needs could not be produced,
+#      so nothing was proven and nothing was changed
+#   6  partial: the bare config WAS written, it does not parse, and there was no backup to
+#      restore. State is mixed and a re-run is not automatically safe
 set -uo pipefail
+
+case "${1:-}" in   # [cli-parser]
+    -h|--help|help)
+        sed -n '2,${/^#/!q;s/^#\{1,2\} \{0,1\}//p}' "$0"
+        exit 0 ;;   # rc=ok
+esac
 
 here="$(cd "$(dirname "$0")" && pwd)"
 _xdg_lib=""
@@ -54,14 +76,14 @@ for _c in "$here/xdg-config.sh" \
 done
 if [ -z "$_xdg_lib" ]; then
     echo "ERROR: the config-path library (scripts/xdg-config.sh) was not found next to $0, in \$CLAUDE_PLUGIN_ROOT/scripts, or in the plugin. Refusing to guess which directory to wipe." >&2
-    exit 4
+    exit 3   # rc=capability
 fi
 # shellcheck source=../../../scripts/xdg-config.sh
 . "$_xdg_lib"
 
 if ! xdg_config_target hypr "${HYPR_DIR:-}"; then
     echo "RESET=refused-no-config-dir"
-    exit 4
+    exit 4   # rc=refusal
 fi
 target="$XDG_CONFIG_TARGET"
 
@@ -72,21 +94,21 @@ if [ -e "$target" ] && [ ! -d "$target" ]; then
     echo "ERROR: reset target '$target' exists but is not a directory." >&2
     echo "TARGET=${target}"
     echo "RESET=refused-target-not-writable"
-    exit 4
+    exit 4   # rc=refusal
 fi
 if [ -d "$target" ] && [ ! -w "$target" ]; then
     echo "ERROR: reset target '$target' exists but cannot be written to (permission denied)." >&2
     echo "       Nothing was changed. Fix the permissions on that directory and re-run." >&2
     echo "TARGET=${target}"
     echo "RESET=refused-target-not-writable"
-    exit 4
+    exit 4   # rc=refusal
 fi
 
 # 1. Generate the bare config BEFORE touching anything. If the config language
 #    cannot be resolved, this refuses and the user's config is still there.
 staging="$(mktemp -d "${TMPDIR:-/tmp}/hypr-reset.XXXXXX")" || {
     echo "ERROR: could not create a staging directory" >&2
-    exit 2
+    exit 5   # rc=input
 }
 cleanup() { rm -rf "$staging"; }
 trap cleanup EXIT
@@ -98,17 +120,17 @@ if [ "$erc" -eq 3 ]; then
     echo "Nothing was changed; ${target} is untouched."
     echo "TARGET=${target}"
     echo "RESET=refused-undecided"
-    exit 3
+    exit 3   # rc=capability
 fi
 if [ "$erc" -ne 0 ]; then
     echo "TARGET=${target}"
     echo "RESET=refused-undecided"
-    exit 2
+    exit 5   # rc=input
 fi
 emitted="$(printf '%s\n' "$emit_out" | sed -n 's/^EMITTED=//p' | head -n1)"
 if [ -z "$emitted" ] || [ ! -f "$emitted" ]; then
     echo "ERROR: the emitter produced no config file" >&2
-    exit 2
+    exit 5   # rc=input
 fi
 
 # 2. Back up the entire existing config (same convention as install-config.sh).
@@ -137,11 +159,13 @@ printf '%s\n' "$verify_out"
 
 if [ "$vrc" -eq 0 ]; then
     echo "RESET=ok"
-    exit 0
+    exit 0   # rc=ok
 fi
-if [ "$vrc" -eq 2 ]; then
+# Called with no --expect, so verify-config.sh's 3 can only be its `skipped` case: there is no
+# running compositor to live-test against. Nothing was proven; the bare config stays.
+if [ "$vrc" -eq 3 ]; then
     echo "RESET=installed-untested (no running Hyprland; test on next login)"
-    exit 0
+    exit 0   # rc=ok
 fi
 
 # 5. Parse errors (unexpected for a minimal config) -> roll back to the backup.
@@ -152,10 +176,11 @@ case "$backup" in
             cp -a "$backup" "$target"
             bash "$here/verify-config.sh" >/dev/null 2>&1 || true
             echo "RESET=rolled-back (bare config errored; restored $backup)"
-            exit 1
+            exit 1   # rc=verdict
         fi
         ;;
 esac
 
 echo "RESET=errors-no-backup (bare config has parse errors; no backup existed to restore)"
-exit 1
+echo "PARTIAL: the bare config WAS written into ${target} and the previous config was NOT restored, because there was no backup to restore. Re-running this command is not automatically safe until ${target} is fixed by hand." >&2
+exit 6   # rc=partial

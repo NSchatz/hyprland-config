@@ -59,10 +59,21 @@
 #         | refused-existing-lua | refused-unparseable | refused-unresolvable-source
 #         | refused-no-config-dir | aborted-backup-failed
 #
-# Exit: 0 converted / offered / nothing to convert,
-#       2 bad usage or no config directory could be determined,
-#       3 refused (unparseable, or an unresolvable `source =`),
-#       4 refused (a lua config is already there), 5 aborted (backup failed).
+# Example:
+#   migrate-config.sh --convert
+#
+# Options: -h, --help, help, --convert
+# Subcommands: none
+#
+# Exit codes:
+#   0  ok: converted, offered, or there was nothing to convert
+#   2  usage: an argument this script does not take
+#   3  capability: the config-path library is not beside this script, so no directory was
+#      resolved and nothing was read
+#   4  refusal: it declined and wrote nothing - a hyprland.lua is already there and will not be
+#      replaced, or a backup it could not take. Every file is byte-identical to before
+#   5  input: the config it was given is defective - a file that does not parse, or a
+#      `source =` line naming a file it cannot resolve
 set -uo pipefail
 # Config values routinely contain `*` and `?` (window-rule regexes, exec commands).
 # Nothing here needs pathname expansion, and letting it happen would rewrite a
@@ -70,14 +81,17 @@ set -uo pipefail
 set -f
 
 mode="offer"
-case "${1:-}" in
+case "${1:-}" in   # [cli-parser]
     "")          ;;
     --convert)   mode="convert" ;;
-    -h|--help)   sed -n '2,65p' "$0"; exit 0 ;;
-    *)           echo "ERROR: usage: migrate-config.sh [--convert]" >&2; exit 2 ;;
+    -h|--help|help)
+                 sed -n '2,${/^#/!q;s/^#\{1,2\} \{0,1\}//p}' "$0"
+                 exit 0 ;;   # rc=ok
+    *)           echo "ERROR: usage: migrate-config.sh [--convert]" >&2; exit 2 ;;   # rc=usage
 esac
 
 here="$(cd "$(dirname "$0")" && pwd)"
+# config-language.sh defines helpers and never terminates; sourcing it cannot exit this script.
 # shellcheck source=config-language.sh
 source "$here/config-language.sh"
 _xdg_lib=""
@@ -88,14 +102,14 @@ for _c in "$here/xdg-config.sh" \
 done
 if [ -z "$_xdg_lib" ]; then
     echo "ERROR: the config-path library (scripts/xdg-config.sh) was not found next to $0, in \$CLAUDE_PLUGIN_ROOT/scripts, or in the plugin. Refusing to guess where your config lives." >&2
-    exit 2
+    exit 3   # rc=capability
 fi
 # shellcheck source=../../../scripts/xdg-config.sh
 . "$_xdg_lib"
 
 if ! xdg_config_target hypr "${HYPR_DIR:-}"; then
     echo "MIGRATE=refused-no-config-dir"
-    exit 2
+    exit 4   # rc=refusal
 fi
 target="$XDG_CONFIG_TARGET"
 backup_dir="${HYPR_BACKUP_DIR:-$target}"
@@ -111,7 +125,7 @@ echo "TARGET=${target}"
 if [ ! -f "$main" ]; then
     echo "There is no ${main} to convert."
     echo "MIGRATE=nothing-to-convert"
-    exit 0
+    exit 0   # rc=ok
 fi
 
 # --- Refusal 1: never overwrite a lua config we did not write -------------------------------
@@ -121,7 +135,7 @@ if config_lang_present "$target/hyprland.lua"; then
     echo "       really want this conversion to produce a new one." >&2
     echo "DECLINED_TO_REPLACE=${target}/hyprland.lua"
     echo "MIGRATE=refused-existing-lua"
-    exit 4
+    exit 4   # rc=refusal
 fi
 
 # ---------------------------------------------------------------------------------------------
@@ -599,7 +613,7 @@ compose_file() {
 scratch="$(mktemp -d "${TMPDIR:-/tmp}/hypr-migrate.XXXXXX")" || {
     echo "ERROR: could not create a scratch directory" >&2
     echo "MIGRATE=refused-unparseable"
-    exit 3
+    exit 5   # rc=input
 }
 cleanup() { rm -rf "$scratch"; }
 trap cleanup EXIT
@@ -622,7 +636,7 @@ while [ "${#QUEUE[@]}" -gt 0 ]; do
         echo "ERROR: '$lua_target' already exists; refusing to replace it." >&2
         echo "DECLINED_TO_REPLACE=${lua_target}"
         echo "MIGRATE=refused-existing-lua"
-        exit 4
+        exit 4   # rc=refusal
     fi
     mkdir -p "$(dirname "$scratch/$stem.lua")"
     convert_file "$src" "$scratch/$stem.body"
@@ -640,7 +654,7 @@ if [ "${#PARSE_ERRORS[@]}" -gt 0 ]; then
     done
     echo "UNPARSEABLE_COUNT=${#PARSE_ERRORS[@]}"
     echo "MIGRATE=refused-unparseable"
-    exit 3
+    exit 5   # rc=input
 fi
 
 # --- Refusal 3: a `source =` the converter cannot resolve -------------------------------------
@@ -653,7 +667,7 @@ if [ "${#SOURCE_ERRORS[@]}" -gt 0 ]; then
     done
     echo "UNRESOLVED_SOURCE_COUNT=${#SOURCE_ERRORS[@]}"
     echo "MIGRATE=refused-unresolvable-source"
-    exit 3
+    exit 5   # rc=input
 fi
 
 ts="$(date +%Y%m%d-%H%M%S)"
@@ -679,7 +693,7 @@ if [ "$mode" = "offer" ]; then
     fi
     echo "ACCEPT_WITH=migrate-config.sh --convert"
     echo "MIGRATE=offered"
-    exit 0
+    exit 0   # rc=ok
 fi
 
 # --- Backup FIRST, and prove it is readable, before a byte of lua is written ------------------
@@ -688,7 +702,7 @@ if ! mkdir -p "$backup_dir" 2>/dev/null; then
     echo "       Aborted because the backup failed; no lua was written and nothing changed." >&2
     echo "BACKUP_FAILED=${backup_dir}"
     echo "MIGRATE=aborted-backup-failed"
-    exit 5
+    exit 4   # rc=refusal
 fi
 
 declare -a MADE_BACKUPS=()
@@ -706,7 +720,7 @@ if [ -n "$backup_failed" ]; then
     echo "       Aborted because the backup failed; no lua was written and nothing changed." >&2
     echo "BACKUP_FAILED=${backup_failed}"
     echo "MIGRATE=aborted-backup-failed"
-    exit 5
+    exit 4   # rc=refusal
 fi
 
 echo "BACKUP=${backup_dir}"
@@ -733,7 +747,8 @@ if [ "${#UNMAPPED[@]}" -gt 0 ]; then
     done
     echo "NOT_APPLIED_COUNT=${#UNMAPPED[@]}"
     echo "MIGRATE=ok-with-unmapped"
-    exit 0
+    exit 0   # rc=ok
 fi
 
 echo "MIGRATE=ok"
+exit 0   # rc=ok

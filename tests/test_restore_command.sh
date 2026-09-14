@@ -91,7 +91,8 @@ else
     fail "AC11: a successful restore clears the restore point" "$RICE_RESTORE_DIR/apply-round still exists"
 fi
 again="$(bash "$RESTORE" apply-round 2>&1)"; arc=$?
-assert_eq "3" "$arc" "AC8/AC11: restoring the same identifier again is not a success"
+# S0138 AC-4: an identifier with no record under it is a NEGATIVE VERDICT (1), never 0.
+assert_eq "1" "$arc" "AC8/AC11 / S0138 AC-4: restoring the same identifier again is not a success (exit 1)"
 if printf '%s\n' "$again" | grep -q '^RESTORE=nothing-to-restore apply-round'; then
     pass "AC8/AC11: the second restore says there is nothing to restore for that apply"
 else
@@ -105,7 +106,7 @@ fi
 
 # --- AC8: an identifier nothing was ever applied under --------------------------------------
 never="$(bash "$RESTORE" never-applied-at-all 2>&1)"; nrc=$?
-assert_eq "3" "$nrc" "AC8: an unknown apply identifier is not reported as success"
+assert_eq "1" "$nrc" "AC8 / S0138 AC-4: an unknown apply identifier is not reported as success (exit 1)"
 if printf '%s\n' "$never" | grep -q '^RESTORE=nothing-to-restore never-applied-at-all'; then
     pass "AC8: an unknown apply identifier gets a plain 'nothing to restore', not an opaque error"
 else
@@ -116,7 +117,9 @@ fi
 seed_apply apply-damaged
 rm -f "$HOME/.config/app2/colors.conf.bak.apply-damaged"      # the backup is destroyed
 dout="$(bash "$RESTORE" apply-damaged 2>&1)"; drc=$?
-assert_eq "1" "$drc" "AC9: a restore that could not finish everything is not reported as success"
+# S0138 AC-7: some of it happened. That is 6 - the one status under which re-running is not
+# automatically safe - and no longer hides inside the verdict code.
+assert_eq "6" "$drc" "AC9 / S0138 AC-7: a restore that could not finish everything is not reported as success (exit 6)"
 if printf '%s\n' "$dout" | grep -q "^RESTORE_FAILED $HOME/.config/app2/colors.conf "; then
     pass "AC9: the file whose backup is gone is reported by path"
 else
@@ -148,7 +151,7 @@ else
     fout="$(bash "$RESTORE" apply-rofail 2>&1)"; frc=$?
     chmod 700 "$HOME/.config/app2"
     chmod 600 "$HOME/.config/app2/colors.conf"
-    assert_eq "1" "$frc" "F7: a target that cannot be written does not make the restore claim success"
+    assert_eq "6" "$frc" "F7 / S0138 AC-7: a target that cannot be written does not make the restore claim success (exit 6)"
     if printf '%s\n' "$fout" | grep -q "^RESTORE_FAILED $HOME/.config/app2/colors.conf (cannot write target"; then
         pass "F7: the unwritable target is reported by path, with the reason"
     else

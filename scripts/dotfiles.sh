@@ -13,9 +13,27 @@
 #   dotfiles.sh status                    # short status
 #   dotfiles.sh method                    # print the configured method
 #
+# Example:
+#   dotfiles.sh init bare git@github.com:me/dotfiles.git
+#
+# Options: -h, --help
+# Subcommands: init, add, add-defaults, commit, push, status, method, help
+#
 # Method + repo location recorded in <config base>/hypr-rice/dotfiles.conf, the base being
 # $XDG_CONFIG_HOME when it is an absolute path and $HOME/.config otherwise - the same one
 # decision every other script here makes (scripts/xdg-config.sh).
+#
+# Exit codes:
+#   0  ok: the subcommand did what it says, or there was nothing to track
+#   2  usage: an unknown subcommand, an unknown init method, or a missing argument
+#   3  capability: a tool the chosen method needs is not installed (stow, chezmoi), the
+#      config-path library is not beside this script, or no method is recorded yet, so
+#      `dotfiles.sh init` has not been run
+#   4  refusal: no config directory it will resolve, so nothing was recorded or written
+#
+# `add`, `commit`, `push` and `status` hand back git's or chezmoi's own exit status when that
+# program fails. Codes 0 to 6 above are this script's OWN decisions; a status from another
+# program is that program's and is passed through unchanged.
 set -uo pipefail
 
 _here_df="$(cd "$(dirname "$0")" && pwd)"
@@ -26,14 +44,14 @@ for _c in "$_here_df/xdg-config.sh" \
 done
 if [ -z "$_xdg_lib" ]; then
     echo "ERROR: the config-path library (scripts/xdg-config.sh) was not found next to $0 or in \$CLAUDE_PLUGIN_ROOT/scripts." >&2
-    exit 2
+    exit 3   # rc=capability
 fi
 # shellcheck source=xdg-config.sh
 . "$_xdg_lib"
 
 if ! xdg_config_target hypr-rice; then
     echo "DOTFILES=refused-no-config-dir"
-    exit 2
+    exit 4   # rc=refusal
 fi
 CONFIG_BASE="$XDG_CONFIG_BASE"
 
@@ -56,10 +74,10 @@ DEFAULT_PATHS=(
 
 cmd="${1:-help}"; shift 2>/dev/null || true
 
-case "$cmd" in
+case "$cmd" in   # [cli-parser]
     init)
         method="${1:-}"; remote="${2:-}"
-        [ -n "$method" ] || { echo "usage: dotfiles.sh init <bare|stow|chezmoi> [remote]" >&2; exit 2; }
+        [ -n "$method" ] || { echo "usage: dotfiles.sh init <bare|stow|chezmoi> [remote]" >&2; exit 2; }   # rc=usage
         mkdir -p "$(dirname "$STATE")"
         case "$method" in
             bare)
@@ -69,23 +87,23 @@ case "$cmd" in
                 printf 'method=bare\nbare_dir=%s\n' "$BARE_DIR" > "$STATE"
                 echo "DOTFILES_INIT=ok (bare repo at $BARE_DIR; alias: git --git-dir=$BARE_DIR --work-tree=\$HOME)";;
             stow)
-                command -v stow >/dev/null 2>&1 || { echo "ERROR: stow not installed" >&2; exit 3; }
+                command -v stow >/dev/null 2>&1 || { echo "ERROR: stow not installed" >&2; exit 3; }   # rc=capability
                 mkdir -p "$STOW_DIR"; [ -d "$STOW_DIR/.git" ] || git -C "$STOW_DIR" init -q
                 if [ -n "$remote" ]; then git -C "$STOW_DIR" remote remove origin 2>/dev/null; git -C "$STOW_DIR" remote add origin "$remote"; fi
                 printf 'method=stow\nstow_dir=%s\n' "$STOW_DIR" > "$STATE"
                 echo "DOTFILES_INIT=ok (stow repo at $STOW_DIR)";;
             chezmoi)
-                command -v chezmoi >/dev/null 2>&1 || { echo "ERROR: chezmoi not installed" >&2; exit 3; }
+                command -v chezmoi >/dev/null 2>&1 || { echo "ERROR: chezmoi not installed" >&2; exit 3; }   # rc=capability
                 chezmoi init >/dev/null 2>&1 || true
                 [ -n "$remote" ] && chezmoi git -- remote add origin "$remote" >/dev/null 2>&1 || true
                 printf 'method=chezmoi\n' > "$STATE"
                 echo "DOTFILES_INIT=ok (chezmoi source at $(chezmoi source-path 2>/dev/null))";;
-            *) echo "unknown method: $method" >&2; exit 2;;
+            *) echo "unknown method: $method" >&2; exit 2;;   # rc=usage
         esac;;
 
     add)
-        [ "$#" -ge 1 ] || { echo "usage: dotfiles.sh add <path>..." >&2; exit 2; }
-        m="$(get_method)"; [ -n "$m" ] || { echo "ERROR: run 'dotfiles.sh init' first" >&2; exit 2; }
+        [ "$#" -ge 1 ] || { echo "usage: dotfiles.sh add <path>..." >&2; exit 2; }   # rc=usage
+        m="$(get_method)"; [ -n "$m" ] || { echo "ERROR: run 'dotfiles.sh init' first" >&2; exit 3; }   # rc=capability
         for p in "$@"; do
             pe="${p/#\~/$HOME}"
             [ -e "$pe" ] || { echo "SKIP (missing) $p"; continue; }
@@ -103,7 +121,7 @@ case "$cmd" in
 
     add-defaults)
         exist=(); for p in "${DEFAULT_PATHS[@]}"; do [ -e "$p" ] && exist+=("$p"); done
-        [ "${#exist[@]}" -gt 0 ] || { echo "no default config paths found to track"; exit 0; }
+        [ "${#exist[@]}" -gt 0 ] || { echo "no default config paths found to track"; exit 0; }   # rc=ok
         "$0" add "${exist[@]}";;
 
     commit)
@@ -112,7 +130,7 @@ case "$cmd" in
             bare)    dotbare add -u; dotbare commit -q -m "$msg" && echo "COMMITTED" || echo "nothing to commit";;
             stow)    git -C "$STOW_DIR" add -A; git -C "$STOW_DIR" commit -q -m "$msg" && echo "COMMITTED" || echo "nothing to commit";;
             chezmoi) chezmoi git -- add -A >/dev/null 2>&1; chezmoi git -- commit -m "$msg" >/dev/null 2>&1 && echo "COMMITTED" || echo "nothing to commit";;
-            *) echo "ERROR: run 'dotfiles.sh init' first" >&2; exit 2;;
+            *) echo "ERROR: run 'dotfiles.sh init' first" >&2; exit 3;;   # rc=capability
         esac;;
 
     push)
@@ -121,7 +139,7 @@ case "$cmd" in
             bare)    dotbare push -u origin HEAD;;
             stow)    git -C "$STOW_DIR" push -u origin HEAD;;
             chezmoi) chezmoi git -- push;;
-            *) echo "ERROR: not initialized" >&2; exit 2;;
+            *) echo "ERROR: not initialized" >&2; exit 3;;   # rc=capability
         esac;;
 
     status)
@@ -134,5 +152,11 @@ case "$cmd" in
         esac;;
 
     method) get_method || echo "(none)";;
-    help|*) sed -n '2,18p' "$0";;
+    help|-h|--help)
+        sed -n '2,${/^#/!q;s/^#\{1,2\} \{0,1\}//p}' "$0"
+        exit 0 ;;   # rc=ok
+    *)
+        echo "unknown command: $cmd (try: dotfiles.sh help)" >&2
+        sed -n '2,${/^#/!q;s/^#\{1,2\} \{0,1\}//p}' "$0" | sed -n '/^Usage:/,/^$/p' >&2
+        exit 2 ;;   # rc=usage
 esac

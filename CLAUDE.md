@@ -37,6 +37,43 @@ the machine so a user can find out afterwards what happened. Keep that true.
 A shell rc file is NEVER SOURCED to check it - it is parsed. Sourcing a user's rc
 to see if it is valid executes it.
 
+## The exit-code table (every command this repo ships)
+
+| code | meaning |
+|---|---|
+| 0 | it ran and the answer is yes |
+| 1 | it ran and the answer is NO: the verdict it was asked for came back negative |
+| 2 | usage error: unknown subcommand or option, missing or unusable argument |
+| 3 | it could not run: a capability it needs is absent - a tool, a binary feature, a running compositor, the network |
+| 4 | it refused to act and wrote nothing: a backup it could not take, a target it will not overwrite, a disclosed action declined, no config directory it will resolve |
+| 5 | an input it was given is defective: missing, unreadable, unparseable, corrupt or ambiguous |
+| 6 | it acted and could not finish or could not record what it did: state is mixed and a re-run is not automatically safe |
+
+**A capability a script could not reach is NEVER reported as a verdict or as a
+refusal.** 3 means the check did not happen, so a caller may carry on and try
+another route; 1 means the check happened and said no; 4 means the script
+decided not to act and nothing was written. `preflight-config.sh` is where that
+distinction earns its keep: `unverified` (no binary offers the offline check, so
+nothing was proven) is 3 and the caller installs and live-tests behind it, while
+`uncheckable` (the staged config could not be checked at all) is 5 and the
+caller refuses. Statuses above 6 belong to the shell: 126 not executable, 127
+not found, 128+N killed by signal N.
+
+Every command states the codes it can return in its own `--help`, and
+`tests/test_exit_codes.sh` fails when a script can return a status its help does
+not document, or documents one it cannot return. Each deliberate termination
+carries an `# rc=<class>` tag naming its class - ok, verdict, usage, capability,
+refusal, input, partial - and the harness reds when a tag and its number
+disagree.
+
+The commands the table binds: `skills/rice/assets/rice`, every `.sh` directly
+under `scripts/` or `skills/rice/scripts/` that is executed rather than only
+sourced, and `tests/run.sh`. `scripts/xdg-config.sh` and
+`skills/rice/scripts/version-ledger.sh` are sourced-only libraries: they define
+helpers, terminate nothing, and a helper that `return`s a status is not an exit
+code. `skills/rice/assets/scripts/*` are desktop assets a user copies onto their
+own machine, not this plugin's command surface.
+
 ## The gate
 
 ```bash
@@ -45,9 +82,10 @@ bash tests/run.sh <substring>       # only files matching the substring
 RUN_INTEGRATION=1 bash tests/run.sh # plus Hyprland-in-Docker
 ```
 
-Exit 0 only if every test passed; skipped is acceptable, failed is not. Plain
-bash, `jq` and `git` - no framework. `tests/README.md` is the table of what each
-file covers.
+Exit 0 only if every test passed; skipped is acceptable, failed is not. A filter
+that matches no test file exits 2 rather than reporting a clean pass, and a
+tests directory with no test file in it exits 5. Plain bash, `jq` and `git` - no
+framework. `tests/README.md` is the table of what each file covers.
 
 Every change that touches a script the user invokes, or a path that writes to a
 home directory, extends this harness so it reds on that specific regression. A

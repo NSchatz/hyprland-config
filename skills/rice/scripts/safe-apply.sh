@@ -67,12 +67,43 @@
 #                                     HYPR_DIR, no absolute XDG_CONFIG_HOME, no HOME.
 #                                     CONFIG_DIR=unresolved is printed and nothing is
 #                                     checked, backed up or written.
+#
+# Example:
+#   safe-apply.sh /tmp/hypr-gen-abc/staging
+#
+# Options: -h, --help, help
+# Subcommands: none
+#
+# Exit codes:
+#   0  ok: installed and verified, or installed with no compositor to live-test against
+#   1  verdict: the answer about the staged config came back negative - the offline check
+#      found errors, a removed key is set, the installed config would not parse and the
+#      previous one was restored, or the compositor will not confirm it loaded what we wrote
+#   2  usage: no <staging-dir> argument was given
+#   3  capability: the config-path library is not beside this script, or install-config.sh
+#      could not reach one. Nothing was checked, backed up or written
+#   4  refusal: it declined and wrote nothing - install-config.sh refused, or there is no
+#      config directory it will resolve. Every target path is byte-identical to before
+#   5  input: the staged set could not be checked or used at all - a missing, unreadable or
+#      ambiguous staged main config. Nothing was backed up or written
+#   6  partial: the staged config was INSTALLED, it does not parse, and there was no backup
+#      to restore it from. State is mixed and a re-run is not automatically safe until the
+#      target is fixed by hand
 set -uo pipefail
+
+case "${1:-}" in   # [cli-parser]
+    -h|--help|help)
+        sed -n '2,${/^#/!q;s/^#\{1,2\} \{0,1\}//p}' "$0"
+        exit 0 ;;   # rc=ok
+    -*)
+        echo "ERROR: unknown option '$1' (usage: safe-apply.sh <staging-dir>)" >&2
+        exit 2 ;;   # rc=usage
+esac
 
 staging="${1:-}"
 if [ -z "$staging" ]; then
     echo "ERROR: usage: safe-apply.sh <staging-dir>" >&2
-    exit 2
+    exit 2   # rc=usage
 fi
 
 here="$(cd "$(dirname "$0")" && pwd)"
@@ -86,7 +117,7 @@ for _c in "$here/xdg-config.sh" \
 done
 if [ -z "$_xdg_lib" ]; then
     echo "ERROR: the config-path library (scripts/xdg-config.sh) was not found next to $0, in \$CLAUDE_PLUGIN_ROOT/scripts, or in the plugin. Refusing to guess where your config lives." >&2
-    exit 2
+    exit 3   # rc=capability
 fi
 # shellcheck source=../../../scripts/xdg-config.sh
 . "$_xdg_lib"
@@ -96,7 +127,7 @@ fi
 # directory from the one the backup came out of has no inverse.
 if ! xdg_config_target hypr "${HYPR_DIR:-}"; then
     echo "SAFE_APPLY=no-config-dir (nothing was checked, backed up or written)"
-    exit 2
+    exit 4   # rc=refusal
 fi
 target="$XDG_CONFIG_TARGET"
 
@@ -113,7 +144,7 @@ printf '%s\n' "$rk_out"
 if [ "$rkrc" -eq 1 ]; then
     echo "Nothing was installed and nothing was backed up; ${target} is untouched."
     echo "SAFE_APPLY=removed-keys-failed (the staged config sets a key removed at the target version)"
-    exit 2
+    exit 1   # rc=verdict
 fi
 if [ "$rkrc" -eq 3 ]; then
     echo "The removed-key check reached NO verdict (the target version is unknown); the checks below do not depend on one."
@@ -127,16 +158,19 @@ fi
 preflight_out="$(bash "$here/preflight-config.sh" "$staging" 2>&1)"
 prc=$?
 printf '%s\n' "$preflight_out"
+# 0 = checked clean, 3 = `unverified`, which means NOTHING was proven and the caller carries
+# on to install + live-test + rollback. 1 is the parser's negative verdict and 5 is
+# `uncheckable`, which is a refusal to install a config nobody could check.
 case "$prc" in
-    0|2) ;;
+    0|3) ;;
     1)
         echo "Nothing was installed and nothing was backed up; ${target} is untouched."
         echo "SAFE_APPLY=preflight-failed (the offline check found errors in the staged config)"
-        exit 2 ;;
+        exit 1 ;;   # rc=verdict
     *)
         echo "Nothing was installed and nothing was backed up; ${target} is untouched."
         echo "SAFE_APPLY=preflight-uncheckable (the offline check could not be run against the staged config)"
-        exit 2 ;;
+        exit 5 ;;   # rc=input
 esac
 
 # 1. Install (also prints BACKUP=, TARGET=, CONFIG_LANGUAGE=, INSTALLED=...).
@@ -144,14 +178,19 @@ install_out="$(bash "$here/install-config.sh" "$staging" 2>&1)"
 irc=$?
 if [ "$irc" -ne 0 ]; then
     printf '%s\n' "$install_out"
-    # 3 and 4 are install-config.sh's REFUSALS: it declined before changing
-    # anything. Never let that read as an ordinary failure, and never as ok.
-    if [ "$irc" -eq 3 ] || [ "$irc" -eq 4 ]; then
-        echo "SAFE_APPLY=refused (install-config.sh declined; nothing was changed)"
-        exit 2
-    fi
-    echo "SAFE_APPLY=install-failed"
-    exit 2
+    # 4 is install-config.sh's REFUSAL and 5 its defective staged set: either way it declined
+    # before changing anything. Never let that read as an ordinary failure, and never as ok.
+    case "$irc" in
+        4|5)
+            echo "SAFE_APPLY=refused (install-config.sh declined; nothing was changed)"
+            exit 4 ;;   # rc=refusal
+        3)
+            echo "SAFE_APPLY=install-failed"
+            exit 3 ;;   # rc=capability
+        *)
+            echo "SAFE_APPLY=install-failed"
+            exit 5 ;;   # rc=input
+    esac
 fi
 printf '%s\n' "$install_out"
 
@@ -179,12 +218,17 @@ printf '%s\n' "$verify_out"
 
 if [ "$vrc" -eq 0 ]; then
     echo "SAFE_APPLY=ok"
-    exit 0
+    exit 0   # rc=ok
 fi
-if [ "$vrc" -eq 2 ]; then
+# verify-config.sh returns 3 for BOTH of its "the live check could not be made" cases: no
+# compositor to ask, and a compositor that would not name the config it loaded. The caller acts
+# differently on those two, and the VERIFY= narration is what tells them apart - the exit status
+# says only that no live verdict was reached, which is the thing a caller must never read as ok.
+verify_verdict="$(printf '%s\n' "$verify_out" | sed -n 's/^VERIFY=\([a-z-]*\).*/\1/p' | tail -n1)"
+if [ "$vrc" -eq 3 ] && [ "$verify_verdict" = "skipped" ]; then
     # No running instance => cannot live-test; leave installed.
     echo "SAFE_APPLY=installed-untested (no running Hyprland; relied on static validation)"
-    exit 0
+    exit 0   # rc=ok
 fi
 if [ "$vrc" -eq 3 ]; then
     # Installed cleanly, but the running compositor is not reading it. Rolling back
@@ -192,7 +236,7 @@ if [ "$vrc" -eq 3 ]; then
     # would be a success message for a change that never reached the compositor.
     echo "The file above is what the compositor loaded; ${installed_main} is on disk but is not what is running."
     echo "SAFE_APPLY=unconfirmed (installed with no parse errors, but the compositor did not confirm it loaded it)"
-    exit 1
+    exit 1   # rc=verdict
 fi
 
 # 3. vrc == 1 => parse errors => roll back to the backup if we have a real one.
@@ -210,11 +254,15 @@ case "$backup" in
             done
             bash "$here/verify-config.sh" >/dev/null 2>&1 || true   # reload the restored config
             echo "SAFE_APPLY=rolled-back (new config had errors; restored $backup)"
-            exit 1
+            exit 1   # rc=verdict
         fi
         ;;
 esac
 
 echo "SAFE_APPLY=errors-no-backup (new config has parse errors; no backup existed to restore)"
 echo "Inspect $target and fix, or remove the generated files."
-exit 1
+# The one outcome of this script under which state is MIXED: the staged config WAS installed
+# into the target, it does NOT parse, and there was no previous config to put back. Say both
+# halves on stderr so a caller reading nothing but stderr knows a re-run is not enough.
+echo "PARTIAL: the staged config WAS installed into ${target}; the previous config was NOT restored, because there was no backup to restore. Re-running this command is not automatically safe until ${target} is fixed by hand." >&2
+exit 6   # rc=partial

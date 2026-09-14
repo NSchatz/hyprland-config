@@ -41,7 +41,8 @@ assert_file_exists "$RICE_DIR/rice-restore.sh"  "rice-init installs the restore 
 cliout="$(bash "$RICE_DIR/rice" restore --list 2>&1)"; clirc=$?
 assert_eq "0" "$clirc" "AC2: 'rice restore --list' runs from the installed engine"
 cliout="$(bash "$RICE_DIR/rice" restore no-such-apply 2>&1)"; clirc=$?
-assert_eq "3" "$clirc" "AC8: 'rice restore <unknown>' reports nothing to restore, not success"
+# S0138 AC-4: an identifier with no record under it is a NEGATIVE VERDICT (1).
+assert_eq "1" "$clirc" "AC8 / S0138 AC-4: 'rice restore <unknown>' reports nothing to restore, not success (exit 1)"
 
 # --- AC1 / AC3: render over a directory of known-content files ------------------------------
 # Three outputs exist with content no rice ever wrote; two do not exist at all.

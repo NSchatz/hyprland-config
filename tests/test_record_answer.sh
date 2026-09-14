@@ -90,10 +90,13 @@ assert_eq "2" "$rc" "invalid --json value exits 2"
 assert_eq "$before" "$(cat "$f")" "invalid --json leaves file unchanged"
 
 # Missing arguments fail.
-assert_fail 1 "no args" bash "$script"
-assert_fail 1 "only file given" bash "$script" "$tmp/x.json"
-assert_fail 1 "only file + key" bash "$script" "$tmp/x.json" palette.scheme
+# S0138 AC-2: a missing argument is a USAGE error (2), the shell's own usage code.
+assert_fail 2 "S0138 AC-2: no args" bash "$script"
+assert_fail 2 "S0138 AC-2: only file given" bash "$script" "$tmp/x.json"
+assert_fail 2 "S0138 AC-2: only file + key" bash "$script" "$tmp/x.json" palette.scheme
 
 # Corrupted target file is reported, not silently overwritten.
 echo 'not-json' > "$tmp/corrupt.json"
-assert_fail 2 "corrupt target rejected" bash "$script" "$tmp/corrupt.json" palette.scheme x
+# S0138 AC-6: a corrupt target file is a DEFECTIVE INPUT (5), distinct from a usage error (2)
+# and from a missing capability (3).
+assert_fail 5 "S0138 AC-6: corrupt target rejected" bash "$script" "$tmp/corrupt.json" palette.scheme x

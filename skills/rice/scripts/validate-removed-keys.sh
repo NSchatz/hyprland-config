@@ -43,8 +43,20 @@
 #   uncheckable             the staged set or the ledger could not be read, so
 #                           no verdict was reached about anything.
 #
-# Exit: 0 ok, 1 removed keys found, 2 bad usage / uncheckable,
-#       3 the target version is unknown.
+# Example:
+#   validate-removed-keys.sh /tmp/hypr-gen-abc/staging --version 0.56.2
+#
+# Options: -h, --help, help, --version VER, --ledger FILE, --root DIR, --supported-targets
+# Subcommands: none
+#
+# Exit codes:
+#   0  ok: every staged file was scanned and no removed key appears in any of them
+#   1  verdict: at least one staged file sets a key removed at or before the target
+#   2  usage: an unknown argument, an option with no value after it, or an extra argument
+#   3  capability: the target version could not be determined, so the removed-key set to
+#      check against is not knowable. NOTHING was validated; this is not a pass
+#   5  input: `uncheckable` - the ledger or the staged set could not be read, or the ledger
+#      declares no removed keys at all, so no verdict was reached about anything
 set -uo pipefail
 
 here="$(cd "$(dirname "$0")" && pwd)"
@@ -60,25 +72,26 @@ version_source="none"
 list_targets=0
 
 while [ "$#" -gt 0 ]; do
-    case "$1" in
+    case "$1" in   # [cli-parser]
         --version)
-            [ "$#" -ge 2 ] || { echo "ERROR: --version needs a value" >&2; exit 2; }
+            [ "$#" -ge 2 ] || { echo "ERROR: --version needs a value" >&2; exit 2; }   # rc=usage
             version="$2"; version_source="supplied"; shift 2 ;;
         --ledger)
-            [ "$#" -ge 2 ] || { echo "ERROR: --ledger needs a value" >&2; exit 2; }
+            [ "$#" -ge 2 ] || { echo "ERROR: --ledger needs a value" >&2; exit 2; }   # rc=usage
             ledger="$2"; shift 2 ;;
         --root)
-            [ "$#" -ge 2 ] || { echo "ERROR: --root needs a value" >&2; exit 2; }
+            [ "$#" -ge 2 ] || { echo "ERROR: --root needs a value" >&2; exit 2; }   # rc=usage
             root="$2"; shift 2 ;;
         --supported-targets)
             list_targets=1; shift ;;
-        -h|--help)
-            sed -n '2,50p' "$0"; exit 0 ;;
+        -h|--help|help)
+            sed -n '2,${/^#/!q;s/^#\{1,2\} \{0,1\}//p}' "$0"
+            exit 0 ;;   # rc=ok
         -*)
-            echo "ERROR: unknown argument: $1" >&2; exit 2 ;;
+            echo "ERROR: unknown argument: $1" >&2; exit 2 ;;   # rc=usage
         *)
             if [ -n "$staging" ]; then
-                echo "ERROR: unexpected extra argument: $1" >&2; exit 2
+                echo "ERROR: unexpected extra argument: $1" >&2; exit 2   # rc=usage
             fi
             staging="$1"; shift ;;
     esac
@@ -89,7 +102,7 @@ done
 uncheckable() {
     echo "ERROR: $1" >&2
     echo "REMOVED_KEYS=uncheckable"
-    exit 2
+    exit 5   # rc=input
 }
 
 if [ ! -f "$ledger" ] || [ ! -r "$ledger" ]; then
@@ -100,12 +113,12 @@ if [ "$list_targets" -eq 1 ]; then
     if ! ledger_supported_targets "$ledger"; then
         uncheckable "the ledger '$ledger' does not declare both a support-floor and a newest-release, so the supported targets cannot be enumerated"
     fi
-    exit 0
+    exit 0   # rc=ok
 fi
 
 if [ -z "$staging" ]; then
     echo "ERROR: usage: validate-removed-keys.sh <staging-dir> [--version VER]" >&2
-    exit 2
+    exit 2   # rc=usage
 fi
 if [ ! -d "$staging" ] || [ ! -r "$staging" ]; then
     uncheckable "staging dir '$staging' does not exist or cannot be read"
@@ -134,7 +147,7 @@ if [ -z "$version" ]; then
     echo "REMOVED_KEYS_TARGET_SOURCE=none"
     echo "ERROR: the target Hyprland version could not be determined (no --version, no HYPR_VERSION, and detect-version.sh found neither hyprctl nor Hyprland). Whether a key is removed depends entirely on the target, so NOTHING was validated here. This is not a pass: supply the target with --version <x.y.z> or HYPR_VERSION=<x.y.z>." >&2
     echo "REMOVED_KEYS=unknown-target-version"
-    exit 3
+    exit 3   # rc=capability
 fi
 echo "REMOVED_KEYS_TARGET=${version}"
 echo "REMOVED_KEYS_TARGET_SOURCE=${version_source}"
@@ -221,8 +234,8 @@ done
 if [ "$found" -gt 0 ]; then
     echo "The generated config above targets Hyprland ${version}, where each key named is a hard parse error. Nothing has been installed."
     echo "REMOVED_KEYS=found"
-    exit 1
+    exit 1   # rc=verdict
 fi
 
 echo "REMOVED_KEYS=ok (${#staged[@]} staged file(s) checked against ${rule_count} removed-key rule(s) for target ${version})"
-exit 0
+exit 0   # rc=ok

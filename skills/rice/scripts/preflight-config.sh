@@ -35,7 +35,24 @@
 #                Refuse: a config nobody could check is not a config anyone
 #                should install.
 #
-# Exit: 0 ok, 1 errors, 2 unverified, 3 uncheckable, 4 bad usage.
+# Example:
+#   preflight-config.sh /tmp/hypr-gen-abc/staging
+#
+# Options: -h, --help, help
+# Subcommands: none
+#
+# Exit codes:
+#   0  ok: the compositor parsed the staged set and found no errors
+#   1  verdict: the compositor parsed the staged set and reported errors. Do not install
+#   2  usage: no <staging-dir> argument was given
+#   3  capability: `unverified` - no compositor binary offering the offline check is on this
+#      host, so NOTHING was proven either way. The caller carries on to install, live-test and
+#      roll back. A missing binary is never reported as a verdict (1) or a refusal (4)
+#   5  input: `uncheckable` - the check could not be run against the staged files at all. The
+#      staged main config is missing, unreadable or ambiguous, the sandbox could not be built,
+#      or the compositor rejected the invocation before parsing. The caller REFUSES. Every
+#      uncheckable reason shares this one code on purpose: 3 tells a caller to carry on, and a
+#      config nobody could check must never be installed on the strength of that
 #
 # The contract this relies on is MEASURED, not assumed - see
 # `tests/integration/offline-check-contract.md` for the exact invocations, exit
@@ -43,7 +60,17 @@
 # integration container.
 set -uo pipefail
 
+case "${1:-}" in   # [cli-parser]
+    -h|--help|help)
+        sed -n '2,${/^#/!q;s/^#\{1,2\} \{0,1\}//p}' "$0"
+        exit 0 ;;   # rc=ok
+    -*)
+        echo "ERROR: unknown option '$1' (usage: preflight-config.sh <staging-dir>)" >&2
+        exit 2 ;;   # rc=usage
+esac
+
 here="$(cd "$(dirname "$0")" && pwd)"
+# config-language.sh defines helpers and never terminates; sourcing it cannot exit this script.
 # shellcheck source=config-language.sh
 source "$here/config-language.sh"
 
@@ -55,14 +82,14 @@ PARSE_MARKER='======== Config parsing result:'
 staging="${1:-}"
 if [ -z "$staging" ]; then
     echo "ERROR: usage: preflight-config.sh <staging-dir>" >&2
-    exit 4
+    exit 2   # rc=usage
 fi
 
 uncheckable() {
     echo "ERROR: $1" >&2
     echo "PREFLIGHT_REASON=$2"
     echo "PREFLIGHT=uncheckable"
-    exit 3
+    exit 5   # rc=input
 }
 
 if [ ! -d "$staging" ]; then
@@ -107,7 +134,7 @@ hypr_bin="$(command -v Hyprland 2>/dev/null || true)"
 unverified() {
     echo "PREFLIGHT_REASON=$1"
     echo "PREFLIGHT=unverified ($2)"
-    exit 2
+    exit 3   # rc=capability
 }
 if [ -z "$hypr_bin" ]; then
     unverified "no-compositor-binary" \
@@ -121,7 +148,7 @@ sandbox="$(mktemp -d "${TMPDIR:-/tmp}/hypr-preflight.XXXXXX")" || {
     echo "ERROR: could not create a sandbox directory" >&2
     echo "PREFLIGHT_REASON=no-sandbox"
     echo "PREFLIGHT=uncheckable"
-    exit 3
+    exit 5   # rc=input
 }
 cleanup() { rm -rf "$sandbox"; }
 trap cleanup EXIT
@@ -133,7 +160,7 @@ mkdir -p "$mirror" "$sandbox_run" "$sandbox/cache" || {
     echo "ERROR: could not populate the sandbox under '$sandbox'" >&2
     echo "PREFLIGHT_REASON=no-sandbox"
     echo "PREFLIGHT=uncheckable"
-    exit 3
+    exit 5   # rc=input
 }
 chmod 700 "$sandbox_run"
 
@@ -200,7 +227,7 @@ fi
 
 if [ "$rc" -eq 0 ] && printf '%s\n' "$body" | grep -qxF 'config ok'; then
     echo "PREFLIGHT=ok (the compositor's own offline check parsed the staged config with no errors)"
-    exit 0
+    exit 0   # rc=ok
 fi
 
 while IFS= read -r line; do
@@ -208,4 +235,4 @@ while IFS= read -r line; do
 done <<< "$body"
 echo "The errors above are in the STAGED files under ${staging}; nothing has been installed."
 echo "PREFLIGHT=errors"
-exit 1
+exit 1   # rc=verdict

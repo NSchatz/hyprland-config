@@ -21,13 +21,33 @@
 # a theming apply shares that apply's timestamp); leave it unset and this invocation gets its own
 # restore point, restorable on its own.
 #
-# Exit: 0 when every path is backed up (or did not exist), 1 when at least one could not be -
-# the caller must not edit a path whose backup failed, 2 on bad usage.
+# Example:
+#   backup-path.sh ~/.config/waybar/style.css ~/.bashrc
+#
+# Options: -h, --help, help
+# Subcommands: none
+#
+# Exit codes:
+#   0  ok: every path was backed up, or did not exist
+#   2  usage: no path argument was given
+#   3  capability: the restore-point library could not be found, so there is no way back and
+#      nothing was copied
+#   4  refusal: at least one path could not be backed up. The caller must NOT edit a path whose
+#      backup failed; every original is byte-identical, because a backup is a copy
 set -uo pipefail
+
+case "${1:-}" in   # [cli-parser]
+    -h|--help|help)
+        sed -n '2,${/^#/!q;s/^#\{1,2\} \{0,1\}//p}' "$0"
+        exit 0 ;;   # rc=ok
+    -*)
+        echo "ERROR: unknown option '$1' (usage: backup-path.sh <path> [<path> ...])" >&2
+        exit 2 ;;   # rc=usage
+esac
 
 if [ "$#" -eq 0 ]; then
     echo "ERROR: usage: backup-path.sh <path> [<path> ...]" >&2
-    exit 2
+    exit 2   # rc=usage
 fi
 
 here="$(cd "$(dirname "$0")" && pwd)"
@@ -48,12 +68,12 @@ for c in "$here/restore-point.sh" \
 done
 if [ -z "$lib" ]; then
     echo "ERROR: restore-point library not found (looked next to $0, in \$CLAUDE_PLUGIN_ROOT/scripts, and in \$RICE_DIR)" >&2
-    exit 2
+    exit 3   # rc=capability
 fi
 # shellcheck source=restore-point.sh
 . "$lib"
 
-rp_ensure_apply_id || { echo "ERROR: unusable RICE_APPLY_ID '${RICE_APPLY_ID:-}' (no '/', no whitespace, no leading dot)" >&2; exit 2; }
+rp_ensure_apply_id || { echo "ERROR: unusable RICE_APPLY_ID '${RICE_APPLY_ID:-}' (no '/', no whitespace, no leading dot)" >&2; exit 2; }   # rc=usage
 id="$RICE_APPLY_ID"
 rc=0
 
@@ -100,4 +120,7 @@ for p in "$@"; do
 done
 
 echo "RESTORE_POINT=$id"
-exit "$rc"
+if [ "$rc" -ne 0 ]; then
+    exit 4   # rc=refusal
+fi
+exit 0   # rc=ok
