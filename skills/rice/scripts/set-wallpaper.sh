@@ -11,13 +11,34 @@
 # hyprlock background, hypridle, widgets, dynamic-theme restore) references instead of
 # a literal path captured at generation time. Re-theme / re-pick changes one symlink,
 # every consumer follows.
+#
+# Example:
+#   set-wallpaper.sh ~/Pictures/wallpapers/forest.jpg
+#
+# Options: -h, --help, help, --dry-run
+# Subcommands: none
+#
+# Exit codes:
+#   0  ok: the wallpaper is set and current-wallpaper points at it
+#   2  usage: no <image> argument was given
+#   3  capability: no wallpaper backend is installed (swww, hyprpaper or swaybg), or the
+#      config-path library is not beside this script
+#   4  refusal: no config directory it will resolve, so the stable pointer every consumer
+#      reads could not be written and nothing was set
+#   5  input: the image it was given is not there
 set -uo pipefail
 
+case "${1:-}" in   # [cli-parser]
+    -h|--help|help)
+        sed -n '2,${/^#/!q;s/^#\{1,2\} \{0,1\}//p}' "$0"
+        exit 0 ;;   # rc=ok
+esac
+
 img="${1:-}"
-[ -n "$img" ] || { echo "ERROR: usage: set-wallpaper.sh <image> [--dry-run]" >&2; exit 2; }
+[ -n "$img" ] || { echo "ERROR: usage: set-wallpaper.sh <image> [--dry-run]" >&2; exit 2; }   # rc=usage
 dry=0; [ "${2:-}" = "--dry-run" ] && dry=1
 case "$img" in "~"*) img="${HOME}${img#\~}";; esac
-[ -f "$img" ] || { echo "ERROR: no such image: $img" >&2; exit 2; }
+[ -f "$img" ] || { echo "ERROR: no such image: $img" >&2; exit 5; }   # rc=input
 
 # Resolve to an absolute path so the symlink survives a `cd` later.
 case "$img" in /*) ;; *) img="$(cd "$(dirname "$img")" && pwd)/$(basename "$img")" ;; esac
@@ -33,14 +54,14 @@ for _c in "$(cd "$(dirname "$0")" && pwd)/xdg-config.sh" \
 done
 if [ -z "$_xdg_lib" ]; then
     echo "ERROR: the config-path library (xdg-config.sh) was not found next to $0, in \$CLAUDE_PLUGIN_ROOT/scripts, or in the plugin - re-run rice-init.sh." >&2
-    exit 2
+    exit 3   # rc=capability
 fi
 # shellcheck source=../../../scripts/xdg-config.sh
 . "$_xdg_lib"
 
 if ! xdg_config_target hypr-rice "${RICE_DIR:-}"; then
     echo "SET_WALLPAPER=refused-no-config-dir" >&2
-    exit 2
+    exit 4   # rc=refusal
 fi
 RICE_DIR="$XDG_CONFIG_TARGET"
 hypr_dir="$(xdg_config_path hypr "${HYPR_DIR:-}")" || hypr_dir=""
@@ -86,5 +107,6 @@ elif command -v swaybg >/dev/null 2>&1; then
     echo "SET_WALLPAPER=ok (swaybg)"
 else
     echo "SET_WALLPAPER=none (install swww or hyprpaper)" >&2
-    exit 3
+    exit 3   # rc=capability
 fi
+exit 0   # rc=ok

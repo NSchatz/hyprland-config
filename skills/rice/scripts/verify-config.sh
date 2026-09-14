@@ -50,7 +50,7 @@ expect=""
 while [ "$#" -gt 0 ]; do
     case "$1" in   # [cli-parser]
         -h|--help|help)
-            sed -n '2,/^[^#]/p' "$0" | sed -e '/^[^#]/d' -e 's/^#\{1,2\} \{0,1\}//'
+            sed -n '2,${/^#/!q;s/^#\{1,2\} \{0,1\}//p}' "$0"
             exit 0 ;;   # rc=ok
         --no-reload) reload=0; shift ;;
         --expect)

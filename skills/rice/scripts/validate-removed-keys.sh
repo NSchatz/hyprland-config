@@ -85,7 +85,7 @@ while [ "$#" -gt 0 ]; do
         --supported-targets)
             list_targets=1; shift ;;
         -h|--help|help)
-            sed -n '2,/^[^#]/p' "$0" | sed -e '/^[^#]/d' -e 's/^#\{1,2\} \{0,1\}//'
+            sed -n '2,${/^#/!q;s/^#\{1,2\} \{0,1\}//p}' "$0"
             exit 0 ;;   # rc=ok
         -*)
             echo "ERROR: unknown argument: $1" >&2; exit 2 ;;   # rc=usage

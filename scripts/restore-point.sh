@@ -13,6 +13,19 @@
 #   restore-point.sh show <apply-id>   print one restore point's entries
 # Restoring is a separate command: rice-restore.sh (or `rice restore <apply-id>`).
 #
+# Example:
+#   RICE_APPLY_ID="$(restore-point.sh new-id)" restore-point.sh record ~/.bashrc
+#
+# Options: -h, --help
+# Subcommands: new-id, record, list, show, help
+#
+# Exit codes (the CLI half; sourcing this file defines helpers and terminates nothing):
+#   0  ok: the subcommand did what it says
+#   1  verdict: `show` was given an identifier with no restore point under it
+#   2  usage: an unknown subcommand, or `record` with no path
+#   4  refusal: at least one path could not be backed up, so the caller must not write there.
+#      A backup is a copy, so every original is byte-identical
+#
 # Store layout ($RICE_RESTORE_DIR, default ${XDG_STATE_HOME:-~/.local/state}/hypr-rice/restore):
 #   <store>/<apply-id>/entries.tsv   kind <tab> target <tab> backup   (append-only)
 #   <store>/<apply-id>/done.tsv      one target per line, appended as a restore completes it
@@ -229,7 +242,7 @@ rp_enrolled_ancestor() {
             sub(/\/+$/, "", a)
             if (a != "" && index(t, a "/") == 1 && length(a) > length(best)) best = a
         }
-        END { if (best != "") { print best; exit 0 } exit 1 }
+        END { if (best != "") { print best; exit 0 } exit 1 }   # rc=embedded (awk, not this shell)
     ' "$f"
 }
 
@@ -410,17 +423,17 @@ rp_list() {
 if [ "${BASH_SOURCE[0]}" = "$0" ]; then
     set -uo pipefail
     _rp_cmd="${1:-help}"; shift 2>/dev/null || true
-    case "$_rp_cmd" in
+    case "$_rp_cmd" in   # [cli-parser]
         new-id) rp_new_id ;;
         list)   rp_list ;;
         show)
             _rp_dir="$(rp_point_dir "${1:-}")"
             if [ -s "$_rp_dir/entries.tsv" ]; then cat "$_rp_dir/entries.tsv"; else
-                echo "(no restore point '${1:-}' under $(rp_state_dir))" >&2; exit 3
+                echo "(no restore point '${1:-}' under $(rp_state_dir))" >&2; exit 1   # rc=verdict
             fi
             ;;
         record)
-            [ "$#" -gt 0 ] || { echo "ERROR: usage: restore-point.sh record <path> [<path> ...]" >&2; exit 2; }
+            [ "$#" -gt 0 ] || { echo "ERROR: usage: restore-point.sh record <path> [<path> ...]" >&2; exit 2; }   # rc=usage
             _rp_rc=0
             for _rp_p in "$@"; do
                 if rp_protect "$_rp_p"; then
@@ -431,9 +444,15 @@ if [ "${BASH_SOURCE[0]}" = "$0" ]; then
                 fi
             done
             [ -n "${RP_LAST_ID:-}" ] && printf 'RESTORE_POINT=%s\n' "$RP_LAST_ID"
-            exit "$_rp_rc"
+            if [ "$_rp_rc" -ne 0 ]; then
+                exit 4   # rc=refusal
+            fi
+            exit 0   # rc=ok
             ;;
-        help|-h|--help) sed -n '2,23p' "$0" ;;
-        *) echo "unknown command: $_rp_cmd (try: restore-point.sh help)" >&2; exit 2 ;;
+        help|-h|--help)
+            sed -n '2,${/^#/!q;s/^#\{1,2\} \{0,1\}//p}' "$0"
+            exit 0 ;;   # rc=ok
+        *) echo "unknown command: $_rp_cmd (try: restore-point.sh help)" >&2; exit 2 ;;   # rc=usage
     esac
+    exit 0   # rc=ok
 fi

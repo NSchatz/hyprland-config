@@ -23,18 +23,36 @@
 #   EMITTED=<path of the file written>
 #   DONE=ok
 #
-# Exit: 0 emitted, 2 bad usage, 3 the version could not be detected and no
-#       explicit language choice was supplied (nothing is written).
+# Example:
+#   emit-config.sh /tmp/hypr-gen-abc/staging
+#
+# Options: -h, --help, help
+# Subcommands: none
+#
+# Exit codes:
+#   0  ok: the main config was written into <staging-dir>
+#   2  usage: no <staging-dir> argument was given, or HYPR_CONFIG_LANG names a language this
+#      emitter does not have
+#   3  capability: the Hyprland version could not be detected and no explicit language was
+#      supplied, so there is no language to emit in. NOTHING is written and nothing is guessed
+#   5  input: the staging directory could not be created
 set -uo pipefail
 
+case "${1:-}" in   # [cli-parser]
+    -h|--help|help)
+        sed -n '2,${/^#/!q;s/^#\{1,2\} \{0,1\}//p}' "$0"
+        exit 0 ;;   # rc=ok
+esac
+
 here="$(cd "$(dirname "$0")" && pwd)"
+# config-language.sh defines helpers and never terminates; sourcing it cannot exit this script.
 # shellcheck source=config-language.sh
 source "$here/config-language.sh"
 
 staging="${1:-}"
 if [ -z "$staging" ]; then
     echo "ERROR: usage: emit-config.sh <staging-dir>" >&2
-    exit 2
+    exit 2   # rc=usage
 fi
 
 terminal="${BARE_TERMINAL:-kitty}"
@@ -44,12 +62,18 @@ menu="${BARE_MENU:-wofi --show drun}"
 lang_out="$(config_lang_resolve)"
 lang_rc=$?
 printf '%s\n' "$lang_out"
+if [ "$lang_rc" -eq 2 ]; then
+    # HYPR_CONFIG_LANG was set to something this emitter has no writer for.
+    exit 2   # rc=usage
+fi
 if [ "$lang_rc" -ne 0 ]; then
-    exit "$lang_rc"
+    # config_lang_resolve's only other non-zero is 3: no version could be detected and no
+    # explicit choice was supplied, so there is no language to emit in. Never a guess.
+    exit 3   # rc=capability
 fi
 language="$(printf '%s\n' "$lang_out" | sed -n 's/^CONFIG_LANGUAGE=//p' | head -n1)"
 
-mkdir -p "$staging" || { echo "ERROR: cannot create staging dir '$staging'" >&2; exit 2; }
+mkdir -p "$staging" || { echo "ERROR: cannot create staging dir '$staging'" >&2; exit 5; }   # rc=input
 out="$staging/$(config_lang_file "$language")"
 
 emit_hyprlang() {
@@ -171,8 +195,9 @@ BARE
 case "$language" in
     hyprlang) emit_hyprlang > "$out" ;;
     lua)      emit_lua      > "$out" ;;
-    *)        echo "ERROR: unsupported config language: $language" >&2; exit 2 ;;
+    *)        echo "ERROR: unsupported config language: $language" >&2; exit 2 ;;   # rc=usage
 esac
 
 echo "EMITTED=${out}"
 echo "DONE=ok"
+exit 0   # rc=ok

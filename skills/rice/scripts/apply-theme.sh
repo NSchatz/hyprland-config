@@ -1,13 +1,30 @@
 #!/usr/bin/env bash
 # Reload running apps after theme files have been written, so changes show without a logout.
 # Only reloads apps that are actually running; everything else is a skip. Changes nothing on
-# disk — assumes the theme files were already written + backed up by the skill.
+# disk - assumes the theme files were already written + backed up by the skill.
 #
 # Usage: apply-theme.sh [--cursor <Theme> <size>]
 #   --cursor  also apply a cursor theme live via `hyprctl setcursor`.
 #
+# Example:
+#   apply-theme.sh --cursor Bibata-Modern-Ice 24
+#
+# Options: -h, --help, help, --cursor
+# Subcommands: none
+#
 # Prints RELOAD_<app>=ok|skipped lines.
+#
+# Exit codes:
+#   0  ok: every running app this knows how to reload was asked to. An app that is not running
+#      is a skip and an app that refused the reload is reported as RELOAD_<app>=failed; neither
+#      is a failure of this command, which is why there is no other code here
 set -uo pipefail
+
+case "${1:-}" in   # [cli-parser]
+    -h|--help|help)
+        sed -n '2,${/^#/!q;s/^#\{1,2\} \{0,1\}//p}' "$0"
+        exit 0 ;;   # rc=ok
+esac
 
 cursor_theme=""
 cursor_size="24"
@@ -64,3 +81,4 @@ if [ -n "$cursor_theme" ] && command -v hyprctl >/dev/null 2>&1 && hyprctl versi
 fi
 
 echo "APPLY_THEME=done"
+exit 0   # rc=ok

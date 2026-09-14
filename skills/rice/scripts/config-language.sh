@@ -34,7 +34,20 @@
 #   LANGUAGE_OPTION=hyprlang <range>
 #   ERROR: ... requires an explicit choice ...
 #
-# Exit: 0 resolved, 2 bad usage, 3 undetected version and no explicit choice.
+# Example:
+#   config-language.sh --version 0.56.2
+#
+# Options: -h, --help, help, --language, --version, --range
+# Subcommands: none
+#
+# Exit codes (the CLI half; sourcing this file defines helpers and terminates nothing, and
+# those helpers keep returning exactly what they always returned):
+#   0  ok: the language is resolved
+#   2  usage: an unknown argument, an option with no value after it, or a language name this
+#      file has no range for
+#   3  capability: the Hyprland version could not be detected and no explicit choice was
+#      supplied. It reports what it COULD emit and stops rather than guessing; that is an
+#      absent capability, never a verdict about any config
 #
 # Sourcing this file defines the helpers WITHOUT running the CLI, so the other
 # scripts share one definition of the cliff, the file names and the ranges.
@@ -180,7 +193,7 @@ config_lang_resolve() {
 
 config_lang_main() {
     while [ "$#" -gt 0 ]; do
-        case "$1" in
+        case "$1" in   # [cli-parser]
             --language)
                 [ "$#" -ge 2 ] || { echo "ERROR: --language needs a value" >&2; return 2; }
                 HYPR_CONFIG_LANG="$2"; shift 2 ;;
@@ -191,8 +204,8 @@ config_lang_main() {
                 [ "$#" -ge 2 ] || { echo "ERROR: --range needs a language" >&2; return 2; }
                 config_lang_range "$2" || { echo "ERROR: unknown language: $2" >&2; return 2; }
                 return 0 ;;
-            -h|--help)
-                sed -n '2,40p' "${BASH_SOURCE[0]}"; return 0 ;;
+            -h|--help|help)
+                sed -n '2,${/^#/!q;s/^#\{1,2\} \{0,1\}//p}' "${BASH_SOURCE[0]}"; return 0 ;;
             *)
                 echo "ERROR: unknown argument: $1" >&2; return 2 ;;
         esac
@@ -205,5 +218,13 @@ config_lang_main() {
 if [ "${BASH_SOURCE[0]}" = "${0}" ]; then
     set -uo pipefail
     config_lang_main "$@"
+    _cl_rc=$?
+    # The helpers' return values are unchanged (they are sourced by other scripts); the CLI
+    # half states them in this repo's vocabulary. config_lang_main returns 0, 2 or 3.
+    case "$_cl_rc" in
+        0) exit 0 ;;   # rc=ok
+        2) exit 2 ;;   # rc=usage
+        *) exit 3 ;;   # rc=capability
+    esac
     exit $?
 fi

@@ -32,7 +32,33 @@
 # is $XDG_CONFIG_HOME when it is an absolute path and $HOME/.config otherwise - one decision,
 # made in scripts/xdg-config.sh. The lock-screen blur cache stays under $HOME/.cache: that is
 # XDG_CACHE_HOME's base directory, not this one's.
+#
+# Example:
+#   render-templates.sh --no-reload
+#
+# Options: -h, --help, help, --no-reload
+# Subcommands: none
+#
+# Exit codes:
+#   0  ok: the manifest was rendered (a surface whose backup could not be taken is reported as
+#      RENDER_SKIPPED and the rest of the manifest carries on)
+#   2  usage: an unknown first argument
+#   3  capability: the config-path library or the restore-point library is not beside this
+#      script, so there is no way back and nothing was rendered
+#   4  refusal: no config directory it will resolve, so nothing was rendered
+#   5  input: the palette or the manifest it was given is not there
 set -uo pipefail
+
+case "${1:-}" in   # [cli-parser]
+    -h|--help|help)
+        sed -n '2,${/^#/!q;s/^#\{1,2\} \{0,1\}//p}' "$0"
+        exit 0 ;;   # rc=ok
+    --no-reload) ;;
+    -*)
+        echo "ERROR: unknown option: $1 (usage: render-templates.sh [--no-reload] [palette-file] [manifest-file])" >&2
+        exit 2 ;;   # rc=usage
+    *) ;;
+esac
 
 # Config-path library: next to this script when installed into $RICE_DIR, else in the plugin.
 # Sourced BEFORE RICE_DIR is resolved, because resolving RICE_DIR is what it is for.
@@ -44,14 +70,14 @@ for _c in "$(cd "$(dirname "$0")" && pwd)/xdg-config.sh" \
 done
 if [ -z "$_xdg_lib" ]; then
     echo "ERROR: the config-path library (xdg-config.sh) was not found next to $0, in \$CLAUDE_PLUGIN_ROOT/scripts, or in the plugin. Refusing to guess where your config lives - re-run rice-init.sh." >&2
-    exit 2
+    exit 3   # rc=capability
 fi
 # shellcheck source=../../../scripts/xdg-config.sh
 . "$_xdg_lib"
 
 if ! xdg_config_target hypr-rice "${RICE_DIR:-}"; then
     echo "RENDER=refused-no-config-dir (no config directory could be determined; nothing was rendered)"
-    exit 2
+    exit 4   # rc=refusal
 fi
 RICE_DIR="$XDG_CONFIG_TARGET"
 
@@ -65,7 +91,7 @@ for _c in "$(cd "$(dirname "$0")" && pwd)/restore-point.sh" \
 done
 if [ -z "$_rp_lib" ]; then
     echo "ERROR: restore-point library not found (looked next to $0, in \$CLAUDE_PLUGIN_ROOT/scripts, and in $RICE_DIR). Refusing to render without a way back - re-run rice-init.sh." >&2
-    exit 2
+    exit 3   # rc=capability
 fi
 # shellcheck source=../../../scripts/restore-point.sh
 . "$_rp_lib"
@@ -74,8 +100,8 @@ if [ "${1:-}" = "--no-reload" ]; then reload=0; shift; fi
 palette="${1:-$RICE_DIR/palette.conf}"
 manifest="${2:-$RICE_DIR/templates.list}"
 
-[ -f "$palette" ]  || { echo "ERROR: palette not found: $palette" >&2; exit 2; }
-[ -f "$manifest" ] || { echo "ERROR: manifest not found: $manifest" >&2; exit 2; }
+[ -f "$palette" ]  || { echo "ERROR: palette not found: $palette" >&2; exit 5; }   # rc=input
+[ -f "$manifest" ] || { echo "ERROR: manifest not found: $manifest" >&2; exit 5; }   # rc=input
 
 # Load palette into an associative array (skip comments/blank lines).
 declare -A P
@@ -257,3 +283,4 @@ if [ -n "${RICE_APPLY_ID:-}" ]; then
 fi
 
 echo "RENDER=done"
+exit 0   # rc=ok

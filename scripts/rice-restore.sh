@@ -22,14 +22,23 @@
 # point is KEPT so re-running finishes the job. Re-running is always safe - files already put
 # back in an earlier (or interrupted) attempt are skipped, not restored twice.
 #
+# Example:
+#   rice-restore.sh --list
+#
+# Options: -h, --help, help, --list
+# Subcommands: list
+#
 # Exit codes:
-#   0  every file in the restore point was restored or removed; the point is cleared
-#   1  partially restored: some files failed; the point is kept, fix them and re-run
-#   2  usage error, or the restore-point library could not be found
-#   3  nothing to restore for that identifier (never applied under it, or already restored)
-#      (a cleared point is the normal, successful end state, so this is what a second restore
-#       against the same identifier reports - it is deliberately NOT exit 0, which would be
-#       "success with nothing restored")
+#   0  ok: every file in the restore point was restored or removed; the point is cleared
+#   1  verdict: nothing to restore for that identifier - nothing was ever applied under it, or
+#      it was already restored and the point cleared. A cleared point is the normal, successful
+#      end state, so this is what a second restore against the same identifier reports; it is
+#      deliberately NOT 0, which would be "success with nothing restored"
+#   2  usage: no identifier given, or an unknown option
+#   3  capability: the restore-point library could not be found, so no point could be read
+#   6  partial: some files were put back and some FAILED. The restore point is KEPT, the
+#      failures are named by path, and a re-run finishes the job - this is the one status here
+#      under which state is mixed
 set -uo pipefail
 
 here="$(cd "$(dirname "$0")" && pwd)"
@@ -51,24 +60,28 @@ for c in "$here/restore-point.sh" \
 done
 if [ -z "$lib" ]; then
     echo "ERROR: restore-point library not found (looked next to $0, in \$CLAUDE_PLUGIN_ROOT/scripts, and in \$RICE_DIR)" >&2
-    exit 2
+    exit 3   # rc=capability
 fi
 # shellcheck source=restore-point.sh
 . "$lib"
 
 id="${1:-}"
-case "$id" in
-    ''|-h|--help)
-        sed -n '2,32p' "$0"
-        exit 2
+case "$id" in   # [cli-parser]
+    -h|--help|help)
+        sed -n '2,${/^#/!q;s/^#\{1,2\} \{0,1\}//p}' "$0"
+        exit 0   # rc=ok
+        ;;
+    '')
+        echo "ERROR: usage: rice-restore.sh <apply-id> | --list  (try: rice-restore.sh --help)" >&2
+        exit 2   # rc=usage
         ;;
     --list|list)
         rp_list
-        exit 0
+        exit 0   # rc=ok
         ;;
     -*)
         echo "ERROR: unknown option '$id' (usage: rice-restore.sh <apply-id> | --list)" >&2
-        exit 2
+        exit 2   # rc=usage
         ;;
 esac
 
@@ -76,7 +89,7 @@ dir="$(rp_point_dir "$id")"
 entries="$dir/entries.tsv"
 if [ ! -s "$entries" ]; then
     echo "RESTORE=nothing-to-restore $id (no restore point under $(rp_state_dir): nothing was applied under that identifier, or it was already restored and the point cleared)"
-    exit 3
+    exit 1   # rc=verdict
 fi
 
 restored=0; removed=0; already=0; failed=0
@@ -185,8 +198,9 @@ done < <(rp_replay_order "$entries")
 if [ "$failed" -eq 0 ]; then
     rp_clear "$id"
     echo "RESTORE=done $id ($restored restored, $removed removed, $already already restored; restore point cleared)"
-    exit 0
+    exit 0   # rc=ok
 fi
 
 echo "RESTORE=partial $id ($restored restored, $removed removed, $failed failed; restore point kept at $dir - fix the paths reported above and re-run: rice restore $id)"
-exit 1
+echo "PARTIAL: $restored file(s) were put back and $removed removed, but $failed could NOT be put back. The restore point $id is KEPT at $dir so a re-run finishes the job; until then this machine holds a mix of restored and unrestored files." >&2
+exit 6   # rc=partial
