@@ -15,12 +15,16 @@
 # Exit codes:
 #   0  ok: the probe ran. A tool that is absent is REPORTED as MISSING_<tool>=1, never a
 #      non-zero status: absence is the answer this command exists to give
+#   2  usage: an option this script does not have
 set -uo pipefail
 
 case "${1:-}" in   # [cli-parser]
     -h|--help|help)
         sed -n '2,${/^#/!q;s/^#\{1,2\} \{0,1\}//p}' "$0"
         exit 0 ;;   # rc=ok
+    -*)
+        echo "ERROR: unknown option '$1' (usage: detect-theme-tools.sh)" >&2
+        exit 2 ;;   # rc=usage
 esac
 
 have() { # $1 label, $2 binary (default label), $3 pacman pkg fallback

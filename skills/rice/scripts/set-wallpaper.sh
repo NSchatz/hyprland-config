@@ -32,11 +32,20 @@ case "${1:-}" in   # [cli-parser]
     -h|--help|help)
         sed -n '2,${/^#/!q;s/^#\{1,2\} \{0,1\}//p}' "$0"
         exit 0 ;;   # rc=ok
+    -*)
+        echo "ERROR: unknown option '$1' (usage: set-wallpaper.sh <image> [--dry-run])" >&2
+        exit 2 ;;   # rc=usage
 esac
 
 img="${1:-}"
 [ -n "$img" ] || { echo "ERROR: usage: set-wallpaper.sh <image> [--dry-run]" >&2; exit 2; }   # rc=usage
-dry=0; [ "${2:-}" = "--dry-run" ] && dry=1
+dry=0
+case "${2:-}" in   # [cli-parser]
+    --dry-run) dry=1 ;;
+    -*)
+        echo "ERROR: unknown option '$2' (usage: set-wallpaper.sh <image> [--dry-run])" >&2
+        exit 2 ;;   # rc=usage
+esac
 case "$img" in "~"*) img="${HOME}${img#\~}";; esac
 [ -f "$img" ] || { echo "ERROR: no such image: $img" >&2; exit 5; }   # rc=input
 

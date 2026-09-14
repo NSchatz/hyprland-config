@@ -15,12 +15,16 @@
 #   0  ok: the probe ran. An undetectable version is REPORTED as HYPR_VERSION=unknown, never a
 #      non-zero status: telling a caller what could not be detected is the whole job, and the
 #      scripts that need a version refuse on that line rather than on this code
+#   2  usage: an option this script does not have
 set -uo pipefail
 
 case "${1:-}" in   # [cli-parser]
     -h|--help|help)
         sed -n '2,${/^#/!q;s/^#\{1,2\} \{0,1\}//p}' "$0"
         exit 0 ;;   # rc=ok
+    -*)
+        echo "ERROR: unknown option '$1' (usage: detect-version.sh)" >&2
+        exit 2 ;;   # rc=usage
 esac
 
 # Config-path library, for the uwsm session-env files reported further down. Optional here:

@@ -12,6 +12,8 @@ case "${1:-help}" in   # [cli-parser]
         cat <<EOF
 hypr-rice - desktop theme engine (${RICE_DIR:-<config base>/hypr-rice})
 
+Usage: rice <subcommand> [args]
+
   rice apply              render all templates from palette.conf and reload apps
   rice apply --no-reload  render only (no app reloads)
   rice restore <apply-id> put every file that apply wrote back the way it was (one command,
@@ -51,10 +53,11 @@ hypr-rice - desktop theme engine (${RICE_DIR:-<config base>/hypr-rice})
 Example:
   rice theme catppuccin-mocha
 
-Options: -h, --help, help, --no-theme, --no-reload, --set, --dir, --min-res, --pin, --list
-Subcommands: apply, restore, installs, prefs, wallpaper, random, wallpapers, get-wallpaper,
-  wallpaper-get, accents, accent, save, theme, load, themes, list-themes, theme-toggle,
-  theme-next, palette, templates, list, edit, help
+Options: -h, --help, help, --no-theme, --set, --dir, --min-res, --pin
+Subcommands: apply, restore, installs, prefs, wallpaper, random, wallpapers, get-wallpaper, wallpaper-get, accents, accent, save, theme, load, themes, list-themes, theme-toggle, theme-next, palette, templates, list, edit, help
+
+Note: --no-reload and --list above are options of the scripts rice hands the work to
+(render-templates.sh, rice-restore.sh); rice forwards them without parsing them.
 
 Exit codes:
   0  ok: it ran and the answer is yes
@@ -156,7 +159,11 @@ case "$cmd" in   # [cli-parser]
             if grep -q '^wallpaper=' "$pc"; then sed -i "s|^wallpaper=.*|wallpaper=$img|" "$pc"
             else printf 'wallpaper=%s\n' "$img" >> "$pc"; fi
         fi
-        if [ "${1:-}" != "--no-theme" ]; then
+        theme_after=1
+        case "${1:-}" in   # [cli-parser]
+            --no-theme) theme_after=0 ;;
+        esac
+        if [ "$theme_after" -eq 1 ]; then
             bash "$RICE_DIR/palette-from-wallpaper.sh" "$img" && bash "$RICE_DIR/render-templates.sh"
         fi
         ;;
@@ -194,7 +201,7 @@ case "$cmd" in   # [cli-parser]
         shift 2 2>/dev/null || true
         do_set=0; dir="$HOME/Pictures/wallpapers"; min_res=0
         while [ $# -gt 0 ]; do
-            case "$1" in
+            case "$1" in   # [cli-parser]
                 --set) do_set=1;;
                 --dir) shift; dir="${1:-$dir}";;
                 --min-res) shift; min_res="${1:-0}";;
@@ -255,7 +262,10 @@ case "$cmd" in   # [cli-parser]
         # palette.user.conf (survives every theme/wallpaper change); default writes palette.conf.
         sel="${1:-}"; [ -n "$sel" ] || { echo "usage: rice accent <name|hex> [--pin]  (see: rice accents)" >&2; exit 2; }   # rc=usage
         shift 2>/dev/null || true
-        pin=0; [ "${1:-}" = "--pin" ] && pin=1
+        pin=0
+        case "${1:-}" in   # [cli-parser]
+            --pin) pin=1 ;;
+        esac
         acc="$RICE_DIR/accents.tsv"
         scheme="$(sed -n 's/^scheme=//p' "$RICE_DIR/palette.conf" 2>/dev/null | head -1)"
         hex=""

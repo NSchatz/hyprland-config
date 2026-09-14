@@ -27,6 +27,9 @@ case "${1:-}" in   # [cli-parser]
     -h|--help|help)
         sed -n '2,${/^#/!q;s/^#\{1,2\} \{0,1\}//p}' "$0"
         exit 0 ;;   # rc=ok
+    -*)
+        echo "ERROR: unknown option '$1' (usage: palette-from-wallpaper.sh <image>)" >&2
+        exit 2 ;;   # rc=usage
 esac
 
 # Config-path library: next to this script when installed into $RICE_DIR, else in the plugin.

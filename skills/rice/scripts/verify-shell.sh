@@ -30,6 +30,9 @@ case "${1:-}" in   # [cli-parser]
     -h|--help|help)
         sed -n '2,${/^#/!q;s/^#\{1,2\} \{0,1\}//p}' "$0"
         exit 0 ;;   # rc=ok
+    -*)
+        echo "ERROR: unknown option '$1' (usage: verify-shell.sh <rcfile> [bash|zsh|fish])" >&2
+        exit 2 ;;   # rc=usage
 esac
 
 f="${1:-}"

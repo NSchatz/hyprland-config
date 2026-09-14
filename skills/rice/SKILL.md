@@ -384,7 +384,7 @@ if [ -z "$INSTALLER" ]; then
     echo "ERROR: install-packages.sh not found (looked beside this script's rice dir and in" >&2
     echo "       \$CLAUDE_PLUGIN_ROOT/scripts). Nothing was installed: an install that leaves no" >&2
     echo "       record is not something this script does. Re-run rice-init.sh, then re-run this." >&2
-    exit 2
+    exit 4
 fi
 bash "$INSTALLER" --route install.sh "${PKGS[@]}"
 echo "Done"

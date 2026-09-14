@@ -285,7 +285,7 @@ if [ "${BASH_SOURCE[0]}" = "$0" ]; then
             _ir_route=""; _ir_helper=""; _ir_label=""
             while [ "$#" -gt 0 ]; do
                 _ir_opt="$1"; shift
-                case "$_ir_opt" in
+                case "$_ir_opt" in   # [cli-parser]
                     --route)  [ "$#" -gt 0 ] || { echo "ERROR: --route needs a value" >&2; exit 2; }   # rc=usage
                               _ir_route="$1"; shift ;;
                     --helper) [ "$#" -gt 0 ] || { echo "ERROR: --helper needs a value" >&2; exit 2; }   # rc=usage

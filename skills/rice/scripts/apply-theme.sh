@@ -17,21 +17,23 @@
 # Exit codes:
 #   0  ok: every running app this knows how to reload was asked to. An app that is not running
 #      is a skip and an app that refused the reload is reported as RELOAD_<app>=failed; neither
-#      is a failure of this command, which is why there is no other code here
+#      is a failure of this command
+#   2  usage: an option this script does not have
 set -uo pipefail
 
+cursor_theme=""
+cursor_size="24"
 case "${1:-}" in   # [cli-parser]
     -h|--help|help)
         sed -n '2,${/^#/!q;s/^#\{1,2\} \{0,1\}//p}' "$0"
         exit 0 ;;   # rc=ok
+    --cursor)
+        cursor_theme="${2:-}"
+        cursor_size="${3:-24}" ;;
+    -*)
+        echo "ERROR: unknown option '$1' (usage: apply-theme.sh [--cursor <Theme> <size>])" >&2
+        exit 2 ;;   # rc=usage
 esac
-
-cursor_theme=""
-cursor_size="24"
-if [ "${1:-}" = "--cursor" ]; then
-    cursor_theme="${2:-}"
-    cursor_size="${3:-24}"
-fi
 
 running() { pgrep -x "$1" >/dev/null 2>&1; }
 

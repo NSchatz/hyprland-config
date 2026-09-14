@@ -29,6 +29,7 @@
 #
 # Exit codes:
 #   0  ok: the compositor named the config it loaded
+#   2  usage: an option this script does not have
 #   3  capability: there is no running instance to ask, or the running one would not name the
 #      config it loaded. Either way nothing was established; the LOADED_CONFIG_SOURCE= line
 #      says which of the two it was
@@ -38,6 +39,9 @@ case "${1:-}" in   # [cli-parser]
     -h|--help|help)
         sed -n '2,${/^#/!q;s/^#\{1,2\} \{0,1\}//p}' "$0"
         exit 0 ;;   # rc=ok
+    -*)
+        echo "ERROR: unknown option '$1' (usage: loaded-config.sh)" >&2
+        exit 2 ;;   # rc=usage
 esac
 
 if ! command -v hyprctl >/dev/null 2>&1 || ! hyprctl version >/dev/null 2>&1; then

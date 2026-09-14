@@ -18,6 +18,7 @@
 #
 # Exit codes:
 #   0  ok: backed up, or there was nothing to back up
+#   2  usage: an option this script does not have
 #   3  capability: the config-path library this plugin resolves directories with is not beside
 #      this script, so no directory was resolved and nothing was read
 #   4  refusal: no config directory it is willing to resolve, or a backup it could not write.
@@ -28,6 +29,9 @@ case "${1:-}" in   # [cli-parser]
     -h|--help|help)
         sed -n '2,${/^#/!q;s/^#\{1,2\} \{0,1\}//p}' "$0"
         exit 0 ;;   # rc=ok
+    -*)
+        echo "ERROR: unknown option '$1' (usage: backup-config.sh)" >&2
+        exit 2 ;;   # rc=usage
 esac
 
 here="$(cd "$(dirname "$0")" && pwd)"

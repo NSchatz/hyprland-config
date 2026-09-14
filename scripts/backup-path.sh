@@ -40,6 +40,9 @@ case "${1:-}" in   # [cli-parser]
     -h|--help|help)
         sed -n '2,${/^#/!q;s/^#\{1,2\} \{0,1\}//p}' "$0"
         exit 0 ;;   # rc=ok
+    -*)
+        echo "ERROR: unknown option '$1' (usage: backup-path.sh <path> [<path> ...])" >&2
+        exit 2 ;;   # rc=usage
 esac
 
 if [ "$#" -eq 0 ]; then

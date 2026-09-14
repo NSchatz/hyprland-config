@@ -64,6 +64,9 @@ case "${1:-}" in   # [cli-parser]
     -h|--help|help)
         sed -n '2,${/^#/!q;s/^#\{1,2\} \{0,1\}//p}' "$0"
         exit 0 ;;   # rc=ok
+    -*)
+        echo "ERROR: unknown option '$1' (usage: preflight-config.sh <staging-dir>)" >&2
+        exit 2 ;;   # rc=usage
 esac
 
 here="$(cd "$(dirname "$0")" && pwd)"

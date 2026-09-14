@@ -32,7 +32,7 @@
 # Example:
 #   install-packages.sh --route install.sh --assume-no waybar kitty
 #
-# Options: -h, --help, help, --route, --label, --helper, --noconfirm, --assume-yes, --assume-no
+# Options: -h, --help, help, --route, --label, --helper, --noconfirm, --assume-yes, --assume-no, --
 # Subcommands: none
 #
 # Exit codes:

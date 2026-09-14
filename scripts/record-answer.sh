@@ -14,8 +14,10 @@
 # Example:
 #   record-answer.sh /tmp/hypr-gen-abc/answers.json palette.scheme catppuccin-mocha
 #
-# Options: -h, --help, help, --json
+# Options: -h, --help, help
 # Subcommands: none
+#   `--json` is record-answer.py's own flag, shown in the usage above and passed straight
+#   through by this wrapper, which does not parse it.
 #
 # Exit codes:
 #   0  ok: the answer is recorded

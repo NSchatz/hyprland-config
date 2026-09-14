@@ -5,7 +5,9 @@
 #
 # Sourced as a library by every writer that touches a user file (skills/rice/scripts/
 # render-templates.sh, skills/rice/assets/scripts/firefox-bootstrap.sh, scripts/backup-path.sh),
-# and usable on its own:
+# and usable on its own.
+#
+# Usage:
 #   restore-point.sh new-id            print a fresh apply id (export it as RICE_APPLY_ID so
 #                                      every stage of one apply shares one restore point)
 #   restore-point.sh record <path>...  back up + enroll paths under $RICE_APPLY_ID

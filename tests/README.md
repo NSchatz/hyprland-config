@@ -10,13 +10,25 @@ bash tests/run.sh <substring>          # only test files matching the substring
 RUN_INTEGRATION=1 bash tests/run.sh    # also build + run the Hyprland-in-Docker integration
 ```
 
-Exit code: `0` if every test passed (skipped is fine), `1` otherwise.
+Exit codes: `0` if every test passed (skipped is fine), `1` if any failed, `2` if the filter
+matched no test file at all (running nothing is not a pass), `5` if this directory holds no
+test file. `bash tests/run.sh --help` prints that contract.
+
+Two files here are not tests: `lib.sh` is the assertion library, and `kv-vocabulary.sh` plus
+`kv-baseline.txt` are the KEY=value narration scanner and the baseline it is measured against,
+captured before the exit-code work of S0138 began. Regenerate the baseline deliberately, never
+casually - it is what lets the assertion fail:
+
+```bash
+bash tests/kv-vocabulary.sh > tests/kv-baseline.txt
+```
 
 ## What's covered
 
 | File | What it checks |
 |---|---|
 | `test_scripts_syntax.sh` | `bash -n` on every `.sh` the plugin ships + `shellcheck` (errors only, if installed) + `+x` bit on scripts the user invokes directly |
+| `test_exit_codes.sh` | The exit-code vocabulary (see `CLAUDE.md`): every command's `-h`/`--help`/`help` exits 0 and states its usage, one runnable example, its options and its codes; the set it documents equals the set its source can return, in both directions; every deliberate termination carries an `# rc=<class>` tag the number agrees with; 1 is a negative verdict and nothing else; 0-6 and no other; the unhappy paths run for real (usage 2, absent capability 3, refusal 4 with the target byte-identical, defective input 5, half-finished work 6 with both halves named on stderr); `preflight-config.sh`'s `unverified` (3) stays apart from its `uncheckable` (5); `run.sh`'s own contract including the filter that matches nothing; the `rice` CLI's codes; and the KEY=value narration measured against `kv-baseline.txt` |
 | `test_record_answer.sh` | `scripts/record-answer.sh` full behavior — strings, `--json` arrays/numbers/`false`/`null`/objects, nested keys, idempotent overwrite, invalid input rejection, corrupted-target rejection |
 | `test_backup_path.sh` | `scripts/backup-path.sh` — file backup, dir backup (recursive), missing-path reporting, shared timestamp across multi-path calls, `~` expansion |
 | `test_verify_shell.sh` | `skills/rice/scripts/verify-shell.sh` — clean rc → `ok`, broken rc → `errors`, **never sources the file** (critical safety property), shell inference from filename, missing file → error |
