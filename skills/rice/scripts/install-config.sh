@@ -35,12 +35,30 @@
 #   TARGET=<dir>
 #   DONE=ok
 #
-# Exit: 0 installed, 2 bad usage / unusable staging dir / no config directory could be
-#         determined,
-#       3 refused (the target is shadowed by a hyprland.lua, or staging is
-#         ambiguous/mixed because it holds both languages),
-#       4 refused (the target exists but cannot be written to).
+# Example:
+#   install-config.sh /tmp/hypr-gen-abc/staging
+#
+# Options: -h, --help, help
+# Subcommands: none
+#
+# Exit codes:
+#   0  ok: the staged set is installed
+#   2  usage: no <staging-dir> argument was given
+#   3  capability: the config-path library this plugin resolves directories with is not
+#      beside this script, so nothing was resolved and nothing was read
+#   4  refusal: it declined and wrote nothing - the target holds a hyprland.lua it will not
+#      shadow, the target is not a writable directory, no config directory it will resolve, or
+#      a backup it could not take. Every target path is byte-identical to before
+#   5  input: the staged set it was given is defective - the directory is missing, it has no
+#      main config, it holds no config files, or it is ambiguous because it mixes the two
+#      config languages
 set -euo pipefail
+
+case "${1:-}" in   # [cli-parser]
+    -h|--help|help)
+        sed -n '2,/^[^#]/p' "$0" | sed -e '/^[^#]/d' -e 's/^#\{1,2\} \{0,1\}//'
+        exit 0 ;;   # rc=ok
+esac
 
 here="$(cd "$(dirname "$0")" && pwd)"
 # shellcheck source=config-language.sh
@@ -53,7 +71,7 @@ for _c in "$here/xdg-config.sh" \
 done
 if [ -z "$_xdg_lib" ]; then
     echo "ERROR: the config-path library (scripts/xdg-config.sh) was not found next to $0, in \$CLAUDE_PLUGIN_ROOT/scripts, or in the plugin. Refusing to guess where your config lives." >&2
-    exit 2
+    exit 3   # rc=capability
 fi
 # shellcheck source=../../../scripts/xdg-config.sh
 . "$_xdg_lib"
@@ -61,11 +79,11 @@ fi
 staging="${1:-}"
 if [ -z "$staging" ]; then
     echo "ERROR: missing <staging-dir> argument" >&2
-    exit 2
+    exit 2   # rc=usage
 fi
 if [ ! -d "$staging" ]; then
     echo "ERROR: staging dir '$staging' does not exist" >&2
-    exit 2
+    exit 5   # rc=input
 fi
 
 shopt -s nullglob
@@ -82,7 +100,7 @@ if [ "$has_conf" -eq 1 ] && [ "$has_lua" -eq 1 ]; then
     echo "       Hyprland loads hyprland.lua and IGNORES hyprland.conf, so installing both" >&2
     echo "       would quietly make the .conf dead. Stage exactly one config language." >&2
     echo "REFUSED=ambiguous-staging"
-    exit 3
+    exit 5   # rc=input
 fi
 if [ "$has_lua" -eq 1 ]; then
     language="lua"
@@ -96,11 +114,11 @@ elif [ "$has_conf" -eq 1 ]; then
     stray_lang="lua"
 else
     echo "ERROR: staging dir is missing a main config (no hyprland.lua and no hyprland.conf)" >&2
-    exit 2
+    exit 5   # rc=input
 fi
 if [ ${#config_files[@]} -eq 0 ]; then
     echo "ERROR: no config files found in '$staging'" >&2
-    exit 2
+    exit 5   # rc=input
 fi
 
 # The file list above is the resolved language's files ONLY. A companion in the
@@ -113,7 +131,7 @@ if [ ${#stray[@]} -gt 0 ]; then
     echo "       without a word. Stage exactly one config language:" >&2
     for f in "${stray[@]}"; do echo "STRAY=$(basename "$f")"; done
     echo "REFUSED=mixed-staging"
-    exit 3
+    exit 5   # rc=input
 fi
 
 # --- Where does this machine's configuration live? -------------------------------------------
@@ -121,7 +139,7 @@ fi
 # written or backed up at this point, so a refusal here leaves the machine untouched.
 if ! xdg_config_target hypr "${HYPR_DIR:-}"; then
     echo "REFUSED=no-config-directory"
-    exit 2
+    exit 4   # rc=refusal
 fi
 target="$XDG_CONFIG_TARGET"
 
@@ -138,7 +156,7 @@ if [ "$language" = "hyprlang" ] && config_lang_present "$target/hyprland.lua"; t
     echo "PRECEDENCE=hyprland.lua takes precedence over hyprland.conf"
     echo "TARGET=${target}"
     echo "REFUSED=lua-config-takes-precedence"
-    exit 3
+    exit 4   # rc=refusal
 fi
 
 # --- Fail-safe 2: an unwritable target is reported, not half-written -------------------------
@@ -148,14 +166,14 @@ if [ -e "$target" ] && [ ! -d "$target" ]; then
     echo "ERROR: install target '$target' exists but is not a directory." >&2
     echo "TARGET=${target}"
     echo "REFUSED=target-not-a-directory"
-    exit 4
+    exit 4   # rc=refusal
 fi
 if [ -d "$target" ] && [ ! -w "$target" ]; then
     echo "ERROR: install target '$target' exists but cannot be written to (permission denied)." >&2
     echo "       Nothing was changed. Fix the permissions on that directory and re-run." >&2
     echo "TARGET=${target}"
     echo "REFUSED=target-not-writable"
-    exit 4
+    exit 4   # rc=refusal
 fi
 
 # --- Backup (only when there is something to back up) ----------------------------------------
@@ -167,7 +185,7 @@ if [ -d "$target" ] && [ -n "$(ls -A "$target" 2>/dev/null)" ]; then
         echo "ERROR: could not back up '$target' to '$backup'; nothing was changed." >&2
         echo "TARGET=${target}"
         echo "REFUSED=backup-failed"
-        exit 4
+        exit 4   # rc=refusal
     fi
     echo "BACKUP=${backup}"
 else
@@ -204,3 +222,4 @@ fi
 
 echo "TARGET=${target}"
 echo "DONE=ok"
+exit 0   # rc=ok

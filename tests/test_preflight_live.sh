@@ -80,7 +80,8 @@ assert_eq "LOADED_CONFIG_SOURCE=rollinglog" "$(printf '%s\n' "$out" | grep '^LOA
     "loaded-config: names the route it used"
 
 out="$(PATH="$STUB_PATH" STUB_HYPRCTL_DEAD=1 bash "$RS/loaded-config.sh" 2>&1)"; rc=$?
-assert_eq "2" "$rc" "loaded-config: no running instance exits 2"
+# S0138 AC-3: no running compositor to ask is an ABSENT CAPABILITY (3), never a verdict.
+assert_eq "3" "$rc" "loaded-config / S0138 AC-3: no running instance exits 3"
 
 out="$(PATH="$STUB_PATH" STUB_HYPRCTL_NOLOG=1 XDG_RUNTIME_DIR="$tmp/empty-runtime" bash "$RS/loaded-config.sh" 2>&1)"; rc=$?
 assert_eq "3" "$rc" "loaded-config: a running instance that names nothing exits 3 (unknown, never a guess)"
@@ -128,7 +129,8 @@ assert_eq "1" "$rc" "AC-3: parse errors still report VERIFY=errors, ahead of the
 # AC-8 - no reachable instance => installed but untested, and never live
 # ---------------------------------------------------------------------------------------------
 out="$(PATH="$STUB_PATH" STUB_HYPRCTL_DEAD=1 bash "$RS/verify-config.sh" --expect "$want" 2>&1)"; rc=$?
-assert_eq "2" "$rc" "AC-8: an unreachable compositor is skipped (exit 2), not failed"
+# S0138 AC-3: an unreachable compositor is an ABSENT CAPABILITY (3), never 1 and never 4.
+assert_eq "3" "$rc" "AC-8 / S0138 AC-3: an unreachable compositor is skipped (exit 3), not failed"
 assert_eq "skipped" "$(verdict "$out")" "AC-8: an unreachable compositor reports VERIFY=skipped"
 
 t8="$tmp/t8"; mkdir -p "$t8"; printf 'OLD\n' > "$t8/hyprland.conf"

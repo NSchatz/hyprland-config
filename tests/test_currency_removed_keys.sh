@@ -137,7 +137,8 @@ $out"
     # The compositor-backed nets can only shrug on the same host, which is the point:
     # this check is the one that still answers.
     pf="$(PATH="$NOBIN_PATH" bash "$RS/preflight-config.sh" "$sample" 2>&1)"; pfrc=$?
-    if [ "$pfrc" -eq 2 ] && printf '%s\n' "$pf" | grep -q '^PREFLIGHT=unverified'; then
+    # S0138 AC-3: `unverified` is an ABSENT CAPABILITY (3) - no binary offering the check.
+    if [ "$pfrc" -eq 3 ] && printf '%s\n' "$pf" | grep -q '^PREFLIGHT=unverified'; then
         pass "C3: the compositor's own offline check can only say 'unverified' on that host"
     else
         fail "C3: the compositor's own offline check can only say 'unverified' on that host" "rc=$pfrc

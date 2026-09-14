@@ -193,7 +193,8 @@ printf -- 'hl.config({})\n' > "$xr/hypr/hyprland.lua"     # shadows a hyprlang i
 mkdir -p "$a4r/stage"
 printf 'general {\n    gaps_in = 5\n}\n' > "$a4r/stage/hyprland.conf"
 out="$(HOME="$hr" XDG_CONFIG_HOME="$xr" PATH="$BIN_PATH" bash "$RS/install-config.sh" "$a4r/stage" 2>&1)"; rc=$?
-assert_eq "3" "$rc" "AC-4: a shadowed install is refused"
+# S0138 AC-5: a target holding a file this script will not overwrite is a REFUSAL (4).
+assert_eq "4" "$rc" "AC-4 / S0138 AC-5: a shadowed install is refused (exit 4)"
 assert_eq "$xr/hypr" "$(field TARGET "$out")" "AC-4: the refusal names the resolved absolute target"
 
 # =============================================================================================

@@ -3,6 +3,12 @@
 #
 # Usage: loaded-config.sh
 #
+# Example:
+#   loaded-config.sh | sed -n 's/^LOADED_CONFIG=//p'
+#
+# Options: -h, --help, help
+# Subcommands: none
+#
 # Why this exists: `hyprctl configerrors` printing nothing is NOT proof that the
 # config this plugin wrote is the one Hyprland is running. An empty error list is
 # exactly what a config that was never parsed produces - which is the state a
@@ -21,14 +27,23 @@
 #   LOADED_CONFIG=unknown           when no route could establish it
 #   LOADED_CONFIG_SOURCE=<rollinglog|instance-log|systeminfo|none>
 #
-# Exit: 0 identified, 2 no running instance (nothing to ask), 3 running but the
-#       loaded config could not be established.
+# Exit codes:
+#   0  ok: the compositor named the config it loaded
+#   3  capability: there is no running instance to ask, or the running one would not name the
+#      config it loaded. Either way nothing was established; the LOADED_CONFIG_SOURCE= line
+#      says which of the two it was
 set -uo pipefail
+
+case "${1:-}" in   # [cli-parser]
+    -h|--help|help)
+        sed -n '2,/^[^#]/p' "$0" | sed -e '/^[^#]/d' -e 's/^#\{1,2\} \{0,1\}//'
+        exit 0 ;;   # rc=ok
+esac
 
 if ! command -v hyprctl >/dev/null 2>&1 || ! hyprctl version >/dev/null 2>&1; then
     echo "LOADED_CONFIG=unknown"
     echo "LOADED_CONFIG_SOURCE=none (no running Hyprland instance)"
-    exit 2
+    exit 3   # rc=capability
 fi
 
 # `paths_from <text>` - the config paths a chunk of Hyprland log names, deduped,
@@ -68,11 +83,11 @@ fi
 if [ -z "$found" ]; then
     echo "LOADED_CONFIG=unknown"
     echo "LOADED_CONFIG_SOURCE=none (the running instance did not name the config it loaded)"
-    exit 3
+    exit 3   # rc=capability
 fi
 
 while IFS= read -r p; do
     [ -n "$p" ] && echo "LOADED_CONFIG=${p}"
 done <<< "$found"
 echo "LOADED_CONFIG_SOURCE=${source_used}"
-exit 0
+exit 0   # rc=ok
