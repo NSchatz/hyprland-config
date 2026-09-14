@@ -6,7 +6,28 @@
 # Best-effort: on failure it keeps the existing palette and reports.
 #
 # Usage: palette-from-wallpaper.sh <image>
+#
+# Example:
+#   palette-from-wallpaper.sh ~/Pictures/wallpapers/forest.jpg
+#
+# Options: -h, --help, help
+# Subcommands: none
+#
+# Exit codes:
+#   0  ok: a palette was generated, or the scheme is a fixed high-contrast one and only the
+#      wallpaper path was recorded
+#   2  usage: no <image> argument was given
+#   3  capability: no palette generator is installed (matugen, wallust or pywal), or the
+#      config-path library is not beside this script. The existing palette is kept
+#   4  refusal: no config directory it will resolve, so no palette was written
+#   5  input: the image it was given is not there
 set -uo pipefail
+
+case "${1:-}" in   # [cli-parser]
+    -h|--help|help)
+        sed -n '2,${/^#/!q;s/^#\{1,2\} \{0,1\}//p}' "$0"
+        exit 0 ;;   # rc=ok
+esac
 
 # Config-path library: next to this script when installed into $RICE_DIR, else in the plugin.
 _xdg_lib=""
@@ -17,20 +38,20 @@ for _c in "$(cd "$(dirname "$0")" && pwd)/xdg-config.sh" \
 done
 if [ -z "$_xdg_lib" ]; then
     echo "ERROR: the config-path library (xdg-config.sh) was not found next to $0, in \$CLAUDE_PLUGIN_ROOT/scripts, or in the plugin - re-run rice-init.sh." >&2
-    exit 2
+    exit 3   # rc=capability
 fi
 # shellcheck source=../../../scripts/xdg-config.sh
 . "$_xdg_lib"
 
 if ! xdg_config_target hypr-rice "${RICE_DIR:-}"; then
     echo "PALETTE=refused-no-config-dir" >&2
-    exit 2
+    exit 4   # rc=refusal
 fi
 RICE_DIR="$XDG_CONFIG_TARGET"
 img="${1:-}"
-[ -n "$img" ] || { echo "ERROR: usage: palette-from-wallpaper.sh <image>" >&2; exit 2; }
+[ -n "$img" ] || { echo "ERROR: usage: palette-from-wallpaper.sh <image>" >&2; exit 2; }   # rc=usage
 case "$img" in "~"*) img="${HOME}${img#\~}";; esac
-[ -f "$img" ] || { echo "ERROR: no such image: $img" >&2; exit 2; }
+[ -f "$img" ] || { echo "ERROR: no such image: $img" >&2; exit 5; }   # rc=input
 pal="$RICE_DIR/palette.conf"
 
 # High-contrast schemes opt out of wallpaper-driven derivation by design — the whole point
@@ -46,7 +67,7 @@ if [ -f "$pal" ]; then
             tmp="$pal.new"
             awk -F= -v wp="$img" 'BEGIN{seen=0} $1=="wallpaper"{print "wallpaper="wp; seen=1; next} {print} END{if(!seen) print "wallpaper="wp}' "$pal" > "$tmp" && mv "$tmp" "$pal"
             echo "PALETTE=skipped (scheme=$current_scheme — fixed AAA palette; wallpaper recorded)"
-            exit 0 ;;
+            exit 0 ;;   # rc=ok
     esac
 fi
 
@@ -67,7 +88,7 @@ if command -v matugen >/dev/null 2>&1; then
             sed 's/=#/=/' "$out" > "$pal.new"
             printf 'wallpaper=%s\n' "$img" >> "$pal.new"
             mv "$pal.new" "$pal"; rm -f "$tmpcfg" "$out"
-            echo "PALETTE=ok (matugen)"; exit 0
+            echo "PALETTE=ok (matugen)"; exit 0   # rc=ok
         fi
         rm -f "$tmpcfg" "$out"
         echo "PALETTE_WARN: matugen run failed, trying pywal/wallust" >&2
@@ -104,8 +125,8 @@ L += [f"red={h(co.get('color1'))}", f"green={h(co.get('color2'))}",
       f"muted={h(co.get('color8'))}", f"wallpaper={img}"]
 open(out, "w").write("\n".join(L) + "\n")
 PY
-    then echo "PALETTE=ok ($ran json)"; exit 0; fi
+    then echo "PALETTE=ok ($ran json)"; exit 0; fi   # rc=ok
 fi
 
 echo "PALETTE=skipped (no generator produced a palette; install matugen or wallust). Existing palette kept." >&2
-exit 3
+exit 3   # rc=capability

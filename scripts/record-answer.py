@@ -21,10 +21,11 @@ on disk. Generation-time tooling must depend on Python stdlib only (pacman pulls
 python3 as a base dep on Arch). Runtime helper scripts (keybind-cheatsheet.sh, eww
 data scripts) can still use jq — they run after install.
 
-Exit codes:
+Exit codes (the table scripts/record-answer.sh and the rest of this plugin speak):
   0  ok
-  1  missing arguments (usage error)
-  2  invalid JSON value, corrupt target file, or unwritable path
+  2  usage: a missing argument, an invalid key path, or a --json value that is not JSON
+  5  input: the target file is unreadable, is not valid JSON, does not hold a JSON object at
+     the top level, or could not be written
 """
 from __future__ import annotations
 
@@ -55,22 +56,25 @@ def expand(path: str) -> Path:
 def load_or_init(target: Path) -> dict:
     """Return the parsed JSON object at *target*, creating it as `{}` if absent."""
     if not target.exists():
-        target.parent.mkdir(parents=True, exist_ok=True)
-        target.write_text("{}\n")
+        try:
+            target.parent.mkdir(parents=True, exist_ok=True)
+            target.write_text("{}\n")
+        except OSError as exc:
+            die(f"cannot create {target}: {exc}", 5)
         return {}
     try:
         text = target.read_text()
     except OSError as exc:
-        die(f"cannot read {target}: {exc}", 2)
+        die(f"cannot read {target}: {exc}", 5)
     try:
         data = json.loads(text or "{}")
     except json.JSONDecodeError:
         die(
             f"{target} is not valid JSON (delete it to start over, or fix by hand)",
-            2,
+            5,
         )
     if not isinstance(data, dict):
-        die(f"{target} top-level must be a JSON object, got {type(data).__name__}", 2)
+        die(f"{target} top-level must be a JSON object, got {type(data).__name__}", 5)
     return data
 
 
@@ -78,7 +82,7 @@ def set_path(obj: dict, dotted_key: str, value) -> None:
     """Insert *value* at *dotted_key* (creating intermediate dicts)."""
     parts = dotted_key.split(".")
     if not parts or any(p == "" for p in parts):
-        die(f"invalid key path: {dotted_key!r}", 1)
+        die(f"invalid key path: {dotted_key!r}", 2)
     cur = obj
     for p in parts[:-1]:
         nxt = cur.get(p)
@@ -132,14 +136,14 @@ def format_final(value) -> str:
 
 def main(argv: list[str]) -> int:
     if len(argv) < 3:
-        die(USAGE, 1)
+        die(USAGE, 2)
     target = expand(argv[0])
     key = argv[1]
     rest = argv[2:]
 
     if rest[0] == "--json":
         if len(rest) < 2:
-            die("missing JSON value after --json", 1)
+            die("missing JSON value after --json", 2)
         raw = rest[1]
         try:
             value = json.loads(raw)
@@ -151,7 +155,12 @@ def main(argv: list[str]) -> int:
 
     data = load_or_init(target)
     set_path(data, key, value)
-    atomic_write(target, data)
+    try:
+        atomic_write(target, data)
+    except OSError as exc:
+        # The write is a same-directory temp file plus a rename, so the target still holds
+        # exactly what it held before this ran.
+        die(f"cannot write {target}: {exc}", 5)
 
     final = get_path(data, key)
     print(f"RECORDED {key}={format_final(final)}")

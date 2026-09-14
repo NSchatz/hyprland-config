@@ -2,7 +2,26 @@
 # Detect the installed Hyprland version.
 # Prints: HYPR_VERSION=<x.y.z>  (or HYPR_VERSION=unknown)
 # Also prints HYPR_SOURCE=<how it was detected> for context.
+#
+# Usage: detect-version.sh
+#
+# Example:
+#   detect-version.sh | sed -n 's/^HYPR_VERSION=//p'
+#
+# Options: -h, --help, help
+# Subcommands: none
+#
+# Exit codes:
+#   0  ok: the probe ran. An undetectable version is REPORTED as HYPR_VERSION=unknown, never a
+#      non-zero status: telling a caller what could not be detected is the whole job, and the
+#      scripts that need a version refuse on that line rather than on this code
 set -uo pipefail
+
+case "${1:-}" in   # [cli-parser]
+    -h|--help|help)
+        sed -n '2,${/^#/!q;s/^#\{1,2\} \{0,1\}//p}' "$0"
+        exit 0 ;;   # rc=ok
+esac
 
 # Config-path library, for the uwsm session-env files reported further down. Optional here:
 # this script only READS, so a missing library degrades to the historical $HOME/.config path
@@ -267,3 +286,4 @@ if command -v powerprofilesctl >/dev/null 2>&1; then echo "POWER_TOOL=power-prof
 elif command -v tlp >/dev/null 2>&1;            then echo "POWER_TOOL=tlp"
 elif command -v auto-cpufreq >/dev/null 2>&1;   then echo "POWER_TOOL=auto-cpufreq"
 else echo "POWER_TOOL=none"; fi
+exit 0   # rc=ok

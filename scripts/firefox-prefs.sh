@@ -40,11 +40,25 @@
 #   RESTORE_POINT=<apply-id>           undo the removal itself: rice restore <apply-id>
 #   PREFS=removed:<n> changed:<n> missing:<n> untouched:<n>
 #
-# Exit codes:
-#   0  the run completed (including reported skips)
-#   1  a profile file could not be backed up, so it was not edited
-#   2  usage error, or the restore-point library is missing
-#   3  nothing is recorded (a second `remove` reports this: there is nothing left to remove)
+# Example:
+#   firefox-prefs.sh remove
+#
+# Options: -h, --help
+# Subcommands: list, record, remove, where, help
+#
+# Exit codes (the CLI half; sourcing this file defines helpers and terminates nothing, and
+# those helpers keep returning exactly what they always returned):
+#   0  ok: the run completed
+#   1  verdict: nothing is recorded. A second `remove` reports this - there is nothing left to
+#      remove, which is the successful end state of the first one and so is not 0
+#   2  usage: an unknown subcommand, or `record` without its two arguments
+#   3  capability: the restore-point library is not here, so no file could be backed up and
+#      none was edited
+#   4  refusal: a profile file could not be backed up, or there is no writable temporary
+#      directory to rebuild the record in, so nothing was edited. Every profile file is
+#      byte-identical - a file this plugin cannot put back is one it will not touch
+#   6  partial: a preference was set in a profile and the record of it could not be written, so
+#      `firefox-prefs.sh remove` will not know to take it back off
 #
 # Env:
 #   RICE_PREF_RECORD  the record file (default <state root>/browser-prefs.tsv)
@@ -270,23 +284,37 @@ fp_remove() {
 if [ "${BASH_SOURCE[0]}" = "$0" ]; then
     set -uo pipefail
     _fp_cmd="${1:-help}"; shift 2>/dev/null || true
-    case "$_fp_cmd" in
+    case "$_fp_cmd" in   # [cli-parser]
         where)  fp_record_file ;;
         list)   fp_list ;;
         record)
             if [ "$#" -lt 2 ]; then
                 echo "ERROR: usage: firefox-prefs.sh record <profile> <user_pref line>" >&2
-                exit 2
+                exit 2   # rc=usage
             fi
             if fp_record "$1" "$2"; then
                 printf 'PREF_RECORDED=%s/user.js %s\n' "$1" "$(fp_pref_key "$2")"
             else
                 printf 'PREF_RECORD_FAILED=%s (%s)\n' "$(fp_record_file)" "$FP_LAST_ERROR" >&2
-                exit 1
+                printf 'PARTIAL: the preference IS in %s/user.js and Firefox will keep re-applying it, but it was NOT recorded, so `firefox-prefs.sh remove` will not know to take it back off. Remove the line by hand.\n' "$1" >&2
+                exit 6   # rc=partial
             fi
             ;;
-        remove) fp_remove "${1:-}"; exit $? ;;
-        help|-h|--help) sed -n '2,45p' "$0" ;;
-        *) echo "unknown command: $_fp_cmd (try: firefox-prefs.sh help)" >&2; exit 2 ;;
+        remove)
+            fp_remove "${1:-}"; _fp_rc=$?
+            case "$_fp_rc" in
+                0) ;;
+                2) exit 3 ;;   # rc=capability
+                3) exit 1 ;;   # rc=verdict
+                # fp_remove's 1: a profile it could not back up, or no writable temp directory
+                # to rebuild the record in. Either way it declined to edit and nothing moved.
+                *) exit 4 ;;   # rc=refusal
+            esac
+            ;;
+        help|-h|--help)
+            sed -n '2,${/^#/!q;s/^#\{1,2\} \{0,1\}//p}' "$0"
+            exit 0 ;;   # rc=ok
+        *) echo "unknown command: $_fp_cmd (try: firefox-prefs.sh help)" >&2; exit 2 ;;   # rc=usage
     esac
+    exit 0   # rc=ok
 fi

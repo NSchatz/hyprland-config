@@ -40,16 +40,23 @@
 #   CURRENCY_STALE=<n>
 #   CURRENCY=<ok|defects|undetermined-newest-release|no-records|unreadable>
 #
+# Example:
+#   currency-check.sh --newest-release 0.56.2
+#
+# Options: -h, --help, help, --root, --ledger, --newest-release
+# Subcommands: none
+#
 # Exit codes, in precedence order (the first that applies wins):
-#   5  a file or directory the check is CONFIGURED to scan is missing/unreadable
-#   4  the ledger matched ZERO version-cliff records - a check that has stopped
-#      matching anything must never read as a clean pass
-#   3  the newest release was neither supplied nor readable from the repo
-#   2  bad usage
-#   1  repo-owned defects: an uncited record, an unresolvable citation, or a
-#      cliff asserted outside the ledger that the ledger does not record
-#   0  clean. STALENESS ALONE NEVER FAILS: it is reported and the build goes on,
-#      because upstream shipping a release is not a defect in this repo.
+#   5  input: a file or directory the check is CONFIGURED to scan is missing or unreadable, or
+#      the ledger matched ZERO version-cliff records. A check that matches nothing must never
+#      read as a clean pass, and neither case is a verdict about the reference layer
+#   3  capability: the newest release was neither supplied nor readable from the repo, so
+#      staleness cannot be measured against anything
+#   2  usage: an unknown argument, or an option with no value after it
+#   1  verdict: repo-owned defects - an uncited record, an unresolvable citation, or a cliff
+#      asserted outside the ledger that the ledger does not record
+#   0  ok: clean. STALENESS ALONE NEVER FAILS: it is reported and the build goes on, because
+#      upstream shipping a release is not a defect in this repo
 set -uo pipefail
 
 here="$(cd "$(dirname "$0")" && pwd)"
@@ -63,20 +70,21 @@ newest_source="none"
 [ -n "$newest" ] && newest_source="supplied"
 
 while [ "$#" -gt 0 ]; do
-    case "$1" in
+    case "$1" in   # [cli-parser]
         --root)
-            [ "$#" -ge 2 ] || { echo "ERROR: --root needs a value" >&2; exit 2; }
+            [ "$#" -ge 2 ] || { echo "ERROR: --root needs a value" >&2; exit 2; }   # rc=usage
             root="$2"; shift 2 ;;
         --ledger)
-            [ "$#" -ge 2 ] || { echo "ERROR: --ledger needs a value" >&2; exit 2; }
+            [ "$#" -ge 2 ] || { echo "ERROR: --ledger needs a value" >&2; exit 2; }   # rc=usage
             ledger="$2"; shift 2 ;;
         --newest-release)
-            [ "$#" -ge 2 ] || { echo "ERROR: --newest-release needs a value" >&2; exit 2; }
+            [ "$#" -ge 2 ] || { echo "ERROR: --newest-release needs a value" >&2; exit 2; }   # rc=usage
             newest="${2#v}"; newest_source="supplied"; shift 2 ;;
-        -h|--help)
-            sed -n '2,60p' "$0"; exit 0 ;;
+        -h|--help|help)
+            sed -n '2,${/^#/!q;s/^#\{1,2\} \{0,1\}//p}' "$0"
+            exit 0 ;;   # rc=ok
         *)
-            echo "ERROR: unknown argument: $1" >&2; exit 2 ;;
+            echo "ERROR: unknown argument: $1" >&2; exit 2 ;;   # rc=usage
     esac
 done
 
@@ -95,7 +103,7 @@ name_unreadable() {
 if [ ! -f "$ledger" ] || [ ! -r "$ledger" ]; then
     name_unreadable "$ledger" "the version-cliff ledger '$ledger' is missing or unreadable"
     echo "CURRENCY=unreadable"
-    exit 5
+    exit 5   # rc=input
 fi
 
 # --- The files this check is CONFIGURED to scan -----------------------------------------------
@@ -121,7 +129,7 @@ echo "CURRENCY_SCANNED=${#scan_files[@]}"
 
 if [ "$unreadable" -gt 0 ]; then
     echo "CURRENCY=unreadable"
-    exit 5
+    exit 5   # rc=input
 fi
 
 # --- The records ------------------------------------------------------------------------------
@@ -135,7 +143,7 @@ echo "CURRENCY_REMOVED_KEY_RECORDS=${removed_count}"
 if [ "$record_count" -eq 0 ]; then
     echo "ERROR: the ledger '$ledger' matched ZERO version-cliff records. Either the ledger is empty or its record format changed under this check; a check that matches nothing is not a clean reference layer." >&2
     echo "CURRENCY=no-records"
-    exit 4
+    exit 5   # rc=input
 fi
 
 # --- The newest release: supplied, or read from the repo, or REFUSE ----------------------------
@@ -148,7 +156,7 @@ if [ -z "$newest" ]; then
     echo "CURRENCY_NEWEST_RELEASE_SOURCE=none"
     echo "ERROR: the newest Hyprland release was neither supplied (--newest-release / HYPR_NEWEST_RELEASE) nor readable from the ledger's 'newest-release' metadata row in '$ledger'. Staleness cannot be measured, and this check will NOT report the reference layer current on the strength of not knowing." >&2
     echo "CURRENCY=undetermined-newest-release"
-    exit 3
+    exit 3   # rc=capability
 fi
 echo "CURRENCY_NEWEST_RELEASE=${newest}"
 echo "CURRENCY_NEWEST_RELEASE_SOURCE=${newest_source}"
@@ -271,8 +279,8 @@ echo "CURRENCY_STALE=${stale}"
 if [ "$((uncited + unresolvable + unledgered))" -gt 0 ]; then
     echo "The defects above are owned by THIS repo: a record with no upstream behind it, a citation that does not resolve to an artifact, or a cliff asserted where nothing records it. Fix them in ${ledger_rel} or in the file named."
     echo "CURRENCY=defects"
-    exit 1
+    exit 1   # rc=verdict
 fi
 
 echo "CURRENCY=ok (${record_count} version-cliff records, all cited; ${stale} claim(s) not yet confirmed against v${newest})"
-exit 0
+exit 0   # rc=ok

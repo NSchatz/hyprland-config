@@ -37,11 +37,19 @@
 #   INSTALL_RECORD=empty        nothing was installed, already present or failed, so there was
 #                               no transaction to record and nothing was written
 #
-# Exit codes:
-#   0  recorded (or nothing to record)
-#   2  usage error
-#   3  `show` was given an identifier with no record
-#   5  there was a transaction but it could not be written where it belongs
+# Example:
+#   install-record.sh list
+#
+# Options: -h, --help, --route, --helper, --label
+# Subcommands: record, list, show, where, help
+#
+# Exit codes (the CLI half; sourcing this file defines helpers and terminates nothing):
+#   0  ok: recorded, or there was nothing to record
+#   1  verdict: `show` was given an identifier with no record under it
+#   2  usage: an unknown subcommand or option, or an option with no value after it
+#   5  input: there is no writable temporary directory to stage the transaction in
+#   6  partial: there WAS a transaction - packages are on the machine - and it could not be
+#      written where it belongs. The account is printed here and nowhere else
 #
 # Env:
 #   RICE_INSTALL_RECORD_DIR  where records live (default <state root>/installs, the state root
@@ -260,17 +268,17 @@ ir_show() {
 if [ "${BASH_SOURCE[0]}" = "$0" ]; then
     set -uo pipefail
     _ir_cmd="${1:-help}"; shift 2>/dev/null || true
-    case "$_ir_cmd" in
+    case "$_ir_cmd" in   # [cli-parser]
         where) ir_state_dir ;;
         list)  ir_list ;;
         show)
             ir_show "${1:-}"; _ir_rc=$?
             if [ "$_ir_rc" -eq 3 ]; then
                 echo "(no install record '${1:-}' under $(ir_state_dir))" >&2
-                exit 3
+                exit 1   # rc=verdict
             elif [ "$_ir_rc" -ne 0 ]; then
                 echo "ERROR: usage: install-record.sh show <id>  (see: install-record.sh list)" >&2
-                exit 2
+                exit 2   # rc=usage
             fi
             ;;
         record)
@@ -278,15 +286,18 @@ if [ "${BASH_SOURCE[0]}" = "$0" ]; then
             while [ "$#" -gt 0 ]; do
                 _ir_opt="$1"; shift
                 case "$_ir_opt" in
-                    --route)  _ir_route="${1:-}";  [ "$#" -gt 0 ] && shift ;;
-                    --helper) _ir_helper="${1:-}"; [ "$#" -gt 0 ] && shift ;;
-                    --label)  _ir_label="${1:-}";  [ "$#" -gt 0 ] && shift ;;
-                    *) echo "ERROR: unknown option '$_ir_opt' (usage: install-record.sh record [--route N] [--helper N] [--label T])" >&2; exit 2 ;;
+                    --route)  [ "$#" -gt 0 ] || { echo "ERROR: --route needs a value" >&2; exit 2; }   # rc=usage
+                              _ir_route="$1"; shift ;;
+                    --helper) [ "$#" -gt 0 ] || { echo "ERROR: --helper needs a value" >&2; exit 2; }   # rc=usage
+                              _ir_helper="$1"; shift ;;
+                    --label)  [ "$#" -gt 0 ] || { echo "ERROR: --label needs a value" >&2; exit 2; }   # rc=usage
+                              _ir_label="$1"; shift ;;
+                    *) echo "ERROR: unknown option '$_ir_opt' (usage: install-record.sh record [--route N] [--helper N] [--label T])" >&2; exit 2 ;;   # rc=usage
                 esac
             done
             _ir_body="$(mktemp "${TMPDIR:-/tmp}/hypr-rice-txn.XXXXXX")" || {
                 echo "ERROR: could not stage the transaction (no writable temporary directory)" >&2
-                exit 5
+                exit 5   # rc=input
             }
             _ir_n=0
             while IFS=$'\t' read -r _s _p _o _n; do
@@ -308,22 +319,26 @@ if [ "${BASH_SOURCE[0]}" = "$0" ]; then
                 # so there is no record: a record claiming one would be an invented history.
                 echo "INSTALL_RECORD=empty (no package was installed, already present or failed; nothing was recorded)"
                 rm -f "$_ir_body"
-                exit 0
+                exit 0   # rc=ok
             fi
             ir_print_transaction "$_ir_body" "$_ir_route" "$_ir_helper"
             if ir_write "$_ir_body" "$_ir_route" "$_ir_helper" "$_ir_label"; then
                 printf 'INSTALL_RECORD=%s\n' "$IR_LAST_PATH"
                 printf 'INSTALL_RECORD_ID=%s\n' "$IR_LAST_ID"
                 rm -f "$_ir_body"
-                exit 0
+                exit 0   # rc=ok
             fi
             printf 'INSTALL_RECORD_FAILED=%s (%s)\n' "${IR_LAST_PATH:-$(ir_state_dir)}" "$IR_LAST_ERROR" >&2
             printf 'ERROR: the transaction above was NOT recorded - it is printed here and nowhere else.\n' >&2
+            printf 'PARTIAL: those packages ARE on this machine; the durable account of them is NOT, so `rice installs` will not list this transaction. Nothing here removes a package.\n' >&2
             echo "INSTALL_RECORD=unwritten"
             rm -f "$_ir_body"
-            exit 5
+            exit 6   # rc=partial
             ;;
-        help|-h|--help) sed -n '2,45p' "$0" ;;
-        *) echo "unknown command: $_ir_cmd (try: install-record.sh help)" >&2; exit 2 ;;
+        help|-h|--help)
+            sed -n '2,${/^#/!q;s/^#\{1,2\} \{0,1\}//p}' "$0"
+            exit 0 ;;   # rc=ok
+        *) echo "unknown command: $_ir_cmd (try: install-record.sh help)" >&2; exit 2 ;;   # rc=usage
     esac
+    exit 0   # rc=ok
 fi

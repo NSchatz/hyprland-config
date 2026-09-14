@@ -29,11 +29,24 @@
 #   the install record's own transaction print + INSTALL_RECORD= line
 #   INSTALL=ok | partial | failed | declined-aur-build | skipped (non-arch)
 #
+# Example:
+#   install-packages.sh --route install.sh --assume-no waybar kitty
+#
+# Options: -h, --help, help, --route, --label, --helper, --noconfirm, --assume-yes, --assume-no
+# Subcommands: none
+#
 # Exit codes:
-#   0  ok, partial, or skipped (non-arch)
-#   1  failed, or the transaction could not be recorded
-#   2  usage error, or the install record component is missing (nothing was installed)
-#   4  the AUR-helper build was declined; nothing was cloned, built or installed from the AUR
+#   0  ok: every package asked for is installed or was already present, and the transaction is
+#      recorded. Also the non-arch case, where there is no pacman and nothing was installed
+#   1  verdict: nothing was installed - every package asked for failed
+#   2  usage: an unknown option, an option with no value after it, or no package list
+#   3  capability: pacman needs root and neither sudo nor a root shell is available
+#   4  refusal: the install record component is missing, or the AUR-helper build was declined.
+#      Nothing was cloned, built or installed either way - an install nobody can look up
+#      afterwards is what this path refuses to do
+#   5  input: there is no writable temporary directory to build the transaction in
+#   6  partial: packages WERE installed and either some of them failed or the record of them
+#      could not be written. Some of it happened; stderr says which half
 set -uo pipefail
 
 here="$(cd "$(dirname "$0")" && pwd)"
@@ -52,23 +65,28 @@ pkgs=()
 
 while [ "$#" -gt 0 ]; do
     opt="$1"; shift
-    case "$opt" in
-        --route)      route="${1:-}";         [ "$#" -gt 0 ] && shift ;;
-        --label)      label="${1:-}";         [ "$#" -gt 0 ] && shift ;;
-        --helper)     forced_helper="${1:-}"; [ "$#" -gt 0 ] && shift ;;
+    case "$opt" in   # [cli-parser]
+        --route)      [ "$#" -gt 0 ] || { echo "ERROR: --route needs a value" >&2; exit 2; }   # rc=usage
+                      route="$1"; shift ;;
+        --label)      [ "$#" -gt 0 ] || { echo "ERROR: --label needs a value" >&2; exit 2; }   # rc=usage
+                      label="$1"; shift ;;
+        --helper)     [ "$#" -gt 0 ] || { echo "ERROR: --helper needs a value" >&2; exit 2; }   # rc=usage
+                      forced_helper="$1"; shift ;;
         --noconfirm)  noconfirm=1 ;;
         --assume-yes) assume="yes" ;;
         --assume-no)  assume="no" ;;
-        -h|--help)    sed -n '2,40p' "$0"; exit 0 ;;
+        -h|--help|help)
+                      sed -n '2,${/^#/!q;s/^#\{1,2\} \{0,1\}//p}' "$0"
+                      exit 0 ;;   # rc=ok
         --) while [ "$#" -gt 0 ]; do pkgs+=("$1"); shift; done ;;
-        -*) echo "ERROR: unknown option '$opt' (try: install-packages.sh --help)" >&2; exit 2 ;;
+        -*) echo "ERROR: unknown option '$opt' (try: install-packages.sh --help)" >&2; exit 2 ;;   # rc=usage
         *)  pkgs+=("$opt") ;;
     esac
 done
 
 if [ "${#pkgs[@]}" -eq 0 ]; then
     echo "ERROR: usage: install-packages.sh [options] <pkg> [<pkg> ...]" >&2
-    exit 2
+    exit 2   # rc=usage
 fi
 
 # The recorder. Without it this script does not install: an install nobody can look up
@@ -89,14 +107,16 @@ if [ -z "$RECORDER" ]; then
     echo "ERROR: the install record component (install-record.sh) was not found next to $0, in \$CLAUDE_PLUGIN_ROOT/scripts, or in the rice directory." >&2
     echo "ERROR: nothing was installed. An install that leaves no record is exactly what this path refuses to do - re-run rice-init.sh." >&2
     echo "INSTALL=failed"
-    exit 2
+    # A refusal, not a missing capability: the recorder's absence is the reason, but declining
+    # to install without it is this script's own policy, and nothing was installed.
+    exit 4   # rc=refusal
 fi
 
 # The transaction, built up as the install runs and handed to the recorder at the end.
 txn="$(mktemp "${TMPDIR:-/tmp}/hypr-rice-install.XXXXXX")" || {
     echo "ERROR: no writable temporary directory; refusing to install without somewhere to build the transaction." >&2
     echo "INSTALL=failed"
-    exit 1
+    exit 5   # rc=input
 }
 cleanup() { rm -f "$txn" 2>/dev/null; }
 trap cleanup EXIT
@@ -117,7 +137,7 @@ if ! command -v pacman >/dev/null 2>&1; then
     # Nothing was installed, nothing was already present, nothing failed. There was no
     # transaction, so there is no record: a record here would invent a history.
     echo "INSTALL=skipped (non-arch)"
-    exit 0
+    exit 0   # rc=ok
 fi
 
 SUDO=""
@@ -127,7 +147,7 @@ if [ "$(id -u)" -ne 0 ]; then
     else
         echo "ERROR: pacman needs root and neither sudo nor a root shell is available." >&2
         echo "INSTALL=failed"
-        exit 1
+        exit 3   # rc=capability
     fi
 fi
 
@@ -280,20 +300,22 @@ rec_args=(record --route "$route" --helper "${helper:-none}")
 # --- verdict ------------------------------------------------------------------------------------
 if [ "$declined" -eq 1 ]; then
     echo "INSTALL=declined-aur-build"
-    exit 4
+    exit 4   # rc=refusal
 fi
 if [ "$record_rc" -ne 0 ]; then
     # The packages landed, but the account of them did not. Do not call that a clean install.
     echo "INSTALL=partial (the packages above were installed, but the record was not written)"
-    exit 1
+    echo "PARTIAL: the packages above WERE installed on this machine; the record of them was NOT written, so \`rice installs\` will not list this transaction. Nothing here removes a package." >&2
+    exit 6   # rc=partial
 fi
 if [ "$n_failed" -gt 0 ] && [ "$n_installed" -eq 0 ] && [ "${#present[@]}" -eq 0 ]; then
     echo "INSTALL=failed"
-    exit 1
+    exit 1   # rc=verdict
 fi
 if [ "$n_failed" -gt 0 ]; then
     echo "INSTALL=partial"
-    exit 0
+    echo "PARTIAL: ${n_installed} package(s) WERE installed and recorded; ${n_failed} FAILED and are not on this machine. The lines above name which. Re-run with the failed names once their cause is fixed." >&2
+    exit 6   # rc=partial
 fi
 echo "INSTALL=ok"
-exit 0
+exit 0   # rc=ok

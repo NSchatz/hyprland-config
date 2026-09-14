@@ -238,7 +238,9 @@ conf_before="$(cat "$dir/hyprland.conf")"
 before_listing="$(cd "$dir" && ls -A | sort | tr '\n' ' ')"
 
 out="$(HYPR_DIR="$dir" bash "$migrate" --convert 2>&1)"; rc=$?
-assert_eq "3" "$rc" "AC-9: an unparseable config is refused"
+# S0138 AC-6: a config that does not parse is a DEFECTIVE INPUT (5), never a missing
+# capability and never a verdict about anything this command did.
+assert_eq "5" "$rc" "AC-9 / S0138 AC-6: an unparseable config is refused (exit 5)"
 if printf '%s\n' "$out" | grep -q '^MIGRATE=refused-unparseable'; then
     pass "AC-9: the refusal is reported as unparseable"
 else
@@ -261,7 +263,7 @@ assert_eq "$before_listing" "$(cd "$dir" && ls -A | sort | tr '\n' ' ')" \
 # The offer mode of an unparseable config refuses identically - it never claims a
 # conversion it cannot perform.
 out="$(HYPR_DIR="$dir" bash "$migrate" 2>&1)"; rc=$?
-assert_eq "3" "$rc" "AC-9: the OFFER for an unparseable config refuses too"
+assert_eq "5" "$rc" "AC-9 / S0138 AC-6: the OFFER for an unparseable config refuses too (exit 5)"
 if printf '%s\n' "$out" | grep -q '^MIGRATE_OFFER='; then
     fail "AC-9: no offer is made for a config that does not parse" "$out"
 else
@@ -324,7 +326,7 @@ seed_conf "$dir"
 printf '\nsource = %s/missing.conf\n' "$dir" >> "$dir/hyprland.conf"
 before_listing="$(cd "$dir" && ls -A | sort | tr '\n' ' ')"
 out="$(HYPR_DIR="$dir" bash "$migrate" --convert 2>&1)"; rc=$?
-assert_eq "3" "$rc" "a source= that cannot be resolved is refused"
+assert_eq "5" "$rc" "S0138 AC-6: a source= that cannot be resolved is refused (exit 5)"
 if printf '%s\n' "$out" | grep -q '^MIGRATE=refused-unresolvable-source'; then
     pass "the unresolvable source is reported as its own refusal, not as unparseable"
 else
@@ -351,7 +353,8 @@ blocker="$tmp/blocker-file"
 printf 'not a directory\n' > "$blocker"
 
 out="$(HYPR_DIR="$dir" HYPR_BACKUP_DIR="$blocker/backups" bash "$migrate" --convert 2>&1)"; rc=$?
-assert_eq "5" "$rc" "AC-10: a failed backup aborts with a distinct non-zero status"
+# S0138 AC-5: a backup it could not take is a REFUSAL (4) and nothing was written.
+assert_eq "4" "$rc" "AC-10 / S0138 AC-5: a failed backup aborts with a distinct non-zero status (exit 4)"
 if printf '%s\n' "$out" | grep -q '^MIGRATE=aborted-backup-failed'; then
     pass "AC-10: it reports that it aborted because the backup failed"
 else
@@ -383,7 +386,7 @@ else
     before_listing="$(cd "$dir" && ls -A | sort | tr '\n' ' ')"
     out="$(HYPR_DIR="$dir" HYPR_BACKUP_DIR="$ro" bash "$migrate" --convert 2>&1)"; rc=$?
     chmod 700 "$ro"
-    assert_eq "5" "$rc" "AC-10: an unwritable backup dir aborts too"
+    assert_eq "4" "$rc" "AC-10 / S0138 AC-5: an unwritable backup dir aborts too (exit 4)"
     if printf '%s\n' "$out" | grep -q '^MIGRATE=aborted-backup-failed'; then
         pass "AC-10: the unwritable backup dir is reported as a backup failure"
     else

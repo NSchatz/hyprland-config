@@ -245,7 +245,8 @@ assert_out_has "wl-screenrec" "$shown" "AC-6: the shown record includes the fail
 assert_out_has "built from source" "$shown" "AC-6: the shown record reads as prose, not raw TSV"
 
 nos="$(PATH="$stub:$BIN_PATH" bash "$IR" show 19700101-000000 2>&1)"; nrc=$?
-assert_eq "3" "$nrc" "AC-6: an unknown identifier is reported, not invented"
+# S0138 AC-4: an identifier with no record under it is a NEGATIVE VERDICT (1).
+assert_eq "1" "$nrc" "AC-6 / S0138 AC-4: an unknown identifier is reported, not invented (exit 1)"
 assert_out_has "no install record" "$nos" "AC-6: the unknown identifier is named"
 
 # The engine's own CLI is the route a user has: no path knowledge required.
@@ -302,7 +303,8 @@ if printf '%s\n' "$out" | grep -qE '^INSTALL_RECORD=/'; then
 else
     pass "AC-9: no record path is claimed when none was written"
 fi
-assert_eq "1" "$rc" "AC-9: the run does not report success when the record was not written"
+# S0138 AC-7: the packages are on the machine and the account of them is not. That is 6.
+assert_eq "6" "$rc" "AC-9 / S0138 AC-7: the run does not report success when the record was not written (exit 6)"
 
 # =============================================================================================
 # AC-10  an empty listing says so plainly and exits zero
@@ -341,7 +343,9 @@ mk_arch_stubs "$stub5" "rofi" "" ""
 mkdir -p "$s5/lone/scripts"
 cp "$IP" "$s5/lone/scripts/install-packages.sh"
 out="$( unset CLAUDE_PLUGIN_ROOT; PATH="$stub5:$BIN_PATH" bash "$s5/lone/scripts/install-packages.sh" --noconfirm rofi 2>&1 )"; rc=$?
-assert_eq "2" "$rc" "no recorder: the install refuses rather than installing unrecorded"
+# S0138 AC-5: declining to install without a recorder is this script's own policy, and nothing
+# was installed. That is a refusal (4), not a usage error and not a missing capability.
+assert_eq "4" "$rc" "no recorder / S0138 AC-5: the install refuses rather than installing unrecorded (exit 4)"
 assert_out_has "install-record.sh" "$out" "no recorder: the refusal names what is missing"
 if grep -q 'pacman -S' "$stub5/.log" 2>/dev/null; then
     fail "no recorder: nothing was installed" "$(cat "$stub5/.log")"

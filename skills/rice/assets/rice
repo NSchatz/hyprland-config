@@ -1,9 +1,82 @@
 #!/usr/bin/env bash
-# hypr-rice — self-contained desktop theme engine CLI.
+# hypr-rice - self-contained desktop theme engine CLI.
 # Installed by the hyprland-config Claude Code plugin into <config base>/hypr-rice/, the base
 # being $XDG_CONFIG_HOME when it is an absolute path and $HOME/.config otherwise. $RICE_DIR
 # overrides both. Keeps working without the plugin. Run `rice help`.
 set -uo pipefail
+
+# `rice help` answers BEFORE anything is resolved: a caller discovers the surface from the
+# surface, and a machine with no config directory still has to be able to read the manual.
+case "${1:-help}" in   # [cli-parser]
+    help|-h|--help)
+        cat <<EOF
+hypr-rice - desktop theme engine (${RICE_DIR:-<config base>/hypr-rice})
+
+  rice apply              render all templates from palette.conf and reload apps
+  rice apply --no-reload  render only (no app reloads)
+  rice restore <apply-id> put every file that apply wrote back the way it was (one command,
+                          whole set: rendered surfaces, browser profile files, shell rc files;
+                          files the apply created are removed again)
+  rice restore --list     list what can still be undone, newest first
+  rice installs           what this plugin put on the machine, newest first (packages installed,
+                          already present, failed, and any AUR helper built from source)
+  rice installs <id>      print one recorded install in full
+  rice prefs              the Firefox preferences this plugin set, and whether they are still set
+  rice prefs remove       remove those preferences again - the ONE thing a restore cannot undo,
+                          because Firefox re-applies them at every start. Each profile file is
+                          backed up before it is edited, and a line you changed by hand is left
+                          alone. Removing them turns this plugin's browser theming off
+  rice wallpaper <img>    set wallpaper, regenerate palette from it, and re-theme
+  rice wallpaper <img> --no-theme   set wallpaper only
+  rice random [dir]       random wallpaper from dir (default ~/Pictures/wallpapers) + re-theme
+  rice wallpapers [scheme]          list curated downloadable wallpapers (filter by scheme)
+  rice get-wallpaper <scheme> <n|name> [--set] [--dir DIR]
+                          curl-download a catalog wallpaper; --set applies it (keeps the palette)
+  rice accents [scheme]   list the accent variants for a scheme (default: current)
+  rice accent <name|hex> [--pin]    set the accent (in-palette name or raw hex); --pin = survive re-theme
+  rice theme <name>       load a saved profile (palette + wallpaper) and re-theme
+                          NOTE: profiles are PALETTE-ONLY - structural look
+                          (looknfeel.conf, waybar style.css, hyprlock layout, etc.)
+                          does not travel with rice theme. Manage structural
+                          changes via the dotfiles skill instead.
+  rice theme-toggle <a> <b>  flip between two profiles (the dark/light toggle keybind)
+  rice theme-next         cycle to the next saved profile (single-key theme cycler)
+  rice save <name>        snapshot the current palette as a profile (palette only -
+                          structural look stays in the live config)
+  rice themes             list saved profiles
+  rice palette            print the current palette
+  rice templates          print the template manifest (name -> output -> reload)
+  rice edit               edit palette.conf in \$EDITOR
+
+Example:
+  rice theme catppuccin-mocha
+
+Options: -h, --help, help, --no-theme, --no-reload, --set, --dir, --min-res, --pin, --list
+Subcommands: apply, restore, installs, prefs, wallpaper, random, wallpapers, get-wallpaper,
+  wallpaper-get, accents, accent, save, theme, load, themes, list-themes, theme-toggle,
+  theme-next, palette, templates, list, edit, help
+
+Exit codes:
+  0  ok: it ran and the answer is yes
+  1  verdict: it ran and the answer is NO - a profile, a selector or an apply id that
+     matched nothing
+  2  usage: an unknown subcommand or option, or a missing argument
+  3  capability: something it needs is absent - a component missing from \$RICE_DIR, or a
+     catalog download that did not come back. Never reported as a verdict or a refusal
+  4  refusal: it declined and wrote nothing - no config directory it will resolve
+
+A subcommand that hands its work to another script returns THAT script's status: rice apply,
+rice restore, rice installs and rice prefs pass it through unchanged, and rice random, rice
+theme-toggle and rice theme-next re-dispatch into rice itself.
+
+Personal overrides: put KEY=hex lines in palette.user.conf - they win over every
+theme/wallpaper change (cascade: generated -> user), so your tweaks always survive.
+
+Add an app: drop a <name>.tmpl in templates/ (use {{accent}}, {{bg}}, {{color0}}...)
+and add a TAB-separated line to templates.list, then \`rice apply\`.
+EOF
+        exit 0 ;;   # rc=ok
+esac
 
 # The one decision about where configuration lives, installed beside this CLI by rice-init.sh.
 _xdg_lib=""
@@ -14,19 +87,19 @@ for _c in "$(cd "$(dirname "$0")" && pwd)/xdg-config.sh" \
 done
 if [ -z "$_xdg_lib" ]; then
     echo "ERROR: the config-path library (xdg-config.sh) was not found next to $0 - re-run rice-init.sh." >&2
-    exit 2
+    exit 3   # rc=capability
 fi
 # shellcheck source=../../../scripts/xdg-config.sh
 . "$_xdg_lib"
 if ! xdg_config_target hypr-rice "${RICE_DIR:-}"; then
     echo "RICE=refused-no-config-dir" >&2
-    exit 2
+    exit 4   # rc=refusal
 fi
 RICE_DIR="$XDG_CONFIG_TARGET"
 
 cmd="${1:-help}"; shift 2>/dev/null || true
 
-case "$cmd" in
+case "$cmd" in   # [cli-parser]
     apply)
         # Render every template from palette.conf and reload apps. One restore point per apply:
         # mint the id here so every stage this command runs shares it and `rice restore <id>`
@@ -42,7 +115,7 @@ case "$cmd" in
         # Put every file one apply wrote back the way it was, as one set.
         #   rice restore <apply-id>   undo that apply
         #   rice restore --list       what can be undone (newest first)
-        [ -f "$RICE_DIR/rice-restore.sh" ] || { echo "no restore command installed ($RICE_DIR/rice-restore.sh): re-run rice-init.sh" >&2; exit 1; }
+        [ -f "$RICE_DIR/rice-restore.sh" ] || { echo "no restore command installed ($RICE_DIR/rice-restore.sh): re-run rice-init.sh" >&2; exit 3; }   # rc=capability
         bash "$RICE_DIR/rice-restore.sh" "$@"
         ;;
     installs)
@@ -50,7 +123,7 @@ case "$cmd" in
         #   rice installs          every recorded package transaction, newest first
         #   rice installs <id>     one of them in full
         # The record outlives the session that made it; nothing here removes a package.
-        [ -f "$RICE_DIR/install-record.sh" ] || { echo "no install record component installed ($RICE_DIR/install-record.sh): re-run rice-init.sh" >&2; exit 1; }
+        [ -f "$RICE_DIR/install-record.sh" ] || { echo "no install record component installed ($RICE_DIR/install-record.sh): re-run rice-init.sh" >&2; exit 3; }   # rc=capability
         if [ -n "${1:-}" ]; then
             bash "$RICE_DIR/install-record.sh" show "$1"
         else
@@ -63,11 +136,11 @@ case "$cmd" in
         #   rice prefs remove      remove them again (each profile file backed up first)
         # These are the writes `rice restore` cannot help with once its point is used: Firefox
         # re-applies them at every start until the line leaves user.js.
-        [ -f "$RICE_DIR/firefox-prefs.sh" ] || { echo "no preference record component installed ($RICE_DIR/firefox-prefs.sh): re-run rice-init.sh" >&2; exit 1; }
+        [ -f "$RICE_DIR/firefox-prefs.sh" ] || { echo "no preference record component installed ($RICE_DIR/firefox-prefs.sh): re-run rice-init.sh" >&2; exit 3; }   # rc=capability
         case "${1:-list}" in
             remove) shift 2>/dev/null || true; bash "$RICE_DIR/firefox-prefs.sh" remove "$@" ;;
             list)   bash "$RICE_DIR/firefox-prefs.sh" list ;;
-            *)      echo "usage: rice prefs [remove [<profile>]]" >&2; exit 1 ;;
+            *)      echo "usage: rice prefs [remove [<profile>]]" >&2; exit 2 ;;   # rc=usage
         esac
         ;;
     wallpaper)
@@ -75,7 +148,7 @@ case "$cmd" in
         # Setting a wallpaper is always the source of truth: persist `wallpaper=` to
         # palette.conf before any --no-theme short-circuit, so the next `rice apply` /
         # `rice theme` / `rice save` carries it.
-        img="${1:-}"; [ -n "$img" ] || { echo "usage: rice wallpaper <image> [--no-theme]" >&2; exit 1; }
+        img="${1:-}"; [ -n "$img" ] || { echo "usage: rice wallpaper <image> [--no-theme]" >&2; exit 2; }   # rc=usage
         shift 2>/dev/null || true
         bash "$RICE_DIR/set-wallpaper.sh" "$img"
         pc="$RICE_DIR/palette.conf"
@@ -91,7 +164,7 @@ case "$cmd" in
         # Pick a random wallpaper from a dir (default ~/Pictures/wallpapers) and apply it.
         dir="${1:-$HOME/Pictures/wallpapers}"
         img="$(find "$dir" -type f \( -iname '*.jpg' -o -iname '*.jpeg' -o -iname '*.png' -o -iname '*.webp' \) 2>/dev/null | shuf -n1)"
-        [ -n "$img" ] || { echo "no images found in $dir" >&2; exit 1; }
+        [ -n "$img" ] || { echo "no images found in $dir" >&2; exit 1; }   # rc=verdict
         exec "$0" wallpaper "$img"
         ;;
     wallpapers)
@@ -99,7 +172,7 @@ case "$cmd" in
         # scheme plus the theme-agnostic `any` set; no arg lists everything grouped by scheme.
         # Catalog schema: scheme<TAB>name<TAB>width<TAB>url (width is `?` if unknown).
         cat="$RICE_DIR/wallpapers.tsv"
-        [ -f "$cat" ] || { echo "no wallpaper catalog ($cat)" >&2; exit 1; }
+        [ -f "$cat" ] || { echo "no wallpaper catalog ($cat)" >&2; exit 3; }   # rc=capability
         want="${1:-}"
         awk -F'\t' -v want="$want" '
             function m(s,w){ return (w=="" || s==w || index(s,w"-")==1 || index(w,s"-")==1) }
@@ -117,7 +190,7 @@ case "$cmd" in
         # current palette — no re-theme). --dir overrides the destination. --min-res W filters out
         # entries narrower than W pixels (unknown widths are dropped).
         scheme="${1:-}"; sel="${2:-}"
-        [ -n "$scheme" ] && [ -n "$sel" ] || { echo "usage: rice get-wallpaper <scheme> <number|name> [--set] [--dir DIR] [--min-res W]" >&2; exit 1; }
+        [ -n "$scheme" ] && [ -n "$sel" ] || { echo "usage: rice get-wallpaper <scheme> <number|name> [--set] [--dir DIR] [--min-res W]" >&2; exit 2; }   # rc=usage
         shift 2 2>/dev/null || true
         do_set=0; dir="$HOME/Pictures/wallpapers"; min_res=0
         while [ $# -gt 0 ]; do
@@ -129,7 +202,7 @@ case "$cmd" in
             shift
         done
         cat="$RICE_DIR/wallpapers.tsv"
-        [ -f "$cat" ] || { echo "no wallpaper catalog ($cat)" >&2; exit 1; }
+        [ -f "$cat" ] || { echo "no wallpaper catalog ($cat)" >&2; exit 3; }   # rc=capability
         # Catalog rows are listed in descending-width order per scheme, so the first match is the
         # highest-res entry. With --min-res W, drop rows whose width is unknown (`?`) or below W.
         mapfile -t rows < <(awk -F'\t' -v want="$scheme" -v minw="$min_res" '
@@ -140,7 +213,7 @@ case "$cmd" in
                 if (minw>0 && w<minw) next
                 printf "%s\t%s\n", $2, $4
             }' "$cat")
-        [ "${#rows[@]}" -gt 0 ] || { echo "no wallpapers for scheme '$scheme' (see: rice wallpapers)" >&2; exit 1; }
+        [ "${#rows[@]}" -gt 0 ] || { echo "no wallpapers for scheme '$scheme' (see: rice wallpapers)" >&2; exit 1; }   # rc=verdict
         pick=""
         if printf '%s' "$sel" | grep -qE '^[0-9]+$'; then
             idx=$((sel)); [ "$idx" -ge 1 ] && [ "$idx" -le "${#rows[@]}" ] && pick="${rows[$((idx-1))]}"
@@ -148,12 +221,12 @@ case "$cmd" in
         if [ -z "$pick" ]; then
             for r in "${rows[@]}"; do case "${r%%$'\t'*}" in *"$sel"*) pick="$r"; break;; esac; done
         fi
-        [ -n "$pick" ] || { echo "no match for '$sel' in scheme '$scheme' (see: rice wallpapers $scheme)" >&2; exit 1; }
+        [ -n "$pick" ] || { echo "no match for '$sel' in scheme '$scheme' (see: rice wallpapers $scheme)" >&2; exit 1; }   # rc=verdict
         name="${pick%%$'\t'*}"; url="${pick#*$'\t'}"
         ext="${url##*.}"; case "$ext" in jpg|jpeg|png|webp) ;; *) ext="jpg";; esac
         mkdir -p "$dir"; out="$dir/${scheme}-${name}.${ext}"
         echo "Downloading $name → $out"
-        curl -fL --retry 2 --connect-timeout 20 -o "$out" "$url" || { echo "DOWNLOAD=failed ($url)" >&2; exit 1; }
+        curl -fL --retry 2 --connect-timeout 20 -o "$out" "$url" || { echo "DOWNLOAD=failed ($url)" >&2; exit 3; }   # rc=capability
         echo "WALLPAPER=$out"
         if [ "$do_set" -eq 1 ]; then
             pal="$RICE_DIR/palette.conf"
@@ -167,7 +240,7 @@ case "$cmd" in
     accents)
         # List the accent variants for a scheme (default: the current palette's scheme).
         acc="$RICE_DIR/accents.tsv"
-        [ -f "$acc" ] || { echo "no accent catalog ($acc)" >&2; exit 1; }
+        [ -f "$acc" ] || { echo "no accent catalog ($acc)" >&2; exit 3; }   # rc=capability
         want="${1:-$(sed -n 's/^scheme=//p' "$RICE_DIR/palette.conf" 2>/dev/null | head -1)}"
         cur="$(sed -n 's/^accent=//p' "$RICE_DIR/palette.conf" 2>/dev/null | head -1)"
         awk -F'\t' -v want="$want" -v cur="$cur" '
@@ -180,7 +253,7 @@ case "$cmd" in
     accent)
         # Set the accent for the current scheme by variant name or raw hex. --pin writes it to
         # palette.user.conf (survives every theme/wallpaper change); default writes palette.conf.
-        sel="${1:-}"; [ -n "$sel" ] || { echo "usage: rice accent <name|hex> [--pin]  (see: rice accents)" >&2; exit 1; }
+        sel="${1:-}"; [ -n "$sel" ] || { echo "usage: rice accent <name|hex> [--pin]  (see: rice accents)" >&2; exit 2; }   # rc=usage
         shift 2>/dev/null || true
         pin=0; [ "${1:-}" = "--pin" ] && pin=1
         acc="$RICE_DIR/accents.tsv"
@@ -194,7 +267,7 @@ case "$cmd" in
                 /^[[:space:]]*#/ || NF<3 { next }
                 m($1,want) && $2==name { print $3; exit }' "$acc")"
         fi
-        [ -n "$hex" ] || { echo "no accent '$sel' for scheme '$scheme' (see: rice accents)" >&2; exit 1; }
+        [ -n "$hex" ] || { echo "no accent '$sel' for scheme '$scheme' (see: rice accents)" >&2; exit 1; }   # rc=verdict
         if [ "$pin" -eq 1 ]; then target="$RICE_DIR/palette.user.conf"; else target="$RICE_DIR/palette.conf"; fi
         touch "$target"
         if grep -q '^accent=' "$target"; then sed -i "s|^accent=.*|accent=$hex|" "$target"
@@ -204,7 +277,7 @@ case "$cmd" in
         ;;
     save)
         # Snapshot the current palette as a named profile.
-        name="${1:-}"; [ -n "$name" ] || { echo "usage: rice save <name>" >&2; exit 1; }
+        name="${1:-}"; [ -n "$name" ] || { echo "usage: rice save <name>" >&2; exit 2; }   # rc=usage
         mkdir -p "$RICE_DIR/profiles"
         cp "$RICE_DIR/palette.conf" "$RICE_DIR/profiles/$name.conf"
         echo "SAVED profile '$name'";;
@@ -214,9 +287,9 @@ case "$cmd" in
         # `<scheme>:<name>` — selectors are resolved through `rice get-wallpaper`, downloading
         # to ~/Pictures/wallpapers/ on first use. This lets shipped preset profiles carry a
         # wallpaper assignment without bundling the image.
-        name="${1:-}"; [ -n "$name" ] || { echo "usage: rice theme <name>  (see: rice themes)" >&2; exit 1; }
+        name="${1:-}"; [ -n "$name" ] || { echo "usage: rice theme <name>  (see: rice themes)" >&2; exit 2; }   # rc=usage
         src="$RICE_DIR/profiles/$name.conf"
-        [ -f "$src" ] || { echo "no profile '$name' (see: rice themes)" >&2; exit 1; }
+        [ -f "$src" ] || { echo "no profile '$name' (see: rice themes)" >&2; exit 1; }   # rc=verdict
         cp "$src" "$RICE_DIR/palette.conf"
         wp="$(sed -n 's/^wallpaper=//p' "$RICE_DIR/palette.conf" | head -1)"; wp="${wp/#\~/$HOME}"
         # Catalog-selector form: `scheme:name` (no `/`, no leading `~`, contains `:`).
@@ -244,12 +317,12 @@ case "$cmd" in
         # Flip between two profiles by name — the dark/light (or any A/B) toggle keybind.
         # Reads the current scheme from palette.conf; applies whichever of the two it is NOT.
         a="${1:-}"; b="${2:-}"
-        [ -n "$a" ] && [ -n "$b" ] || { echo "usage: rice theme-toggle <profileA> <profileB>" >&2; exit 1; }
+        [ -n "$a" ] && [ -n "$b" ] || { echo "usage: rice theme-toggle <profileA> <profileB>" >&2; exit 2; }   # rc=usage
         cur="$(sed -n 's/^scheme=//p' "$RICE_DIR/palette.conf" 2>/dev/null | head -1)"
         if [ "$cur" = "$a" ]; then exec "$0" theme "$b"; else exec "$0" theme "$a"; fi;;
     theme-next)
         # Cycle to the next saved profile (alphabetical) — a single-key theme cycler, no menu needed.
-        ls "$RICE_DIR/profiles"/*.conf >/dev/null 2>&1 || { echo "(no profiles to cycle)" >&2; exit 1; }
+        ls "$RICE_DIR/profiles"/*.conf >/dev/null 2>&1 || { echo "(no profiles to cycle)" >&2; exit 1; }   # rc=verdict
         cur="$(sed -n 's/^scheme=//p' "$RICE_DIR/palette.conf" 2>/dev/null | head -1)"
         names=""; for p in "$RICE_DIR/profiles"/*.conf; do names="$names $(basename "$p" .conf)"; done
         set -- $names; first="$1"; nxt=""; take=0
@@ -262,52 +335,7 @@ case "$cmd" in
         cat "$RICE_DIR/templates.list" 2>/dev/null || echo "no manifest yet";;
     edit)
         "${EDITOR:-nano}" "$RICE_DIR/palette.conf";;
-    help|-h|--help)
-        cat <<EOF
-hypr-rice — desktop theme engine ($RICE_DIR)
-
-  rice apply              render all templates from palette.conf and reload apps
-  rice apply --no-reload  render only (no app reloads)
-  rice restore <apply-id> put every file that apply wrote back the way it was (one command,
-                          whole set: rendered surfaces, browser profile files, shell rc files;
-                          files the apply created are removed again)
-  rice restore --list     list what can still be undone, newest first
-  rice installs           what this plugin put on the machine, newest first (packages installed,
-                          already present, failed, and any AUR helper built from source)
-  rice installs <id>      print one recorded install in full
-  rice prefs              the Firefox preferences this plugin set, and whether they are still set
-  rice prefs remove       remove those preferences again - the ONE thing a restore cannot undo,
-                          because Firefox re-applies them at every start. Each profile file is
-                          backed up before it is edited, and a line you changed by hand is left
-                          alone. Removing them turns this plugin's browser theming off
-  rice wallpaper <img>    set wallpaper, regenerate palette from it, and re-theme
-  rice wallpaper <img> --no-theme   set wallpaper only
-  rice random [dir]       random wallpaper from dir (default ~/Pictures/wallpapers) + re-theme
-  rice wallpapers [scheme]          list curated downloadable wallpapers (filter by scheme)
-  rice get-wallpaper <scheme> <n|name> [--set] [--dir DIR]
-                          curl-download a catalog wallpaper; --set applies it (keeps the palette)
-  rice accents [scheme]   list the accent variants for a scheme (default: current)
-  rice accent <name|hex> [--pin]    set the accent (in-palette name or raw hex); --pin = survive re-theme
-  rice theme <name>       load a saved profile (palette + wallpaper) and re-theme
-                          NOTE: profiles are PALETTE-ONLY — structural look
-                          (looknfeel.conf, waybar style.css, hyprlock layout, etc.)
-                          does not travel with rice theme. Manage structural
-                          changes via the dotfiles skill instead.
-  rice theme-toggle <a> <b>  flip between two profiles (the dark/light toggle keybind)
-  rice theme-next         cycle to the next saved profile (single-key theme cycler)
-  rice save <name>        snapshot the current palette as a profile (palette only —
-                          structural look stays in the live config)
-  rice themes             list saved profiles
-  rice palette            print the current palette
-  rice templates          print the template manifest (name -> output -> reload)
-  rice edit               edit palette.conf in \$EDITOR
-
-Personal overrides: put KEY=hex lines in palette.user.conf — they win over every
-theme/wallpaper change (cascade: generated -> user), so your tweaks always survive.
-
-Add an app: drop a <name>.tmpl in templates/ (use {{accent}}, {{bg}}, {{color0}}…)
-and add a TAB-separated line to templates.list, then \`rice apply\`.
-EOF
-        ;;
-    *) echo "unknown command: $cmd  (try: rice help)" >&2; exit 1;;
+    # `help`, `-h` and `--help` are answered at the top of this file, before any resolution,
+    # so a machine with no config directory can still read the manual.
+    *) echo "unknown command: $cmd  (try: rice help)" >&2; exit 2;;   # rc=usage
 esac

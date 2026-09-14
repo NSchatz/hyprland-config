@@ -11,6 +11,19 @@
 #
 # Usage: rice-init.sh [--force]
 #
+# Example:
+#   rice-init.sh --force
+#
+# Options: -h, --help, help, --force
+# Subcommands: none
+#
+# Exit codes:
+#   0  ok: the engine is scaffolded into the rice state directory
+#   2  usage: an unknown option
+#   3  capability: the config-path library, or the plugin's rice templates, could not be found,
+#      so there is nothing to scaffold FROM and nothing was written
+#   4  refusal: no config directory it will resolve, so nothing was scaffolded
+#
 # Env:
 #   RICE_DIR  where the engine is scaffolded (explicit override; wins over XDG_CONFIG_HOME).
 #             Otherwise <config base>/hypr-rice, where the base is $XDG_CONFIG_HOME when it
@@ -18,6 +31,16 @@
 #             that decision for the whole plugin - scaffolding into one directory while the
 #             render engine reads another is exactly the split it exists to prevent.
 set -euo pipefail
+
+case "${1:-}" in   # [cli-parser]
+    -h|--help|help)
+        sed -n '2,${/^#/!q;s/^#\{1,2\} \{0,1\}//p}' "$0"
+        exit 0 ;;   # rc=ok
+    --force|'') ;;
+    *)
+        echo "ERROR: unknown option '$1' (usage: rice-init.sh [--force])" >&2
+        exit 2 ;;   # rc=usage
+esac
 
 _here_init="$(cd "$(dirname "$0")" && pwd)"
 _xdg_lib=""
@@ -28,14 +51,14 @@ for _c in "$_here_init/xdg-config.sh" \
 done
 if [ -z "$_xdg_lib" ]; then
     echo "ERROR: the config-path library (scripts/xdg-config.sh) was not found next to $0, in \$CLAUDE_PLUGIN_ROOT/scripts, or in the plugin." >&2
-    exit 2
+    exit 3   # rc=capability
 fi
 # shellcheck source=../../../scripts/xdg-config.sh
 . "$_xdg_lib"
 
 if ! xdg_config_target hypr-rice "${RICE_DIR:-}"; then
     echo "RICE_INIT=refused-no-config-dir"
-    exit 2
+    exit 4   # rc=refusal
 fi
 RICE_DIR="$XDG_CONFIG_TARGET"
 # Prefer CLAUDE_PLUGIN_ROOT, but fall back to deriving the plugin's rice dir from this script's own
@@ -47,7 +70,7 @@ else
     _here="$(cd "$(dirname "$0")" && pwd)"
     SRC="$(cd "$_here/.." && pwd)"   # skills/rice
 fi
-[ -d "$SRC/references/theming" ] || { echo "ERROR: cannot find the plugin's rice templates (looked in $SRC). Set CLAUDE_PLUGIN_ROOT." >&2; exit 2; }
+[ -d "$SRC/references/theming" ] || { echo "ERROR: cannot find the plugin's rice templates (looked in $SRC). Set CLAUDE_PLUGIN_ROOT." >&2; exit 3; }   # rc=capability
 force=0; [ "${1:-}" = "--force" ] && force=1
 
 mkdir -p "$RICE_DIR/templates" "$RICE_DIR/profiles"
@@ -174,3 +197,4 @@ fi
 
 echo "RICE_DIR=$RICE_DIR"
 echo "RICE_INIT=done"
+exit 0   # rc=ok
