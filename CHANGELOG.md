@@ -2,6 +2,61 @@
 
 ## Unreleased
 
+The tooling is Python (roadmap phase PYTHON-2).
+
+Forty of forty-two shell files are now dispatchers over `scripts/ricelib/`:
+scripts/ holds 7,390 lines of Python against 583 of bash. The `.sh` names are
+kept because the NAME is the interface - every skill doc, agent, test, keybind
+and dotfiles repo invokes these by name - but the implementation behind each one
+moved.
+
+- **`scripts/ricelib/`** is the package: `xdg` (the one decision about where
+  configuration lives), `restorepoint`, `backuppath`, `ricerestore`,
+  `installrecord`, `installpackages`, `firefoxprefs`, `firefoxbootstrap`,
+  `firefoxrestart`, `dotfiles`, `clock`, `proc`, `ricecli`, plus `hypr/` (the
+  compositor-facing surface, including the 739-line hyprlang-to-lua converter)
+  and `desktop/helpers.py` (the keybind-bound desktop helpers).
+- **Two `.sh` implementations remain, both deliberate.** `ensure-python.sh`
+  installs the interpreter, so it is the one script that cannot be written in
+  it. `record-answer.sh` is a 20-line shim over `record-answer.py`.
+- **`xdg-config.sh` is deleted.** Porting the `rice` CLI removed its last
+  consumer, which is what the "one decision" invariant actually wanted: one
+  implementation of where configuration lives, rather than a bash one and a
+  Python twin kept in step by a parity test.
+- The installed engine stays STANDALONE. `rice-init` copies the package beside
+  it and refuses if it cannot - a half-installed engine is worse than a failed
+  install - and now installs `ensure-python.sh` too, so a machine with the
+  engine but not the interpreter can bootstrap itself. Verified with
+  CLAUDE_PLUGIN_ROOT unset.
+
+Bugs the port exposed, each found by a test rather than by reading:
+
+- **A restore over a non-regular target did not replace it.** `cp -a <backup>
+  <target>` opens the destination and writes INTO it, so a restore over a FIFO
+  blocked forever and would have left a FIFO wearing the restored bytes. The
+  target is unlinked first now. AC12 had been USING that hang as its
+  interruption device, so the device moved to the backup side and AC12b pins
+  the fix.
+- **Same-second backup collision.** `backup-config` and `reset-config` run back
+  to back and both minted `<target>.bak.<stamp>`; inside one second those are
+  the same name, and the copy landed INSIDE the first backup. `clock.unique_backup`
+  appends a zero-padded ordinal, the same rule restore-point and install-record
+  ids already used.
+- **A reload hook could kill the render pass.** The manifest's reload commands
+  ran through `eval`, in-process, so a hook of `kill -9 $$` stranded the
+  manifest half-written. They run in a subshell now.
+- The published hyprlang support window was split across two string literals,
+  so the phrase the test greps for verbatim existed nowhere findable.
+
+Test changes, all retargeting rather than relaxing: `test_xdg_parity.sh` is
+replaced by `test_xdg_resolver.sh` (the same 13-environment matrix, asserted
+against the rule instead of against a second implementation, now that there is
+only one); `test_scripts_syntax.sh` py_compiles every shipped module, which it
+did not before; and the "one decision" scan covers `.py` as well as `.sh`,
+because a second spelling of the config base would hide in Python now. That
+scan immediately caught a docstring spelling the state root while explaining
+the rule.
+
 Make the authoring context fit what the task actually needs (roadmap phase CONTEXT-1).
 
 The configs this plugin emits were not coming out right, and the cause was upstream of any
