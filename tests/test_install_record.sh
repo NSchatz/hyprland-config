@@ -342,6 +342,11 @@ export HOME="$s5/home"; mkdir -p "$HOME"
 mk_arch_stubs "$stub5" "rofi" "" ""
 mkdir -p "$s5/lone/scripts"
 cp "$IP" "$s5/lone/scripts/install-packages.sh"
+# The implementation is Python now, so the lone copy needs the package to RUN - it must get far
+# enough to discover the recorder is missing. Deliberately no install-record.sh beside it: that
+# absence is what this scenario grades.
+cp -a "$PLUGIN_ROOT/scripts/ricelib" "$s5/lone/scripts/ricelib"
+rm -f "$s5/lone/scripts/install-record.sh"
 out="$( unset CLAUDE_PLUGIN_ROOT; PATH="$stub5:$BIN_PATH" bash "$s5/lone/scripts/install-packages.sh" --noconfirm rofi 2>&1 )"; rc=$?
 assert_eq "2" "$rc" "no recorder: the install refuses rather than installing unrecorded"
 assert_out_has "install-record.sh" "$out" "no recorder: the refusal names what is missing"
