@@ -25,7 +25,7 @@ references/
 │   ├── colors-contract.md       # per-app color var contracts
 │   ├── dispatchers.md           # Hyprland dispatcher catalog
 │   └── version-matrix.md        # Hyprland version branches & syntax gates
-├── components/<x>/              # one folder per component (22 total)
+├── components/<x>/              # one folder per component (24 total)
 │   ├── README.md
 │   ├── interview.md             # sub-questions for the interviewer
 │   ├── schema.md                # answers.json keys this component owns
@@ -58,7 +58,13 @@ references/
   and component-writer agents lean on this).
 - **`_shared/version-matrix.md`** — Hyprland version branches and syntax gates.
 
-**Components (one folder each — 22 total)**
+**Components (one folder each — 24 total)**
+
+Twenty-four folders; the interview walks **23 groups** (three of them - palette, fonts,
+wallpaper - are sub-questions of `look-feel` rather than folders of their own). Four folders
+have no interview group because nothing is asked for them directly: `autostart` and
+`window-rules` are DERIVED from other components' answers, `browser` is gated behind the
+default-apps browser pick, and `qt` is driven by the render manifest.
 
 Walked in interview order:
 
@@ -92,6 +98,17 @@ Walked in interview order:
   is the default, not an answer).
 - **`components/accessibility/`** — opt-in a11y tweaks.
 
+Not walked as their own interview group:
+
+- **`components/autostart/`** — the `exec-once` lineup, DERIVED from the bar / wallpaper /
+  notification / widget / utility picks rather than asked for.
+- **`components/window-rules/`** — `windowrule` recipes, likewise derived (the blur layerrules
+  follow the chosen launcher, notification daemon and widget shell).
+- **`components/browser/`** — Firefox `userChrome.css` theming; gated behind
+  `default_apps.browser == firefox` plus an explicit opt-in.
+- **`components/qt`** — the qt6ct colors template the render manifest drives when any Qt app
+  is picked. Template-only: it has no interview slice because nothing is asked for it.
+
 Each component's `packages.md` is the install slice for A3d/A5 (the installer agent concatenates
 them into `install.sh`). Each visual component's `styling.md` is the design-principles guide for
 that surface.
@@ -119,7 +136,7 @@ that surface.
   Called by the interviewer agent after every `AskUserQuestion` so picks land on disk before the
   next question.
 - **Agents** (under `${CLAUDE_PLUGIN_ROOT}/agents/`):
-  - `hyprland-interviewer` — owns the 22-component interview (walking
+  - `hyprland-interviewer` — owns the 23-group interview (walking
     `_interview-protocol.md` + each `components/<x>/interview.md`), records each answer to
     `<staging>/answers.json`, runs the review pass, returns just the path + a summary. **A1 spawns
     this so the main loop's context stays clean.**
@@ -142,7 +159,8 @@ that surface.
   `widgets/eww.tmpl` → eww `colors.scss`, `widgets/ags.tmpl` → AGS/Astal `colors.scss`,
   `widgets/quickshell.tmpl` → Quickshell `Colors.qml`; registered in the manifest
   when chosen — see `theming/engine.md` → "Shell & prompt theming" and "Widget-shell theming").
-- **`assets/profiles/*.conf`** — the twelve shipped preset rices; **`assets/rice`** — the CLI
+- **`assets/profiles/*.conf`** — the fourteen shipped preset rices (twelve aesthetic schemes
+  plus the WCAG-AAA `high-contrast-dark` / `high-contrast-light` pair); **`assets/rice`** — the CLI
   (incl. `rice wallpapers [scheme]` to list and `rice get-wallpaper <scheme> <n|name> [--set]` to
   curl-download a matching wallpaper; `rice accents [scheme]` to list per-scheme accent variants and
   `rice accent <name|hex> [--pin]` to swap the accent; `rice theme-toggle <a> <b>` flips two profiles

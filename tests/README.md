@@ -49,6 +49,7 @@ Exit code: `0` if every test passed (skipped is fine), `1` otherwise.
 | `test_currency_staleness.sh` | Staleness against the newest release is *reported*, never a build failure - upstream tagging a version is not a defect in this repo |
 | `test_currency_removed_keys.sh` | `validate-removed-keys.sh` refuses a staged config that sets a key removed at the target version, before the compositor is consulted and before anything is backed up or written |
 | `test_regress_0018_F1/F2/F3.sh` · `regress_0018_F4-F7.sh` · `regress_0032_F1.sh` · `regress_0037_F1/F2.sh` · `regress_0037_gate2_acceptance.sh` | Impl-gate regression artifacts, kept in the suite so the holes they found cannot reopen. The `regress_*.sh` (no `test_` prefix) files are **not** picked up by `run.sh`; they are report-only probes run by hand against a checkout. |
+| `test_rice_scheme_profiles.sh` | The two documented-but-absent features: `rice scheme <name>` (swap the palette, keep the wallpaper - the documented way out of a fixed `high-contrast-*` palette) and the fourteen shipped preset profiles. Also pins each profile to the palette contract, and the docs' component / interview-group counts to what is actually on disk. |
 
 ## CI
 

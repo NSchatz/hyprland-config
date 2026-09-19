@@ -236,6 +236,33 @@ case "$cmd" in
         [ -n "$wp" ] && [ -f "$wp" ] && bash "$RICE_DIR/set-wallpaper.sh" "$wp" >/dev/null 2>&1
         bash "$RICE_DIR/render-templates.sh"
         echo "APPLIED profile '$name'";;
+    scheme)
+        # Switch the PALETTE and keep the current wallpaper. `rice theme` replaces both; this
+        # replaces only the colors, which is what you want when the wallpaper is the thing you
+        # are keeping.
+        #
+        # It is also the documented way OUT of a high-contrast palette: `high-contrast-*` are
+        # fixed palettes, so palette-from-wallpaper.sh deliberately early-returns while one is
+        # active and a wallpaper change cannot re-derive colors. Switch scheme first, then
+        # re-derive - `rice scheme catppuccin-mocha && rice wallpaper <img>`.
+        name="${1:-}"
+        if [ -z "$name" ]; then
+            cur="$(sed -n 's/^scheme=//p' "$RICE_DIR/palette.conf" 2>/dev/null | head -1)"
+            echo "usage: rice scheme <name>   (current: ${cur:-none}; see: rice themes)" >&2
+            exit 1
+        fi
+        src="$RICE_DIR/profiles/$name.conf"
+        [ -f "$src" ] || { echo "no profile '$name' (see: rice themes)" >&2; exit 1; }
+        # Keep whatever wallpaper is set now, including none.
+        wp_keep="$(sed -n 's/^wallpaper=//p' "$RICE_DIR/palette.conf" 2>/dev/null | head -1)"
+        cp "$src" "$RICE_DIR/palette.conf"
+        if grep -q '^wallpaper=' "$RICE_DIR/palette.conf"; then
+            sed -i "s|^wallpaper=.*|wallpaper=$wp_keep|" "$RICE_DIR/palette.conf"
+        else
+            printf 'wallpaper=%s\n' "$wp_keep" >> "$RICE_DIR/palette.conf"
+        fi
+        bash "$RICE_DIR/render-templates.sh"
+        echo "SCHEME '$name' (wallpaper kept: ${wp_keep:-none})";;
     themes|list-themes)
         if ls "$RICE_DIR/profiles"/*.conf >/dev/null 2>&1; then
             for p in "$RICE_DIR/profiles"/*.conf; do basename "$p" .conf; done
@@ -293,6 +320,9 @@ hypr-rice — desktop theme engine ($RICE_DIR)
                           (looknfeel.conf, waybar style.css, hyprlock layout, etc.)
                           does not travel with rice theme. Manage structural
                           changes via the dotfiles skill instead.
+  rice scheme <name>      swap the PALETTE only, keeping the current wallpaper
+                          (the way out of a fixed high-contrast palette:
+                           rice scheme catppuccin-mocha && rice wallpaper <img>)
   rice theme-toggle <a> <b>  flip between two profiles (the dark/light toggle keybind)
   rice theme-next         cycle to the next saved profile (single-key theme cycler)
   rice save <name>        snapshot the current palette as a profile (palette only —
