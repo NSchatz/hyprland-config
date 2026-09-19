@@ -14,6 +14,19 @@ For `color0..15`, Catppuccin Mocha's full mapping is given as the reference patt
 schemes, map `color1..6` = `red green yellow blue magenta cyan`, `color0`=bg-ish, `color7/15`=fg-ish,
 `color8`=`muted`, bright `9..14` ≈ the same hues (mode-aware).
 
+## Contents
+
+- How the corpus ships schemes
+- Core palette catalog (dark schemes)
+- Light scheme
+- Semantic hues (red / green / yellow / blue / magenta / cyan)
+- Mapping richer scheme catalogs onto the 12-key contract
+- Catppuccin Mocha — full color0..15 reference
+- Matching GTK / icon / cursor themes per scheme
+- Caveat — murrine-dependent AUR themes
+- High-contrast schemes (WCAG-AAA, fixed palette)
+- Cross-references
+
 ## How the corpus ships schemes
 
 Cross-referenced against the corpus (`.research/corpus.md`), the rices fall into four scheme-supply

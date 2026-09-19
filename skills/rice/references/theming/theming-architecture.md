@@ -8,6 +8,20 @@ This file holds the per-surface mechanics, GTK/Qt/cursor gotchas, and dark/light
 parts that aren't engine-internal. Engine internals (manifest format, render flow, CLI) are in
 [`engine.md`](engine.md).
 
+## Contents
+
+- Where the .tmpl files live (post-refactor)
+- The palette contract (overview)
+- Per-surface application
+- GTK gotchas (the four that matter)
+- Qt
+- Cursor
+- Per-surface dark/light handling
+- Cross-surface palette coherence (one-radius, one-accent)
+- New cross-component dataflows from batches 1+2
+- Apply + reload (full catalog)
+- Cross-references
+
 ## Where the `.tmpl` files live (post-refactor)
 
 After the precursor refactor, per-app `.tmpl` files are **co-located with the component that owns

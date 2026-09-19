@@ -5,6 +5,17 @@ deprecation list: `${CLAUDE_PLUGIN_ROOT}/skills/hyprland-reference/references/de
 this file summarizes the *branches the rice components have to make* on top of that. Branch on the
 `HYPR_VERSION` field that `scripts/detect-version.sh` emits.
 
+## Contents
+
+- Version-cliff record format (the contract currency-check.sh enforces)
+- Ledger metadata
+- Version cliffs that components branch on
+- External (non-Hyprland) version cliffs that matter
+- Removed keys (validate-removed-keys.sh reads this table and nothing else)
+- Quick decision flow
+- Components' job
+- Detect
+
 ## Version-cliff record format (the contract `currency-check.sh` enforces)
 
 This file is the **version-cliff ledger**. A version cliff is RECORDED here and

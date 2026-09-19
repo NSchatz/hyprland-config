@@ -4,6 +4,12 @@ Output file: **`~/.config/hypr/env.conf`**, sourced from `hyprland.conf`'s top-o
 `source = ~/.config/hypr/env.conf` line. Must be sourced before any `exec-once` so the spawned
 processes inherit the env.
 
+## Contents
+
+- env.conf
+- Mapping autostart_env.env → template gates
+- What does NOT belong here
+
 ## env.conf
 
 ```ini

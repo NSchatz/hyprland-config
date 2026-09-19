@@ -1,5 +1,24 @@
 # companion-daemons — gotchas
 
+## Contents
+
+- Companion configs use a different config language from hyprland.conf
+- lock_cmd = pidof hyprlock || hyprlock — don't stack lockers
+- before_sleep_cmd — two corpus idioms, both correct
+- before_sleep_cmd = loginctl lock-session — lock BEFORE sleep, not after
+- Lock listener fires BEFORE dpms-off — order matters in the ladder
+- Desktops drop the suspend tier
+- hyprpaper ipc — on by default; only turn off deliberately
+- If hyprlock not chosen, drop the lock listener AND lock_cmd
+- The popular rices rarely ship hyprpaper.conf — they generate it or use swww
+- ML4W uses Lua-format hyprctl dispatchers — not legacy strings
+- hyprpaper 0.8.0 broke its config format — preload is GONE
+- Corpus disagreement on inhibit_sleep — default is right unless the shell owns the lock UI
+- inhibit_sleep is not a bitfield — it's four coordination modes
+- Adjacent daemon: walker's ext_background_effect_blur is compositor-served, not built-in
+- Adjacent daemon: wl-clip-persist keeps cliphist alive after the source app quits
+- hypridle has no hyprctl reload (and hyprpaper's is version-dependent)
+
 ## Companion configs use a different config language from `hyprland.conf`
 
 `hypridle.conf`, `hyprpaper.conf`, and `hyprlock.conf` all use a **hyprlang-flavoured but

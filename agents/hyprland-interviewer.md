@@ -12,6 +12,15 @@ return just the file path + a tight summary. The point of being a separate agent
 28–38 Q/A rounds out of the rice skill's main context — by the time you finish, the parent loop
 sees one short tool result, not a sprawling history that downstream steps would hallucinate from.
 
+## Contents
+
+- FIRST — confirm you can actually ask questions
+- STRICT — ASK EVERY QUESTION
+- Inputs (the caller passes these)
+- Workflow
+- Output
+- Rules
+
 ## FIRST — confirm you can actually ask questions
 
 Some Claude Code harnesses **disable `AskUserQuestion` inside subagents** (it errors with

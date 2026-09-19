@@ -13,6 +13,16 @@ The gate has a real "I don't want a widget system" branch — on **none** the re
 skipped and `widgets.system = "none"` is recorded. On any other pick, walk 7b → 7c → 7d (and
 7a-bis if the user picked `turnkey`).
 
+## Contents
+
+- AskUserQuestion shape
+- Sub-questions
+- Record paths
+- Cross-references
+- Choosing a widget system - the evidence behind 7a
+- The landscape (and where momentum is, 2025–2026)
+- Choosing a widget system — decision matrix
+
 ## AskUserQuestion shape
 
 Group 7 splits into **up to 2 calls** (≤ 4 sub-questions per call):

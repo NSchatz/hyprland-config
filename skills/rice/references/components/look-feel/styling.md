@@ -16,6 +16,16 @@ clean parse).
 > `.conf`** syntax (`option = value`, `bezier = …`, `animation = …`), which 0.4x–0.54 use and
 > which 0.55 still reads. Everything here is hyprlang.
 
+## Contents
+
+- What you're styling
+- Design anatomy — the knobs that change the look
+- How the community styles it
+- Battle-tested techniques (harvested from ~20 real configs)
+- Tasteful default recipe
+- Pitfalls
+- Provenance
+
 ## What you're styling
 
 ```ini

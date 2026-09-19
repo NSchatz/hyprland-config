@@ -4,6 +4,15 @@ Owns `~/.config/hypr/monitors.conf`. Sourced from `hyprland.conf` (the sourcing 
 `../keybinds/template.md`). Output config + workspace rules + smart-gaps go here; per-app
 `workspace` window rules do **not** — they live in `../window-rules/template.md`.
 
+## Contents
+
+- monitors.conf
+- {{monitor_lines}} variants
+- Per-monitor extra fields (1c)
+- Dock/undock (1d)
+- {{workspace_rules_block}} (1e)
+- What does NOT belong here
+
 ## monitors.conf
 
 ```ini

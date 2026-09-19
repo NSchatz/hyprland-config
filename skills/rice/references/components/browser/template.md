@@ -12,6 +12,15 @@ The userChrome route is the **default** for v0.21. The pywalfox route is documen
 `gotchas.md` → "pywalfox vs userChrome" — pick it manually when the rice uses a wallpaper-driven
 engine and content theming matters.
 
+## Contents
+
+- Files this component owns
+- The two preferences, and how to take them back off
+- Required render-manifest line
+- Substitution map (firefox.tmpl)
+- install.sh integration
+- Cross-references
+
 ## Files this component owns
 
 - [`firefox.tmpl`](./firefox.tmpl) — palette-only `:root{--rice-*}` block rendered to

@@ -13,6 +13,12 @@ component (which owns the top-level file). Three version branches:
 Branch on `hypr_version` from `answers.json` (top-level, seeded by detection — see
 `_shared/version-matrix.md` and `gotchas.md` → "Gestures: two cliffs").
 
+## Contents
+
+- input.conf — 0.45+ target
+- input.conf — pre-0.45 fallback
+- What does NOT belong here
+
 ## `input.conf` — 0.45+ target
 
 ```ini

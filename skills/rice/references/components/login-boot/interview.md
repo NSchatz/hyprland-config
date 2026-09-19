@@ -18,6 +18,15 @@ On a re-theme (Mode B), this whole component is **skipped** — re-theming only 
 palette, fonts, wallpaper. The login chrome doesn't re-render on `rice apply` (see `gotchas.md`
 → "Coarse re-themes").
 
+## Contents
+
+- Detection (for option order only, not for the gate)
+- Skip-silently rule
+- AskUserQuestion shape
+- Sub-questions
+- Record paths
+- Cross-references
+
 ## Detection (for option order only, not for the gate)
 
 Run before asking 19:

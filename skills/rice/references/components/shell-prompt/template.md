@@ -10,6 +10,15 @@ This component touches three categories of file:
    re-rendered from templates on every `rice apply`. Source of truth: the rice engine.
 3. **fish plugin manifest** (`~/.config/fish/fish_plugins`) — one `owner/repo` per line.
 
+## Contents
+
+- The managed-block convention
+- Per-shell managed block
+- Rice-owned prompt configs
+- Corpus-validated patterns embedded in the templates
+- fish plugin manifest
+- What does NOT belong here
+
 ## The managed-block convention
 
 Every rc edit lives between these two sentinel lines:

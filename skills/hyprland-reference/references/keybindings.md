@@ -1,5 +1,16 @@
 # Hyprland Keybindings & Dispatchers
 
+## Contents
+
+- Bind syntax
+- Official default keybinds (match user expectations)
+- Gestures (touchpad)
+- Bind flag variants
+- Workspaces
+- Submaps (modal keybinds)
+- Battle-tested techniques (from real dotfiles)
+- Dispatcher catalog (most used)
+
 ## Bind syntax
 
 ```

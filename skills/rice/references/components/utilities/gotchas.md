@@ -1,5 +1,24 @@
 # utilities — gotchas
 
+## Contents
+
+- Wi-Fi / Bluetooth: prefer the tray applets, NOT homegrown rofi parsers
+- 2025-2026 tool defaults the install batch should prefer
+- Screen recorder default — wf-recorder (repo), not wl-screenrec (AUR Rust)
+- Scripts auto-detect — listing multiple tools is fine
+- Cliphist watchers belong in autostart, not here
+- OCR language packs
+- $dmenu vs $menu — bind syntax for the bind-only tools
+- SUPER+V is taken — use SUPER+SHIFT+V for clipboard
+- wlogout vs powermenu.sh — pick one
+- Night-light is dual-owned with accessibility
+- Version note — hyprsunset and hyprshot track Hyprland
+- wlogout: layer-shell namespace is logout_dialog (for the blur layerrule)
+- wlogout: prefer hyprctl dispatch exit 0 over loginctl terminate-user
+- wlogout layout is JSON-lines, NOT a JSON array
+- swayosd is NOT in any top-corpus rice as of 2026-06
+- wlogout.tmpl coherence rule
+
 ## Wi-Fi / Bluetooth: prefer the tray applets, NOT homegrown rofi parsers
 
 The temptation is to write a `nmcli dev wifi list | rofi -dmenu` one-liner. **Don't.** SSIDs and

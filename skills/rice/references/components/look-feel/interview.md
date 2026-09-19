@@ -9,6 +9,14 @@ user can confirm with one press; it never authorizes skipping the question. See
 [`_interview-protocol.md`](../../_interview-protocol.md) ("Strict — ask every question. Never
 silently default.").
 
+## Contents
+
+- Call 1 — gaps / rounding / blur+shadows / opacity (4 sub-qs)
+- Call 2 — animations / border colour / layout (3 sub-qs)
+- Call 3 — groups / per-app rules / blur toggle (3 sub-qs)
+- Record paths
+- Cross-references
+
 ## Call 1 — gaps / rounding / blur+shadows / opacity (4 sub-qs)
 
 **11a. Gaps & borders.**

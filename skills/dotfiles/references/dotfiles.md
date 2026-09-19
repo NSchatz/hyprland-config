@@ -3,6 +3,16 @@
 How to keep the Hyprland/desktop config under git. Three common methods; the plugin's
 `scripts/dotfiles.sh` wraps all three behind one interface.
 
+## Contents
+
+- Method comparison
+- Bare repo — how it works
+- Stow — how it works
+- chezmoi — how it works
+- What to track
+- Secrets & hygiene
+- Commit-after-every-change
+
 ## Method comparison
 
 | Method | Repo | Symlinks? | Best for | Needs |

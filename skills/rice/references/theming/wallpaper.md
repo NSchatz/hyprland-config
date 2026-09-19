@@ -24,6 +24,20 @@ the `wallpaper=` row in each `*.conf` for the chosen pairing. The selection rule
 highest-width catalog entry whose colors fit the palette." Latte (catppuccin-latte), Nord, and
 Solarized had to override the default ordering — see the inline comments in `wallpapers.tsv`.
 
+## Contents
+
+- Backends
+- Daemon choice across the corpus
+- Daemon-choice trade-offs
+- Curated theme wallpapers
+- Dynamic theming (wallpaper → palette → everything)
+- The current-wallpaper symlink — single live pointer for every consumer
+- Restore last wallpaper on login
+- Lock-screen wallpaper decoupling
+- Cycling
+- Battle-tested techniques
+- Wallpaper sources
+
 ## Backends
 
 | Tool | Set command | Notes |

@@ -1,5 +1,19 @@
 # window-rules — gotchas
 
+## Contents
+
+- layerrule 0.54+ is a HARD BREAK (specific old form)
+- windowrule block form is preferred on 0.53+
+- Verified 0.54.3 layerrule block fields
+- match: prefix on matchers (block form)
+- Property renames to watch for
+- idle_inhibit valid values
+- App-to-workspace pins should always be silent
+- XWayland drag-fix rule looks weird but is intentional
+- Workspace rules belong in monitors.conf, not here
+- Layer-shell namespace cliffs (the theming-relevant ones)
+- 0.55+ additions
+
 ## `layerrule` 0.54+ is a HARD BREAK (specific old form)
 
 On Hyprland **0.53+** the bare single-line form

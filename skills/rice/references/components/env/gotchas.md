@@ -1,5 +1,21 @@
 # env — gotchas
 
+## Contents
+
+- envd = vs env = — the systemd/DBus push flag
+- NVIDIA package branch is gated on the *GPU generation* (defect #15)
+- NVIDIA env is gated on the *active driver*, not the card
+- The 2026 slim NVIDIA set — do not emit GBM_BACKEND / WLR_NO_HARDWARE_CURSORS / WLR_DRM_NO_ATOMIC
+- uwsm sessions: ~/.config/uwsm/env is the authoritative source
+- Fractional scale ties: pin GDK_SCALE,N here
+- NVD_BACKEND,direct only with libva-nvidia-driver
+- MOZ_ENABLE_WAYLAND=1 is now a no-op on Firefox 121+
+- ELECTRON_OZONE_PLATFORM_HINT,auto is GPU-agnostic
+- _JAVA_AWT_WM_NONREPARENTING,1 for Java AWT blank windows
+- MOZ_DISABLE_RDD_SANDBOX,1 for Firefox + libva-nvidia-driver
+- GSK_RENDERER,ngl for GTK4 on NVIDIA
+- GTK_THEME in env.conf clashes with palette-driven theming
+
 ## `envd =` vs `env =` — the systemd/DBus push flag
 
 The Hyprland 0.54 hyprlang config has **two** env keywords:

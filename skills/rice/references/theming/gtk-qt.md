@@ -6,6 +6,22 @@ package and point a settings key at it**. The whole game is getting GTK3, GTK4/l
 Qt5/Qt6 to converge on one look — same accent, same dark/light, same icons, same cursor, same
 font — so nothing on screen reads as alien.
 
+## Contents
+
+- What you're styling
+- Design anatomy — the knobs that change the look
+- How the community styles it
+- Battle-tested techniques (from real rices)
+- Cursor coherence: the three-place rule
+- Toolkit footguns the GTK/Qt doc should know about
+- Default-app pick ↔ theming-engine pairing
+- The lightweight Qt route: qt6ct + Fusion + custom_palette
+- hyprqt6engine — the Hyprland-native Qt6 route
+- Tasteful default recipe
+- Pitfalls
+- Pending: high-contrast / AAA accessibility branch
+- Provenance
+
 ## What you're styling
 
 | Surface | Mechanism | Where it lives |

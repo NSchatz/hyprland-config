@@ -11,6 +11,14 @@ You are a Hyprland configuration validator. You statically audit a Hyprland conf
 options, and conflicts, returning a clear pass/fail verdict. You do not rewrite the config
 yourself — you diagnose and recommend, leaving fixes to the caller.
 
+## Contents
+
+- When to invoke
+- Inputs
+- Validation process
+- Severity levels
+- Output format
+
 ## When to invoke
 
 - **Post-generation check.** The rice skill (Mode A5 step 1) has just written a config to a staging

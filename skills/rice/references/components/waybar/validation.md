@@ -6,6 +6,18 @@ gotcha (`gotchas.md`).
 
 ## Checks
 
+## Contents
+
+- 1. config.jsonc parses as strict JSON
+- 2. No empty "format*" fields (MDI-glyph-strip guard)
+- 3. style.css opens with @import "colors.css";
+- 4. style.css references only the 12 contract names
+- 5. Balanced CSS braces
+- 6. No plugin dispatchers in on-click (and friends)
+- 7. Translucency demands the matching layerrule blur block
+- 8. custom/notification ↔ notifications.daemon mutex
+- 9. backlight module gated on real hardware
+
 ### 1. `config.jsonc` parses as strict JSON
 
 Waybar will silently fail to appear if the JSON is malformed. Reject before signaling.

@@ -4,6 +4,16 @@ Per-pick package map. The installer agent reads this file when assembling the gl
 list. Only the packages whose pick is active are appended (don't install every shell, every
 fetch, every modern-CLI tool blindly).
 
+## Contents
+
+- Shells
+- Prompt engines
+- Startup fetch
+- Modern-CLI
+- fish plugins (fisher) — NOT a package
+- Assembly rule
+- Cross-references
+
 ## Shells
 
 | Pick | Package | Repo / AUR | Notes |

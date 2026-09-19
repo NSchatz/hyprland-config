@@ -8,6 +8,23 @@ for that release.
 Use this list when **auditing/validating** a config: each entry is a `OLD → NEW` mapping plus a
 note on which behavior to expect.
 
+## Contents
+
+- Decoration: shadow
+- Decoration: blur
+- Master layout
+- Dwindle
+- Cursor (moved out of general/input)
+- General / input
+- Misc
+- Window rules
+- Layer rules
+- Dispatchers / binds
+- Removed / moved in 0.55
+- New options to know (not deprecations, but recent additions)
+- Gestures (recent rework)
+- How to verify against the live system
+
 ## Decoration: shadow
 
 | Deprecated (top-level `decoration:`) | Modern (`decoration:shadow {}`) |

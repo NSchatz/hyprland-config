@@ -17,12 +17,22 @@ lives in `styling.md`.
 > @magenta @cyan`. Don't add new names; don't hardcode hex. The GTK-CSS `alpha(@c, 0.8)` function
 > is valid here (2-arg).
 
+## Contents
+
+- config.jsonc — the default
+- MDI glyph table (verified, 4-byte safe)
+- style.css — archetype by archetype
+- colors.css — emitted by the engine
+- What does NOT belong here
+
 ## `config.jsonc` — the default
 
 A modern floating-islands desktop bar. Author this file via a Python script —
 `json.dump(obj, f, ensure_ascii=False, indent=2)` — to keep the 4-byte MDI glyphs intact through
 linters (see `gotchas.md`).
 
+```jsonc
+{
   "layer": "top",
   "position": "top",
   "height": 38,
@@ -84,10 +94,13 @@ linters (see `gotchas.md`).
   },
   "idle_inhibitor": { "format": "{icon}", "format-icons": { "activated": "", "deactivated": "" } },
   "tray":           { "icon-size": 16, "spacing": 10 }
+}
+```
 
 **Laptop addendum.** When `IS_LAPTOP=1`, append `"battery"` (and `"backlight"` only when
 `/sys/class/backlight/*` is non-empty — see `gotchas.md`) to `modules-right`:
 
+```jsonc
 "battery": {
   "states": { "warning": 30, "critical": 15 },
   "format": "{icon} {capacity}%",
@@ -97,9 +110,12 @@ linters (see `gotchas.md`).
 "backlight": {
   "format": "{icon} {percent}%",
   "format-icons": ["󰃞", "󰃟", "󰃠"]
+}
+```
 
 **Swaync addendum.** Only when `notifications.daemon == "swaync"` (see `gotchas.md`):
 
+```jsonc
 "custom/notification": {
   "return-type": "json",
   "exec-if": "which swaync-client",
@@ -113,6 +129,8 @@ linters (see `gotchas.md`).
     "inhibited-notification": "<span foreground='#f38ba8'><sup></sup></span>", "inhibited-none": "",
     "dnd-inhibited-notification": "", "dnd-inhibited-none": ""
   }
+}
+```
 
 Append `"custom/notification"` to `modules-right` (after `tray`).
 
@@ -122,12 +140,15 @@ fires — without it the power utility is selected but never appears on the bar.
 contract is declared in [`_shared/expected-binds.md`](../../_shared/expected-binds.md) →
 "Waybar modules". Append to `modules-right` (right of `tray`):
 
+```jsonc
 "custom/power": {
   // rofi flavor — driven by the shipped powermenu.sh
   "format": "⏻",
   "tooltip": false,
   "on-click": "~/.config/hypr/scripts/powermenu.sh"
   // wlogout flavor — substitute "wlogout -p layer-shell" for the on-click instead
+}
+```
 
 The writer reads `utilities.selected` and the power-menu flavor (rofi vs wlogout) from
 `utilities.power_menu_tool` (see `components/utilities/schema.md`) to pick the `on-click`
@@ -160,10 +181,16 @@ filled `●` (U+25CF) / hollow `○` (U+25CB).
 
 The opening four lines never change:
 
+```css
+@import "colors.css";
+
+* {
   font-family: "JetBrainsMono Nerd Font", "Symbols Nerd Font", sans-serif;
   font-size: 13px; font-weight: bold; min-height: 0;
   border: none; border-radius: 0; box-shadow: none;
   font-feature-settings: '"zero", "ss01", "ss02", "ss03", "ss04", "ss05", "cv31"';
+}
+```
 
 > `font-feature-settings` enables JetBrainsMono's dotted-zero (`zero`) + stylistic sets `ss01-05`
 > and the alt `@`/`$` (`cv31`) — every JaKooLit theme sets this for crisper rendering at 13–14px.
@@ -171,19 +198,24 @@ The opening four lines never change:
 
 ### Workspace indicator (the `pill-fill` default)
 
+```css
+#workspaces button {
   color: @muted; padding: 0 9px; margin: 4px 2px;
   border: 1px solid transparent; border-radius: 10px;
   transition: all 0.2s ease;
+}
 #workspaces button.active { color: @accent; background: alpha(@accent,0.14); border-color: alpha(@accent,0.45); }
 #workspaces button:hover  { color: @fg;     background: alpha(@surface,0.6); }
 #workspaces button.urgent { color: @red;    background: alpha(@red,0.14);    border-color: alpha(@red,0.45); }
 #workspaces button.empty  { color: alpha(@muted,0.55); }
+```
 
 Indicator variants (`underline`, `dots`, `numbers`) are in `styling.md` →
 *Workspaces & active state*; swap this block, leave the rest.
 
 ### Per-module hues (the `single` accent-strategy default, with state cues)
 
+```css
 #clock   { color: @accent2; padding: 0 14px; }
 #mpris   { color: @green;   padding: 0 10px; }
 #mpris.playing { animation: nowplaying 2s ease-in-out infinite alternate; }
@@ -193,6 +225,7 @@ Indicator variants (`underline`, `dots`, `numbers`) are in `styling.md` →
 #idle_inhibitor, #tray, #window {
   padding: 0 9px; margin: 4px 2px; border-radius: 10px;
   transition: all 0.2s ease;
+}
 #cpu                  { color: @yellow; }
 #memory               { color: @green; }
 #temperature          { color: @accent2; }
@@ -209,6 +242,7 @@ window#waybar.empty #window { color: @muted; }
 
 tooltip       { background: @bg; border: 1px solid alpha(@accent,0.4); border-radius: 10px; }
 tooltip label { color: @fg; padding: 4px 6px; }
+```
 
 The full library of motion variants (blink-critical, opacity-breathe, spring overshoot, conditional
 backdrop) is in `styling.md` → *Motion & state animation*.
@@ -225,6 +259,7 @@ vertical line floating against the bar background.
 Use `:not(:first-child)` semantics on the divider rule rather than enumerating modules — that
 single selector also handles the "mpris collapsed → pulseaudio is now first" case for free:
 
+```css
 /* Vertical separator between stat modules — never on the first child of the group. */
 .modules-right > widget:not(:first-child) > #cpu,
 .modules-right > widget:not(:first-child) > #memory,
@@ -235,6 +270,8 @@ single selector also handles the "mpris collapsed → pulseaudio is now first" c
 .modules-right > widget:not(:first-child) > #idle_inhibitor,
 .modules-right > widget:not(:first-child) > #tray {
   border-left: 1px solid alpha(@accent, 0.18);
+}
+```
 
 Frequently-empty leading modules (must be considered when emitting the divider recipe):
 
@@ -251,6 +288,7 @@ empty-leader list).
 The engine renders `~/.config/waybar/colors.css` from `palette.conf` via the template at
 `skills/rice/references/components/waybar/waybar.tmpl`:
 
+```css
 /* Generated by hypr-rice — @import "colors.css"; from waybar/style.css. */
 @define-color bg      #{{bg}};
 @define-color fg      #{{fg}};
@@ -264,6 +302,7 @@ The engine renders `~/.config/waybar/colors.css` from `palette.conf` via the tem
 @define-color blue    #{{blue}};
 @define-color magenta #{{magenta}};
 @define-color cyan    #{{cyan}};
+```
 
 Those 12 names are the contract — see [`_shared/colors-contract.md`](../../_shared/colors-contract.md)
 (waybar row).

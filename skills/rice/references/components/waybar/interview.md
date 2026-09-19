@@ -19,6 +19,17 @@ application, motion) → **content** (modules, grouping, clock format).
 The library every option label maps onto is `styling.md` in this same folder — the seven
 archetypes, the ~55-config technique catalog, and the bar-form / dock / vertical recipes.
 
+## Contents
+
+- Strategy gate (6a)
+- Call 1 — basics
+- Call 2 — design · shape
+- Call 3 — design · color & state
+- Call 4 — content
+- Vertical & dual branches
+- Record paths
+- Cross-references
+
 ## Strategy gate (6a)
 
 If 6a is `full-shell` or `hyprpanel`, **stop after call 1** — the bar look is owned by

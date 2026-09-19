@@ -1,5 +1,17 @@
 # default-apps — gotchas
 
+## Contents
+
+- Firefox + Wayland: MOZ_ENABLE_WAYLAND=1 is a no-op on 121+
+- Omit $fileManager when not chosen
+- Chromium / Brave / Electron apps on Wayland
+- TUI "file managers" (yazi, ranger) — write null, don't pass the TUI through
+- Dolphin pulls a large KDE/Qt6 tree
+- Nautilus is modular but still GNOMEy
+- Setting the chosen browser as the system default (programmatic)
+- Default-app picks land in the install batch
+- Corpus survey — are default-apps picks theming-driven?
+
 ## Firefox + Wayland: `MOZ_ENABLE_WAYLAND=1` is a no-op on 121+
 
 Firefox shipped Wayland-by-default in **121.0 (December 2023)**. The variable is still respected

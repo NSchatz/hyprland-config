@@ -11,6 +11,13 @@ Touchpad behavior was already covered in group 2 (`input`); brightness/volume/me
 already in the default `binds.conf` block (`keybinds`); per-monitor dock/undock profiles are part
 of group 1 (`monitors`). None of those are re-asked here.
 
+## Contents
+
+- AskUserQuestion shape
+- Sub-questions
+- Record paths
+- Cross-references
+
 ## AskUserQuestion shape
 
 Group 21 splits into **up to 2 calls** (≤ 4 sub-questions per call):

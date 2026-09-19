@@ -8,6 +8,13 @@ All three land in `~/.config/hypr/` next to `hyprland.conf` but are **read by th
 not `source=`d into Hyprland's config. They use a hyprlang-flavoured but **independent** config
 language; see `gotchas.md`.
 
+## Contents
+
+- ~/.config/hypr/hypridle.conf
+- ~/.config/hypr/hyprpaper.conf
+- ~/.config/hypr/hyprlock.conf
+- What does NOT belong here
+
 ## `~/.config/hypr/hypridle.conf`
 
 The four listener timeouts (dim → lock → dpms-off → suspend) are parameterized by

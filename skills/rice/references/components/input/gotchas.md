@@ -1,5 +1,20 @@
 # input — gotchas
 
+## Contents
+
+- follow_mouse = 1 is focus-follows-mouse — NOT 2
+- Gestures: two cliffs (0.45+ adds keyword, 0.51+ removes legacy swipe keys)
+- Omit the touchpad {} sub-block entirely on desktops
+- Touchpad detection vs gestures gating — detection ≠ filter
+- kb_options is comma-joined, not space-joined
+- repeat_rate / repeat_delay defaults — only emit non-defaults
+- Mouse sensitivity = 0 is a no-op — omit the line
+- accel_profile valid values are adaptive, flat, custom (default unset)
+- touchpad block — verified option names (0.55.x source)
+- Per-device input config — device {} special category
+- 0.55+ device tags for device-specific binds
+- Theming angles (narrow but real)
+
 ## `follow_mouse = 1` is focus-follows-mouse — NOT `2`
 
 The single most common misread of the Hyprland input docs. Verified against the upstream

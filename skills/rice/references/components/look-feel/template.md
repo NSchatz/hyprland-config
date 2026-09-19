@@ -28,6 +28,14 @@ Version branches (cite [`_shared/version-matrix.md`](../../_shared/version-matri
   It's an **int** in source, not a bool; the hyprlang parser accepts `true` / `false` but the
   int form is canonical.
 
+## Contents
+
+- Preset substitution table
+- Full looknfeel.conf body
+- Layout blocks (one is substituted into {{layout_block}})
+- Speed multiplier (animations = snappy)
+- What does NOT belong here
+
 ## Preset substitution table
 
 | `gaps_preset` | `gaps_in` | `gaps_out` | `border_size` |

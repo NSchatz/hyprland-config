@@ -8,6 +8,25 @@ Package availability (official repo vs AUR) drifts over time and differs by dist
 are the Arch package names; confirm location with `pacman -Ss <name>` or your AUR helper.
 Suggest a tool only as `exec-once`/keybind — do **not** install anything.
 
+## Contents
+
+- Official Hypr ecosystem (hyprwm)
+- Status bars
+- App launchers / menus
+- Notification daemons
+- Wallpaper
+- Lock & idle
+- Screenshots & recording
+- Clipboard
+- Logout / session, OSD, misc
+- Audio, brightness, network, bluetooth
+- Theming (GTK/Qt consistency)
+- Portals (screen sharing & file pickers)
+- Battle-tested wiring (from real dotfiles)
+- hypridle config format
+- hyprlock config format
+- hyprpaper config format
+
 ## Official Hypr ecosystem (hyprwm)
 
 User-facing tools, all first-party and designed for Hyprland:

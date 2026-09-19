@@ -5,6 +5,17 @@ Generation recipes per tool. Every file this component touches lives under `/etc
 `<staging>/_login/` and the rice skill's wrap-up emits a "run these sudo commands" report at the
 end of Mode A.
 
+## Contents
+
+- Staging layout
+- Recipe — greetd + tuigreet
+- Recipe — greetd + ReGreet
+- Recipe — SDDM
+- Recipe — Plymouth
+- Recipe — GRUB
+- The README.run-these-as-root.md file
+- What does NOT belong here
+
 ## Staging layout
 
 ```

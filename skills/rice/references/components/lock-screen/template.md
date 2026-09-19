@@ -31,6 +31,12 @@ The `font_family` substitution takes the UI font **family only** — strip the s
 `palette.conf`'s `font_ui` (`"Inter 11"` → `Inter`). hyprlock's own `font_size` keys set the
 display size per widget.
 
+## Contents
+
+- Output file: ~/.config/hypr/hyprlock.conf
+- Substitution map
+- Cross-references
+
 ## Output file: `~/.config/hypr/hyprlock.conf`
 
 The structure is fixed: `general` block, `background` block, `input-field` block, optional clock

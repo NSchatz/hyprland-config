@@ -9,6 +9,15 @@ The findings below are what we harvested from the corpus. Every claim cites the 
 **recipe** in `template.md` is the synthesis (currently: `SUPER+SHIFT+T` opens a theme menu,
 `SUPER+CTRL+T` is the dark/light toggle — both confirmed below as the dominant mod patterns).
 
+## Contents
+
+- How the community binds theming actions
+- Archetypes
+- Battle-tested techniques
+- Cross-surface coherence
+- Theming-absent rices
+- Citations index
+
 ## How the community binds theming actions
 
 Across the 11 corpus rices that ship a real keybind file, theming binds cluster around five

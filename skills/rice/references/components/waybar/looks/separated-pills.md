@@ -1,7 +1,8 @@
 # waybar look - separated-pills
 
-The `bar.archetype = separated-pills` look. Read this **and** the component's shared files (`../styling.md`, `../template.md`,
-`../gotchas.md`, `../validation.md`, `../reload.md`); do not read
+The `bar.archetype = separated-pills` look. Read this **and** the component's shared recipe set
+(`../template.md`, `../styling.md`, `../gotchas.md`, `../validation.md`,
+`../reload.md`); do not read
 the other files in `looks/`.
 
 ## Contents

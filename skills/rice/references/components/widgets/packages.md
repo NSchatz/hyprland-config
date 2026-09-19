@@ -3,6 +3,13 @@
 Per-shell package map. The installer agent reads this file when assembling the global `PKGS` list,
 keyed off `widgets.system` (and `widgets.look` for the matugen branch).
 
+## Contents
+
+- Map
+- Assembly rule
+- Build-time warning
+- Cross-references
+
 ## Map
 
 ### Core shells

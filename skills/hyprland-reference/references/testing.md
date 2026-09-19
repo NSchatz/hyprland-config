@@ -4,6 +4,12 @@ Static analysis catches a lot, but the only authoritative test of "does this con
 loading it into Hyprland and asking the compositor. This documents the mechanisms and the safe
 apply→test→rollback pattern the plugin uses.
 
+## Contents
+
+- Reading the current config
+- Testing that the config loads
+- Preflight → safe apply → test → rollback pattern
+
 ## Reading the current config
 
 - Main file: `~/.config/hypr/hyprland.conf` (respects `$XDG_CONFIG_HOME`).

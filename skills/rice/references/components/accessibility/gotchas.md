@@ -1,5 +1,21 @@
 # accessibility — gotchas
 
+## Contents
+
+- Larger-UI triggers the fractional-scaling caveat
+- Magnifier is built-in — no external tool
+- Cursor size requires BOTH XCURSOR_SIZE and HYPRCURSOR_SIZE
+- hyprctl setcursor only accepts hyprcursor themes (since 0.37)
+- hyprsunset is a daemon, not a one-shot
+- Night-light overlaps ../utilities/ night-light
+- GTK cursor-size doesn't take effect on already-running apps
+- Cursor theme location matters (don't put themes in /usr/share/icons by hand)
+- High-contrast palette mode (now shipped: high-contrast-dark / high-contrast-light)
+- Shared font-scale variable (now exposed: font_ui_scale)
+- No popular rice ships a "vestibular" / motion-off accessibility profile
+- Night-light: the community default is a wrapper script, not two IPC binds
+- Version note
+
 ## Larger-UI triggers the fractional-scaling caveat
 
 Bumping monitor `scale` to `1.25` (or any non-integer value) is **fractional scaling**, which

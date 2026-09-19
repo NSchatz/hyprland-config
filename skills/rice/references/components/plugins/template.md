@@ -10,6 +10,14 @@ Plugin **binds** and the `general:layout = hy3` line are NOT emitted here — th
 components knows the exact text to append, and so it's obvious why every plugin-dispatcher bind is
 **commented-out**.
 
+## Contents
+
+- The hard rule — gate plugin dispatchers and layouts
+- plugins.conf shape
+- Per-plugin blocks
+- The user-run hyprpm print-out (NOT a generated file)
+- Cross-references
+
 ## The hard rule — gate plugin dispatchers and layouts
 
 From `../../_shared/dispatchers.md` → "Dispatcher rules the validator enforces":

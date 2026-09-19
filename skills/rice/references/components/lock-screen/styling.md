@@ -5,6 +5,16 @@ password input "pill", and optionally an avatar or info labels. hyprlock stacks 
 widgets onto that background; getting it to look good is mostly about restraint, alignment, and
 coloring the input field with your scheme's accent.
 
+## Contents
+
+- What you're styling
+- Design anatomy — the knobs that change the look
+- How the community styles it
+- Battle-tested techniques (from real lock screens)
+- Tasteful default recipe
+- Pitfalls
+- Provenance
+
 ## What you're styling
 
 Config lives at `~/.config/hypr/hyprlock.conf`. It is read by the **hyprlock daemon**, not by

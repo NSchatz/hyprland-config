@@ -11,6 +11,13 @@ than spreading the styling around.
 
 ## wlogout
 
+## Contents
+
+- How the community styles it
+- Battle-tested techniques
+- Cross-surface coherence
+- Layout quirks worth knowing
+
 ### How the community styles it
 
 The corpus converges on a small set of choices. Quoted CSS is verbatim from the cited file.

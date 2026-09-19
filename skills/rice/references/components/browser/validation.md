@@ -5,6 +5,12 @@ artifacts **before** the reload hook fires. The userChrome route ships only CSS 
 silent-failure prone — a typo in user.js drops every pref without a diagnostic; a malformed
 selector in userChrome.css is ignored without an error. Catch both at generate-time.
 
+## Contents
+
+- Checks
+- Lint targets the validator doesn't run
+- Cross-references
+
 ## Checks
 
 ### 1. `firefox.tmpl` renders to valid CSS

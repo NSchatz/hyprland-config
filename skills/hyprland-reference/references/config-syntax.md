@@ -1,5 +1,15 @@
 # Hyprland Config Syntax
 
+## Contents
+
+- File location and loading
+- Values and types
+- Variables
+- Sections: block vs keyword form
+- Sourcing (modular configs)
+- exec, exec-once, env
+- Categories quick map
+
 ## File location and loading
 
 - Main file: `~/.config/hypr/hyprland.conf` (respects `$XDG_CONFIG_HOME`).

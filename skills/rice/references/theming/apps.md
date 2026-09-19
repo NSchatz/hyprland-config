@@ -8,6 +8,15 @@ and the per-component `template.md` files).
 For everything beyond the core set, use **matugen** as an additional renderer — it ships templates
 for 50+ apps and reuses the same wallpaper, so the long tail stays in sync with the engine.
 
+## Contents
+
+- Engine-shipped templates (recap)
+- default-apps ricochet — which component's .tmpl re-themes each pick
+- Reaching the long tail via matugen
+- Setup
+- Mapping rule: same wallpaper, one palette source
+- HyprPanel and other Material-You-native shells
+
 ## Engine-shipped templates (recap)
 
 The full list — what the engine renders, where the output goes, and the reload hook — lives in the

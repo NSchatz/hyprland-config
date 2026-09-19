@@ -223,3 +223,28 @@ else
         fi
     done
 fi
+
+# ---- B-7  markdown structural integrity ------------------------------------------------------
+# Every fenced code block is closed. An odd number of fence markers means a block was cut in
+# half, which renders the rest of the file as code and makes a heading parser believe it is
+# inside a fence from there on - the file then looks like it has one section when it has seven.
+#
+# This is not hypothetical: a refactor that removed moved blocks by matching line CONTENT rather
+# than line POSITION deleted every ```css fence that also appeared inside a moved block, taking
+# waybar/styling.md from 26 fence markers to 1. Nothing failed at the time.
+unbalanced=()
+while IFS= read -r f; do
+    # `grep -c` prints 0 AND exits 1 when there are no matches, so a `|| echo 0` fallback
+    # appends a second zero and breaks the arithmetic below - which silently passed this check.
+    n="$(grep -c '^```' "$f" 2>/dev/null)" || true
+    [ -n "$n" ] || n=0
+    if [ $((n % 2)) -ne 0 ]; then
+        unbalanced+=("$(rel "$f") ($n fence markers)")
+    fi
+done < <(find "$PLUGIN_ROOT/skills" "$PLUGIN_ROOT/agents" -name '*.md' | sort)
+
+if [ "${#unbalanced[@]}" -eq 0 ]; then
+    pass "B-7: every markdown file closes its code fences"
+else
+    fail "B-7: every markdown file closes its code fences" "$(printf '%s\n' "${unbalanced[@]}")"
+fi

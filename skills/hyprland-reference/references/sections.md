@@ -6,6 +6,22 @@ against `deprecations.md` and the installed `hyprctl version` when accuracy matt
 
 ---
 
+## Contents
+
+- monitor=
+- input
+- general
+- decoration
+- animations
+- dwindle / master
+- gestures (0.45+ keyword API)
+- group
+- misc
+- cursor
+- binds (behavior toggles)
+- xwayland
+- permissions (recent Hyprland)
+
 ## monitor=
 
 Positional, **not** a block. Syntax:

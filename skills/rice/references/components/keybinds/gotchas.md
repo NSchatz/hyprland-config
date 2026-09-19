@@ -1,5 +1,23 @@
 # keybinds — gotchas
 
+## Contents
+
+- $menu -dmenu silently breaks the picker
+- Plugin dispatchers fail with "Invalid dispatcher" until the plugin is loaded — keep them commented
+- Vim mode shifts togglesplit off J
+- Duplicate MODS, KEY — last-wins, silently
+- bindl for lock-aware binds, bindel for repeat-while-locked
+- code:10–code:19 for the number row on non-US layouts
+- File-manager bind when default_apps.files == null
+- TUI file managers need $terminal -e
+- 0.55+ — hyprlang .conf is "deprecated in favor of Lua" (but still functional)
+- Picker stacking — pkill -x before launching, or two clicks of the bind opens two pickers
+- Quickshell-IPC fallback double-bind ("end-4 pattern") — Hyprland allows it because the dispatchers differ
+- Theme-switch picker MUST use the user's $dmenu, not a hard-coded launcher
+- "Re-themer plus reload" — theme-switch keystroke must not race the engine
+- AZERTY / non-US layouts — workspace 1–10 binds need code:10–code:19 OR keysym names
+- bindd (described binds) — .conf syntax has the description between key and dispatcher
+
 ## `$menu -dmenu` silently breaks the picker
 
 `$menu` and `$dmenu` are **two different invocations**, not a base + flag. If `$menu = rofi -show

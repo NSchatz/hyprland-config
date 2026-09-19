@@ -18,6 +18,14 @@ Version branches are dictated by `_shared/version-matrix.md`:
 - **pre-0.53** → fall back to legacy single-line `windowrule = …` / `windowrulev2 = …` and
   single-line `layerrule = blur, <ns>`. Don't mix forms inside one rule.
 
+## Contents
+
+- Full template (0.53+, with 0.54+ layerrule blocks)
+- Theming-relevant idioms (from the corpus)
+- Pre-0.53 fallback (target detected as older)
+- What does NOT belong here
+- Cross-references
+
 ## Full template (0.53+, with 0.54+ layerrule blocks)
 
 ```ini

@@ -1,5 +1,22 @@
 # look-feel — gotchas
 
+## Contents
+
+- Cursor disappears when idle (nouveau / NVIDIA)
+- misc:vfr → debug:vfr in 0.55+
+- dwindle:pseudotile removed in 0.55+
+- decoration:shadow:ignore_window removed in 0.55+
+- Scrolling layout is CORE in 0.54+ — not a plugin
+- Blur is a no-op on opaque windows
+- "Frosted" preset values
+- Plugin layouts (hy3 etc.) — don't emit uncommented
+- Animation speed scaling
+- misc:vfr vs misc:vrr — easy to confuse, do different things
+- Compositor background_color flashes before hyprpaper paints
+- gaps_workspaces is NOT the same as gaps_out
+- Window-groups default colors are loud out of the box
+- Spring animation curves are Lua-only
+
 ## Cursor disappears when idle (nouveau / NVIDIA)
 
 The most-reported "weird Hyprland thing" — the cursor vanishes after sitting still a few seconds,

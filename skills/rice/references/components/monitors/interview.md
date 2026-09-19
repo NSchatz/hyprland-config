@@ -10,6 +10,12 @@ Detection (`scripts/detect-version.sh`) reports `MONITOR_COUNT`; only ask 1c whe
 names from `hyprctl monitors` should appear pre-filled in the option list; if detection failed,
 use placeholders (`DP-1`, `HDMI-A-1`, `eDP-1`) and note "adjust after first reload."
 
+## Contents
+
+- Sub-questions
+- Record paths
+- Cross-references
+
 ## Sub-questions
 
 **1a. Monitor setup** — reorder so the *detected native mode* is the first option when

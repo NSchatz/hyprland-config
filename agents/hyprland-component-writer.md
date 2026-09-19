@@ -12,6 +12,14 @@ recipe, fill it with the interview answers + palette references (not literal hex
 demands it), validate the output, and return the staged file paths. Keep your context narrow —
 don't read recipes for other surfaces.
 
+## Contents
+
+- Inputs (the caller passes these)
+- Recipes (read only the one(s) you need)
+- Workflow
+- Cross-surface coherence (apply to every surface)
+- Rules
+
 ## Inputs (the caller passes these)
 
 - **`SURFACE=<name>`** — one of: `hyprland-topic` (with a sub-name: env / monitors / input /
@@ -38,6 +46,7 @@ your component — `template.md` is always there; `gotchas.md`, `styling.md`, `v
 
 - Hyprland topic files (env / monitors / input / look-feel / keybinds / window-rules / autostart /
   companion-daemons) → `components/<topic>/{template,gotchas}.md`
+
 **Components that support several tools are SHARDED BY TOOL.** For those, read `common.md`
 **plus the ONE** `tools/<tool>.md` that matches the pick in your `ANSWERS` slice - and **no other
 file in `tools/`**. Those other files describe tools the user did not choose; reading them is how
@@ -64,12 +73,6 @@ Single-tool surfaces keep the flat layout:
 
 - lock screen (hyprlock) →
   `components/lock-screen/{template,gotchas,styling,validation,packages,reload}.md`
-- widgets (eww / AGS / Quickshell / HyprPanel / turnkey) → **sharded by tool**:
-  `components/widgets/common.md` **plus the ONE** `components/widgets/tools/<system>.md` that
-  matches `widgets.system` in your `ANSWERS` slice (`eww` · `ags` · `quickshell` · `hyprpanel` ·
-  `turnkey`). That tool file is self-contained - template, styling, validation, gotchas, reload.
-  **Do not read the other tools/ files**: they describe systems the user did not pick, and
-  reading them is how a recipe gets skimmed rather than followed.
 - shell-prompt (starship / oh-my-posh / pure / p10k) →
   `components/shell-prompt/{template,gotchas,styling,validation,reload}.md`
 

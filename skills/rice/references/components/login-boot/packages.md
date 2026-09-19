@@ -5,6 +5,13 @@ They need `sudo`. Per the user's memory note and `gotchas.md` → "Root-side, ne
 Claude": these packages do **not** belong in the main `PKGS` list of `install.sh`. They go in a
 clearly-labelled **commented `sudo` block** the user uncomments and runs deliberately.
 
+## Contents
+
+- Map
+- Assembly rule — the COMMENTED sudo block
+- Critical — NOT in the main PKGS list
+- Cross-references
+
 ## Map
 
 ### Greeters

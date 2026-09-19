@@ -14,6 +14,16 @@ This component's outputs are three things:
 For each value in `utilities.selected`, walk the row below and emit the script copy (when there
 is one) and the bind line.
 
+## Contents
+
+- Script + bind map
+- Bind-only tools (no script copy)
+- Wi-Fi / Bluetooth — the keyboard-driven alternative
+- Scripts ship verbatim — what does NOT belong here
+- swayosd — ~/.config/swayosd/style.css
+- wlogout — ~/.config/wlogout/layout
+- wlogout — ~/.config/wlogout/style.css
+
 ## Script + bind map
 
 | Value | Script (copy from `assets/scripts/`) | Runtime deps (auto-detected) | Bind line(s) emitted into `binds.conf` |

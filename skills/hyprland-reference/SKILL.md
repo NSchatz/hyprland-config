@@ -17,6 +17,14 @@ Hyprland decoration/animation look genuinely good, plus cross-cutting design pri
 that section when the question is about appearance ("make my X look nice / match / ricing") rather
 than syntax; see the dedicated section below.
 
+## Contents
+
+- Hyprland config in 60 seconds
+- How to use this skill
+- Reference files
+- Styling reference library (how to make it look good)
+- Common pitfalls
+
 ## Hyprland config in 60 seconds
 
 - Default config path: `~/.config/hypr/hyprland.conf`.

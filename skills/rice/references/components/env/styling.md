@@ -6,6 +6,12 @@ on Electron apps, blank on Java apps, or stutter on Qt apps. This file is the co
 catalog of the patterns popular rices use so the rice's `env.conf` ships with the same shape
 as the community baseline.
 
+## Contents
+
+- How the community ships env.conf — five real rices side by side
+- Battle-tested techniques (from real rices)
+- Provenance
+
 ## How the community ships env.conf — five real rices side by side
 
 Five top corpus rices that have a *dedicated* env file (not just inline `env =` lines), in order

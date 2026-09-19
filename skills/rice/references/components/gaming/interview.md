@@ -11,6 +11,12 @@ revisions of this file used it to gate a `WLR_DRM_NO_ATOMIC` env emission, but t
 is wlroots-only and Hyprland's aquamarine backend (since 0.42) ignores it. See
 [`gotchas.md`](gotchas.md) and [`../env/gotchas.md`](../env/gotchas.md).
 
+## Contents
+
+- Sub-questions
+- Record paths
+- Cross-references
+
 ## Sub-questions
 
 ### Call 1 — the gate (always asked)

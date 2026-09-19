@@ -1,5 +1,26 @@
 # shell-prompt — gotchas
 
+## Contents
+
+- Parse-test ONLY — never source the rc to "verify it"
+- Managed-block pattern — find-and-replace, don't append
+- chsh is a manual step — Claude never runs it
+- "My aliases aren't working" = already-open shells
+- fish set -U vs set -g — and the set (no flag) trap
+- fisher is curl-installed, NOT a package
+- fish_color_* lives in conf.d, not in config.fish
+- atuin on bash needs bash-preexec
+- zoxide on zsh — order matters
+- Don't compose $menu -dmenu for shell launchers
+- starship has no include — .tmpl MUST render the whole config
+- oh-my-posh has no include either — same story
+- fish: oh-my-posh init fish — | source is canonical, eval "$(...)" works in 3.4+
+- omp transient_prompt recolors via foreground_templates, not foreground
+- starship command_timeout is per-prompt-render, not per-module
+- atuin's Up-arrow rebind is an opt-in extra step
+- fish: an empty config.fish is a valid pattern
+- Catalogued elsewhere
+
 ## Parse-test ONLY — never `source` the rc to "verify it"
 
 Sourcing a shell rc executes every line: `eval "$(starship init …)"`, `command -v` checks,

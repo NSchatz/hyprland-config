@@ -19,6 +19,13 @@ What this component does **not** own:
 - **Per-monitor dock / undock profiles** — kanshi/shikane profiles for "plugged into dock vs.
   bare laptop" live in `../monitors/` (group 1, `monitors.dock_undock`).
 
+## Contents
+
+- Files in this folder
+- Where this component lands
+- Theming angle (narrow but real)
+- Related components
+
 ## Files in this folder
 
 | File | What it holds |

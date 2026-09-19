@@ -5,6 +5,20 @@ the source of truth; templates render it into every app's config; one command re
 reloads. It keeps working **without** the plugin (the `rice` CLI), so it can be version-controlled
 and automated. This is the matugen/wallust/HyDE model, owned by the user.
 
+## Contents
+
+- Where this lives in the new tree
+- Layout (~/.config/hypr-rice/)
+- Render flow
+- Restore points (one apply, one way back)
+- Manifest format (templates.list)
+- Wiring each app (one-time)
+- Palette sources → palette.conf
+- Theme-restore on login (engine-generated script)
+- Cross-engine version cliff: walker blur via ext-background-effect-v1
+- State & reproducibility
+- CLI
+
 ## Where this lives in the new tree
 
 The engine's contracts and per-surface wiring are split across several places — this file is the

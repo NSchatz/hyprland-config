@@ -9,6 +9,17 @@ The headline finding is the gap, not the variety: of the 19 actively-maintained 
 `/workspace/.research/corpus.md`, **only 6 ship anything under `login-boot`**, and they fall
 into three structural camps. The other 13 deliberately stop at the user session.
 
+## Contents
+
+- Corpus tally (verified against the cached corpus)
+- Archetype A — Bundled tarballs, installer extracts (HyDE)
+- Archetype B — Clone-an-external-theme-repo installer (ML4W)
+- Archetype C — Ship-your-own-greeter (DankMaterialShell, HyprYou, fufexan)
+- Battle-tested techniques (cross-rice)
+- Cross-surface coherence opportunities
+- Citations
+- Cross-references
+
 ## Corpus tally (verified against the cached corpus)
 
 | Camp | Rices | What they ship |

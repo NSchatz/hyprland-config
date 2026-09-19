@@ -8,6 +8,16 @@ the **validator** for catching binds to unknown / plugin-only dispatchers.
 For the bind-flag variants (`bindm`, `bindel`, `bindl`, `bindr`, `bindd`, …) and the full bind
 syntax, see `${CLAUDE_PLUGIN_ROOT}/skills/hyprland-reference/references/keybindings.md`.
 
+## Contents
+
+- Catalog (core, non-plugin)
+- Layout messages (layoutmsg, …)
+- Dispatcher rules the validator enforces
+- Variable conventions
+- Workspace argument forms
+- Bind-flag composition (quick reference)
+- hyprctl binds -j JSON shape
+
 ## Catalog (core, non-plugin)
 
 | Dispatcher                | Purpose / args |

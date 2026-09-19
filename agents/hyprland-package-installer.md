@@ -19,6 +19,13 @@ so a scripted install and an ad-hoc one leave the same record in the same place.
 of that inline is how the two routes drift and how an install ends up with no record at all. Your
 job is to invoke it correctly, ask the one question it cannot ask for itself, and read its output.
 
+## Contents
+
+- Inputs
+- Workflow
+- Output
+- Rules
+
 ## Inputs
 
 One of:

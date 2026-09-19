@@ -12,6 +12,16 @@ recolor from a single named *palette* block), while **fish** additionally themes
 highlighting* via `fish_color_*` variables — independent of the prompt engine. zsh's powerlevel10k is
 the zsh-only alternative.
 
+## Contents
+
+- What you're styling
+- Design anatomy — the knobs that change the look
+- How the community styles it
+- Battle-tested techniques (from real configs)
+- Tasteful default recipe
+- Pitfalls
+- Provenance
+
 ## What you're styling
 
 | Tool | Config file + format | How color is set | Reload |

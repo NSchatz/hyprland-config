@@ -39,6 +39,13 @@ that component's own folder — `components/<x>/styling.md`, or the `Styling` se
 `components/<x>/tools/<tool>.md` on a sharded component — all written around this skill's palette
 contract. For companion apps read `ecosystem.md`.
 
+## Contents
+
+- Routing — pick the mode from the request
+- The four modes live in their own files
+- Safety rules (all modes)
+- Resources
+
 ## Routing — pick the mode from the request
 
 | The user wants… | Mode | What it does |

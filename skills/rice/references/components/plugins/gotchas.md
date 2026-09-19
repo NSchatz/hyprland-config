@@ -3,6 +3,23 @@
 The hyprpm plugin layer has a denser collection of footguns than any other component. Read these
 before writing the user-run command block or any plugin-dispatcher bind.
 
+## Contents
+
+- Plugins are pinned to the exact Hyprland build — every upgrade breaks every plugin
+- Claude never runs hyprpm — it needs TTY sudo
+- scrolling is CORE in Hyprland 0.54+ — do NOT offer it here
+- 0.55+ cliff — hyprlang is "deprecated", lua is the default, plugin custom-keyword API broke
+- hyprexpo / hyprtrails / hyprscrolling / hyprwinwrap were removed from the official repo
+- Plugin dispatchers HARD-ERROR the reload — emit binds COMMENTED-OUT
+- general:layout = hy3 follows the same rule
+- pyprland is pip / AUR, NOT hyprpm
+- Don't chain hyprpm enable calls — and don't pre-mkdir the cache
+- exec-once = hyprpm enable … (Matt-FTW pattern) vs. hyprpm reload -n (ours)
+- ecosystem:enforce_permissions may gate hyprpm
+- Corpus observation — top rices ship NO plugins by default
+- Cross-surface coherence — hyprbars must reuse the waybar/look-feel palette
+- Cross-references
+
 ## Plugins are pinned to the exact Hyprland build — every upgrade breaks every plugin
 
 A hyprpm plugin is a `.so` compiled against the **headers of the running Hyprland**. The moment the

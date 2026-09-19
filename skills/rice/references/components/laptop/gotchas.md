@@ -1,5 +1,23 @@
 # laptop — gotchas
 
+## Contents
+
+- (a) Double-handling: Hyprland bindl + systemd-logind both act on the lid
+- (b) PPD, TLP, and auto-cpufreq are mutually exclusive
+- (c) PPD pairs with the waybar power-profiles-daemon module
+- (d) Battery charge limit is root-side — generate, document, don't run
+- (e) Touchpad config is NOT here — ../input/
+- (f) Brightness / volume / media binds are NOT here — ../keybinds/
+- (g) Internal panel detection can fail at generate-time
+- (h) Version branches
+- (i) Two community camps on lid handling — bind explicitly vs. delegate to logind
+- (j) Brightness/volume OSD is the only theme-coupled laptop surface
+- (k) #battery.critical is a cross-surface coherence touchpoint
+- (l) Blink animation on #battery.critical is the default — keep it palette-aware
+- (m) XF86KbdBrightness* is asus/lenovo-specific — not a default bind
+- (n) before_sleep_cmd = loginctl lock-session is the cross-component hand-off
+- Cross-references
+
 ## (a) Double-handling: Hyprland `bindl` + systemd-logind both act on the lid
 
 `systemd-logind`'s default is `HandleLidSwitch=suspend` — and it fires on the *kernel* lid event,

@@ -1,5 +1,21 @@
 # autostart — gotchas
 
+## Contents
+
+- hyprctl reload does NOT re-run exec-once
+- At most one polkit agent, at most one wallpaper daemon
+- SWWW_DAEMON_BIN matters — never hard-code swww-daemon
+- Notification daemon name conflict
+- Portal env propagation — the "screen-share is black" fix
+- Bar / notification daemon picks come from sibling components
+- exec-once vs exec and the cliphist double-line
+- exec-once ordering as observed across the corpus
+- dbus-update-activation-environment — --all vs explicit-var debate
+- resetxdgportal.sh — the "kill+restart portal" pattern
+- Wallpaper restore on login — engine recipes
+- systemctl --user start hyprpolkitagent vs exec-once = hyprpolkitagent
+- uwsm-managed sessions launch services through uwsm app --
+
 ## `hyprctl reload` does NOT re-run `exec-once`
 
 Per the Hyprland Keywords wiki: `exec-once` = "command will execute only on launch", `exec` =

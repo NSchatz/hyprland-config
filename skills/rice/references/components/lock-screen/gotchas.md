@@ -1,5 +1,18 @@
 # lock-screen — gotchas
 
+## Contents
+
+- Keep the input field VISIBLE
+- Colors are LITERAL hex — hyprlock can't read $accent
+- Fingerprint requires fprintd + an enrolled finger
+- hypridle's lock_cmd must use pidof hyprlock || hyprlock
+- grace is a CLI flag, NOT a config key
+- Two valid forms for the fingerprint block — pick the nested one
+- $FPRINTPROMPT / $FPRINTFAIL are LABEL variables, not config keys
+- path = screenshot needs portal/perms + a screencopy-capable build
+- font_family takes the family only — no size suffix
+- monitor = empty means all monitors
+
 ## Keep the input field VISIBLE
 
 A "minimal underline" style (interview group 10d) is fine *visually* but **do not** implement it

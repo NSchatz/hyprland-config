@@ -1,5 +1,18 @@
 # gaming — gotchas
 
+## Contents
+
+- Do NOT emit WLR_DRM_NO_ATOMIC — Hyprland is aquamarine, not wlroots
+- VRR is a per-monitor field, not its own block
+- gamemode.sh ships as a plugin template file — copy + chmod, do not render
+- Fullscreen effect-strip rules go in windowrules.conf, not looknfeel.conf
+- Tearing class regexes come from the user via hyprctl clients
+- misc:vfr = true is not gated by this component
+- Tearing only engages when the game is fullscreen and alone on its monitor
+- "Gaming is just don't break the desktop" — corpus theming finding
+- Idle-inhibit for videos is a separate (non-gaming) move several rices make
+- VRR-as-global vs VRR-per-monitor — corpus is split
+
 ## Do NOT emit `WLR_DRM_NO_ATOMIC` — Hyprland is aquamarine, not wlroots
 
 Older guides (and earlier versions of this file) told the writer to emit

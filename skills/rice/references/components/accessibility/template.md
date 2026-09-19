@@ -6,6 +6,12 @@ emits, and into which file.
 
 Empty `accessibility` array → no lines emitted, no files touched.
 
+## Contents
+
+- Per-helper output map
+- What does NOT belong here
+- Cross-references
+
 ## Per-helper output map
 
 ### `magnifier`

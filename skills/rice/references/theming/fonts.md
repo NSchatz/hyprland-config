@@ -22,6 +22,21 @@ size — see [`_shared/palette-schema.md`](../_shared/palette-schema.md) → "Me
 > may differ (e.g. JetBrains Mono NF in the bar but Maple Mono NF in kitty per `Matt-FTW/dotfiles`).
 > Most rices use one mono everywhere for coherence — but the contract allows the split.
 
+## Contents
+
+- Detection
+- Catalog (suggest packages; do not auto-install)
+- Family vs size split (and how consumers handle it)
+- Real-world pairings (what the big rices ship)
+- JetBrainsMono font-feature-settings (waybar bar)
+- nwg-look "97%/98%" font-size coherence hack
+- Cross-surface font-scale (font_ui_scale)
+- fontconfig generic-alias trick (omarchy)
+- Cross-surface font-set sweep (the omarchy omarchy-font-set pattern)
+- Per-app font wiring
+- Cursor size
+- Glyph rendering depends on the terminal/bar font
+
 ## Detection
 
 `scripts/detect-theme-tools.sh` emits:

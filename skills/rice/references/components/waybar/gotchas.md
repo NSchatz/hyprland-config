@@ -1,5 +1,20 @@
 # waybar — gotchas
 
+## Contents
+
+- A bad config.jsonc makes the bar silently fail to appear
+- MDI glyphs only — a linter silently strips legacy private-use glyphs
+- Plugin dispatchers in on-click — same hard-error rule as binds.conf
+- swaync overlap — the daemon must match the module
+- backlight module only when a backlight device exists
+- Translucency requires the layerrule blur block — and the namespace must match
+- Wrong active-workspace class — .active, not .focused
+- Foreign palette name vocabularies — Catppuccin / Material You don't drop in
+- Nerd Font fallback isn't guaranteed — list one explicitly
+- Do not clobber the user's UserModules / user-style.css override
+- Editing through a symlink (HyDE / JaKooLit / ml4w)
+- Reload, don't restart, for CSS edits
+
 ## A bad `config.jsonc` makes the bar silently fail to appear
 
 Waybar **does** accept JSONC: the man page (`waybar(5)`) opens with *"The configuration uses the

@@ -7,6 +7,13 @@ The rice skill (Mode A) walks every component's `interview.md` in order via the
 **`hyprland-interviewer`** agent. Mode B (re-theme) walks only `look-feel`, palette/fonts/wallpaper
 (`theming/`), and skips the rest.
 
+## Contents
+
+- The asking discipline
+- Components walked (in order)
+- Recording answers
+- Review pass
+
 ## The asking discipline
 
 Ask with `AskUserQuestion`, **one component per pass, in order**. The tool accepts **at most 4

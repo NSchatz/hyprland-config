@@ -11,6 +11,16 @@ This component has two output channels:
 
 Only the Hyprland-side line touches `~/.config/`. Everything else is documentation the user runs.
 
+## Contents
+
+- Hyprland: line(s) emitted into binds.conf
+- Hyprland: nothing else lands in any .conf
+- Root-side: /etc/systemd/logind.conf  *(documented; never written)*
+- Root-side: power-tool daemon  *(documented; never run)*
+- Root-side: battery charge limit  *(unit emitted to staging; sudo install documented)*
+- What does NOT land here
+- Cross-references
+
 ## Hyprland: line(s) emitted into `binds.conf`
 
 Branch on `laptop.enabled` and `laptop.lid_action`:

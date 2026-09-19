@@ -7,6 +7,16 @@ the cross-cutting layer that makes those components read as a single designed sy
 pile of independently-pretty windows. Get coherence right and a restrained setup looks better than
 a flashy incoherent one.
 
+## Contents
+
+- The coherence rules
+- Coherence techniques harvested from real rices
+- Aesthetic archetypes
+- Wallpaper-driven theming
+- A coherence checklist
+- See also
+- Provenance
+
 ## The coherence rules
 
 These are the rules that hold whether you want minimal mono or maximal glass. Each has a "why" and

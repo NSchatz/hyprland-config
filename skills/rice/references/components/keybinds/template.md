@@ -13,6 +13,13 @@ chosen lines, never the markers.
 
 ---
 
+## Contents
+
+- hyprland.conf — the index
+- binds.conf — the bind table
+- Scrolling layout — when look_feel.layout == "scrolling"
+- Branch reference (gate → answers.json source)
+
 ## hyprland.conf — the index
 
 ```ini

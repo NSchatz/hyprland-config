@@ -2,6 +2,16 @@
 
 Waybar is the de-facto status bar for Hyprland. This page is about making it *look* good: the geometry, shape, color, and typography knobs that turn a flat grey bar into the floating, glassy, pill-module bars you see on r/unixporn — grounded in how HyDE, JaKooLit, ml4w, and Catppuccin actually do it.
 
+## Contents
+
+- What you're styling
+- Design anatomy — the knobs that change the look
+- How the community styles it
+- Battle-tested techniques (harvested from ~55 community configs)
+- System & ecosystem module recipes
+- Pitfalls
+- Provenance
+
 ## What you're styling
 
 Two files, two jobs. Both live in `~/.config/waybar/`.
@@ -15,6 +25,7 @@ Reload after editing **either** file without a full restart:
 
 ```bash
 killall -SIGUSR2 waybar
+```
 
 `SIGUSR2` re-reads config + CSS in place. (`SIGUSR1` toggles visibility.) If you changed `position`/`exclusive`/`gtk-layer-shell` and things look wrong, do a hard restart: `killall waybar; waybar & disown`.
 
@@ -45,7 +56,14 @@ killall -SIGUSR2 waybar
 
 **Transparency + Hyprland blur.** A translucent bar over a busy wallpaper looks muddy *unless the compositor blurs what's behind it*. Add a layer rule in `hyprland.conf` targeting Waybar's layer namespace (`waybar`). **On Hyprland 0.54.x use the block form — the single-line `layerrule = blur, waybar` is rejected** (`invalid field blur: missing a value`) and fails the whole reload. The current (0.54+) form, with the required `name` key (see `../window-rules/template.md`):
 
+```conf
+layerrule {
+    name = blur-waybar
+    match:namespace = waybar
+    blur = true
     ignore_alpha = 0.1   # don't blur the fully-transparent gaps between pills
+}
+```
 
 On **older targets (pre-0.53)** use the single-line form instead (`layerrule = blur, waybar` / `layerrule = ignorealpha 0.1, waybar`). Pick the form by version; never mix them for one rule.
 
@@ -163,6 +181,7 @@ A catalog of concrete, reusable moves pulled from the dotfiles linked off the [W
 Concrete JSONC for the modules a desktop status cluster usually wants beyond the basics above. Match the `format` glyphs to an installed Nerd Font. On a **desktop** drop `battery`/`backlight` and lean on `cpu`/`memory`/`temperature`; on a **laptop** do the reverse.
 
 **CPU / memory / temperature.** The gotcha is the temperature sensor path. `"thermal-zone": N` works but the zone *number can change across boots*; the stable route on Intel is the `coretemp` hwmon **directory** plus the package-temp input. Find it once with `for h in /sys/class/hwmon/hwmon*; do echo "$h $(cat "$h/name")"; done` and `cat /sys/devices/platform/coretemp.0/hwmon/hwmon*/temp1_label` (look for `Package id 0`). On AMD the sensor is `k10temp` (`Tctl`).
+```jsonc
 "cpu":    { "interval": 2, "format": "  {usage}%",
             "on-click": "kitty -e sh -lc 'command -v btop >/dev/null && btop || top'" },
 "memory": { "interval": 5, "format": "  {percentage}%",
@@ -173,9 +192,12 @@ Concrete JSONC for the modules a desktop status cluster usually wants beyond the
     "critical-threshold": 85,
     "format": "{icon}  {temperatureC}°C",
     "format-icons": ["", "", ""]
+}
+```
 Give cpu/memory/clock a `min-width` in CSS so the bar doesn't reflow every second.
 
 **Now-playing (`mpris`, built-in).** Waybar's own MPRIS module — no script needed (the build must include `-Dmpris=enabled`, which Arch's package does; verify by running waybar and watching for a module-load error). It auto-hides when no player is running, so it's safe to leave in `modules-center` next to the clock:
+```jsonc
 "mpris": {
     "format": "{player_icon}  {title}",
     "format-paused": "{status_icon}  <i>{title}</i>",
@@ -184,10 +206,13 @@ Give cpu/memory/clock a `min-width` in CSS so the bar doesn't reflow every secon
     "max-length": 45,
     "on-click": "playerctl play-pause",
     "on-scroll-up": "playerctl next", "on-scroll-down": "playerctl previous"
+}
+```
 
 **Idle inhibitor (built-in).** A click-toggle that suppresses hypridle (presentations, long videos): `"idle_inhibitor": { "format": "{icon}", "format-icons": { "activated": "", "deactivated": "" } }`. Style `#idle_inhibitor.activated { color: @accent; }`.
 
 **Notification toggle (swaync).** A bell with an unread badge that opens the control center — mirrors the swaync daemon rice autostarts:
+```jsonc
 "custom/notification": {
     "return-type": "json", "exec-if": "which swaync-client", "exec": "swaync-client -swb",
     "on-click": "swaync-client -t -sw", "on-click-right": "swaync-client -d -sw",
@@ -197,14 +222,20 @@ Give cpu/memory/clock a `min-width` in CSS so the bar doesn't reflow every secon
         "dnd-notification": "<span foreground='#f38ba8'><sup></sup></span>", "dnd-none": "",
         "inhibited-notification": "<span foreground='#f38ba8'><sup></sup></span>", "inhibited-none": "",
         "dnd-inhibited-notification": "", "dnd-inhibited-none": ""
+    }
+}
+```
 (For dunst instead, drive a `custom/dunst` toggle off `dunstctl`.)
 
 **Collapsible group (`group/drawer`).** Hide a cluster behind one leader icon that expands on hover — space-saving on a narrow bar (on a wide ultrawide, showing the stats inline is usually better):
+```jsonc
 "modules-right": ["group/stats", "..."],
 "group/stats": {
     "orientation": "horizontal",
     "drawer": { "transition-duration": 350, "children-class": "stat", "transition-left-to-right": false },
     "modules": ["custom/stats-icon", "cpu", "memory", "temperature"]
+}
+```
 The first listed module is the always-visible leader; the rest reveal on hover (or set `"click-to-reveal": true`). Default `children-class` is `drawer-child`. The same pattern wraps a `pulseaudio` + `pulseaudio/slider` pair into a hover-out volume slider (see the techniques catalog above).
 
 ## Pitfalls

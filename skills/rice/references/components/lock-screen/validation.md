@@ -4,6 +4,12 @@ What `hyprland-config-validator` checks for the lock-screen output. Runs only wh
 `lock_screen.enabled = true` in `answers.json`; on `false`, the validator asserts that
 `hyprlock.conf` was **not** written and skips the rest.
 
+## Contents
+
+- Checks on ~/.config/hypr/hyprlock.conf
+- Severity legend
+- Cross-references
+
 ## Checks on `~/.config/hypr/hyprlock.conf`
 
 ### 1. Brace balance

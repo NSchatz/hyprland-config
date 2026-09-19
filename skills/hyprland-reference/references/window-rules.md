@@ -6,6 +6,14 @@
 > (e.g. JaKooLit) literally keep separate `WindowRules-pre-53.conf` and `-v3.conf` files for this
 > reason. Detect the version and emit the matching form.
 
+## Contents
+
+- windowrule block form (0.53+, modern)
+- windowrule / windowrulev2 (single-line, legacy/compat)
+- layerrule
+- Battle-tested rules (from real dotfiles)
+- workspace rules
+
 ## windowrule block form (0.53+, modern)
 
 ```ini

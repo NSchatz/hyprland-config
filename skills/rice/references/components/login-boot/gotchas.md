@@ -1,5 +1,21 @@
 # login-boot — gotchas
 
+## Contents
+
+- Root-side, never sudo'd by Claude
+- Coarse re-themes — the login chrome does not follow rice apply
+- SDDM is Qt — name the runtime deps
+- GDM is not theme-friendly — recommend switching DM
+- Detect first — systemctl is-enabled is the source of truth
+- Skip silently if the user only wants per-user
+- Plymouth theme dir naming must be unique
+- GRUB regen is the slowest step — warn the user
+- /etc/sddm.conf.d/ is last-wins, alphabetical — pick a numeric prefix
+- Astronaut sub-theme filenames are snake_case.conf — exact names matter
+- Virtual keyboard requires BOTH InputMethod= and GreeterEnvironment=QT_IM_MODULE=
+- Autologin + greetd: set restart = false
+- Cross-references
+
 ## Root-side, never sudo'd by Claude
 
 Every file this component touches lives under `/etc`, `/usr`, or `/boot`. The plugin's contract

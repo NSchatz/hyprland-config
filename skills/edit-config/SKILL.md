@@ -21,6 +21,14 @@ under **`../rice/references/components/<x>/`** — `waybar/`, `launcher/`, `noti
 `styling.md`, `validation.md`, `reload.md`) files rice uses when generating. For coloring any
 surface, drive the rice engine (`../rice/references/theming/engine.md`) rather than hardcoding hex.
 
+## Contents
+
+- What scope are you in?
+- Workflow
+- Previewing a single Hyprland option (no file write)
+- Safety rules
+- Resources
+
 ## What scope are you in?
 
 Decide from the request which surface(s) the edit touches — the test command differs:

@@ -8,6 +8,17 @@ user's shell.
 The plugin's `verify-shell.sh` wraps the per-shell commands below and emits
 `VERIFY_SHELL=ok|errors|skipped`. Run it after **every** edit that touches a shell rc.
 
+## Contents
+
+- Parse-test per shell
+- What a clean parse does and does not prove
+- When the test is "skipped"
+- fisher / fish_plugins are not parse-tested
+- Rendered prompt configs — sanity checks
+- Re-running after a re-theme
+- Validator outputs
+- Cross-references
+
 ## Parse-test per shell
 
 | Shell | Command | Pass | Fail |

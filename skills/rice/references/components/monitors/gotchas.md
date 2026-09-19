@@ -1,5 +1,22 @@
 # monitors — gotchas
 
+## Contents
+
+- Fractional scale needs three coordinated fixes
+- Magic modes resolve against the EDID mode list — and can pick a surprising resolution
+- Use detected names, not placeholders
+- desc: strings must match hyprctl monitors verbatim
+- kanshi / shikane — name the tool, don't author its config
+- auto scale vs an explicit number
+- Version branch — windowrule block form
+- xwayland.force_zero_scaling = true is universal in the corpus, not conditional
+- nwg-displays is the community-standard GUI editor for monitors.conf / workspaces.conf
+- Smart-gaps: exclude special workspaces with s[false]
+- Special workspaces deserve bigger gaps
+- reserved_area for non-layer-shell bars
+- Color-management (cm, bitdepth, sdr_eotf, sdrbrightness) is opt-in HDR territory
+- Workspace-swipe gap (gaps_workspaces) is a general {} global, not a workspace rule
+
 ## Fractional scale needs three coordinated fixes
 
 When the user pins a non-integer `scale` (e.g. `1.5`, `1.6`, `1.75`), three things must land

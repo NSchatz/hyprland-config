@@ -23,6 +23,13 @@ qt6ct <TAB> ~/.config/hypr-rice/templates/qt6ct.tmpl <TAB> ~/.config/qt6ct/color
 `:` is the shell no-op — Qt apps re-read `rice.conf` at next launch (qt6ct has no live IPC). The
 "next launch" surface group is footer-reported by `rice apply` (Issue 15.3, v0.21.0+).
 
+## Contents
+
+- ~/.config/qt6ct/qt6ct.conf — static writer
+- ~/.config/qt6ct/colors/rice.conf — rendered from qt6ct.tmpl
+- Why Fusion + custom_palette over Kvantum
+- Cross-references
+
 ## `~/.config/qt6ct/qt6ct.conf` — static writer
 
 ```ini

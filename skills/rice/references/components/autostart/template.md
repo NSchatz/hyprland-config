@@ -3,6 +3,14 @@
 Lands at `~/.config/hypr/autostart.conf`, `source =`d from `hyprland.conf`. Every line is an
 `exec-once = …` directive; this file is not read by any daemon other than Hyprland itself.
 
+## Contents
+
+- Full autostart.conf template
+- Variable resolution
+- Ordering rules
+- Theme-restore on login (engine integration)
+- Cross-references to other components' templates
+
 ## Full `autostart.conf` template
 
 ```ini

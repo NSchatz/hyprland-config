@@ -10,6 +10,17 @@ user in [`../look-feel/template.md`](../look-feel/template.md) (or `debug:vfr = 
 see [`_shared/version-matrix.md`](../../_shared/version-matrix.md)). It is intentionally not a
 question in this group: it's the biggest idle / battery win and it benefits everyone.
 
+## Contents
+
+- 1. looknfeel.conf — master tearing toggle
+- 2. windowrules.conf — per-class tearing rules
+- 3. monitors.conf — per-monitor VRR field
+- 4. windowrules.conf — fullscreen effect-strip + idle inhibit
+- 5. binds.conf — game-mode toggle bind
+- 6. env.conf — nothing to emit
+- 7. ~/.config/hypr/scripts/gamemode.sh — script copy
+- What does NOT belong here
+
 ## 1. `looknfeel.conf` — master tearing toggle
 
 Owned by `look-feel`. Emit **only** when `gaming.tearing_classes` is non-empty.
