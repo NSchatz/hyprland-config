@@ -80,3 +80,28 @@ else
     for ne in "${non_exec[@]}"; do detail+="$ne"$'\n'; done
     fail "${#non_exec[@]} scripts missing +x" "$detail"
 fi
+
+# --- Python modules parse too -----------------------------------------------------------------
+# The ported cluster is Python, and `bash -n` says nothing about it. A module that does not
+# compile would ship exactly as silently as a `.sh` with a syntax error used to.
+if command -v python3 >/dev/null 2>&1; then
+    mapfile -t _py < <(find "$PLUGIN_ROOT/scripts" "$PLUGIN_ROOT/skills" -name '*.py' \
+                        -not -path '*/__pycache__/*' | sort)
+    if [ "${#_py[@]}" -eq 0 ]; then
+        skip "python -m py_compile" "no .py files"
+    else
+        _bad=()
+        for _f in "${_py[@]}"; do
+            _err="$(python3 -m py_compile "$_f" 2>&1)" || _bad+=("$(basename "$_f"): $_err")
+        done
+        if [ "${#_bad[@]}" -eq 0 ]; then
+            pass "py_compile: ${#_py[@]} python modules parse cleanly"
+        else
+            fail "py_compile: ${#_py[@]} python modules parse cleanly" "$(printf '%s\n' "${_bad[@]}")"
+        fi
+    fi
+    # Byte-code caches are build artefacts; the repo does not carry them.
+    find "$PLUGIN_ROOT/scripts" "$PLUGIN_ROOT/skills" -name '__pycache__' -type d -exec rm -rf {} + 2>/dev/null || true
+else
+    skip "py_compile" "python3 missing"
+fi

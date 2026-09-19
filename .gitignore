@@ -8,3 +8,7 @@
 /tmp/hypr-gen-*
 hypr-test/
 *.bak.*
+
+# Python byte-code caches (the ported cluster under scripts/ricelib/)
+__pycache__/
+*.pyc
