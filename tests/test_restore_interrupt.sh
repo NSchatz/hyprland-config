@@ -40,10 +40,16 @@ seed_surfaces() {
 # --- A. killed mid-manifest, inside the render pass -----------------------------------------
 # app2's reload hook kills the engine, so app3 is never reached: an apply that dies with two of
 # three surfaces already overwritten.
+#
+# The hook targets $PPID, not $$. The renderer runs each reload-cmd in a SUBSHELL, so `$$` is
+# that subshell and killing it would leave the render pass running - which is the right
+# behaviour for real use (a broken reload hook must not take down the whole apply and strand
+# the manifest half-written) but useless as an interruption device. $PPID is the renderer
+# itself, which is what this scenario needs to kill.
 seed_surfaces
 {
     printf 'app1\t%s/tpl/x.tmpl\t%s/.config/app1/colors.conf\t:\n' "$tmp" "$HOME"
-    printf 'app2\t%s/tpl/x.tmpl\t%s/.config/app2/colors.conf\tkill -9 $$\n' "$tmp" "$HOME"
+    printf 'app2\t%s/tpl/x.tmpl\t%s/.config/app2/colors.conf\tkill -9 $PPID\n' "$tmp" "$HOME"
     printf 'app3\t%s/tpl/x.tmpl\t%s/.config/app3/colors.conf\t:\n' "$tmp" "$HOME"
 } > "$tmp/kill.list"
 
