@@ -139,6 +139,23 @@ def expand_path(p, env=None):
     return p, True
 
 
+def config_target(name="", override="", env=None, out=sys.stdout):
+    """The same answer as config_path, with the DIAGNOSTICS a user-facing run owes: the
+    invalid-value notice on success, the refusal report on failure.
+
+    Returns the directory, or None when the caller must not write. A silent fallback is how a
+    user ends up with a config they cannot find, so the notice is part of the contract - the
+    pure `config_path` is for command-substitution callers that must print nothing."""
+    if override:
+        return override
+    base = resolve_base(env)
+    if not base:
+        _refusal(base, out=out)
+        return None
+    _notice(base, out=out)
+    return base.path if not name else f"{base.path}/{name}"
+
+
 def _notice(base, out=sys.stdout):
     """The report a rejected XDG_CONFIG_HOME is owed: the value refused AND the absolute path
     used instead. Silent when nothing was rejected."""
@@ -153,13 +170,13 @@ def _notice(base, out=sys.stdout):
     )
 
 
-def _refusal(base):
+def _refusal(base, out=sys.stdout):
     print(f"ERROR: {base.error or 'cannot determine a config directory'}", file=sys.stderr)
     print(
         "ERROR: nothing was written. Set XDG_CONFIG_HOME to an absolute path, or set HOME.",
         file=sys.stderr,
     )
-    print("CONFIG_DIR=unresolved")
+    print("CONFIG_DIR=unresolved", file=out)
 
 
 def main(argv):
@@ -178,12 +195,10 @@ def main(argv):
         if override:
             print(override)
             return 0
-        base = resolve_base()
-        if not base:
-            _refusal(base)
+        target = config_target(name, override)
+        if target is None:
             return 1
-        _notice(base)
-        print(base.path if not name else f"{base.path}/{name}")
+        print(target)
         return 0
 
     if cmd == "expand":

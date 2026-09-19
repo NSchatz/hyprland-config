@@ -10,41 +10,20 @@
 #
 # Exit: 0 backed up (or nothing to back up), 2 no config directory could be determined,
 #       4 the backup could not be written; nothing was changed.
-set -euo pipefail
-
+#
+# THE IMPLEMENTATION IS PYTHON (scripts/ricelib/hypr/backupconfig.py).
+set -uo pipefail
 here="$(cd "$(dirname "$0")" && pwd)"
-_xdg_lib=""
-for _c in "$here/xdg-config.sh" \
-          "$here/../../../scripts/xdg-config.sh" \
-          "${CLAUDE_PLUGIN_ROOT:-}/scripts/xdg-config.sh"; do
-    if [ -n "$_c" ] && [ -f "$_c" ]; then _xdg_lib="$_c"; break; fi
+libdir=""
+for c in "$here" "$here/../../../scripts" "${CLAUDE_PLUGIN_ROOT:-}/scripts" "${RICE_DIR:-}"; do
+    if [ -n "$c" ] && [ -f "$c/ricelib/__init__.py" ]; then libdir="$(cd "$c" && pwd)"; break; fi
 done
-if [ -z "$_xdg_lib" ]; then
-    echo "ERROR: the config-path library (scripts/xdg-config.sh) was not found next to $0, in \$CLAUDE_PLUGIN_ROOT/scripts, or in the plugin. Refusing to guess where your config lives." >&2
+if [ -z "$libdir" ]; then
+    echo "ERROR: the ricelib package was not found next to $0, in \$CLAUDE_PLUGIN_ROOT/scripts, or in \$RICE_DIR." >&2
     exit 2
 fi
-# shellcheck source=../../../scripts/xdg-config.sh
-. "$_xdg_lib"
-
-if ! xdg_config_target hypr "${HYPR_DIR:-}"; then
-    echo "BACKUP=none (no config directory could be determined)"
+if ! command -v python3 >/dev/null 2>&1; then
+    echo "ERROR: python3 is required and is not installed (sudo pacman -S --needed python)." >&2
     exit 2
 fi
-target="$XDG_CONFIG_TARGET"
-
-echo "TARGET=${target}"
-
-if [ -d "$target" ] && [ -n "$(ls -A "$target" 2>/dev/null)" ]; then
-    ts="$(date +%Y%m%d-%H%M%S)"
-    backup="${target}.bak.${ts}"
-    # Report the failure against the resolved path instead of dying with a bare `cp`
-    # error - and never fall back to some other directory.
-    if ! cp -a "$target" "$backup" 2>/dev/null; then
-        echo "ERROR: could not back up '$target' to '$backup'; nothing was changed." >&2
-        echo "BACKUP=failed (${backup} could not be written)"
-        exit 4
-    fi
-    echo "BACKUP=${backup}"
-else
-    echo "BACKUP=none (no existing config to back up)"
-fi
+PYTHONPATH="$libdir${PYTHONPATH:+:$PYTHONPATH}" exec python3 -m ricelib.hypr.backupconfig "$@"

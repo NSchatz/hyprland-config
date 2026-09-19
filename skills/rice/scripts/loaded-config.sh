@@ -23,56 +23,20 @@
 #
 # Exit: 0 identified, 2 no running instance (nothing to ask), 3 running but the
 #       loaded config could not be established.
+#
+# THE IMPLEMENTATION IS PYTHON (scripts/ricelib/hypr/loadedconfig.py).
 set -uo pipefail
-
-if ! command -v hyprctl >/dev/null 2>&1 || ! hyprctl version >/dev/null 2>&1; then
-    echo "LOADED_CONFIG=unknown"
-    echo "LOADED_CONFIG_SOURCE=none (no running Hyprland instance)"
+here="$(cd "$(dirname "$0")" && pwd)"
+libdir=""
+for c in "$here" "$here/../../../scripts" "${CLAUDE_PLUGIN_ROOT:-}/scripts" "${RICE_DIR:-}"; do
+    if [ -n "$c" ] && [ -f "$c/ricelib/__init__.py" ]; then libdir="$(cd "$c" && pwd)"; break; fi
+done
+if [ -z "$libdir" ]; then
+    echo "ERROR: the ricelib package was not found next to $0, in \$CLAUDE_PLUGIN_ROOT/scripts, or in \$RICE_DIR." >&2
     exit 2
 fi
-
-# `paths_from <text>` - the config paths a chunk of Hyprland log names, deduped,
-# first-seen order preserved.
-paths_from() {
-    grep -oE 'Using config: .+' 2>/dev/null \
-        | sed -e 's/^Using config: *//' -e 's/[[:space:]]*$//' \
-        | awk 'NF && !seen[$0]++'
-}
-
-found=""
-source_used="none"
-
-# Route 1: the compositor's own rolling log, straight out of hyprctl.
-found="$(hyprctl rollinglog 2>/dev/null | paths_from)"
-[ -n "$found" ] && source_used="rollinglog"
-
-# Route 2: the instance log on disk. Same logger, survives a rolled-over tail.
-if [ -z "$found" ]; then
-    log_dir="${XDG_RUNTIME_DIR:-}/hypr"
-    if [ -n "${HYPRLAND_INSTANCE_SIGNATURE:-}" ] && [ -f "$log_dir/$HYPRLAND_INSTANCE_SIGNATURE/hyprland.log" ]; then
-        found="$(paths_from < "$log_dir/$HYPRLAND_INSTANCE_SIGNATURE/hyprland.log")"
-    elif [ -d "$log_dir" ]; then
-        newest="$(find "$log_dir" -name 'hyprland.log' -printf '%T@ %p\n' 2>/dev/null \
-                  | sort -nr | head -n1 | cut -d' ' -f2-)"
-        [ -n "$newest" ] && [ -f "$newest" ] && found="$(paths_from < "$newest")"
-    fi
-    [ -n "$found" ] && source_used="instance-log"
+if ! command -v python3 >/dev/null 2>&1; then
+    echo "ERROR: python3 is required and is not installed (sudo pacman -S --needed python)." >&2
+    exit 2
 fi
-
-# Route 3: systeminfo, for builds that fold the config into it.
-if [ -z "$found" ]; then
-    found="$(hyprctl systeminfo 2>/dev/null | paths_from)"
-    [ -n "$found" ] && source_used="systeminfo"
-fi
-
-if [ -z "$found" ]; then
-    echo "LOADED_CONFIG=unknown"
-    echo "LOADED_CONFIG_SOURCE=none (the running instance did not name the config it loaded)"
-    exit 3
-fi
-
-while IFS= read -r p; do
-    [ -n "$p" ] && echo "LOADED_CONFIG=${p}"
-done <<< "$found"
-echo "LOADED_CONFIG_SOURCE=${source_used}"
-exit 0
+PYTHONPATH="$libdir${PYTHONPATH:+:$PYTHONPATH}" exec python3 -m ricelib.hypr.loadedconfig "$@"
