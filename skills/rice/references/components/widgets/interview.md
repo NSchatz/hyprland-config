@@ -156,3 +156,38 @@ bash "$CLAUDE_PLUGIN_ROOT/scripts/record-answer.sh" "$staging/answers.json" widg
 - Notification-daemon conflict → `gotchas.md`, `../notifications/`
 - Bar-replaced-by-shell → `gotchas.md`, `../waybar/gotchas.md`
 - Packages → `packages.md`
+
+---
+
+## Choosing a widget system - the evidence behind 7a
+
+Read this before asking 7a. It is choose-time material: it belongs to the interviewer
+making the recommendation, not to the writer authoring the shell that was chosen.
+
+## The landscape (and where momentum is, 2025–2026)
+
+Two tools remain the most-starred *individual* utilities — **eww** (~12.5k★) and **Waybar** (~11.4k★) — but the highest-star *rices* of 2025–2026 are now **QML/Quickshell** shells: `end-4/dots-hyprland` (~14.7k★, which famously migrated AGS→Quickshell), `caelestia-dots/shell` (~9.8k★), `noctalia-shell` (~7.3k★), `DankMaterialShell` (~6.6k★). **Astal/AGS** (TypeScript over GTK) is the established mid-ground; **fabric** (Python) and **nwg-shell** (Python + GUI) are the niche-but-maintained options. The former turnkey darlings **HyprPanel** and **Ax-Shell** were **both archived in 2026** — still usable, no longer maintained.
+
+Three trends shape any recommendation:
+1. **AGS → Quickshell is the defining migration.** AGS v1 was deprecated for Astal/AGS v2, but gravity has shifted to **Quickshell** (QtQuick/QML). Its killer feature — **live window previews / overview** — is near-impossible in GTK toolkits.
+2. **matugen / Material You is the default theming engine**, displacing pywal. Named-scheme (Catppuccin/Nord) and wallbash/wallust camps coexist, but new full shells almost all ship matugen-driven Material You.
+3. **"Shell as a product" is consolidating** but churning at the framework layer (HyprPanel→Wayle, Ax-Shell→Ambxst). The survivors (caelestia, noctalia, DankMaterialShell) explicitly target *multiple* compositors, so "Hyprland-specific" is fading.
+
+## Choosing a widget system — decision matrix
+
+| System | Type | Language you write | Effort | Flexibility | Looks ceiling | Maintenance (2026) | Styling model |
+|---|---|---|---|---|---|---|---|
+| **Waybar + custom modules** | Status bar | none / JSONC + GTK-CSS (+shell for `custom/*`) | **Lowest** | Bar-shaped only | High for a bar | Very active | GTK3 CSS — see [`waybar.md`](../waybar/styling.md) |
+| **HyprPanel** | Turnkey panel | none (GUI) / JSON | **Lowest** (GUI) | Low–medium (preset modules) | High | **Archived 2026-04** (→Wayle) | GUI + `.json` theme import; matugen |
+| **nwg-shell** | Turnkey GTK suite | none (GUI) / JSON + GTK-CSS | Low (GUI) | Medium | Medium | Active | GTK3 CSS `style.css` |
+| **eww** | Widget toolkit | **yuck + SCSS** | Medium | Very high (any shape) | Very high | Active | GTK3 CSS/SCSS — `tools/eww.md` |
+| **AGS / Astal** | TS/JS framework | **TypeScript/JSX + SCSS** | Medium–high | Very high | Very high | Active | GTK3/4 CSS/SCSS — `tools/ags.md` |
+| **fabric** (+Ax-Shell) | Python framework | **Python + GTK-CSS** | Medium–high | Very high | Very high | fabric active; **Ax-Shell archived** | GTK3 CSS |
+| **Quickshell** | QML toolkit | **QML** | High | **Highest** (live previews) | **Highest** | Very active | QML properties (not CSS) — `tools/quickshell.md` |
+
+**Recommendations by user type:**
+- **Beginner / "I just want it to work":** **Waybar + custom modules** for a bar (zero new language; reuses styling you already know), plus **swaync** for a notification-center widget. If you want a full GUI-configured suite that is *still maintained*, **nwg-shell** (prefer it over the archived HyprPanel).
+- **Tinkerer / "I'll write some config":** **eww** (yuck + SCSS — GTK-CSS knowledge transfers, no real programming) for arbitrary floating widgets; or **AGS/Astal** if you're comfortable in TypeScript and want batteries-included services (network, bluetooth, mpris, notifications).
+- **Perfectionist / "pixel-perfect, animations, live previews":** **Quickshell (QML)** — where the highest-effort, best-looking rices now live (caelestia, noctalia, DankMaterialShell, end-4), with hot-reload and live previews out of the box. **fabric** (Python) is the equivalent for someone who prefers Python to QML.
+
+**Styling-knowledge transfer.** Waybar, eww, nwg-shell, fabric, AGS/Astal, and HyprPanel are **all GTK** under the hood, so the **GTK3-CSS subset** from [`waybar.md`](../waybar/styling.md) (`@define-color`/`@import`, `alpha()`/`shade()`/`mix()`, `border-radius`, `@keyframes`; no flexbox/`transform`/`calc`) carries across all of them. **Quickshell is the exception** — Qt/QML, so none of the GTK-CSS techniques transfer; styling is QML properties. **matugen is the common theming bridge** across HyprPanel, fabric, eww, AGS, and most QML shells (it generates a color file the config imports).
