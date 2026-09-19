@@ -19,7 +19,8 @@ import socket
 import subprocess
 
 __all__ = [
-    "qemu_argv", "start", "stop", "alive", "pid", "free_display", "vnc_port", "have_kvm",
+    "qemu_argv", "start", "stop", "alive", "pid", "free_display", "free_port", "vnc_port",
+    "have_kvm", "powerdown", "wait_gone", "IsolationError",
 ]
 
 # VNC display N listens on 5900+N. Displays below 10 collide with a user's own servers often
@@ -62,8 +63,16 @@ def free_port(first=22220, count=200):
     return None
 
 
-def qemu_argv(overlay, display, ssh_port, render_node=None, staging=None,
-              memory=4096, cpus=4, qmp=None, serial=None, seed=None, accel=True):
+# How host-side options reach the guest's boot session. QEMU's fw_cfg puts them in the guest's
+# sysfs, so there is no guest agent to install and no writable share to open just to pass two
+# booleans. The guest reads
+# /sys/firmware/qemu_fw_cfg/by_name/opt/com.hyprland-config.preview/raw.
+FW_CFG_NAME = "opt/com.hyprland-config.preview"
+
+
+def qemu_argv(overlay, display, ssh_port, render_node=None, staging=None, plugin=None,
+              memory=6144, cpus=4, qmp=None, serial=None, seed=None, accel=True,
+              options=None):
     """The full QEMU argv for one preview.
 
     Every isolating choice here is deliberate:
@@ -75,6 +84,10 @@ def qemu_argv(overlay, display, ssh_port, render_node=None, staging=None,
         not write back into the tree the host is still editing.
       - `-vga none` leaves exactly one GPU, so the guest gets one predictable output instead of
         racing the default VGA adapter.
+      - the PLUGIN share is read-only too. It is not a convenience: the generated install.sh
+        hands off to install-packages.sh, which refuses to install anything at all when it
+        cannot find install-record.sh, so without this share every package in a previewed
+        config fails and the preview quietly tests nothing.
     """
     argv = ["qemu-system-x86_64"]
     if accel:
@@ -103,6 +116,11 @@ def qemu_argv(overlay, display, ssh_port, render_node=None, staging=None,
     if staging:
         argv += ["-virtfs",
                  f"local,path={staging},mount_tag=staging,security_model=mapped-xattr,readonly=on"]
+    if plugin:
+        argv += ["-virtfs",
+                 f"local,path={plugin},mount_tag=plugin,security_model=mapped-xattr,readonly=on"]
+    if options:
+        argv += ["-fw_cfg", f"name={FW_CFG_NAME},string={options}"]
     if qmp:
         argv += ["-qmp", f"unix:{qmp},server,nowait"]
     if serial:
@@ -132,6 +150,51 @@ def _check_isolation(argv):
                 "from the network. Forward the port deliberately instead."
             )
     return argv
+
+
+def powerdown(qmp_path, timeout=10):
+    """Ask the guest to shut down properly through QMP.
+
+    This matters more than it looks. Killing QEMU leaves the guest filesystem unflushed, and a
+    provisioned image snapshotted from an unflushed overlay silently loses whatever was written
+    last - which is exactly how an earlier attempt at this lost the mount points it had just
+    created and produced an image that looked fine and was not."""
+    import json
+    try:
+        sock = socket.socket(socket.AF_UNIX)
+        sock.settimeout(timeout)
+        sock.connect(qmp_path)
+    except OSError:
+        return False
+    try:
+        fh = sock.makefile("rw", encoding="utf-8", newline="\n")
+        fh.readline()                                   # the greeting
+        for cmd in ({"execute": "qmp_capabilities"}, {"execute": "system_powerdown"}):
+            fh.write(json.dumps(cmd) + "\n")
+            fh.flush()
+            while True:
+                line = fh.readline()
+                if not line:
+                    return False
+                reply = json.loads(line)
+                if "return" in reply or "error" in reply:
+                    break
+        return True
+    except (OSError, ValueError):
+        return False
+    finally:
+        sock.close()
+
+
+def wait_gone(pidfile, timeout=90):
+    """Wait for the VM to exit on its own after a powerdown."""
+    import time
+    deadline = time.time() + timeout
+    while time.time() < deadline:
+        if pid(pidfile) is None:
+            return True
+        time.sleep(1)
+    return False
 
 
 def pid(pidfile):

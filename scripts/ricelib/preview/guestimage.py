@@ -23,19 +23,14 @@ from .. import proc
 __all__ = [
     "cache_dir", "base_path", "provisioned_path", "overlay_path", "key_path", "seed_path",
     "BASE_URL", "have_base", "have_provisioned", "fetch_base", "make_overlay", "make_seed",
-    "ensure_key",
+    "ensure_key", "provision", "snapshot_provisioned", "script_dir",
 ]
 
 BASE_URL = ("https://geo.mirror.pkgbuild.com/images/latest/"
             "Arch-Linux-x86_64-cloudimg.qcow2")
 
-# What a preview guest needs to be a desktop at all. The rice's own generated install.sh runs
-# on top of this and pulls whatever the interview actually picked.
-GUEST_PACKAGES = (
-    "hyprland kitty waybar wofi mako grim jq "
-    "ttf-jetbrains-mono-nerd noto-fonts noto-fonts-emoji mesa"
-)
-
+# The guest package list deliberately lives in tests/preview/provision.sh, where it is actually
+# executed, rather than being duplicated here where it would drift.
 
 def cache_dir(env=None):
     """Where the guest images live. Big, regenerable, and not the user's config."""
@@ -55,8 +50,10 @@ def provisioned_path(env=None):
     return os.path.join(cache_dir(env), "provisioned.qcow2")
 
 
-def overlay_path(env=None):
-    return os.path.join(cache_dir(env), "overlay.qcow2")
+def overlay_path(env=None, name="overlay"):
+    """The throwaway disk. `name` exists so provisioning cannot clobber a running preview:
+    both need an overlay, and they must not be the same file."""
+    return os.path.join(cache_dir(env), f"{name}.qcow2")
 
 
 def key_path(env=None):
@@ -145,9 +142,13 @@ def make_seed(pubkey_text, env=None):
     return (rc == 0, out if rc == 0 else detail.strip()[-400:])
 
 
-def make_overlay(backing, size="24G", env=None):
-    """A fresh throwaway overlay over `backing`. Any previous overlay is discarded."""
-    out = overlay_path(env)
+def make_overlay(backing, size="40G", env=None, name="overlay"):
+    """A fresh throwaway overlay over `backing`. Any previous overlay of that name is discarded.
+
+    40G is virtual, not allocated: a qcow2 overlay costs what is written to it. It is generous
+    because a full rice install pulls fonts, a browser and a toolchain, and running out of disk
+    halfway through an install.sh is a confusing way to fail."""
+    out = overlay_path(env, name)
     try:
         os.unlink(out)
     except FileNotFoundError:
@@ -161,14 +162,123 @@ def make_overlay(backing, size="24G", env=None):
     return (rc == 0, out if rc == 0 else detail.strip()[-400:])
 
 
-def snapshot_provisioned(env=None):
+def script_dir(root):
+    """Where the guest-side scripts live in the plugin checkout."""
+    return os.path.join(root, "tests", "preview")
+
+
+def provision(root, env=None, out=print):
+    """Turn the stock cloud image into a preview guest, once, and cache the result.
+
+    This is the step that used to be done by hand, which meant the cached image on one machine
+    could not be reproduced on another. It boots the base image with a cloud-init seed, installs
+    the minimal package set plus the toolchain a plugin or an AUR build needs, copies in the
+    guest session scripts, shuts the guest down CLEANLY so the filesystem is flushed, and
+    flattens the result into `provisioned.qcow2`.
+
+    Returns (ok, detail)."""
+    from . import guest
+    from . import vm
+
+    key = ensure_key(env)
+    if not key:
+        return False, "could not create the preview ssh key"
+    if not have_base(env):
+        out(f"FETCHING={BASE_URL}")
+        ok, detail = fetch_base(env)
+        if not ok:
+            return False, f"could not fetch the base image: {detail}"
+
+    with open(key + ".pub", "r", encoding="utf-8") as fh:
+        ok, seed = make_seed(fh.read(), env)
+    if not ok:
+        return False, f"could not build the cloud-init seed: {seed}"
+
+    ok, overlay = make_overlay(base_path(env), env=env, name="provision-overlay")
+    if not ok:
+        return False, f"could not create the overlay: {overlay}"
+
+    d = cache_dir(env)
+    pidfile = os.path.join(d, "provision.pid")
+    qmp = os.path.join(d, "provision-qmp.sock")
+    for stale in (qmp,):
+        try:
+            os.unlink(stale)
+        except OSError:
+            pass
+
+    display = vm.free_display()
+    port = vm.free_port()
+    if display is None or port is None:
+        return False, "no free display or port for the provisioning VM"
+
+    argv = vm.qemu_argv(
+        overlay=overlay, display=display, ssh_port=port,
+        render_node=None,                      # provisioning needs no GPU
+        seed=seed, qmp=qmp,
+        serial=os.path.join(d, "provision-serial.log"),
+    )
+    started, detail = vm.start(argv, pidfile, os.path.join(d, "provision-qemu.log"))
+    if not started:
+        return False, f"could not start the provisioning VM: {detail}"
+
+    try:
+        out("PROVISION_PHASE=booting")
+        ready, waited = guest.wait_ready(key, port, timeout=300)
+        if not ready:
+            return False, f"the provisioning guest never came up (waited {waited}s)"
+        out(f"PROVISION_PHASE=booted ({waited}s)")
+
+        scripts = [os.path.join(script_dir(root), n)
+                   for n in ("provision.sh", "guest-session.sh", "guest-apply.sh")]
+        missing = [s for s in scripts if not os.path.isfile(s)]
+        if missing:
+            return False, f"guest scripts missing from the checkout: {missing}"
+        if not guest.copy_in(key, port, scripts, "/tmp/"):
+            return False, "could not copy the guest scripts in"
+
+        # guest-apply.sh has to be in place before provision.sh installs the session, because
+        # the session script it writes invokes it by that path.
+        guest.run(key, port, "mkdir -p ~/.local/bin && install -Dm755 /tmp/guest-apply.sh "
+                             "~/.local/bin/guest-apply.sh", timeout=60, with_session=False)
+
+        out("PROVISION_PHASE=installing (this is the slow part)")
+        rc, output = guest.run(key, port, "bash /tmp/provision.sh", timeout=2400,
+                               with_session=False)
+        for line in output.splitlines():
+            if line.startswith(("PROVISION", "AUR_HELPER")):
+                out(line)
+        if rc != 0 or "PROVISION=ok" not in output:
+            return False, f"provisioning failed inside the guest:\n{output[-1500:]}"
+
+        out("PROVISION_PHASE=shutting-down")
+        guest.run(key, port, "sync", timeout=60, with_session=False)
+        if not vm.powerdown(qmp):
+            return False, "could not shut the provisioning guest down cleanly"
+        if not vm.wait_gone(pidfile, timeout=120):
+            return False, "the provisioning guest did not shut down"
+    finally:
+        vm.stop(pidfile)
+
+    out("PROVISION_PHASE=snapshotting")
+    ok, detail = snapshot_provisioned(env, name="provision-overlay")
+    if not ok:
+        return False, f"could not snapshot the provisioned image: {detail}"
+    try:
+        os.unlink(overlay)
+    except OSError:
+        pass
+    return True, detail
+
+
+def snapshot_provisioned(env=None, name="overlay"):
     """Promote the current overlay to the cached provisioned base.
 
     Flattening matters: a provisioned image that still referenced the overlay would break the
     moment the next preview recreated it."""
     rc, detail = proc.run([
         "qemu-img", "convert", "-O", "qcow2",
-        overlay_path(env), provisioned_path(env) + ".tmp",
+        overlay_path(env, name), provisioned_path(env) + ".tmp",
     ])
     if rc != 0:
         return False, detail.strip()[-400:]

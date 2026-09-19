@@ -15,7 +15,8 @@ host key changes every time the base image is rebuilt, and the connection is to 
 import os
 import subprocess
 
-__all__ = ["ssh_argv", "run", "wait_ready", "copy_out", "reload_surfaces", "hyprctl"]
+__all__ = ["ssh_argv", "run", "wait_ready", "copy_out", "copy_in", "apply_and_reload",
+           "boot_status", "hyprctl"]
 
 USER = "preview"
 
@@ -95,34 +96,38 @@ def copy_out(key, port, remote, local, host="127.0.0.1"):
         return False
 
 
-# Per-surface reload, mirroring what `hypr/applytheme.py` already does on a real desktop. The
-# commands are the same ones the edit-config skill documents, so a preview reload and a real
-# reload go through the same knowledge rather than two divergent copies.
-RELOADS = {
-    "hyprland": "hyprctl reload >/dev/null && echo RELOAD_hyprland=ok",
-    "bar":      "pkill -SIGUSR2 -x waybar && echo RELOAD_bar=ok || echo RELOAD_bar=skipped",
-    "notify":   "(makoctl reload 2>/dev/null && echo RELOAD_notify=ok) || "
-                "(dunstctl reload 2>/dev/null && echo RELOAD_notify=ok) || "
-                "(swaync-client -rs 2>/dev/null && echo RELOAD_notify=ok) || "
-                "echo RELOAD_notify=skipped",
-    "terminal": "pkill -SIGUSR1 -x kitty && echo RELOAD_terminal=ok || "
-                "echo RELOAD_terminal=skipped",
-    # Launchers have no reload mechanism at all - no daemon, no signal, no IPC. A change is
-    # visible on the next launch, and saying so is better than pretending to reload it.
-    "launcher": "echo RELOAD_launcher=next-launch",
-}
+def copy_in(key, port, locals_, remote_dir, host="127.0.0.1"):
+    """Copy files into the guest. True on success."""
+    argv = [
+        "scp", "-i", key,
+        "-o", "StrictHostKeyChecking=no",
+        "-o", "UserKnownHostsFile=/dev/null",
+        "-o", "LogLevel=ERROR",
+        "-o", "BatchMode=yes",
+        "-P", str(port), *locals_, f"{USER}@{host}:{remote_dir}",
+    ]
+    try:
+        return subprocess.run(argv, stdout=subprocess.DEVNULL,
+                              stderr=subprocess.DEVNULL, timeout=120).returncode == 0
+    except (OSError, subprocess.TimeoutExpired):
+        return False
 
 
-def reload_surfaces(key, port, surfaces=None, staging_mount="/mnt/staging"):
-    """Re-copy the shared staging tree into place, then reload each surface. (rc, output)."""
-    names = list(RELOADS) if not surfaces or "all" in surfaces else list(surfaces)
-    script = (
-        f"sudo mount -o remount {staging_mount} 2>/dev/null; "
-        f"cp -f {staging_mount}/*.conf ~/.config/hypr/ 2>/dev/null; "
-        f"for d in {staging_mount}/_shell/*/; do "
-        f"  [ -d \"$d\" ] || continue; a=$(basename \"$d\"); "
-        f"  mkdir -p ~/.config/$a && cp -rf \"$d\".  ~/.config/$a/ 2>/dev/null; "
-        f"done; "
-        + "; ".join(RELOADS[n] for n in names if n in RELOADS)
-    )
-    return run(key, port, script, timeout=90)
+def apply_and_reload(key, port, timeout=120):
+    """Re-apply the staged config in the guest and reload what is running.
+
+    This deliberately shells out to the SAME script the guest runs at boot
+    (`tests/preview/guest-apply.sh`). Reimplementing the copy here in Python would give the
+    boot path and the iteration path two different notions of what a staged config is, which
+    is precisely the bug that made plugins, GTK2 theming and the shell surface silently
+    untestable in the first version of this feature."""
+    return run(key, port, "$HOME/.local/bin/guest-apply.sh --reload", timeout=timeout)
+
+
+def boot_status(key, port, timeout=30):
+    """What the guest's boot session did, as the markers it wrote.
+
+    A preview that comes up wrong shows a black screen and explains nothing; this is where the
+    explanation lives (which shares mounted, what was copied, whether install.sh ran)."""
+    return run(key, port, "cat ~/preview-boot.status 2>/dev/null", timeout=timeout,
+               with_session=False)

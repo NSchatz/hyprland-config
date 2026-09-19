@@ -33,6 +33,7 @@ USAGE = """usage: rice preview <command>
   exec -- <command>       run a command inside the guest
   demo                    launch the configured surfaces, for a config that autostarts
                           nothing of its own
+  provision [--force]     build the cached guest image (done automatically on first use)
   logs [--tail N]         the guest's serial console
   stop                    shut the VM down and discard its disk
 
@@ -109,6 +110,20 @@ def _paths(env):
     }
 
 
+def _plugin_root(env=None):
+    """The plugin checkout, shared read-only into the guest.
+
+    Not optional: the generated install.sh ends by invoking install-packages.sh, and
+    `installpackages.py` refuses to install anything when it cannot find install-record.sh. A
+    preview without this share reports every package as a failure."""
+    env = os.environ if env is None else env
+    root = env.get("CLAUDE_PLUGIN_ROOT", "")
+    if root and os.path.isdir(root):
+        return root
+    here = os.path.normpath(os.path.join(os.path.dirname(__file__), "..", "..", ".."))
+    return here if os.path.isdir(os.path.join(here, "skills")) else None
+
+
 def _render_node(env=None):
     """The host render node QEMU uses for virgl, or None for software rendering.
 
@@ -170,6 +185,16 @@ def cmd_start(args, env):
             print("PREVIEW=failed-base-image")
             return 1
 
+    if not gi.have_provisioned(env):
+        _err("no provisioned guest image yet; building one. This happens once and takes a "
+             "while (package install plus an AUR helper build).")
+        ok, detail = gi.provision(_plugin_root(env), env)
+        if not ok:
+            _err(detail)
+            print("PREVIEW=failed-provision")
+            return 1
+        print(f"PROVISIONED={detail}")
+
     backing = gi.provisioned_path(env) if gi.have_provisioned(env) else gi.base_path(env)
     print(f"BACKING={os.path.basename(backing)}")
     ok, detail = gi.make_overlay(backing, env=env)
@@ -179,16 +204,9 @@ def cmd_start(args, env):
         return 1
     overlay = detail
 
+    # No cloud-init seed here: `provision` already created the user and installed the key, and
+    # re-seeding a provisioned image would re-run cloud-init against a machine that is set up.
     seed = None
-    if backing == gi.base_path(env):
-        # First run: the cloud image still needs a user and an authorized key.
-        with open(key + ".pub", "r", encoding="utf-8") as fh:
-            ok, detail = gi.make_seed(fh.read(), env)
-        if not ok:
-            _err(detail)
-            print("PREVIEW=failed-seed")
-            return 1
-        seed = detail
 
     display = vm.free_display()
     ssh_port = vm.free_port()
@@ -197,10 +215,15 @@ def cmd_start(args, env):
         print("PREVIEW=failed-no-port")
         return 1
 
+    opts = []
+    if "--no-install" in args:
+        opts.append("install=0")
     argv = vm.qemu_argv(
         overlay=overlay, display=display, ssh_port=ssh_port,
         render_node=_render_node(env), staging=staging,
+        plugin=_plugin_root(env),
         qmp=paths["qmp"], serial=paths["serial"], seed=seed,
+        options=",".join(opts) or None,
     )
     started, detail = vm.start(argv, paths["pid"], paths["log"])
     if not started:
@@ -237,6 +260,27 @@ def cmd_start(args, env):
     return 0
 
 
+def cmd_provision(args, env):
+    """Build (or rebuild) the cached guest image."""
+    root = _plugin_root(env)
+    if not root:
+        _err("cannot find the plugin checkout to provision from")
+        print("PREVIEW=failed-provision")
+        return 1
+    if gi.have_provisioned(env) and "--force" not in args:
+        print(f"PROVISIONED={gi.provisioned_path(env)}")
+        _err("a provisioned image already exists; pass --force to rebuild it.")
+        return 0
+    ok, detail = gi.provision(root, env)
+    if not ok:
+        _err(detail)
+        print("PREVIEW=failed-provision")
+        return 1
+    print(f"PROVISIONED={detail}")
+    print("PREVIEW=provisioned")
+    return 0
+
+
 def cmd_status(args, env):
     paths = _paths(env)
     rec = ss.load(env)
@@ -247,6 +291,12 @@ def cmd_status(args, env):
         if rec.display is not None:
             print(f"PREVIEW_VNC=127.0.0.1:{vm.vnc_port(rec.display)}")
     if running:
+        # What the boot session actually did. A preview that comes up wrong otherwise shows a
+        # black screen and explains nothing.
+        rc, out = guest.boot_status(gi.key_path(env), rec.ssh_port) if rec else (1, "")
+        if rc == 0 and out.strip():
+            for line in out.strip().splitlines():
+                print(f"GUEST_{line}")
         print("PREVIEW=running")
         return 0
     if rec:
@@ -305,8 +355,7 @@ def cmd_reload(args, env):
     if not rec:
         print("PREVIEW=none")
         return 1
-    surfaces = [_opt(args, "--surface", "all")]
-    rc, out = guest.reload_surfaces(gi.key_path(env), rec.ssh_port, surfaces)
+    rc, out = guest.apply_and_reload(gi.key_path(env), rec.ssh_port)
     sys.stdout.write(out)
     print("PREVIEW=running" if rc == 0 else "PREVIEW=failed-reload")
     return 0 if rc == 0 else 1
@@ -378,6 +427,7 @@ COMMANDS = {
     "start": cmd_start,
     "status": cmd_status,
     "stop": cmd_stop,
+    "provision": cmd_provision,
     "shot": cmd_shot,
     "reload": cmd_reload,
     "exec": cmd_exec,
