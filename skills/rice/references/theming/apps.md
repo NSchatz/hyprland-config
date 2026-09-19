@@ -155,5 +155,5 @@ HyprPanel, end-4, and caelestia own their colors via a **GUI / `.json` theme imp
 read a matugen `colors.json` directly. Don't fight them with a rice template — drive them with
 matugen on the same wallpaper, mapping `primary→accent`, `surface→bg`, …, so the shell themes from
 the wallpaper while the engine owns the core surfaces. This is the "widget-shell" case covered in
-[`components/widgets/template.md`](../components/widgets/template.md) → "HyprPanel and other
+[`components/widgets/`](../components/widgets/README.md) → "HyprPanel and other
 Material-You-native shells".

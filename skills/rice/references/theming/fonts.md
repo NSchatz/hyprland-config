@@ -141,7 +141,7 @@ needs the engine to keep waybar `px` ≈ 1.4× the rofi/kitty `pt` (the GTK→CS
 surfaces and one pt size for terminal/launcher surfaces.
 
 The widget shells (`eww`, `ags`, `quickshell`) need the bare family too — see
-[`components/widgets/template.md`](../components/widgets/template.md) → "Fonts".
+[`components/widgets/`](../components/widgets/README.md) → "Fonts".
 
 ## Real-world pairings (what the big rices ship)
 

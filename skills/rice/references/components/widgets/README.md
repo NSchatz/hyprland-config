@@ -21,18 +21,32 @@ pre-built shell** (end-4, caelestia, Noctalia, DankMaterialShell).
 go. A full shell also typically owns notifications (AGS `Notifd`, Quickshell `Notifications`) —
 group 9 (notifications) must be set to `none` to avoid the D-Bus name conflict.
 
-## Files in this folder
+## What to read — read TWO files, not the folder
 
-| File | What it holds |
+This component supports five widget systems, and a writer only ever authors for the one the
+interview picked. Reading the other four is what makes a recipe get skimmed instead of read.
+
+**Read `common.md`, plus the ONE `tools/<system>.md` matching `widgets.system`. Nothing else.**
+
+| `widgets.system` | Read |
 |---|---|
-| `interview.md` | Sub-questions 7a (system gate), 7a-bis (turnkey shell), 7b (which widgets), 7c (look), 7d (motion / density). |
-| `schema.md` | The `widgets.{system, turnkey, enabled, look, motion}` slice of `answers.json`. |
-| `template.md` | Per-shell wiring: eww (yuck + scss), AGS (TS/JS + scss), Quickshell (QML); how the rice template (`eww.tmpl` / `ags.tmpl` / `quickshell.tmpl`) feeds each. |
-| `styling.md` | The concatenated design library — cross-cutting widget archetypes (from `hyprland-reference/styling/widgets.md`) plus the three per-toolkit references (eww / AGS / Quickshell). |
-| `gotchas.md` | Full-shell-replaces-waybar, HyprPanel→matugen path, notifications conflict, eww `grass`-SCSS quirks, heavy shell build times. |
-| `packages.md` | `eww` / `aylurs-gtk-shell` (AGS CLI) / `quickshell` / `hyprpanel` AUR packages, plus `matugen` for the Material-You path. |
-| `reload.md` | Per-shell reload hooks (eww `eww reload`, AGS file-monitor + `resetCss`, Quickshell hot-reload on save, HyprPanel GUI-driven). |
-| `validation.md` | yuck parses (`eww` linter), AGS TS compiles, Quickshell QML parses (`qmllint`). |
+| `eww` | `common.md` + [`tools/eww.md`](tools/eww.md) |
+| `ags` | `common.md` + [`tools/ags.md`](tools/ags.md) |
+| `quickshell` | `common.md` + [`tools/quickshell.md`](tools/quickshell.md) |
+| `hyprpanel` | `common.md` + [`tools/hyprpanel.md`](tools/hyprpanel.md) |
+| `turnkey` | `common.md` + [`tools/turnkey.md`](tools/turnkey.md) |
+| `none` | nothing - the component is skipped |
+
+Each `tools/<system>.md` is self-contained for that system: what to emit, how to style it, how to
+validate it, what bites, and how to reload it. `common.md` holds only what is true whichever
+system was picked (the render-manifest lines, the cross-surface rules about waybar /
+notifications / OSD ownership, the composite reload order).
+
+| Other file | What it holds | Who reads it |
+|---|---|---|
+| `interview.md` | Sub-questions 7a (system gate), 7a-bis (turnkey shell), 7b (which widgets), 7c (look), 7d (motion / density). | interviewer |
+| `schema.md` | The `widgets.{system, turnkey, enabled, look, motion}` slice of `answers.json`. | interviewer, writer |
+| `packages.md` | `eww` / `aylurs-gtk-shell` (AGS CLI) / `quickshell` / `hyprpanel` AUR packages, plus `matugen` for the Material-You path. | installer |
 
 ## Where this component lands
 

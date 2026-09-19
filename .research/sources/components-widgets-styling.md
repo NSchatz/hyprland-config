@@ -1,6 +1,6 @@
-# Sources - skills/rice/references/components/widgets/styling.md
+# Sources - skills/rice/references/components/widgets/ (now common.md + tools/*.md)
 
-Research provenance for `skills/rice/references/components/widgets/styling.md`.
+Research provenance for `skills/rice/references/components/widgets/ (now common.md + tools/*.md)`.
 
 Extracted from the load path: these citations are why the recommendations in that
 file are what they are, and are read by a human reviewing them - never by an agent

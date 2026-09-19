@@ -270,8 +270,9 @@ The per-surface notes the writers follow:
 - **Desktop widgets** (`widgets`): only if a widget system was chosen. For **eww** stage
   `eww/eww.yuck` + `eww/eww.scss` (`@import "colors";` → the engine's `eww.tmpl`); for an **AGS/Astal**
   or **Quickshell** shell, scaffold per its tooling and wire its colors file
-  (`ags.tmpl`/`quickshell.tmpl`) — recipes in `components/widgets/template.md` and
-  `components/widgets/styling.md`, wiring in `theming/engine.md` → "Widget-shell theming". A **full
+  (`ags.tmpl`/`quickshell.tmpl`) — recipe in `components/widgets/common.md` **plus the one**
+  `components/widgets/tools/<system>.md` the pick names (never the others), wiring in
+  `theming/engine.md` → "Widget-shell theming". A **full
   shell replaces waybar** (drop the waybar `exec-once`) and may **own notifications** (then skip the
   notifications component). **HyprPanel / Material-You** shells: drive via matugen, don't hand-theme.
   Heavy shells (Quickshell/AGS) take real time to compile — warn the user about that at install time

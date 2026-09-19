@@ -26,7 +26,7 @@ shrinks to just the cross-cutting principles below.
 | Notifications (mako / dunst / swaync) | [`../../../rice/references/components/notifications/styling.md`](../../../rice/references/components/notifications/styling.md) |
 | Terminal (kitty / alacritty / foot / wezterm / ghostty) | [`../../../rice/references/components/terminal/styling.md`](../../../rice/references/components/terminal/styling.md) |
 | Lock screen (hyprlock) | [`../../../rice/references/components/lock-screen/styling.md`](../../../rice/references/components/lock-screen/styling.md) |
-| Widget shells (eww / AGS-Astal / Quickshell — design + per-toolkit) | [`../../../rice/references/components/widgets/styling.md`](../../../rice/references/components/widgets/styling.md) |
+| Widget shells (eww / AGS-Astal / Quickshell — design + per-toolkit) | [`../../../rice/references/components/widgets/`](../../../rice/references/components/widgets/README.md) |
 | Shell & prompt (btop / cava / fastfetch / starship — Nerd Font glyphs) | [`../../../rice/references/components/shell-prompt/styling.md`](../../../rice/references/components/shell-prompt/styling.md) |
 | GTK / Qt / icons / cursors / fonts (toolkit consistency) | [`../../../rice/references/theming/gtk-qt.md`](../../../rice/references/theming/gtk-qt.md) |
 

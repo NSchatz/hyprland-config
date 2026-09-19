@@ -55,7 +55,7 @@ piecemeal from any single component:
 
 | Component | Contract row says | `.tmpl` actually exports | Decision pending |
 |---|---|---|---|
-| **quickshell** | `term[16]` (array) | individual `term0..term15` properties (corpus pattern; caelestia / DankMaterialShell reference `Colors.term3` directly, an array would force `Colors.term[3]` and break drop-in copies — see `widgets/styling.md`) | Update the contract row to list `term0..term15` explicitly |
+| **quickshell** | `term[16]` (array) | individual `term0..term15` properties (corpus pattern; caelestia / DankMaterialShell reference `Colors.term3` directly, an array would force `Colors.term[3]` and break drop-in copies — see `widgets/tools/quickshell.md`) | Update the contract row to list `term0..term15` explicitly |
 | **kitty** | `background foreground cursor selection_background selection_foreground color0..color15` | Adds semantic chrome keys: `cursor_text_color url_color active_tab_foreground active_tab_background inactive_tab_foreground inactive_tab_background tab_bar_background` (paired with `tab_bar_style powerline` in the recipe — see `terminal/kitty.tmpl` and `terminal/styling.md`) | Append the chrome keys to the row |
 | **fuzzel** | 7 keys: `background text match selection selection-text selection-match border` | Grew to 11 keys: adds `prompt placeholder input counter` to support the prompt-glyph / placeholder-text / counter idioms in the recipe (see `launcher/styling.md` "Color details") | Bump the row to 11 keys |
 
@@ -407,7 +407,7 @@ up every file first with `scripts/backup-path.sh`.
 - Fonts → [`fonts.md`](fonts.md).
 - Wallpaper + dynamic theming → [`wallpaper.md`](wallpaper.md).
 - Long-tail apps via matugen → [`apps.md`](apps.md).
-- Widget-shell theming → [`components/widgets/template.md`](../components/widgets/template.md).
+- Widget-shell theming → [`components/widgets/`](../components/widgets/README.md).
 - Shell & prompt theming → [`components/shell-prompt/template.md`](../components/shell-prompt/template.md).
 - Restore-theme `exec-once` scheduling → [`components/autostart/template.md`](../components/autostart/template.md) "Theme-restore on login".
 - D-Bus / session-bus env (`envd = XDG_CURRENT_DESKTOP,Hyprland`) → [`components/env/template.md`](../components/env/template.md) and [`components/env/gotchas.md`](../components/env/gotchas.md).

@@ -15,7 +15,7 @@ architecture; the slices live elsewhere:
 - **Per-app colors contract** (which variable names each component's colors file exports) →
   [`_shared/colors-contract.md`](../_shared/colors-contract.md).
 - **Widget-shell theming** (eww, AGS/Astal, Quickshell, HyprPanel) →
-  [`components/widgets/template.md`](../components/widgets/template.md) + `widgets/styling.md`.
+  [`components/widgets/`](../components/widgets/README.md) + its `tools/<system>.md`.
 - **Shell & prompt theming** (fish colors, starship, oh-my-posh) →
   [`components/shell-prompt/template.md`](../components/shell-prompt/template.md) +
   `shell-prompt/styling.md`.
@@ -185,7 +185,7 @@ written whole (by rice generate or `edit-config`), which folds the colors in. Te
 ship in `templates/` for manual use.
 
 For the widget-shell wiring (eww `@import`, AGS `@use`, Quickshell `Colors.qml` singleton) see
-[`components/widgets/template.md`](../components/widgets/template.md). For prompt wiring
+[`components/widgets/`](../components/widgets/README.md). For prompt wiring
 (`STARSHIP_CONFIG`, `oh-my-posh init`, fish `conf.d/`) see
 [`components/shell-prompt/template.md`](../components/shell-prompt/template.md). The four GTK
 gotchas around `gtk-4.0/gtk.css` (symlink, `--libadwaita`, `GTK_THEME` env, `settings.ini` vs

@@ -70,6 +70,6 @@ from binds.conf`.
 ## Cross-references
 
 - `components/keybinds/template.md` — the binds-emitting template.
-- `components/widgets/template.md` — eww/ags/quickshell shell.
+- `components/widgets/` (see its README for which tool file to read) — eww/ags/quickshell shell.
 - `components/utilities/template.md` — power-menu / blur-toggle / cheatsheet scripts.
 - `components/waybar/template.md` — the waybar config emitter that reads this registry.

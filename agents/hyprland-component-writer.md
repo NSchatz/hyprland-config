@@ -47,8 +47,12 @@ your component — `template.md` is always there; `gotchas.md`, `styling.md`, `v
   `components/terminal/{template,gotchas,styling,reload}.md`
 - lock screen (hyprlock) →
   `components/lock-screen/{template,gotchas,styling,validation,packages,reload}.md`
-- widgets (eww / AGS / Quickshell) →
-  `components/widgets/{template,gotchas,styling,validation,reload}.md`
+- widgets (eww / AGS / Quickshell / HyprPanel / turnkey) → **sharded by tool**:
+  `components/widgets/common.md` **plus the ONE** `components/widgets/tools/<system>.md` that
+  matches `widgets.system` in your `ANSWERS` slice (`eww` · `ags` · `quickshell` · `hyprpanel` ·
+  `turnkey`). That tool file is self-contained - template, styling, validation, gotchas, reload.
+  **Do not read the other tools/ files**: they describe systems the user did not pick, and
+  reading them is how a recipe gets skimmed rather than followed.
 - shell-prompt (starship / oh-my-posh / pure / p10k) →
   `components/shell-prompt/{template,gotchas,styling,validation,reload}.md`
 

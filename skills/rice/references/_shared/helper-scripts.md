@@ -52,7 +52,7 @@ anything outside the prerequisite micro-batch (Python stdlib only — see `_inte
 
 ## Cross-references
 
-- `components/widgets/template.md` — references `eww/scripts/{sysinfo,audio,player,toggles}` in
+- `components/widgets/tools/eww.md` — references `eww/scripts/{sysinfo,audio,player,toggles}` in
   the example yuck. The writer copies them from `assets/scripts/eww/`.
 - `components/utilities/template.md` — every utility script row maps to a copy step under
   `hypr/scripts/`.
