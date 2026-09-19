@@ -129,13 +129,22 @@ selections the user made in a *different* component — and historically didn't 
 - `autostart` writer → `widgets utilities notifications` (so the shell autostart, swayosd
   daemon, and notification daemon lines land in one consistent order)
 
-> **No jq at generation time.** Everything between A0 and the package install batch (A5
-> step 3) runs on a clean Arch box where `jq` is not yet on disk — `jq` is itself one of
-> the packages the rice installs. Generation-time tooling reads `answers.json` through
-> `scripts/answers.py` (`get` / `slice` / `list` / `has`) and writes through
-> `scripts/record-answer.py`; both depend only on the Python stdlib (Arch's `pacman` pulls
-> in `python3` as a base dep). Runtime helpers (`keybind-cheatsheet.sh`, eww data scripts,
-> rice CLI) keep using `jq` because they execute after the install.
+> **No jq at generation time, and python is not free either.** Everything between A0 and the
+> package install batch (A5 step 3) runs on a clean Arch box where `jq` is not yet on disk —
+> `jq` is itself one of the packages the rice installs. Generation-time tooling reads
+> `answers.json` through `scripts/answers.py` (`get` / `slice` / `list` / `has`) and writes
+> through `scripts/record-answer.py`; both depend only on the Python stdlib.
+>
+> **Python is NOT guaranteed on Arch.** The `base` meta-package depends on 28 packages and
+> python is not among them; `pacman` lists python only as a *check* dependency, which is used
+> to run pacman's own test suite and is never installed on a user's machine. So a genuinely
+> minimal Arch install — the exact case this path was written for — can have no `python3`, and
+> the interview would not be able to record a single answer. **A0 runs
+> `scripts/ensure-python.sh` before the interview starts**, which asks once, installs `python`,
+> and records it like any other package. Do not skip it and do not assume the interpreter.
+>
+> Runtime helpers (`keybind-cheatsheet.sh`, eww data scripts, rice CLI) keep using `jq`
+> because they execute after the install.
 
 The main loop is responsible for:
 - The index file `hyprland.conf` (variables + `source=` lines — small, benefits from the

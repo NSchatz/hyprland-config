@@ -59,10 +59,25 @@ the user sees — every user is offered the same options regardless of what's cu
 the install step at A5 installs whatever's missing.
 
 ```bash
+bash "${CLAUDE_PLUGIN_ROOT}/scripts/ensure-python.sh"                   # FIRST - see below
 bash "${CLAUDE_PLUGIN_ROOT}/skills/rice/scripts/detect-version.sh"      # Hyprland version + env facts
 bash "${CLAUDE_PLUGIN_ROOT}/skills/rice/scripts/config-language.sh"     # which config LANGUAGE this Hyprland reads
 bash "${CLAUDE_PLUGIN_ROOT}/skills/rice/scripts/detect-theme-tools.sh"  # current gsettings + font families
 ```
+
+**`ensure-python.sh` runs first, before the interview, and its result gates everything.** Every
+answer is recorded to `answers.json` through a Python helper, so a machine without `python3`
+cannot start an interview — and **python is not guaranteed on Arch**: it is absent from the
+`base` meta-package's 28 dependencies, and `pacman` needs it only as a *check* dependency that
+is never installed on a user's machine. Read the last line:
+
+| Line | What it means |
+|---|---|
+| `PYTHON=present <path>` | already installed, nothing was done - carry on |
+| `PYTHON=installed <path>` | installed just now and written to the install record - carry on |
+| `PYTHON=declined` | the user said no. **Stop.** Do not start an interview whose answers cannot be saved; say what is needed and why |
+| `PYTHON=missing` | not installable here (no pacman). **Stop** and tell them to install python 3 themselves |
+| `PYTHON=failed` | the install was attempted and did not work. **Stop** and surface the output |
 
 **The config language is a detection fact, not a default.** Since 0.55 Hyprland reads
 `hyprland.lua` and loads it *instead of* `hyprland.conf`, and since 0.56.0 a fresh install

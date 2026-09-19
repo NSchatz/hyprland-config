@@ -23,7 +23,11 @@ trap 'chmod -R u+rwX "$tmp" 2>/dev/null; rm -rf "$tmp"' EXIT
 
 unset XDG_CONFIG_HOME XDG_STATE_HOME RICE_DIR RICE_APPLY_ID RICE_INSTALL_RECORD_DIR
 export CLAUDE_PLUGIN_ROOT="$PLUGIN_ROOT"
-BIN_PATH="/usr/bin:/bin"
+# Not /usr/bin: on an Arch dev box that holds a real paru, and these tests assert that NOTHING
+# is cloned, built or installed. A real helper on PATH makes every one of those assertions
+# vacuous while the suite still reports green. See hermetic_bin_path in tests/lib.sh.
+BIN_PATH="$(hermetic_bin_path "$tmp/.hermetic-bin")"
+assert_hermetic "$BIN_PATH" "no real package manager or AUR helper is reachable from this test"
 
 field() { printf '%s\n' "$2" | sed -n "s/^$1=//p" | head -n1; }
 assert_out_has() {

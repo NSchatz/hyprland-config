@@ -123,3 +123,58 @@ mktemp_test_dir() {
 section() {
     printf '\n%s── %s%s\n' "$C_DIM" "$1" "$C_RESET"
 }
+
+# ---------------------------------------------------------------------------------------------
+# `hermetic_bin_path <dir>` - build a sanitized PATH segment and echo it.
+#
+# Tests that simulate "an Arch box with no AUR helper installed" used PATH="$stub:/usr/bin:/bin".
+# On a developer's own Arch machine /usr/bin holds a REAL paru, so install-packages.sh found it,
+# and the tests asserting that nothing gets cloned or built went off and drove the real helper -
+# against the live AUR, writing into the redirected HOME's package cache. The suite was green in
+# CI (ubuntu runners have no paru) and red exactly where it most needed to be right.
+#
+# So the tools a test may reach are named, not inherited. Anything not on this list is simply
+# absent, which is what makes "no helper is installed" a fact rather than a hope.
+HERMETIC_TOOLS=(
+    bash sh env printf echo cat sed grep awk gawk date mkdir rmdir rm mv cp ln chmod
+    id uname sort head tail wc tr cut find dirname basename mktemp touch test sleep
+    stat readlink realpath tee xargs seq diff expr true false jq git python3 ls
+)
+# Package managers a test must never reach by accident. The point of most of these tests is that
+# NOTHING is installed or built; a real one on PATH turns that assertion inside out.
+HERMETIC_DENY=(paru yay pikaur trizen aurman aura yaourt pacaur pamac makepkg pacman sudo)
+
+# Extra args name tools to OMIT, for a test that needs to simulate one being absent (e.g. the
+# python bootstrap, whose whole subject is a box without python3).
+hermetic_bin_path() {
+    local d="$1"; shift
+    mkdir -p "$d"
+    local t src skip omit
+    for t in "${HERMETIC_TOOLS[@]}"; do
+        skip=0
+        for omit in "$@"; do [ "$t" = "$omit" ] && skip=1; done
+        [ "$skip" -eq 1 ] && continue
+        src="$(PATH=/usr/bin:/bin:/usr/local/bin command -v "$t" 2>/dev/null)" || continue
+        [ -n "$src" ] && ln -sf "$src" "$d/$t" 2>/dev/null
+    done
+    printf '%s' "$d"
+}
+
+# `assert_hermetic <path> <test-name>` - no package manager or AUR helper is reachable on <path>.
+# Guards the guard: if this ever passes something real through, every "nothing was installed"
+# assertion downstream becomes meaningless, so it is checked rather than assumed.
+assert_hermetic() {
+    local p="$1" name="$2" found=()
+    local h
+    for h in "${HERMETIC_DENY[@]}"; do
+        if PATH="$p" command -v "$h" >/dev/null 2>&1; then
+            found+=("$h -> $(PATH="$p" command -v "$h")")
+        fi
+    done
+    if [ "${#found[@]}" -eq 0 ]; then
+        pass "$name"
+    else
+        fail "$name" "reachable on the test PATH (must be stubbed or absent):
+$(printf '  %s\n' "${found[@]}")"
+    fi
+}
