@@ -206,22 +206,20 @@ assert_eq "$id2" "$first_listed" "AC-6: the listing is newest first"
 # one has to lead - and `show` has to keep finding it under the identifier it was given.
 s6="$tmp/s6"; store6="$s6/store"; dstub="$s6/stubs"
 mkdir -p "$dstub"
-cat > "$dstub/date" <<'STUB'
-#!/usr/bin/env bash
-if [ "${1:-}" = "+%Y%m%d-%H%M%S" ]; then printf '20260101-121212\n'; exit 0; fi
-for d in /usr/bin/date /bin/date; do [ -x "$d" ] && exec "$d" "$@"; done
-exit 127
-STUB
-chmod +x "$dstub/date"
+# Freezing the clock is how two records are forced into the SAME SECOND, which is the only way
+# to prove the ordinal suffix sorts correctly. The recorder is Python and does not shell out to
+# `date`, so the seam is RICE_STAMP_OVERRIDE (ricelib/clock.py) rather than a stubbed binary -
+# same convention as HYPR_DIR / RICE_RESTORE_DIR / RICE_INSTALL_RECORD_DIR elsewhere here.
+FROZEN="20260101-121212"
 
 o1="$(printf 'installed\tfirst-package\trepo\t\n' \
-      | RICE_INSTALL_RECORD_DIR="$store6" PATH="$dstub:$BIN_PATH" bash "$IR" record --route install.sh 2>&1)"
+      | RICE_STAMP_OVERRIDE="$FROZEN" RICE_INSTALL_RECORD_DIR="$store6" PATH="$BIN_PATH" bash "$IR" record --route install.sh 2>&1)"
 o2="$(printf 'installed\tsecond-package\trepo\t\n' \
-      | RICE_INSTALL_RECORD_DIR="$store6" PATH="$dstub:$BIN_PATH" bash "$IR" record --route package-list 2>&1)"
+      | RICE_STAMP_OVERRIDE="$FROZEN" RICE_INSTALL_RECORD_DIR="$store6" PATH="$BIN_PATH" bash "$IR" record --route package-list 2>&1)"
 same1="$(field INSTALL_RECORD_ID "$o1")"
 same2="$(field INSTALL_RECORD_ID "$o2")"
-assert_eq "20260101-121212" "$same1" "AC-6: the first record of a second is the plain timestamp"
-assert_eq "20260101-121212-01" "$same2" "AC-6: a record minted in the same second takes an ordinal that sorts after it"
+assert_eq "$FROZEN" "$same1" "AC-6: the first record of a second is the plain timestamp"
+assert_eq "$FROZEN-01" "$same2" "AC-6: a record minted in the same second takes an ordinal that sorts after it"
 lst6="$(RICE_INSTALL_RECORD_DIR="$store6" PATH="$BIN_PATH" bash "$IR" list 2>&1)"
 assert_eq "$same2" "$(printf '%s\n' "$lst6" | head -n1 | cut -f1)" \
     "AC-6: two records written in the same second still list newest first"

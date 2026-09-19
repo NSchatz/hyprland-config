@@ -26,9 +26,9 @@ import os
 import shutil
 import subprocess
 import sys
-from datetime import datetime
 
 from . import xdg
+from .clock import stamp
 
 __all__ = [
     "state_root", "state_dir", "expand", "canon", "excluded", "contains_excluded",
@@ -132,7 +132,7 @@ def new_id(env=None):
     """A fresh apply id: the timestamp every file of one apply shares. Suffixed when a point with
     that second already exists, so two applies in the same second stay separate restore points."""
     env = os.environ if env is None else env
-    base = datetime.now().strftime("%Y%m%d-%H%M%S")
+    base = stamp(env)
     store = state_dir(env)
     cand, n = base, 1
     while os.path.exists(f"{store}/{cand}") and n < 100:

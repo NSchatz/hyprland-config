@@ -59,11 +59,10 @@ S
 #!/usr/bin/env bash
 d="\$(cd "\$(dirname "\$0")" && pwd)"; printf 'pacman %s\n' "\$*" >> "\$d/.log"
 if [ "$ok" -eq 1 ]; then
-    cat > "\$d/python3" <<'P'
-#!/usr/bin/env bash
-exit 0
-P
-    chmod +x "\$d/python3"; exit 0
+    # A REAL interpreter, not a stub that exits 0. ensure-python.sh records what it installed
+    # through install-record.sh, which is Python now - a fake python3 would make the recorder a
+    # silent no-op and the "it was recorded" assertion vacuous.
+    ln -sf "$(command -v python3)" "\$d/python3"; exit 0
 fi
 exit 1
 S
