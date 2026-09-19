@@ -68,7 +68,6 @@ trap 'rm -rf "$tmp"' EXIT
 export RICE_DIR="$tmp/rice"
 mkdir -p "$RICE_DIR/profiles"
 cp "$PROFILES"/high-contrast-dark.conf "$PROFILES"/nord.conf "$RICE_DIR/profiles/"
-cp "$PLUGIN_ROOT/scripts/xdg-config.sh" "$RICE_DIR/" 2>/dev/null || true
 # render-templates.sh is invoked by the subcommand; stub it so this test grades the CLI, not the
 # renderer (which test_render_templates.sh already covers).
 printf '#!/usr/bin/env bash\nexit 0\n' > "$RICE_DIR/render-templates.sh"

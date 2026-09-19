@@ -9,37 +9,23 @@
 #   - "audio" captures the default sink/monitor as well
 # Deps: one of {wf-recorder, wl-screenrec}; slurp (region mode); wl-clipboard optional.
 # Both recorders stop cleanly on SIGINT.
-set -euo pipefail
-
-dir="${XDG_VIDEOS_DIR:-$HOME/Videos}/Recordings"
-mkdir -p "$dir"
-
-# If either recorder is already running, stop it and exit.
-for rec in wf-recorder wl-screenrec; do
-    if pgrep -x "$rec" >/dev/null 2>&1; then
-        pkill -INT -x "$rec"
-        notify-send "Recording" "Stopped" 2>/dev/null || true
-        exit 0
-    fi
+#
+# THE IMPLEMENTATION IS PYTHON (scripts/ricelib/desktop/helpers.py, action: screenrecord). Installed
+# beside the engine by rice-init.sh, so it keeps working with the plugin removed.
+set -uo pipefail
+here="$(cd "$(dirname "$0")" && pwd)"
+libdir=""
+for c in "$here" "$here/../../../../scripts" "${CLAUDE_PLUGIN_ROOT:-}/scripts" "${RICE_DIR:-}"; do
+    if [ -n "$c" ] && [ -f "$c/ricelib/__init__.py" ]; then libdir="$(cd "$c" && pwd)"; break; fi
 done
-
-mode="${1:-region}"
-audio="${2:-}"
-file="$dir/$(date +%Y-%m-%d_%H-%M-%S).mp4"
-
-if command -v wf-recorder >/dev/null 2>&1; then
-    args=(-f "$file")
-    [ "$mode" = "region" ] && args+=(-g "$(slurp)")
-    [ "$audio" = "audio" ] && args+=(--audio)
-    wf-recorder "${args[@]}" &
-elif command -v wl-screenrec >/dev/null 2>&1; then
-    args=(-f "$file")
-    [ "$mode" = "region" ] && args+=(-g "$(slurp)")
-    [ "$audio" = "audio" ] && args+=(--audio)
-    wl-screenrec "${args[@]}" &
-else
-    notify-send "Recording" "Install wf-recorder (or wl-screenrec)" 2>/dev/null || true
-    exit 1
+if [ -z "$libdir" ]; then
+    command -v notify-send >/dev/null 2>&1 && notify-send "rice" "ricelib not found - re-run rice-init.sh"
+    echo "ERROR: the ricelib package was not found next to $0, in \$CLAUDE_PLUGIN_ROOT/scripts, or in \$RICE_DIR." >&2
+    exit 2
 fi
-
-notify-send "Recording" "Started → $(basename "$file")" 2>/dev/null || true
+if ! command -v python3 >/dev/null 2>&1; then
+    command -v notify-send >/dev/null 2>&1 && notify-send "rice" "python3 is not installed"
+    echo "ERROR: python3 is required and is not installed (sudo pacman -S --needed python)." >&2
+    exit 2
+fi
+PYTHONPATH="$libdir${PYTHONPATH:+:$PYTHONPATH}" exec python3 -m ricelib.desktop.helpers screenrecord "$@"

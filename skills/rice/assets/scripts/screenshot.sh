@@ -5,39 +5,23 @@
 #   - "edit" opens an annotator (satty, else swappy) before saving
 # Prefers grimblast > hyprshot > grim+slurp, using whatever is installed.
 # Deps: one of {grimblast, hyprshot, grim+slurp}; wl-clipboard; (jq for window mode w/ grim).
-set -euo pipefail
-
-mode="${1:-region}"      # region | window | output(full)
-annotate="${2:-}"        # "edit" to open an annotator
-dir="${XDG_PICTURES_DIR:-$HOME/Pictures}/Screenshots"
-mkdir -p "$dir"
-file="$dir/$(date +%Y-%m-%d_%H-%M-%S).png"
-
-if command -v grimblast >/dev/null 2>&1; then
-    case "$mode" in
-        window) grimblast save active "$file" ;;
-        output) grimblast save output "$file" ;;
-        *)      grimblast save area   "$file" ;;
-    esac
-elif command -v hyprshot >/dev/null 2>&1; then
-    case "$mode" in
-        window) m=window ;; output) m=output ;; *) m=region ;;
-    esac
-    hyprshot -m "$m" -o "$dir" -f "$(basename "$file")" -s
-else
-    case "$mode" in
-        window) grim -g "$(hyprctl activewindow -j \
-                    | jq -r '"\(.at[0]),\(.at[1]) \(.size[0])x\(.size[1])"')" "$file" ;;
-        output) grim "$file" ;;
-        *)      grim -g "$(slurp)" "$file" ;;
-    esac
+#
+# THE IMPLEMENTATION IS PYTHON (scripts/ricelib/desktop/helpers.py, action: screenshot). Installed
+# beside the engine by rice-init.sh, so it keeps working with the plugin removed.
+set -uo pipefail
+here="$(cd "$(dirname "$0")" && pwd)"
+libdir=""
+for c in "$here" "$here/../../../../scripts" "${CLAUDE_PLUGIN_ROOT:-}/scripts" "${RICE_DIR:-}"; do
+    if [ -n "$c" ] && [ -f "$c/ricelib/__init__.py" ]; then libdir="$(cd "$c" && pwd)"; break; fi
+done
+if [ -z "$libdir" ]; then
+    command -v notify-send >/dev/null 2>&1 && notify-send "rice" "ricelib not found - re-run rice-init.sh"
+    echo "ERROR: the ricelib package was not found next to $0, in \$CLAUDE_PLUGIN_ROOT/scripts, or in \$RICE_DIR." >&2
+    exit 2
 fi
-
-if [ "$annotate" = "edit" ]; then
-    if   command -v satty  >/dev/null 2>&1; then satty  --filename "$file" --output-filename "$file"
-    elif command -v swappy >/dev/null 2>&1; then swappy -f "$file" -o "$file"
-    fi
+if ! command -v python3 >/dev/null 2>&1; then
+    command -v notify-send >/dev/null 2>&1 && notify-send "rice" "python3 is not installed"
+    echo "ERROR: python3 is required and is not installed (sudo pacman -S --needed python)." >&2
+    exit 2
 fi
-
-if [ -f "$file" ] && command -v wl-copy >/dev/null 2>&1; then wl-copy < "$file"; fi
-notify-send "Screenshot" "Saved & copied — $(basename "$file")" -i "$file" 2>/dev/null || true
+PYTHONPATH="$libdir${PYTHONPATH:+:$PYTHONPATH}" exec python3 -m ricelib.desktop.helpers screenshot "$@"

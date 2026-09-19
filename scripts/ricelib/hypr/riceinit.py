@@ -23,7 +23,7 @@ from .. import xdg
 PLUGIN_SCRIPTS = [
     ("restore-point.sh", True), ("rice-restore.sh", True), ("backup-path.sh", True),
     ("install-record.sh", True), ("install-packages.sh", True), ("firefox-prefs.sh", True),
-    ("xdg-config.sh", True), ("ensure-python.sh", True),
+    ("ensure-python.sh", True),
 ]
 RICE_SCRIPTS = [
     ("render-templates.sh", True), ("set-wallpaper.sh", True),

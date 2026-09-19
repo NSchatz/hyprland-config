@@ -436,10 +436,13 @@ fi
 # rp_state_root): a second spelling is how a record gets written where `rice installs` and
 # `rice prefs` do not look. One scan, both bases, so neither can drift unnoticed.
 # =============================================================================================
+# `.py` is in scope now: the decision moved to scripts/ricelib/xdg.py, so a second spelling
+# would hide there rather than in a .sh. ricelib/xdg.py IS the decision and is excluded, the
+# way scripts/xdg-config.sh was before it.
 mapfile -t shipped < <(
-    find "$PLUGIN_ROOT" -type f \( -name '*.sh' -o -name 'rice' \) \
-        -not -path '*/tests/*' -not -path '*/.git/*' \
-        -not -path '*/scripts/xdg-config.sh' \
+    find "$PLUGIN_ROOT" -type f \( -name '*.sh' -o -name '*.py' -o -name 'rice' \) \
+        -not -path '*/tests/*' -not -path '*/.git/*' -not -path '*/__pycache__/*' \
+        -not -path '*/scripts/ricelib/xdg.py' \
     | sort
 )
 scan_base() {   # <extended-regex> -> every unmarked, non-comment hit, one per line

@@ -41,9 +41,12 @@ __all__ = [
 
 def state_root(env=None):
     """The base every durable state surface hangs off - restore points, the install record, the
-    browser-preference record. One answer in one place, for the same reason xdg is: a second
-    spelling of `$HOME/.local/state` is how a record gets written where nothing later reads it.
-    $XDG_STATE_HOME is the XDG base directory for state; `$HOME/.local/state` is its default."""
+    browser-preference record. One answer in one place, for the same reason xdg.py is: a second
+    spelling of the state root is how a record gets written where nothing later reads it.
+
+    $XDG_STATE_HOME is the XDG base directory for state, and the specification's default for it
+    is the `.local/state` directory under the user's home. That default is resolved on the line
+    below and nowhere else in this package."""
     env = os.environ if env is None else env
     base = env.get("XDG_STATE_HOME") or f"{env.get('HOME', '')}/.local/state"
     return f"{base}/hypr-rice"

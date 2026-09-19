@@ -1,8 +1,24 @@
 #!/usr/bin/env bash
 # Screen color picker: eyedropper a pixel, copy its hex to the clipboard.
 # Deps: hyprpicker, wl-clipboard.
-set -euo pipefail
-
 # -a copies to clipboard automatically; -f hex sets the format; also prints to stdout.
-color="$(hyprpicker -a -f hex 2>/dev/null || true)"
-[ -n "${color:-}" ] && notify-send "Color picker" "Copied $color" 2>/dev/null || true
+#
+# THE IMPLEMENTATION IS PYTHON (scripts/ricelib/desktop/helpers.py, action: colorpicker). Installed
+# beside the engine by rice-init.sh, so it keeps working with the plugin removed.
+set -uo pipefail
+here="$(cd "$(dirname "$0")" && pwd)"
+libdir=""
+for c in "$here" "$here/../../../../scripts" "${CLAUDE_PLUGIN_ROOT:-}/scripts" "${RICE_DIR:-}"; do
+    if [ -n "$c" ] && [ -f "$c/ricelib/__init__.py" ]; then libdir="$(cd "$c" && pwd)"; break; fi
+done
+if [ -z "$libdir" ]; then
+    command -v notify-send >/dev/null 2>&1 && notify-send "rice" "ricelib not found - re-run rice-init.sh"
+    echo "ERROR: the ricelib package was not found next to $0, in \$CLAUDE_PLUGIN_ROOT/scripts, or in \$RICE_DIR." >&2
+    exit 2
+fi
+if ! command -v python3 >/dev/null 2>&1; then
+    command -v notify-send >/dev/null 2>&1 && notify-send "rice" "python3 is not installed"
+    echo "ERROR: python3 is required and is not installed (sudo pacman -S --needed python)." >&2
+    exit 2
+fi
+PYTHONPATH="$libdir${PYTHONPATH:+:$PYTHONPATH}" exec python3 -m ricelib.desktop.helpers colorpicker "$@"
