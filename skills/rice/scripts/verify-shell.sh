@@ -13,6 +13,9 @@
 # Exit: 0 ok, 1 errors, 2 skipped/usage.
 #
 # THE IMPLEMENTATION IS PYTHON (scripts/ricelib/hypr/verifyshell.py).
+#
+# THE IMPLEMENTATION IS PYTHON (scripts/ricelib/hypr/verifyshell.py). This file locates
+# the package and hands off; the name is the interface every caller, doc and test uses.
 set -uo pipefail
 here="$(cd "$(dirname "$0")" && pwd)"
 libdir=""

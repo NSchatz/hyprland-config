@@ -13,7 +13,7 @@ import shutil
 import sys
 
 from .. import xdg
-from ..clock import stamp
+from ..clock import unique_backup
 
 
 def main(argv):
@@ -35,7 +35,7 @@ def main(argv):
         print("BACKUP=none (no existing config to back up)")
         return 0
 
-    backup = f"{target}.bak.{stamp()}"
+    backup = unique_backup(target)
     try:
         shutil.copytree(target, backup, symlinks=True, dirs_exist_ok=False)
     except (OSError, shutil.Error):

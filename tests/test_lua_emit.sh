@@ -191,7 +191,8 @@ else
     fail "AC-12: the published window is stated in too few places" "found ${#window_files[@]}, expected at least 3"
 fi
 
-assert_grep '1 - 2 releases starting from' "$langsh" \
+# The window lives in the Python module now; the .sh is a dispatcher over it.
+assert_grep '1 - 2 releases starting from' "$PLUGIN_ROOT/scripts/ricelib/hypr/configlang.py" \
     "AC-12: the language resolver carries the published window"
 range_out="$(bash "$langsh" --range hyprlang 2>&1)"
 case "$range_out" in

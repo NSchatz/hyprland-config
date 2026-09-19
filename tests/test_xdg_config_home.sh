@@ -307,7 +307,8 @@ assert_absent "$x/.cache" "AC-7: no cache tree appeared beneath XDG_CONFIG_HOME"
 
 # The one script that SETS XDG_CONFIG_HOME (preflight's throwaway sandbox) is out of this
 # phase's scope and must stay a sandbox assignment, never a read of the user's value.
-if grep -q 'XDG_CONFIG_HOME="\$sandbox_home/.config"' "$RS/preflight-config.sh"; then
+# The sandbox assignment lives in the Python module now; the .sh is a dispatcher over it.
+if grep -q 'XDG_CONFIG_HOME.*sandbox_home' "$PLUGIN_ROOT/scripts/ricelib/hypr/preflightconfig.py"; then
     pass "AC-7: preflight's sandbox assignment is untouched (it configures a check, it is not a read)"
 else
     fail "AC-7: preflight's sandbox assignment is untouched" "preflight-config.sh no longer sets XDG_CONFIG_HOME for its sandbox"

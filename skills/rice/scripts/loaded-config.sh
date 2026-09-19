@@ -25,6 +25,9 @@
 #       loaded config could not be established.
 #
 # THE IMPLEMENTATION IS PYTHON (scripts/ricelib/hypr/loadedconfig.py).
+#
+# THE IMPLEMENTATION IS PYTHON (scripts/ricelib/hypr/loadedconfig.py). This file locates
+# the package and hands off; the name is the interface every caller, doc and test uses.
 set -uo pipefail
 here="$(cd "$(dirname "$0")" && pwd)"
 libdir=""

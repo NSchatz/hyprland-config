@@ -42,3 +42,24 @@ def iso_utc(env=None):
         d, t = override.split("-")
         return f"{d[0:4]}-{d[4:6]}-{d[6:8]}T{t[0:2]}:{t[2:4]}:{t[4:6]}Z"
     return datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
+
+
+def unique_backup(target, env=None):
+    """`<target>.bak.<stamp>`, with a zero-padded ordinal when that name is already taken.
+
+    Two backups of the same directory inside one second are ordinary, not a corner: a reset runs
+    straight after a backup, and both finish well inside a second. The bash this replaced used
+    `cp -a` into the colliding name, which copies INTO the existing backup instead of beside it -
+    so the second backup ended up nested inside the first and neither was what it claimed to be.
+
+    Same rule as restore-point ids and install-record ids: the ordinal is padded so `-02` sorts
+    after `-01` as text."""
+    import os
+    base = f"{target}.bak.{stamp(env)}"
+    if not os.path.lexists(base):
+        return base
+    for n in range(1, 100):
+        cand = f"{base}-{n:02d}"
+        if not os.path.lexists(cand):
+            return cand
+    return base

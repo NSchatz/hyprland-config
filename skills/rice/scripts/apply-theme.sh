@@ -9,6 +9,9 @@
 # Prints RELOAD_<app>=ok|skipped lines.
 #
 # THE IMPLEMENTATION IS PYTHON (scripts/ricelib/hypr/applytheme.py).
+#
+# THE IMPLEMENTATION IS PYTHON (scripts/ricelib/hypr/applytheme.py). This file locates
+# the package and hands off; the name is the interface every caller, doc and test uses.
 set -uo pipefail
 here="$(cd "$(dirname "$0")" && pwd)"
 libdir=""

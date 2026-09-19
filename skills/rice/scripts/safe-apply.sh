@@ -67,154 +67,21 @@
 #                                     HYPR_DIR, no absolute XDG_CONFIG_HOME, no HOME.
 #                                     CONFIG_DIR=unresolved is printed and nothing is
 #                                     checked, backed up or written.
+#
+# THE IMPLEMENTATION IS PYTHON (scripts/ricelib/hypr/safeapply.py). This file locates
+# the package and hands off; the name is the interface every caller, doc and test uses.
 set -uo pipefail
-
-staging="${1:-}"
-if [ -z "$staging" ]; then
-    echo "ERROR: usage: safe-apply.sh <staging-dir>" >&2
-    exit 2
-fi
-
 here="$(cd "$(dirname "$0")" && pwd)"
-# shellcheck source=config-language.sh
-source "$here/config-language.sh"
-_xdg_lib=""
-for _c in "$here/xdg-config.sh" \
-          "$here/../../../scripts/xdg-config.sh" \
-          "${CLAUDE_PLUGIN_ROOT:-}/scripts/xdg-config.sh"; do
-    if [ -n "$_c" ] && [ -f "$_c" ]; then _xdg_lib="$_c"; break; fi
+libdir=""
+for c in "$here" "$here/../../../scripts" "${CLAUDE_PLUGIN_ROOT:-}/scripts" "${RICE_DIR:-}"; do
+    if [ -n "$c" ] && [ -f "$c/ricelib/__init__.py" ]; then libdir="$(cd "$c" && pwd)"; break; fi
 done
-if [ -z "$_xdg_lib" ]; then
-    echo "ERROR: the config-path library (scripts/xdg-config.sh) was not found next to $0, in \$CLAUDE_PLUGIN_ROOT/scripts, or in the plugin. Refusing to guess where your config lives." >&2
+if [ -z "$libdir" ]; then
+    echo "ERROR: the ricelib package was not found next to $0, in \$CLAUDE_PLUGIN_ROOT/scripts, or in \$RICE_DIR." >&2
     exit 2
 fi
-# shellcheck source=../../../scripts/xdg-config.sh
-. "$_xdg_lib"
-
-# The SAME resolution install-config.sh, backup-config.sh and reset-config.sh use. This is
-# the file where a split would be lethal: a rollback that restores into a different
-# directory from the one the backup came out of has no inverse.
-if ! xdg_config_target hypr "${HYPR_DIR:-}"; then
-    echo "SAFE_APPLY=no-config-dir (nothing was checked, backed up or written)"
+if ! command -v python3 >/dev/null 2>&1; then
+    echo "ERROR: python3 is required and is not installed (sudo pacman -S --needed python)." >&2
     exit 2
 fi
-target="$XDG_CONFIG_TARGET"
-
-# 0. Removed keys: a STATIC read of the staged files against the version-cliff
-#    ledger. First, and deliberately independent of everything below it - it needs
-#    no compositor, so a host that can only report `preflight-unverified` still gets
-#    a real verdict here. An unknown target version is NOT a refusal: whether a key
-#    is removed depends entirely on the target, so with no target the check reports
-#    that it reached no verdict and the apply carries on to the nets that do not
-#    need one. Refusing there would lock a user out of applying their own config.
-rk_out="$(bash "$here/validate-removed-keys.sh" "$staging" 2>&1)"
-rkrc=$?
-printf '%s\n' "$rk_out"
-if [ "$rkrc" -eq 1 ]; then
-    echo "Nothing was installed and nothing was backed up; ${target} is untouched."
-    echo "SAFE_APPLY=removed-keys-failed (the staged config sets a key removed at the target version)"
-    exit 2
-fi
-if [ "$rkrc" -eq 3 ]; then
-    echo "The removed-key check reached NO verdict (the target version is unknown); the checks below do not depend on one."
-fi
-
-# 0b. Preflight: the compositor's own offline check, against the STAGED files.
-#    Nothing below this point runs until it says the config is worth installing.
-#    A host with no offline check available reports `unverified` and falls through
-#    to the install/live-test/rollback path with its behaviour unchanged - that is
-#    the pre-existing net, not a new one.
-preflight_out="$(bash "$here/preflight-config.sh" "$staging" 2>&1)"
-prc=$?
-printf '%s\n' "$preflight_out"
-case "$prc" in
-    0|2) ;;
-    1)
-        echo "Nothing was installed and nothing was backed up; ${target} is untouched."
-        echo "SAFE_APPLY=preflight-failed (the offline check found errors in the staged config)"
-        exit 2 ;;
-    *)
-        echo "Nothing was installed and nothing was backed up; ${target} is untouched."
-        echo "SAFE_APPLY=preflight-uncheckable (the offline check could not be run against the staged config)"
-        exit 2 ;;
-esac
-
-# 1. Install (also prints BACKUP=, TARGET=, CONFIG_LANGUAGE=, INSTALLED=...).
-install_out="$(bash "$here/install-config.sh" "$staging" 2>&1)"
-irc=$?
-if [ "$irc" -ne 0 ]; then
-    printf '%s\n' "$install_out"
-    # 3 and 4 are install-config.sh's REFUSALS: it declined before changing
-    # anything. Never let that read as an ordinary failure, and never as ok.
-    if [ "$irc" -eq 3 ] || [ "$irc" -eq 4 ]; then
-        echo "SAFE_APPLY=refused (install-config.sh declined; nothing was changed)"
-        exit 2
-    fi
-    echo "SAFE_APPLY=install-failed"
-    exit 2
-fi
-printf '%s\n' "$install_out"
-
-backup="$(printf '%s\n' "$install_out" | sed -n 's/^BACKUP=//p' | head -n1)"
-
-# The file we just wrote, which is the file the compositor now has to prove it read.
-installed_lang="$(printf '%s\n' "$install_out" | sed -n 's/^CONFIG_LANGUAGE=//p' | head -n1)"
-installed_target="$(printf '%s\n' "$install_out" | sed -n 's/^TARGET=//p' | head -n1)"
-[ -n "$installed_target" ] || installed_target="$target"
-installed_main=""
-if [ -n "$installed_lang" ] && main_name="$(config_lang_file "$installed_lang")"; then
-    installed_main="${installed_target}/${main_name}"
-fi
-
-# 2. Live-test. Capture the exit code explicitly (don't rely on $? after `if`).
-#    --expect makes `ok` mean "the compositor says it loaded THIS file", not
-#    "the compositor declined to complain".
-if [ -n "$installed_main" ]; then
-    verify_out="$(bash "$here/verify-config.sh" --expect "$installed_main")"
-else
-    verify_out="$(bash "$here/verify-config.sh")"
-fi
-vrc=$?
-printf '%s\n' "$verify_out"
-
-if [ "$vrc" -eq 0 ]; then
-    echo "SAFE_APPLY=ok"
-    exit 0
-fi
-if [ "$vrc" -eq 2 ]; then
-    # No running instance => cannot live-test; leave installed.
-    echo "SAFE_APPLY=installed-untested (no running Hyprland; relied on static validation)"
-    exit 0
-fi
-if [ "$vrc" -eq 3 ]; then
-    # Installed cleanly, but the running compositor is not reading it. Rolling back
-    # would be wrong - the config is not the thing that is broken - and reporting ok
-    # would be a success message for a change that never reached the compositor.
-    echo "The file above is what the compositor loaded; ${installed_main} is on disk but is not what is running."
-    echo "SAFE_APPLY=unconfirmed (installed with no parse errors, but the compositor did not confirm it loaded it)"
-    exit 1
-fi
-
-# 3. vrc == 1 => parse errors => roll back to the backup if we have a real one.
-case "$backup" in
-    /*)
-        if [ -d "$backup" ]; then
-            # Restore WITHOUT emptying the target dir. A running Hyprland regenerates a STUB
-            # hyprland.conf the instant the config dir goes empty, which races `rm -rf` (causing a
-            # "Directory not empty" failure) and leaves a nested-backup / stub mess. Instead:
-            # overwrite every backup file back over the target, then prune only the files the failed
-            # config ADDED (present in target, absent in backup). The dir is never empty.
-            cp -a "$backup/." "$target/"
-            ( cd "$target" && find . \( -type f -o -type l \) -print ) | while IFS= read -r f; do
-                [ -e "$backup/$f" ] || rm -f "$target/$f"
-            done
-            bash "$here/verify-config.sh" >/dev/null 2>&1 || true   # reload the restored config
-            echo "SAFE_APPLY=rolled-back (new config had errors; restored $backup)"
-            exit 1
-        fi
-        ;;
-esac
-
-echo "SAFE_APPLY=errors-no-backup (new config has parse errors; no backup existed to restore)"
-echo "Inspect $target and fix, or remove the generated files."
-exit 1
+PYTHONPATH="$libdir${PYTHONPATH:+:$PYTHONPATH}" exec python3 -m ricelib.hypr.safeapply "$@"

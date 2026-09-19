@@ -29,6 +29,9 @@
 # plugin just wrote, or an instance started with `-c` somewhere else. Reading that
 #
 # THE IMPLEMENTATION IS PYTHON (scripts/ricelib/hypr/verifyconfig.py).
+#
+# THE IMPLEMENTATION IS PYTHON (scripts/ricelib/hypr/verifyconfig.py). This file locates
+# the package and hands off; the name is the interface every caller, doc and test uses.
 set -uo pipefail
 here="$(cd "$(dirname "$0")" && pwd)"
 libdir=""
