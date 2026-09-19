@@ -288,13 +288,21 @@ proc_reap() {
 }
 
 # --- AC12: the restore itself is interrupted partway through --------------------------------
-# app2's target is turned into a FIFO after the apply, so the copy back blocks forever there:
-# a deterministic stand-in for the host dying mid-restore. The run is killed once it has put the
+# app2's BACKUP is turned into a FIFO after the apply, so reading it back blocks forever: a
+# deterministic stand-in for the host dying mid-restore. The run is killed once it has put the
 # first file back, then re-invoked.
+#
+# The block is on the BACKUP (read) side, not the target (write) side, and that is deliberate.
+# Blocking on a FIFO *target* used to work because `cp -a` opens the destination and writes INTO
+# it rather than replacing it - which also means a restore over a FIFO target left a FIFO behind
+# instead of the file that was backed up. The restore now unlinks the target first, which is what
+# "put it back the way it was" has to mean, so that hang no longer happens. AC12b below pins the
+# fix; this scenario just needs something that genuinely blocks.
 seed_apply apply-int
-rm -f "$HOME/.config/app2/colors.conf"
-mkfifo "$HOME/.config/app2/colors.conf" 2>/dev/null
-if [ ! -p "$HOME/.config/app2/colors.conf" ]; then
+_bk="$HOME/.config/app2/colors.conf.bak.apply-int"
+rm -f "$_bk"
+mkfifo "$_bk" 2>/dev/null
+if [ ! -p "$_bk" ]; then
     skip "AC12: interrupted restore" "could not create a FIFO to block the restore on"
 else
     # A canary deliberately left in the process group of the shell running tests/run.sh - the one
@@ -344,7 +352,11 @@ else
     else
         fail "AC12: the file restored before the interruption is intact" "app1 differs from its prior state"
     fi
-    rm -f "$HOME/.config/app2/colors.conf"   # the blocking FIFO goes away with the crash
+    # The blocking FIFO goes away with the crash: put app2's real backup back, so the re-run has
+    # something to restore FROM. (The FIFO stood in for a host that died mid-copy; a real host
+    # coming back up still has its .bak sidecar.)
+    rm -f "$_bk"
+    cp -a "$tmp/orig/app2" "$_bk"
     iout="$(bash "$RESTORE" apply-int 2>&1)"; irc=$?
     assert_eq "0" "$irc" "AC12: re-invoking the same identifier runs to completion"
     if printf '%s\n' "$iout" | grep -q "^ALREADY_RESTORED $HOME/.config/app1/colors.conf"; then
@@ -472,4 +484,29 @@ if [ -z "$unmarked" ]; then
     pass "boundary: every mention of that directory sits in the marked exclusion guard"
 else
     fail "boundary: every mention of that directory sits in the marked exclusion guard" "$unmarked"
+fi
+
+# --- AC12b: a restore REPLACES the target, whatever the target currently is ---------------------
+# `cp -a <backup> <target>` opens the destination and writes INTO it rather than replacing it. On
+# a regular file that is indistinguishable from replacing it; on a FIFO it blocks forever, and on
+# anything else non-regular it leaves the wrong kind of thing behind wearing the right bytes. A
+# restore's contract is "put it back the way it was", so the target is unlinked first.
+seed_apply apply-fifo
+rm -f "$HOME/.config/app2/colors.conf"
+if mkfifo "$HOME/.config/app2/colors.conf" 2>/dev/null; then
+    fout="$(timeout 20 bash "$RESTORE" apply-fifo 2>&1)"; frc=$?
+    assert_eq "0" "$frc" "AC12b: a restore over a FIFO target completes instead of blocking"
+    if [ -f "$HOME/.config/app2/colors.conf" ] && [ ! -p "$HOME/.config/app2/colors.conf" ]; then
+        pass "AC12b: the FIFO was REPLACED by a regular file, not written into"
+    else
+        fail "AC12b: the FIFO was REPLACED by a regular file, not written into" \
+            "$(ls -l "$HOME/.config/app2/colors.conf" 2>&1)"
+    fi
+    if cmp -s "$HOME/.config/app2/colors.conf" "$tmp/orig/app2"; then
+        pass "AC12b: and it holds the backed-up content"
+    else
+        fail "AC12b: and it holds the backed-up content" "$fout"
+    fi
+else
+    skip "AC12b: restore over a non-regular target" "could not create a FIFO"
 fi
