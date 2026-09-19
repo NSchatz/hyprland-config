@@ -252,6 +252,11 @@ Agent tool calls), passing each:
 - `STAGING=<staging>` (each writer respects the `_shell/<app>/` layout)
 - `HYPR_VERSION=<x.y.z>`
 
+**Multi-tool surfaces are sharded by tool** (`launcher`, `notifications`, `terminal`, `widgets`):
+the writer reads that component's `common.md` plus the ONE `tools/<tool>.md` its pick names, never
+the siblings. That is the difference between a writer reading ~10k tokens about the tool it is
+writing and ~27k about five tools it is not. The component `README.md` holds the routing table.
+
 Each writer reads only its own recipe, fills it, validates the output (waybar JSON parse, balanced
 braces, no deprecations), and returns `COMPONENT=…` + `VALIDATED=yes|failed`. Aggregate the reports;
 on any `VALIDATED=failed`, re-spawn just that writer with the failure reason. The same approach
@@ -279,14 +284,14 @@ The per-surface notes the writers follow:
   (A5) so they know the batch will be slow.
 - **Launcher** (`launcher`): `wofi/config` + `wofi/style.css` (`@import "colors.css";`), or
   `rofi/config.rasi` (+ a theme that `@import`s `colors.rasi`), or fuzzel/tofi `.ini` — per the chosen
-  tool/mode/layout, recipe in `components/launcher/template.md`.
+  tool/mode/layout, recipe in `components/launcher/common.md` + the one `tools/<tool>.md`.
 - **Notifications** (`notifications`): `mako/config` / `dunst/dunstrc` / `swaync/config.json`+
   `style.css` — per the chosen daemon/position/timeout/behavior (recipe in
-  `components/notifications/template.md`). Leave color keys to the engine (don't hardcode hex). Skip
+  `components/notifications/common.md` + the one `tools/<daemon>.md`). Leave color keys to the engine (don't hardcode hex). Skip
   if a full widget shell owns notifications — only one daemon can hold the D-Bus name.
 - **Terminal** (`terminal`): the emulator's config (e.g. `kitty/kitty.conf`, `alacritty/alacritty.toml`,
   `foot/foot.ini`) with opacity/padding/cursor/font-size from the interview (recipe in
-  `components/terminal/template.md`), including its colors file the engine themes
+  `components/terminal/common.md` + the one `tools/<emulator>.md`), including its colors file the engine themes
   (`include`/`source`).
 
 Keep module on-clicks aligned to installed tools (network → `nm-connection-editor`, audio →

@@ -240,7 +240,7 @@ that commit (~v0.50+; certainly the current Arch package), the flag works and re
 `layerrule = blur, walker` block. On older Hyprland it silently no-ops — walker's flag and
 Hyprland's `layerrule = blur, walker` are the **only two** routes to a blurred walker, and
 this is the only place the version cliff matters for companion daemons. Not owned here (it's
-a launcher-component concern, see `../launcher/gotchas.md`) but flagged here because the
+a launcher-component concern, see `../launcher/`) but flagged here because the
 batch-1 finding incorrectly framed the path as compositor-independent.
 
 ## Adjacent daemon: `wl-clip-persist` keeps cliphist alive after the source app quits

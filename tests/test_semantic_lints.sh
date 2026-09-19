@@ -28,7 +28,9 @@ else
 fi
 
 # --- defect #4 — rofi theme has the required global `*` + full element-state matrix ---
-launcher="$rice_refs/components/launcher/template.md"
+# Sharded by tool: the rofi recipe (template + validation + gotchas + styling + reload) lives in
+# the one self-contained rofi file now.
+launcher="$rice_refs/components/launcher/tools/rofi.md"
 required=(
     '^\* \{'
     'mainbox'
@@ -56,13 +58,13 @@ else
 fi
 
 # Validator lint mirror — launcher/validation.md must enforce the same set.
-val="$rice_refs/components/launcher/validation.md"
+val="$rice_refs/components/launcher/tools/rofi.md"
 if grep -qE 'element selected\.active' "$val" \
    && grep -qE 'element alternate\.normal' "$val" \
    && grep -qE 'element normal\.urgent' "$val"; then
-    pass "defect #4: launcher validation.md lints the full 9-state matrix"
+    pass "defect #4: launcher tools/rofi.md lints the full 9-state matrix"
 else
-    fail "defect #4: launcher validation.md does not enforce the element-state matrix"
+    fail "defect #4: launcher tools/rofi.md does not enforce the element-state matrix"
 fi
 
 # --- defect #8 — no literal `exec-once = swww-daemon` / `exec-once = awww-daemon` in any

@@ -173,7 +173,7 @@ indicator inherits that palette**. The rice's coherence depends on it. The wayba
 
 This component does **not** own OSD routing — `../utilities/` owns the question and the
 schema key (`utilities.osd_route`); `../keybinds/template.md` dispatches the
-volume/brightness keybinds against the chosen route; `../notifications/template.md` emits
+volume/brightness keybinds against the chosen route; `../notifications/` emits
 the `[app-name=OSD]` block when `osd_route == "notification"`; `../autostart/template.md`
 launches `swayosd-server` when `osd_route == "swayosd"`. The laptop component just calls
 out (here, and in § k) that the user's `power_tool` and `lid_action` picks compose with

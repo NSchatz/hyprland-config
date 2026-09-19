@@ -3,7 +3,7 @@
 Only one surface in this component is visually themed: **wlogout**. The screenshot/screen-record/OCR
 /color-picker/clipboard/emoji/calculator/wifi/bluetooth/night-light entries are functional shell
 binds — they have no `style.css` of their own. Themed pickers (rofi power menu, rofi clipboard
-prompt) live under `components/launcher/styling.md`.
+prompt) live under `components/launcher/`.
 
 If a future researcher adds a daemon with a visible surface (e.g. `swayosd` did not appear in any
 top corpus rice during the 2026-06 sweep — see `gotchas.md`), append a new section here rather

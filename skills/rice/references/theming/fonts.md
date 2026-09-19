@@ -18,7 +18,7 @@ size — see [`_shared/palette-schema.md`](../_shared/palette-schema.md) → "Me
 
 > A rice's **terminal monospace** is an *independent* pick from `font_mono`: the rice writes
 > `font_mono` into the bar, prompt, notifications, and widgets; the terminal emulator's own
-> `font_family` (`components/terminal/template.md`) is whatever the user chose for ANSI text and
+> `font_family` (`components/terminal/`) is whatever the user chose for ANSI text and
 > may differ (e.g. JetBrains Mono NF in the bar but Maple Mono NF in kitty per `Matt-FTW/dotfiles`).
 > Most rices use one mono everywhere for coherence — but the contract allows the split.
 

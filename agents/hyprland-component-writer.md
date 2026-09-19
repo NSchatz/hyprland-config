@@ -38,13 +38,22 @@ your component — `template.md` is always there; `gotchas.md`, `styling.md`, `v
 
 - Hyprland topic files (env / monitors / input / look-feel / keybinds / window-rules / autostart /
   companion-daemons) → `components/<topic>/{template,gotchas}.md`
+**Components that support several tools are SHARDED BY TOOL.** For those, read `common.md`
+**plus the ONE** `tools/<tool>.md` that matches the pick in your `ANSWERS` slice - and **no other
+file in `tools/`**. Those other files describe tools the user did not choose; reading them is how
+a recipe gets skimmed rather than followed. Each component's `README.md` carries the routing
+table if you are unsure which key selects the tool.
+
+| Surface | Read | Tool key in `ANSWERS` |
+|---|---|---|
+| launcher | `components/launcher/common.md` + `tools/<tool>.md` | `launcher.tool` |
+| notifications | `components/notifications/common.md` + `tools/<tool>.md` | `notifications.daemon` |
+| terminal | `components/terminal/common.md` + `tools/<tool>.md` | `terminal.emulator` |
+| widgets | `components/widgets/common.md` + `tools/<system>.md` | `widgets.system` |
+
+Single-tool surfaces keep the flat layout:
+
 - waybar → `components/waybar/{template,gotchas,styling,validation,reload}.md`
-- launcher (wofi / rofi / fuzzel / tofi / walker / vicinae / anyrun) →
-  `components/launcher/{template,gotchas,styling,validation,reload}.md`
-- notifications (mako / dunst / swaync) →
-  `components/notifications/{template,gotchas,styling,validation,reload}.md`
-- terminal (kitty / alacritty / foot / wezterm / ghostty) →
-  `components/terminal/{template,gotchas,styling,reload}.md`
 - lock screen (hyprlock) →
   `components/lock-screen/{template,gotchas,styling,validation,packages,reload}.md`
 - widgets (eww / AGS / Quickshell / HyprPanel / turnkey) → **sharded by tool**:

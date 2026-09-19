@@ -8,18 +8,34 @@ The launcher's invocation is exported as `$menu` in `hyprland.conf` (and `$dmenu
 The bind that fires it (`bind = $mainMod, R, exec, $menu`) lives in `components/keybinds/` — this
 component just defines the variable and ships the themed config.
 
-## Files in this folder
+## What to read - read TWO files, not the folder
+
+This component supports 7 tools, and a writer only ever authors for the one the interview
+picked. Reading the others is what makes a recipe get skimmed instead of read.
+
+**Read `common.md`, plus the ONE `tools/<tool>.md` matching `launcher.tool`. Nothing else.**
+
+| `launcher.tool` | Read |
+|---|---|
+| `wofi` | `common.md` + [`tools/wofi.md`](tools/wofi.md) |
+| `rofi` | `common.md` + [`tools/rofi.md`](tools/rofi.md) |
+| `fuzzel` | `common.md` + [`tools/fuzzel.md`](tools/fuzzel.md) |
+| `tofi` | `common.md` + [`tools/tofi.md`](tools/tofi.md) |
+| `walker` | `common.md` + [`tools/walker.md`](tools/walker.md) |
+| `vicinae` | `common.md` + [`tools/vicinae.md`](tools/vicinae.md) |
+| `anyrun` | `common.md` + [`tools/anyrun.md`](tools/anyrun.md) |
+
+Each `tools/<tool>.md` is self-contained for that tool: what to emit, how to style it, how to
+validate it, what bites, and how to reload it. `common.md` holds only what is true whichever
+tool was picked.
+
+## Other files in this folder
 
 | File | What it holds |
 |---|---|
 | `interview.md` | Sub-questions 8a–8e (tool, mode, layout, icons, behavior). |
 | `schema.md` | The `answers.json` keys this component owns. |
-| `template.md` | Per-tool config + style recipes (wofi, rofi, fuzzel, plus brief notes for tofi/walker/vicinae/anyrun). |
-| `styling.md` | Full styling-technique catalog — palette/layout split, three selection idioms, icon-grid vs pill-list, `em`/`%` sizing, blur. Verbatim copy of the styling reference. |
-| `gotchas.md` | `$menu` vs `$dmenu` invocations, fuzzel hex format, fuzzel namespace=launcher, rofi-wayland vs X-only rofi, rofi `selected.normal/urgent/active` state syntax, walker `ext_background_effect_blur`. |
-| `validation.md` | Parse checks for wofi `config`, rofi `.rasi`, fuzzel `.ini`; CSS balanced braces. |
 | `packages.md` | The launcher package map (wofi / rofi (repo, Wayland built-in since 2.0) / fuzzel / tofi AUR / walker AUR / vicinae AUR / anyrun AUR). |
-| `reload.md` | Launchers are stateless — config applies on next launch. No signal reload. |
 | `wofi.tmpl` | Engine colors template — renders `~/.config/wofi/colors.css` (4 keys: `bg fg surface accent`). |
 | `rofi.tmpl` | Engine colors template — renders `~/.config/rofi/colors.rasi` (8 keys: `bg bg-alt fg muted accent accent2 red green`). |
 | `fuzzel.tmpl` | Engine colors template — merges into `~/.config/fuzzel/fuzzel.ini` `[colors]` (7 keys: `background text match selection selection-text selection-match border`; 7-of-11 upstream — see `gotchas.md`). |

@@ -71,6 +71,6 @@ registry of who emits what so the validator can cross-check.
 
 - `components/window-rules/template.md` — the `layerrule` block emitter.
 - `components/widgets/` (see its README for which tool file to read) — eww/ags/quickshell `defwindow :namespace` requirement.
-- `components/launcher/gotchas.md` — fuzzel namespace cliff (`launcher`, not `fuzzel`).
-- `components/notifications/gotchas.md` — swaync two-block rule.
+- `components/launcher/` — fuzzel namespace cliff (`launcher`, not `fuzzel`).
+- `components/notifications/` — swaync two-block rule.
 - `components/utilities/template.md` — wlogout (`logout_dialog`) and swayosd namespaces.

@@ -153,6 +153,6 @@ bash "$CLAUDE_PLUGIN_ROOT/scripts/record-answer.sh" "$staging/answers.json" widg
 - The design library (archetypes + per-toolkit techniques) → `styling.md`
 - Engine manifest wiring + reload hooks → `theming/engine.md` → "Widget-shell theming",
   `reload.md`
-- Notification-daemon conflict → `gotchas.md`, `../notifications/gotchas.md`
+- Notification-daemon conflict → `gotchas.md`, `../notifications/`
 - Bar-replaced-by-shell → `gotchas.md`, `../waybar/gotchas.md`
 - Packages → `packages.md`

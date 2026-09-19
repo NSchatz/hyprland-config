@@ -30,6 +30,10 @@ SKILL_MAX_TOK=5000
 REF_MAX_TOK=4000
 AGENT_MAX_TOK=4000
 TOC_MIN_LINES=100
+# What ONE writer agent loads to author ONE surface: the component's common.md plus the single
+# tools/<tool>.md its pick names. This is the number that actually governs output quality - a
+# per-file ceiling can be met by a component that still makes an agent read five files.
+SURFACE_MAX_TOK=12000
 
 # Token proxy: bytes/4. Crude, stable, and needs no tokenizer on the box.
 tok() { echo $(( $(wc -c < "$1") / 4 )); }
@@ -75,7 +79,9 @@ while IFS= read -r f; do
     if [ "$t" -gt "$REF_MAX_TOK" ]; then
         is_waived "$r" || over_ref+=("$r (~${t} tok, over by $((t - REF_MAX_TOK)))")
     fi
-done < <(find "$PLUGIN_ROOT/skills" -name '*.md' ! -name 'SKILL.md' | sort)
+    # `common.md` is a deliberate aggregate: it is never read alone, only paired with one
+    # tools/<tool>.md. B-6 governs that pair, which is the load that actually happens.
+done < <(find "$PLUGIN_ROOT/skills" -name '*.md' ! -name 'SKILL.md' ! -name 'common.md' | sort)
 
 if [ "${#over_ref[@]}" -eq 0 ]; then
     pass "B-2: every reference .md is within ~${REF_MAX_TOK} tok"
@@ -142,6 +148,40 @@ else
     done
     fail "B-4: no load-path reference carries an inline Sources section ($((${#with_sources[@]})) files, ~${src_tok} tok)" \
         "$(printf '%s\n' "${with_sources[@]}" | head -40)"
+fi
+
+# ---- B-6  what ONE writer loads for ONE surface ----------------------------------------------
+# For every component sharded by tool, the real load is common.md + the single tools/<tool>.md
+# the interview selected. Measure the worst case (the largest tool file) - that is the writer
+# that has the least room left for the answers, the palette and its own reasoning.
+over_surface=()
+checked_surfaces=0
+while IFS= read -r toolsdir; do
+    comp="$(dirname "$toolsdir")"
+    cname="$(basename "$comp")"
+    common_tok=0
+    [ -f "$comp/common.md" ] && common_tok="$(tok "$comp/common.md")"
+    worst=0; worst_name=""
+    for tf in "$toolsdir"/*.md; do
+        [ -f "$tf" ] || continue
+        t="$(tok "$tf")"
+        if [ "$t" -gt "$worst" ]; then worst="$t"; worst_name="$(basename "$tf" .md)"; fi
+    done
+    [ "$worst" -gt 0 ] || continue
+    checked_surfaces=$((checked_surfaces + 1))
+    total=$(( common_tok + worst ))
+    if [ "$total" -gt "$SURFACE_MAX_TOK" ]; then
+        over_surface+=("$cname (worst: $worst_name) ~${total} tok = common ${common_tok} + tool ${worst}, over by $((total - SURFACE_MAX_TOK))")
+    fi
+done < <(find "$PLUGIN_ROOT/skills" -type d -name 'tools' | sort)
+
+if [ "$checked_surfaces" -eq 0 ]; then
+    skip "B-6: per-surface writer load" "no tool-sharded components found"
+elif [ "${#over_surface[@]}" -eq 0 ]; then
+    pass "B-6: every sharded surface loads within ~${SURFACE_MAX_TOK} tok (${checked_surfaces} checked, worst case each)"
+else
+    fail "B-6: every sharded surface loads within ~${SURFACE_MAX_TOK} tok (${checked_surfaces} checked)" \
+        "$(printf '%s\n' "${over_surface[@]}")"
 fi
 
 # ---- B-5  waivers are visible ----------------------------------------------------------------

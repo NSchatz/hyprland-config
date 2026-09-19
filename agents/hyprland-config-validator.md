@@ -124,7 +124,7 @@ is available, assume the latest stable syntax and say so in the report.
      (defect #4). Rofi overlays the user theme on top of its base theme; unstyled selectors
      inherit base-theme (usually light) colors. Required selectors:
      `* { … }`, `listview`, `element-text`, `element-icon`, and `element {normal,alternate,selected}.{normal,urgent,active}` (9 element-state blocks total).
-     Lint per `components/launcher/validation.md` → "Rofi theme.rasi is SELF-CONTAINED".
+     Lint per `components/launcher/` → "Rofi theme.rasi is SELF-CONTAINED".
 
    - **No literal `swww-daemon` / `swww img` / `awww-daemon` / `awww img` outside the binary
      registry** (defect #8). Search emitted *.conf and shipped scripts for these strings;

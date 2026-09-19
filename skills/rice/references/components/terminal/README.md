@@ -5,17 +5,32 @@ themed config file for the chosen emulator. This is the surface the user stares 
 gets its own group (look + functional knobs) and a dedicated colors file driven by the rice
 palette.
 
-## Files in this folder
+## What to read - read TWO files, not the folder
+
+This component supports 5 tools, and a writer only ever authors for the one the interview
+picked. Reading the others is what makes a recipe get skimmed instead of read.
+
+**Read `common.md`, plus the ONE `tools/<tool>.md` matching `terminal.emulator`. Nothing else.**
+
+| `terminal.emulator` | Read |
+|---|---|
+| `kitty` | `common.md` + [`tools/kitty.md`](tools/kitty.md) |
+| `alacritty` | `common.md` + [`tools/alacritty.md`](tools/alacritty.md) |
+| `foot` | `common.md` + [`tools/foot.md`](tools/foot.md) |
+| `wezterm` | `common.md` + [`tools/wezterm.md`](tools/wezterm.md) |
+| `ghostty` | `common.md` + [`tools/ghostty.md`](tools/ghostty.md) |
+
+Each `tools/<tool>.md` is self-contained for that tool: what to emit, how to style it, how to
+validate it, what bites, and how to reload it. `common.md` holds only what is true whichever
+tool was picked.
+
+## Other files in this folder
 
 | File | What it holds |
 |---|---|
 | `interview.md` | Sub-questions 5a–5f (emulator, opacity, padding, cursor, font size, extras). |
 | `schema.md` | The `terminal.*` keys this component owns in `answers.json`. |
-| `template.md` | Per-emulator recipes — `kitty.conf` / `alacritty.toml` / `foot.ini` / `wezterm.lua` / `ghostty/config`, each `include`ing (or `?`-optional-including) the rice-rendered colors file. |
-| `styling.md` | Full design library (palette, fonts, padding, opacity/blur, decorations, chrome theming) — the source of truth for the look. |
-| `gotchas.md` | Font family vs. size separation, `enable_swallow` + regex requirement, `$terminal` variable matching, Alacritty YAML→TOML migration, foot `[colors-*]` alpha/blur placement, kitty `cursor_trail` ms semantics, kitty `font_family auto` myth, ghostty `config-file ?` ordering, btop/cava .tmpl coherence notes. |
 | `packages.md` | One Arch package per emulator pick. |
-| `reload.md` | Apply scope (new windows only); no global signal reload across emulators. |
 | `kitty.tmpl` | Engine colors template for kitty — 16 ANSI cells + chrome (`cursor_text_color`, `url_color`, tab bar, window borders). All wired through existing palette keys; no new schema keys. |
 | `btop.tmpl` | Engine theme template for btop — full 42-key set verified against upstream (`aristocratos/btop/main/themes/dracula.theme`), including `cached_*`, `available_*`, `download_*`, `upload_*`, `process_*` meter gradients. |
 | `cava.tmpl` | Engine colors template for cava — 8 gradient stops + foreground/background, matches HyDE/JaKooLit community standard. |

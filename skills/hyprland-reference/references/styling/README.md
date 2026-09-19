@@ -22,9 +22,9 @@ shrinks to just the cross-cutting principles below.
 |---|---|
 | Hyprland decoration (gaps, borders, blur, shadow, animations) | [`../../../rice/references/components/look-feel/styling.md`](../../../rice/references/components/look-feel/styling.md) |
 | Status bar (waybar) | [`../../../rice/references/components/waybar/styling.md`](../../../rice/references/components/waybar/styling.md) |
-| Launcher (wofi / rofi / fuzzel) | [`../../../rice/references/components/launcher/styling.md`](../../../rice/references/components/launcher/styling.md) |
-| Notifications (mako / dunst / swaync) | [`../../../rice/references/components/notifications/styling.md`](../../../rice/references/components/notifications/styling.md) |
-| Terminal (kitty / alacritty / foot / wezterm / ghostty) | [`../../../rice/references/components/terminal/styling.md`](../../../rice/references/components/terminal/styling.md) |
+| Launcher (wofi / rofi / fuzzel) | [`../../../rice/references/components/launcher/`](../../../rice/references/components/launcher/) |
+| Notifications (mako / dunst / swaync) | [`../../../rice/references/components/notifications/`](../../../rice/references/components/notifications/) |
+| Terminal (kitty / alacritty / foot / wezterm / ghostty) | [`../../../rice/references/components/terminal/`](../../../rice/references/components/terminal/) |
 | Lock screen (hyprlock) | [`../../../rice/references/components/lock-screen/styling.md`](../../../rice/references/components/lock-screen/styling.md) |
 | Widget shells (eww / AGS-Astal / Quickshell — design + per-toolkit) | [`../../../rice/references/components/widgets/`](../../../rice/references/components/widgets/README.md) |
 | Shell & prompt (btop / cava / fastfetch / starship — Nerd Font glyphs) | [`../../../rice/references/components/shell-prompt/styling.md`](../../../rice/references/components/shell-prompt/styling.md) |

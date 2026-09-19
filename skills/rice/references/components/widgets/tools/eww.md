@@ -23,7 +23,7 @@ Read this file **and** `../common.md`. Do not read the other tools in `tools/`.
 `(deflisten)` / `(defpoll)` blocks. These scripts ship under
 `${CLAUDE_PLUGIN_ROOT}/skills/rice/assets/scripts/eww/` and the installer copies them to
 `~/.config/eww/scripts/`, `chmod +x`. The contract for each script lives in
-[`_shared/helper-scripts.md`](../../../_shared/helper-scripts.md):
+[`_shared/helper-scripts.md`](../../../../_shared/helper-scripts.md):
 
 | Script | Path under eww | Emits | Runtime deps |
 |---|---|---|---|

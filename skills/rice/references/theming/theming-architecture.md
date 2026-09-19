@@ -56,8 +56,8 @@ piecemeal from any single component:
 | Component | Contract row says | `.tmpl` actually exports | Decision pending |
 |---|---|---|---|
 | **quickshell** | `term[16]` (array) | individual `term0..term15` properties (corpus pattern; caelestia / DankMaterialShell reference `Colors.term3` directly, an array would force `Colors.term[3]` and break drop-in copies — see `widgets/tools/quickshell.md`) | Update the contract row to list `term0..term15` explicitly |
-| **kitty** | `background foreground cursor selection_background selection_foreground color0..color15` | Adds semantic chrome keys: `cursor_text_color url_color active_tab_foreground active_tab_background inactive_tab_foreground inactive_tab_background tab_bar_background` (paired with `tab_bar_style powerline` in the recipe — see `terminal/kitty.tmpl` and `terminal/styling.md`) | Append the chrome keys to the row |
-| **fuzzel** | 7 keys: `background text match selection selection-text selection-match border` | Grew to 11 keys: adds `prompt placeholder input counter` to support the prompt-glyph / placeholder-text / counter idioms in the recipe (see `launcher/styling.md` "Color details") | Bump the row to 11 keys |
+| **kitty** | `background foreground cursor selection_background selection_foreground color0..color15` | Adds semantic chrome keys: `cursor_text_color url_color active_tab_foreground active_tab_background inactive_tab_foreground inactive_tab_background tab_bar_background` (paired with `tab_bar_style powerline` in the recipe — see `terminal/kitty.tmpl` and `terminal/`) | Append the chrome keys to the row |
+| **fuzzel** | 7 keys: `background text match selection selection-text selection-match border` | Grew to 11 keys: adds `prompt placeholder input counter` to support the prompt-glyph / placeholder-text / counter idioms in the recipe (see `launcher/` "Color details") | Bump the row to 11 keys |
 
 Once the orchestrator applies these, the corresponding per-app `template.md` "Variable resolution"
 table and `palette-schema.md` requirement set are also re-checked. None of these break running
@@ -92,7 +92,7 @@ CSS at `~/.config/waybar/style.css`. The engine writes `~/.config/waybar/colors.
   Reload: `dunstctl reload` (falls back to `killall dunst; dunst &`).
 - **swaync**: `~/.config/swaync/colors.css` (`@import` from `style.css`). Reload: `swaync-client -rs`.
 
-See [`components/notifications/template.md`](../components/notifications/template.md).
+See [`components/notifications/`](../components/notifications/).
 
 ### Launchers (wofi / rofi / fuzzel)
 
@@ -101,7 +101,7 @@ See [`components/notifications/template.md`](../components/notifications/templat
 - **fuzzel**: `[colors]` merged into `~/.config/fuzzel/fuzzel.ini` at generate-time (no include
   mechanism). Read at launch.
 
-See [`components/launcher/template.md`](../components/launcher/template.md).
+See [`components/launcher/`](../components/launcher/).
 
 ### Terminal
 
@@ -111,7 +111,7 @@ See [`components/launcher/template.md`](../components/launcher/template.md).
 - **alacritty**: `~/.config/alacritty/colors.toml` imported from `alacritty.toml`; live-reloads.
 - **foot**: `~/.config/foot/foot.ini` `[colors]`; foot reloads on `SIGUSR1`.
 
-See [`components/terminal/template.md`](../components/terminal/template.md).
+See [`components/terminal/`](../components/terminal/).
 
 ### GTK (3 + 4 / libadwaita)
 
@@ -364,7 +364,7 @@ Two cross-component cliffs the architecture should call out:
 
 - **fuzzel's layer namespace defaults to `launcher`**, not `fuzzel` — verified against
   `fuzzel.ini(5)` and end-4 `dots/.config/hypr/hyprland/rules.lua`. A `layerrule = blur,
-  fuzzel` is silently a no-op (matches nothing). See `components/launcher/gotchas.md`.
+  fuzzel` is silently a no-op (matches nothing). See `components/launcher/`.
 - **walker uses `ext-background-effect-v1`** (the compositor-served blur protocol) rather than
   a `layerrule = blur, walker`. Hyprland implemented the server side in May 2026 (~v0.50+);
   on older Hyprland the flag silently no-ops. See `components/companion-daemons/gotchas.md`

@@ -308,7 +308,7 @@ apply`, alongside the per-component template renders.
 The engine does **not** render walker's `config.toml`, but a re-theme that toggles a launcher's
 blur is engine-adjacent: walker's `ext_background_effect_blur = true` opt-in asks the compositor
 to draw blur behind walker's surface via the **`ext-background-effect-v1`** Wayland protocol
-(see `components/companion-daemons/gotchas.md` and `components/launcher/gotchas.md`). Hyprland
+(see `components/companion-daemons/gotchas.md` and `components/launcher/`). Hyprland
 implemented the server side in
 [`hyprwm/Hyprland@7d1e481`](https://github.com/hyprwm/Hyprland/commit/7d1e481) (**May 2026 / ~v0.50+**;
 "protocols: implement ext-background-effect-v1 protocol"). On older Hyprland the flag silently

@@ -50,7 +50,7 @@ source = ~/.config/hypr/autostart.conf
 - `{{terminal}}` ← `terminal.emulator` (raw command — `kitty`, `alacritty`, `wezterm`, …).
 - `{{launcher_menu}}` / `{{launcher_dmenu}}` ← composed from `launcher.tool` + `launcher.mode`
   (e.g. `rofi` + `drun` → `rofi -show drun` / `rofi -dmenu`). The owner is the `launcher`
-  component; see [`../launcher/template.md`](../launcher/template.md) for the composition table.
+  component; see [`../launcher/`](../launcher/) for the composition table.
 - `{{browser}}` ← `default_apps.browser`.
 - `{{filemanager}}` ← `default_apps.files` — **omit the whole line** when null. Leaving
   `$fileManager =` empty turns the `$mainMod+E` bind into a no-op `exec` of an empty command.
@@ -206,7 +206,7 @@ bindel = , XF86MonBrightnessDown, exec, swayosd-client --brightness lower
   {{/case}}
   {{#case "notification"}}
 {{!-- Notification-as-OSD: wpctl/brightnessctl + notify-send -a OSD. Notification daemon's
-     [app-name=OSD] palette block renders it themed. See components/notifications/template.md. --}}
+     [app-name=OSD] palette block renders it themed. See components/notifications/. --}}
 bindel = , XF86AudioRaiseVolume,  exec, wpctl set-volume -l 1 @DEFAULT_AUDIO_SINK@ 5%+ && notify-send -a OSD -h int:value:$(wpctl get-volume @DEFAULT_AUDIO_SINK@ | awk '{print int($2*100)}') "Volume"
 bindel = , XF86AudioLowerVolume,  exec, wpctl set-volume @DEFAULT_AUDIO_SINK@ 5%- && notify-send -a OSD -h int:value:$(wpctl get-volume @DEFAULT_AUDIO_SINK@ | awk '{print int($2*100)}') "Volume"
 bindel = , XF86AudioMute,         exec, wpctl set-mute @DEFAULT_AUDIO_SINK@ toggle && notify-send -a OSD "Mute toggled"

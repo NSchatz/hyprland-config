@@ -21,7 +21,7 @@ Keys this component owns under the top-level `utilities` key.
     - `in-shell`: bind calls a shell IPC method (Quickshell rices). No extra daemon.
     - `swayosd`: install `swayosd-server`; writer emits a matugen template + autostart line.
     - `notification`: routes through the notification daemon — `notify-send -a OSD` + an
-      `[app-name=OSD]` palette block in `notifications/template.md`.
+      `[app-name=OSD]` palette block in `notifications/`.
     - `none`: bind scripts run silently; no visual feedback.
   Multiple downstream components read this — see "Who reads these keys" below.
 

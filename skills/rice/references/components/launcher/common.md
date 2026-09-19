@@ -1,4 +1,76 @@
-# Styling Launchers (wofi / rofi / fuzzel / tofi)
+# launcher - common
+
+Cross-tool content for the `launcher` surface: what holds no matter which tool was picked.
+Read this **plus** the one `tools/<your-tool>.md` the interview selected.
+
+## Contents
+
+- Template
+- Validation
+- Gotchas
+- Reload
+
+---
+
+## Template
+
+
+Per-tool config + style recipes. The engine **always** writes a colors file the tool's style
+`@import`s/`include`s — never hardcode hex in the style file. The canonical var names are
+fixed by `_shared/colors-contract.md`; the rice templates in `skills/rice/references/components/launcher/{wofi,rofi,
+fuzzel}.tmpl` render those names from `palette.conf`.
+
+The deep styling catalog — selection idioms, blur, `em`/`%` sizing, layout variants — lives in
+`styling.md`. This file is the minimum viable recipe per tool, sufficient for the engine.
+
+## Hyprland variables emitted (by `keybinds` component)
+
+```ini
+$menu  = {{menu_invocation}}     # e.g. wofi --show drun
+$dmenu = {{dmenu_invocation}}    # e.g. wofi --dmenu   — NEVER `$menu --dmenu`
+```
+
+Per-tool invocations:
+
+| tool    | `$menu`                       | `$dmenu`                              |
+|---|---|---|
+| wofi    | `wofi --show drun`            | `wofi --dmenu`                        |
+| rofi    | `rofi -show drun`             | `rofi -dmenu`                         |
+| fuzzel  | `fuzzel`                      | `fuzzel --dmenu`                      |
+| tofi    | `tofi-drun \| sh`             | `tofi`                                |
+| walker  | `walker`                      | `walker --dmenu` (also `-d`)          |
+| vicinae | `vicinae toggle`              | `vicinae dmenu` (subcommand, no `--`) |
+| anyrun  | `anyrun`                      | `anyrun --plugins libstdin.so`        |
+
+Notes on the less-obvious ones:
+- **walker** needs its service running for the `walker` command to be instant
+  (`walker --gapplication-service` in `companion-daemons`). `--dmenu` / `-d` are first-class
+  flags (verified in walker ≥ 2.3).
+- **vicinae** runs as a persistent daemon (`vicinae server --replace`, typically autostarted).
+  Window control is via the IPC subcommands `vicinae open` / `close` / `toggle`. dmenu mode
+  is invoked as a subcommand (`vicinae dmenu`), not a flag.
+- **anyrun has no dedicated `--dmenu` flag** — its dmenu-style picker is the `libstdin.so`
+  plugin, invoked via `anyrun --plugins libstdin.so` (which then reads stdin).
+
+## Briefer recipes (engine themes only what the tool exposes)
+
+## Colors contract
+
+| File written by engine | Format | Var names |
+|---|---|---|
+| `~/.config/wofi/colors.css` | CSS `@define-color` | `bg fg surface accent` |
+| `~/.config/rofi/colors.rasi` | rasi `* { name: #hex; }` | `bg bg-alt fg muted accent accent2 red green` |
+| `~/.config/fuzzel/fuzzel.ini` `[colors]` | `key=RRGGBBAA` (no `#`) | `background text match selection selection-text selection-match border` |
+| `~/.config/tofi/colors.tofi` (sourced) | leading-`#` hex | `background-color border-color prompt-color text-color selection-color selection-background` |
+| `~/.config/walker/colors.css` | CSS `@define-color` | `bg fg surface accent` |
+| `~/.config/anyrun/colors.css` | CSS `@define-color` | `bg fg surface accent` |
+
+See `_shared/colors-contract.md` — these names ARE the contract.
+
+---
+
+## Styling
+
 
 The four common Wayland launchers all chase the same look — a centered, floating, rounded panel with a search field on top, a scrollable result list, and one strongly-accented selection bar. Only the *mechanism* differs: wofi is GTK CSS, rofi is its own RASI language, and fuzzel/tofi are flat INI files.
 
@@ -105,139 +177,6 @@ polished collection does it.
 
 Each uses the plugin's rice keys (`bg fg surface muted accent accent2 color0..15 font_ui font_mono`, hex **without** `#`). Shown twice: a `{{placeholder}}` template form and a worked **Catppuccin Mocha** example (`bg 1e1e2e`, `fg cdd6f4`, `surface 313244`, `muted 6c7086`, `accent cba6f7`, `accent2 89b4fa`, `font_ui Inter`, `font_mono JetBrainsMono Nerd Font`). Selection = accent; subtle border = accent. This plugin's rice renders `wofi/colors.css` and `rofi/colors.rasi` — `@import` those so re-theming Just Works.
 
-### wofi — `~/.config/wofi/style.css`
-
-```css
-@import "colors.css";   /* rendered by the rice: defines @bg @fg @accent ... */
-
-window {
-  margin: 0;
-  background-color: rgba(30, 30, 46, 0.92);  /* {{bg}} at ~0.92 */
-  border-radius: 14px;
-  border: 1px solid @accent;                 /* #{{accent}} */
-  font-family: "Inter", sans-serif;          /* {{font_ui}} */
-  font-size: 14px;
-}
-#input {
-  margin: 10px;
-  padding: 8px 12px;
-  border-radius: 10px;
-  border: none;
-  background-color: @surface;                 /* #{{surface}} */
-  color: @fg;
-}
-#inner-box  { margin: 6px; }
-#outer-box  { padding: 8px; }
-#entry      { padding: 6px 10px; border-radius: 8px; }
-#entry image { -gtk-icon-transform: none; }
-#text       { color: @fg; }
-#entry:selected      { background-color: @accent; }   /* the highlight */
-#entry:selected #text { color: @bg; }                 /* contrast on accent */
-```
-
-Companion `~/.config/wofi/config`: `allow_images=true`, `image_size=24`, `location=center`, `width=600`, `height=400`, `insensitive=true`. All wofi config keys use **underscores**, never hyphens — `allow-images` is silently ignored.
-
-### rofi — `~/.config/rofi/theme.rasi`
-
-```rasi
-@import "colors.rasi"   /* rendered by the rice: * { accent: ...; bg: ...; } */
-
-* {
-  bg:      #1e1e2e;   /* {{bg}}      */
-  bg-alt:  #313244;   /* {{surface}} */
-  fg:      #cdd6f4;   /* {{fg}}      */
-  accent:  #cba6f7;   /* {{accent}}  */
-  muted:   #6c7086;   /* {{muted}}   */
-}
-window {
-  width: 700px;
-  border-radius: 14px;
-  border: 1px solid;
-  border-color: @accent;
-  background-color: @bg;
-  padding: 12px;
-}
-inputbar { spacing: 8px; padding: 8px; margin: 0 0 8px 0;
-           background-color: @bg-alt; border-radius: 10px; }
-prompt  { text-color: @accent; }
-entry   { text-color: @fg; placeholder: "Search…"; placeholder-color: @muted; }
-listview { lines: 8; columns: 1; spacing: 4px; scrollbar: false; }
-element  { padding: 7px 10px; border-radius: 8px; }
-element-icon { size: 22px; }
-element selected.normal  { background-color: @accent; text-color: @bg; }  /* highlight */
-element selected.urgent  { background-color: @red;    text-color: @bg; }
-element selected.active  { background-color: @green;  text-color: @bg; }
-```
-
-Companion `~/.config/rofi/config.rasi`: `configuration { modi: "drun"; show-icons: true; icon-theme: "Papirus"; }` then `@theme "~/.config/rofi/theme.rasi"`.
-
-### fuzzel — `~/.config/fuzzel/fuzzel.ini`
-
-Fuzzel colors are **`RRGGBBAA` hex, no `#`**. Append an alpha pair to any rice color: `{{bg}}ee` → `1e1e2eee`.
-
-```ini
-[main]
-font=Inter:size=13          ; {{font_ui}}
-prompt=">   "
-icon-theme=Papirus
-icons-enabled=yes
-width=32
-lines=12
-horizontal-pad=20
-vertical-pad=12
-inner-pad=8
-layer=overlay
-
-[colors]
-background=1e1e2eee          ; {{bg}} + ee alpha
-text=cdd6f4ff               ; {{fg}}
-prompt=cba6f7ff             ; {{accent}}
-placeholder=6c7086ff        ; {{muted}}
-input=cdd6f4ff              ; {{fg}}
-match=cba6f7ff              ; {{accent}}  (matched substring)
-selection=cba6f7ff          ; {{accent}}  — the highlight bar
-selection-text=1e1e2eff     ; {{bg}}      — text on the highlight
-selection-match=1e1e2eff    ; {{bg}}
-border=cba6f7ff             ; {{accent}}
-counter=6c7086ff            ; {{muted}}
-
-[border]
-width=1
-radius=14
-```
-
-### tofi — `~/.config/tofi/config`
-
-Tofi colors here take a leading `#`. Centered box, single accent.
-
-```ini
-anchor = center
-width = 640
-height = 320
-horizontal = false
-font = "Inter"                 # {{font_ui}}; or a Nerd Font path
-font-size = 14
-num-results = 7
-
-background-color = #1e1e2eee   # {{bg}} + alpha
-outline-width = 0
-border-width = 2
-border-color = #cba6f7         # {{accent}}
-corner-radius = 12
-padding-top = 16
-padding-bottom = 16
-padding-left = 18
-padding-right = 18
-
-prompt-text = ">  "
-prompt-color = #cba6f7         # {{accent}}
-text-color = #cdd6f4           # {{fg}}
-result-spacing = 6
-
-selection-color = #cba6f7            # {{accent}} — the highlight (text)
-selection-background = #31324480     # {{surface}} + soft alpha
-```
-
 ## Pitfalls
 
 - **wofi blur needs a Hyprland layer rule.** A translucent `#window` alone is just see-through, not frosted. On Hyprland 0.54 use the **block form** (the single-line `layerrule = blur, wofi` is rejected with `invalid field blur: missing a value`):
@@ -270,3 +209,199 @@ selection-background = #31324480     # {{surface}} + soft alpha
 Citations for this file live at `.research/sources/components-launcher-styling.md` (repo root), kept out of
 the load path on purpose. Read them when reviewing a recommendation, not when
 authoring a config.
+
+---
+
+## Validation
+
+
+The validator runs once after the writer emits files but before reload. Launcher configs are
+loose by nature (every tool parses lenient-INI / RASI / CSS) — the goal is to catch the
+silent-fail cases, not lint style. Run the checks below; on any failure, emit a clear diagnostic
+and stop the rice pipeline.
+
+## CSS balanced-braces helper (shared across wofi/walker/anyrun style files)
+
+```bash
+# Returns 0 if balanced, nonzero otherwise.
+balanced_braces() { awk 'BEGIN{d=0}{for(i=1;i<=length($0);i++){c=substr($0,i,1);
+  if(c=="{")d++; else if(c=="}"){d--; if(d<0)exit 1}}} END{exit (d!=0)}' "$1"; }
+```
+
+## What's NOT validated
+
+- Color **contrast** is not checked — fully unreadable text (text alpha at `00`, accent =
+  background) is a styling bug, not a parse error.
+- Icon-theme availability — if `Papirus` isn't installed, the launcher just shows blank icons.
+  The validator could warn (`gtk-update-icon-cache -l` against installed themes), but it's not
+  fatal.
+- Whether the launcher's namespace matches a `layerrule` — that's the `window-rules`
+  component's validation.
+
+---
+
+## Gotchas
+
+
+## `$menu` and `$dmenu` are DIFFERENT invocations — never compose
+
+`$menu` runs in **mode** form (drun / run / window-switcher); `$dmenu` runs as a stdin/stdout
+pipe for ad-hoc pickers (clipboard, emoji, calculator). They are not the same command with a
+flag — they are separate invocations defined as separate variables in `hyprland.conf`:
+
+```ini
+$menu  = rofi -show drun        # NOT "rofi -dmenu", NOT "wofi --dmenu"
+$dmenu = rofi -dmenu            # NOT "$menu -dmenu"
+```
+
+Composing `$menu -dmenu` (e.g. a clipboard-history bind written as `cliphist list | $menu
+-dmenu | …`) produces conflicting flags and the picker silently fails to open. Every utility
+that pipes into a picker (`cliphist`, `wofi-emoji`, `qalc | $dmenu`, …) must call `$dmenu`,
+not `$menu`. Full discussion in `../keybinds/gotchas.md` — the keybinds component owns the
+`$menu`/`$dmenu` variables and the binds that consume them; this rule is stated once there,
+this is the launcher-side cross-reference.
+
+## Use repo `rofi` (≥ 2.0) — the `rofi-wayland` AUR fork is now obsolete
+
+Historically `rofi` in the Arch repos was X-only and the AUR `rofi-wayland` (lbonn's fork)
+was required for native layer-shell on Hyprland. **That changed with rofi 2.0.0 (released
+2025-09-01)**: the lbonn Wayland port was merged into mainline, and the Arch `extra/rofi`
+package now `Provides: rofi-wayland` and `Replaces: rofi-wayland`. Install **`rofi`** from
+the official repo — it auto-selects xcb or wayland backend at runtime.
+
+`packages.md` now points the `rofi` answer at the repo `rofi` package. If you still have
+`rofi-wayland` from AUR installed, the repo rofi will pull it out via the `Replaces:`
+metadata on next upgrade.
+
+Symptoms of the *old* X-only rofi (pre-2.0, no longer applicable on a current Arch system):
+no blur even with a correct `layerrule` block, off positioning on multi-monitor, some
+monitor flags failing. If you see these on Hyprland today, you're probably on a stale
+rofi — `pacman -Syu rofi` to get ≥ 2.0.
+
+## Other tool quirks
+
+- **wofi blur needs a `layerrule` block.** A translucent `#window` alone is just see-through.
+  Hyprland 0.54+ requires the **block form** (`layerrule { name = blur-wofi; match:namespace =
+  wofi; blur = true; ignore_alpha = 0.2 }`) — the single-line `layerrule = blur, wofi` is
+  rejected with `invalid field blur: missing a value` (see `_shared/version-matrix.md`, 0.54
+  cliff). The block lives in `../window-rules/template.md`. Global blur must be on too.
+- **Several popular rices still ship the pre-0.54 single-line `layerrule = blur,rofi` form**
+  (HyDE `Configs/.config/hypr/windowrules.conf` HEAD, as of this research pass). On Hyprland
+  0.54+ that line is **rejected** at parse time and the whole reload fails. If a user copies a
+  layerrule block from these rices and pastes into a recent Hyprland config they'll see
+  `invalid field blur: missing a value` — point them at the block form or the modern
+  single-line form `layerrule = blur on, match:namespace rofi`. This is the same 0.54 cliff
+  documented in `_shared/version-matrix.md`, and the rice's `window-rules/template.md` already
+  branches on version, but call it out specifically for launchers because community templates
+  for them are particularly stale.
+- **rofi `element selected` alone doesn't take on drun rows.** Rofi's state syntax is
+  `{visible}.{state}` per `rofi-theme(5)` (visible ∈ `normal|selected|alternate`, state ∈
+  `normal|urgent|active`). Set **all three** of `element selected.normal`,
+  `element selected.urgent`, and `element selected.active` or the highlight won't apply to
+  drun rows rofi has flagged active/urgent. The community form is dot-joined
+  (`selected.normal`), not space-joined — HyDE, JaKooLit, ML4W, dusky, Matt-FTW, binnewbs all
+  use this form. The recipe in `template.md` covers all three states.
+- **fuzzel `width` is in characters, not pixels.** `width=32` is ~32 character columns wide,
+  not 32px. Themes pulled from the internet often look weird because of this.
+- **tofi has no app icons.** Text-only by design. `launcher.icons = true` against `tool =
+  tofi` is silently coerced to `false` by the writer (see `schema.md`).
+- **walker as a service.** Walker is fastest when its background service is autostarted —
+  `companion-daemons` should include `walker --gapplication-service` when the launcher pick is
+  walker. The picker bind then opens instantly.
+- **walker compositor blur uses `ext-background-effect-v1`, not Hyprland `layerrule`.**
+  Walker has its own opt-in flat key in `config.toml`: `ext_background_effect_blur = true`
+  (verified against upstream `abenz1267/walker/resources/config.toml` HEAD). When the
+  compositor implements the protocol (Hyprland does), walker requests blur behind its wrapper
+  directly and you don't need a `layerrule = blur, walker` block. A `layerrule` for `walker`
+  still works (its namespace IS `walker`), but the upstream-supported route is the flat key.
+- **vicinae themes only what it exposes.** The engine writes a small theme block inside
+  `~/.config/vicinae/settings.json` (JSONC — JSON with comments) for vicinae's internal
+  colors; geometry/extension layout is largely fixed by the app. Don't promise full palette
+  coherence on every surface. The daemon is `vicinae server --replace`; window control is
+  `vicinae open|close|toggle`; dmenu mode is the `vicinae dmenu` subcommand, not a `--dmenu`
+  flag.
+- **anyrun plugins live in `~/.config/anyrun/`.** Selecting plugins is a separate step
+  (`utilities`/`plugins` components); the launcher template just installs anyrun and writes the
+  base `config.ron`. Anyrun has **no `--dmenu` flag** — the dmenu picker is the `libstdin.so`
+  plugin (`anyrun --plugins libstdin.so`). All anyrun config keys are `snake_case`
+  (`hide_icons`, `close_on_click`, `show_results_immediately`, …).
+- **wofi config keys are underscore-only.** `allow_images`, `close_on_focus_loss`,
+  `image_size`, `hide_scroll`, `gtk_dark`, `key_expand`. A hyphenated key (`allow-images`,
+  `close-on-focus-loss`) is silently ignored and the option falls back to the default —
+  every released wofi-styling guide that hyphenates is wrong, see `man 5 wofi`.
+- **walker config has its own schema.** Top-level sections are `[shell]`, `[columns]`,
+  `[placeholders]`, `[keybinds]`, `[providers]` plus flat keys (`theme`, `close_when_open`,
+  `as_window`, `force_keyboard_focus`, …). It does **not** use `[search]`/`[ui]`/`[modules.*]`
+  — anything written under those names is silently ignored. The picker dmenu flag is
+  `walker --dmenu` (also `-d`).
+
+---
+
+## Reload
+
+
+**Launchers are stateless.** They are launched fresh on every `$menu` / `$dmenu` invocation,
+read their config from disk, render, and exit. There is no long-running launcher process to
+signal, and no D-Bus reload endpoint. **Config changes apply on the next launch — no reload
+needed.**
+
+This is true for every launcher this component covers:
+
+| Tool | Process model | When changes apply |
+|---|---|---|
+| wofi | Spawn → render → exit on selection/escape. | Next `wofi --show drun`. |
+| rofi | Spawn → render → exit. | Next `rofi -show drun`. |
+| fuzzel | Spawn → render → exit. | Next `fuzzel`. |
+| tofi | Spawn → render → exit. | Next `tofi-drun \| sh`. |
+| walker | Spawn picker OR pre-started service (`walker --gapplication-service`). | Next picker invocation; **see below** for the service case. |
+| vicinae | Tray/service + popup. | Next popup — vicinae re-reads on each open. |
+| anyrun | Spawn → render → exit. | Next `anyrun`. |
+
+## Engine `render-manifest` rows
+
+The render manifest's per-component reload column is `:` (no-op) for every launcher row, since
+there's nothing to signal. The engine still **renders the colors file and the style file** every
+time — the no-op only applies to the post-render hook.
+
+```
+wofi    wofi.tmpl     ~/.config/wofi/colors.css       :
+rofi    rofi.tmpl     ~/.config/rofi/colors.rasi      :
+fuzzel  fuzzel.tmpl   ~/.config/fuzzel/fuzzel.ini     :   # merged section, not replaced
+```
+
+(The actual manifest assembly lives in `theming/engine.md`; this file just documents that the
+hook column is `:` for launchers.)
+
+## The walker service exception
+
+Walker has a service mode (`walker --gapplication-service`) for instant startup. The service
+keeps a warm GTK process around and the picker invocation (`walker`) connects via a UNIX
+socket. The service re-reads its config on each picker invocation, so even in service mode,
+**no signal is needed** — changes apply on the next popup.
+
+If walker's service is hung after a config edit (rare; usually a config parse error),
+restart with:
+
+```bash
+systemctl --user restart walker.service     # if the user set up a user unit
+# or, if autostarted by Hyprland:
+pkill -x walker && walker --gapplication-service &
+```
+
+This is failure-recovery, not the normal flow — the validation pass in `validation.md` should
+catch the parse error before reload runs.
+
+## What this component does NOT reload
+
+- The `$menu` / `$dmenu` variables in `hyprland.conf` change → `hyprctl reload` is needed, but
+  that's the **hyprland** component's reload, not this one.
+- The `layerrule` blur block in `window-rules` change → `hyprctl reload`, again not here.
+- The colors file is written by the rice engine → the engine's renderer handles it; the
+  launcher's no-op reload hook means we don't double-fire anything.
+
+## Cross-references
+
+- Render manifest line format → `theming/engine.md`.
+- Hyprland reload semantics → `hyprctl reload` (Hyprland topic files share the standard reload
+  mechanism, no per-component `reload.md`).
+

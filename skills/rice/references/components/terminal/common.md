@@ -1,4 +1,52 @@
-# Styling Terminals (kitty / alacritty / foot / wezterm / ghostty)
+# terminal - common
+
+Cross-tool content for the `terminal` surface: what holds no matter which tool was picked.
+Read this **plus** the one `tools/<your-tool>.md` the interview selected.
+
+## Contents
+
+- Template
+- Validation
+- Reload
+
+---
+
+## Template
+
+
+Per-emulator recipes. Each emulator's main config holds the **look** (font family/size, opacity,
+padding, cursor, decorations) and `include` / `source` / `import` / `require`s a separate
+**colors file** that the rice engine renders from `palette.conf`. Re-theming only rewrites the
+colors file; the main config stays palette-agnostic.
+
+The colors file's exported variable names per emulator are the contract in
+`_shared/colors-contract.md` (`background`, `foreground`, `cursor`, `selection_background`,
+`selection_foreground`, `color0..color15`). The kitty template (`references/components/terminal/kitty.tmpl`) is the
+canonical shape — alacritty/foot/wezterm/ghostty mirror the same 16-color mapping in their native
+formats.
+
+The `{{font_mono}}` / `{{bg}}` / `{{fg}}` / `{{cursor}}` / `{{color0..15}}` placeholders below
+resolve to keys in `palette.conf` (`_shared/palette-schema.md`); the integer-typed `{{opacity}}`,
+`{{padding}}`, `{{font_size}}` come from `answers.json` (`terminal.*`).
+
+The `{{cursor.shape_capitalized}}`, `{{cursor.wezterm_style}}`, `{{cursor.ghostty_style}}` are
+derived by the writer from `terminal.cursor.shape` + `terminal.cursor.blink` (see `schema.md`
+for the full per-emulator mapping). E.g. `shape=beam, blink=true` resolves to alacritty
+`"Beam"`, wezterm `'BlinkingBar'`, ghostty `bar`.
+
+## Cross-references
+
+- Colors-file variable names → `../../_shared/colors-contract.md`
+- Palette source keys → `../../_shared/palette-schema.md`
+- Engine render manifest line shape → `../../theming/engine.md`
+- The design knobs (palette, fonts, padding, opacity/blur, decorations) → `styling.md`
+- The `$terminal` variables line in `hyprland.conf` → `../keybinds/template.md`
+- `enable_swallow` + `swallow_regex` lines → `../look-feel/template.md`
+
+---
+
+## Styling
+
 
 A terminal's look is almost entirely four knobs: the **16-color ANSI palette** (plus
 foreground/background/cursor/selection), the **font**, **padding**, and **background opacity**.
@@ -292,3 +340,228 @@ palette = 8=#585b70
 Citations for this file live at `.research/sources/components-terminal-styling.md` (repo root), kept out of
 the load path on purpose. Read them when reviewing a recommendation, not when
 authoring a config.
+
+---
+
+## Validation
+
+
+Parse + sanity checks the writer (or `validate.sh`) runs on the emitted terminal configs
+**before** the reload hook fires. kitty's parser is the strictest of the bunch — it reads
+everything after the key as the value, so a trailing `# comment` on `background_blur 1` is
+silently treated as part of the value and the setting goes inactive on every launch. That class
+of defect is what these checks exist to catch.
+
+## Cross-references
+
+- The comment hazard itself → `gotchas.md` (kitty section).
+- Per-emulator parser quirks → `template.md` per-emulator subsections.
+- The contract between `kitty.conf` (look) and `colors.conf` (palette) → `template.md`,
+  `../../_shared/colors-contract.md`.
+
+---
+
+## Gotchas
+
+
+## Font **family** ≠ font **size** — keep them apart
+
+The colors file (`colors.conf`, `colors.toml`, `colors.lua`, the `[colors]` block of `foot.ini`,
+the `palette = …` lines of `ghostty/config`) holds **palette only**. It does **not** include
+`font_family` and **does not** include `font_size`. Both font keys live in the emulator's main
+config (`kitty.conf`, `alacritty.toml`, etc.) and are written **once** at generate-time.
+
+Why this matters: re-theming runs `rice apply`, which rewrites the colors file and **only** the
+colors file. If the colors file carried `font_size 11`, every re-theme would silently revert the
+user's `font_size 13` edit. Treat the colors file as palette-pure; the main config owns sizing
+and the family resolves from `fonts.mono` (group 13).
+
+The contract is enforced by `_shared/colors-contract.md`: kitty's `colors.conf` exports exactly
+`background foreground cursor selection_background selection_foreground color0..color15` — no
+font keys, no opacity.
+
+## Window-swallowing needs two ingredients
+
+If the user picks `swallow` in `terminal.extras`, both lines have to land in
+`look-feel/looknfeel.conf` (the **look-feel** component owns these — not this one):
+
+```ini
+misc {
+    enable_swallow = true
+    swallow_regex  = ^(<terminal-class>)$
+}
+```
+
+The `<terminal-class>` map (from `hyprctl clients` on a running system):
+
+| emulator | window class (regex literal) |
+|---|---|
+| kitty | `kitty` |
+| alacritty | `Alacritty` |
+| foot | `foot` |
+| wezterm | `org.wezfurlong.wezterm` |
+| ghostty | `com.mitchellh.ghostty` |
+
+Missing the regex → swallowing never triggers (Hyprland has no class to match). Missing
+`enable_swallow` → the regex is dead config. Both must ship together, gated on
+`terminal.swallow == true`. See the **look-feel** component for the actual block.
+
+## `$terminal` in `hyprland.conf` must match the chosen emulator
+
+The variables block at the top of `hyprland.conf` declares `$terminal = <command>`. The
+`keybinds` component's `bind = $mainMod, Return, exec, $terminal` line is the **only** path users
+launch a new terminal — so if `terminal.emulator` is `alacritty` but `$terminal = kitty`, the bind
+opens kitty and the rest of the rice (themed alacritty config, palette in `alacritty.toml`) is
+invisible.
+
+The rule: `terminal.emulator` from `answers.json` is the single source. The `hyprland`-component
+writer reads it and emits `$terminal = <emulator>` verbatim (no aliases, no `$TERM`, no shell
+wrappers).
+
+## Alacritty TOML vs YAML history
+
+Alacritty migrated from YAML to **TOML at 0.13** (Dec 2023). Stale copy-paste from old guides will
+hand you `alacritty.yml` with snake_case nesting; current alacritty silently ignores it. The rice
+template emits **TOML only** (`alacritty.toml`), and the install step warns if a pre-existing
+`alacritty.yml` is detected alongside (offer to run `alacritty migrate`).
+
+Other TOML-era gotchas worth flagging:
+- `[cursor.style]` is `{ shape = "Beam", blinking = "On" }` (capitalized values: `Block`/
+  `Underline`/`Beam` for shape, `Never`/`Off`/`On`/`Always` for blinking) — **not** under
+  `[colors]` (a common port mistake).
+- `transparent_background_colors = true` lives under **`[colors]`**, not `[window]`. It is
+  required for `[window].opacity` to actually look transparent — without it, the theme's solid
+  background paints every cell and opacity is dead. (alacritty/alacritty docs section is
+  `[colors]`.)
+- `[window].blur` is **macOS-only**; on Wayland the blur comes from Hyprland's decoration block,
+  not alacritty. Don't waste a key on it.
+- `import = [...]` and `live_config_reload = true` both live under the `[general]` table in
+  ≥0.13, not at the top level. The 0.13 release was 2023-12-27 (`alacritty/alacritty` v0.13.0).
+- `[font] size` is typed `<float>`; render integer answers as `11.0` (not `11`) so strict TOML
+  parses without an `invalid type: integer` error.
+- Per-terminal shell override lives at `[terminal] shell = "/usr/bin/fish"` or
+  `[terminal] shell = { program = "/usr/bin/fish", args = ["-l"] }`.
+
+## Opacity below ~0.8 is unreadable
+
+The interview offers `1.0` / `0.95` / `0.85` / custom. The validator warns if the user types a
+custom value below `0.7` — over a busy wallpaper, text legibility collapses. See
+`styling.md` "Pitfalls" for the full reasoning. If the user insists, write the value and move on
+(the warning is non-blocking).
+
+## Per-emulator `shell` directive vs `chsh`
+
+Each emulator has its own way of overriding the user's login shell. Rice writes **none of these
+by default** — `chsh` is the source of truth and the per-emulator overrides exist only as
+opt-ins for users who want, say, fish in their terminal and bash everywhere else.
+
+| Emulator | Directive | Default behaviour |
+|---|---|---|
+| kitty | `shell /usr/bin/fish` (top-level kitty.conf) | `shell .` → `$SHELL` or login shell |
+| alacritty | `[terminal] shell = "/usr/bin/fish"` or `{ program = "...", args = [...] }` | uses `$SHELL` |
+| foot | `shell=/usr/bin/fish` (top-level / `[main]`) | uses `$SHELL` or login shell |
+| wezterm | `config.default_prog = { '/usr/bin/fish', '-l' }` | uses login shell |
+| ghostty | `command = /usr/bin/fish` | uses login shell |
+
+## btop `_mid` empty for 2-stop fades is documented
+
+The plugin's `btop.tmpl` covers all 42 upstream theme keys (verified against
+`aristocratos/btop/main/themes/dracula.theme`). For 2-stop fades, leaving the optional `_mid`
+as `""` is the documented idiom — upstream themes use it. Example pattern:
+`theme[cached_start]="#X" theme[cached_mid]="" theme[cached_end]="#Y"` produces a clean linear
+fade between X and Y without a forced midpoint hue. ML4W's `dotfiles/.config/matugen/templates/
+btop.theme` is the corroborating community reference; v0.13.1-research added the missing
+`cached_*`, `available_*`, `download_*`, `upload_*`, `process_*` meter gradients.
+
+## cava 8 gradient stops vs 6
+
+Cava's `[color]` block supports `gradient_color_1..8` (eight stops). The previous `cava.tmpl`
+populated only 1..6, leaving 7 and 8 empty, which made cava fall back to a hardcoded
+green→red gradient for the last 25% of the bar height — visible on tall bars and very visible
+when the bar isn't dominated by green/red. Both HyDE (`Wall-Ways/cava.dcol`) and JaKooLit
+(`wallust/templates/colors-cava`) use all 8 stops; v0.13.1-research extended the .tmpl to match.
+`gradient_count = 8` is set explicitly so cava reads exactly 8 stops.
+
+## Version branch — none today
+
+No Hyprland-version cliffs touch this component's templates (the swallow keys have been stable
+since 0.30). See `_shared/version-matrix.md` for the cliffs other components branch on; nothing
+here on the terminal side.
+
+---
+
+## Reload
+
+
+Terminal config changes apply to **newly-launched terminal windows only**. There is no signal
+broadcast that reliably re-renders a running shell session's font/opacity/palette across every
+emulator, and rice does **not** try to fake one.
+
+## Reload scope
+
+| Surface | New terminals | Already-open terminals |
+|---|---|---|
+| Font family / size | applied | unchanged until restart |
+| Background opacity | applied | unchanged until restart |
+| Padding | applied | unchanged until restart |
+| Cursor shape / blink | applied | unchanged until restart |
+| 16-color palette | applied | **see below** |
+
+The 16-color palette is the one knob some emulators **can** push to running sessions, but
+behaviour varies enough that rice's default flow is "next window picks it up." Per-emulator
+specifics:
+
+| Emulator | Live-reload mechanism | rice behaviour |
+|---|---|---|
+| kitty | `kill -SIGUSR1 $KITTY_PID` reloads `kitty.conf`; or `kitten @ load-config`. Modern kitty also auto-reloads on save (controlled by the `auto_reload_config` option). | rice **does not** send `SIGUSR1` by default. New terminals pick up the new colors. |
+| alacritty | `live_config_reload = true` (default) — re-reads on file save. | Live in already-open windows after save. No action required from rice. |
+| foot | **No config-reload signal.** `SIGUSR1` switches to `[colors-dark]` and `SIGUSR2` to `[colors-light]` — both swap **between existing color blocks**, not reload the file from disk. For other key changes, restart. | rice does not send any signal. To live-swap themes, ship dual `[colors-dark]` / `[colors-light]` blocks and use `kill -SIGUSR1/2 $(pidof foot)`. |
+| wezterm | `automatically_reload_config = true` (default). | Live in already-open windows on save. |
+| ghostty | `ctrl+shift+,` in-app reload; otherwise restart. | New windows pick it up. |
+
+The intentional default is **passive**: write the file, do nothing. The user's existing terminals
+keep their old colors until they close, the new ones come up with the rice palette. Two reasons:
+
+1. **No risk of broken state.** Sending `SIGUSR1` to kitty while it's mid-prompt or attached to
+   `tmux` is safe in practice, but inconsistent across versions — kitty 0.30+ handles it cleanly,
+   older builds occasionally corrupt the scrollback. Skipping the signal avoids the failure mode.
+2. **Convergence is automatic.** Users close and reopen terminals constantly. Within a session or
+   two the new theme is universal — without any extra step from rice and without the chance of
+   touching an unrelated process.
+
+If a user **wants** the immediate reload, the manual command is documented per emulator in
+`styling.md` ("How colors are set" table). For kitty specifically:
+
+```bash
+kill -SIGUSR1 $(pidof kitty)        # blanket reload all kitty instances
+# or, in a single kitty window:
+#   ctrl+shift+f5
+```
+
+## What rice **does** do on `rice apply`
+
+1. Renders the colors file (`~/.config/<emulator>/colors.<ext>` or the `[colors]` block of
+   `foot.ini`).
+2. Writes the emulator's main config (`kitty.conf` / `alacritty.toml` / `foot.ini` /
+   `wezterm.lua` / `ghostty/config`) **only on first generate** — `rice apply` for re-theming
+   touches the colors file only (engine guarantee, see `theming/engine.md`).
+3. Logs `# terminal: new windows will pick up the new palette` and moves on.
+
+## Failure modes
+
+- **Stale running shell.** Expected — see above. Not an error.
+- **Colors file missing.** The main config's `include colors.conf` / `import` / `require` line
+  fails the emulator's own parse on next launch (kitty/foot/wezterm complain in stderr;
+  alacritty/ghostty silently fall back to defaults). The validator checks the include target
+  exists at generate-time.
+- **Palette key mismatch.** If a renamed `_shared/colors-contract.md` variable lands without the
+  matching template update, the emulator config either errors (alacritty's strict TOML) or
+  silently un-themes (kitty drops unknown lines). Caught by `_shared/colors-contract.md` being
+  the single source.
+
+## Cross-references
+
+- Engine reload-hook discipline → `theming/engine.md`
+- Per-emulator live-reload UX → `styling.md` "How colors are set"
+- Other components' reload behaviour → `components/<x>/reload.md`
+

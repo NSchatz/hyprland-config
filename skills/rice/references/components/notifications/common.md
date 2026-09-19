@@ -1,4 +1,42 @@
-# Styling Notifications (mako / dunst / swaync)
+# notifications - common
+
+Cross-tool content for the `notifications` surface: what holds no matter which tool was picked.
+Read this **plus** the one `tools/<your-tool>.md` the interview selected.
+
+## Contents
+
+- Template
+- Validation
+- Gotchas
+- Reload
+
+---
+
+## Template
+
+
+Per-daemon recipes. The rice engine renders the **colors** portion from `palette.conf` via
+`_shared/colors-contract.md`; the rest of the config is emitted by this component's writer from the
+`notifications.*` answers. Every literal color shown below as `#{{accent}}` etc. is engine-rendered
+— **never hardcode hex** in this component's output.
+
+For the full styling library (anatomy, urgency conventions, swaync widget patterns,
+battle-tested moves), see `styling.md`.
+
+## What does NOT belong here
+
+- The `exec-once = <daemon>` line. That's `components/autostart/`.
+- The DND-toggle bind (`bind = $mainMod, N, exec, makoctl mode -t do-not-disturb` etc.). That's
+  `components/keybinds/`, gated on `"dnd-bind" ∈ notifications.behavior`.
+- The swaync `layerrule` blur block. That's `components/window-rules/`.
+- The waybar `custom/notification` module. That's `components/waybar/`, gated on
+  `notifications.daemon == "swaync"`.
+- The rice-rendered colors file content. That's `theming/engine.md` + the per-daemon `.tmpl`.
+
+---
+
+## Styling
+
 
 Notifications are the most-seen transient surface on a Wayland desktop — a toast that pops for a few
 seconds dozens of times a day. Getting them to *match the rice* (same accent, same radius, same
@@ -167,154 +205,6 @@ red `f38ba8`, bg `1e1e2e`).
 > with colours already folded in, so this recipe is the whole config, self-contained — not a
 > fragment to be merged.
 
-### mako — `~/.config/mako/config`
-
-```ini
-# --- layout / placement ---
-anchor=top-right
-margin=10
-padding=14
-border-radius=10
-border-size=2
-width=340
-height=120
-default-timeout=5000
-max-visible=5
-icon-location=left
-max-icon-size=48
-font={{font_ui}} 11
-markup=1
-format=<b>%s</b>\n%b
-
-# --- colours ---
-background-color=#{{surface}}ee
-text-color=#{{fg}}
-border-color=#{{accent}}
-progress-color=over #{{accent}}44
-
-[urgency=low]
-border-color=#{{muted}}
-
-[urgency=critical]
-border-color=#{{red}}
-default-timeout=0
-
-# group repeats from the same app
-[grouped]
-format=<b>%s</b>\n%b\n<small>(%g)</small>
-```
-
-Catppuccin Mocha worked values:
-
-```ini
-background-color=#313244ee
-text-color=#cdd6f4
-border-color=#cba6f7
-progress-color=over #cba6f744
-# [urgency=critical] border-color=#f38ba8
-```
-
-### dunst — `~/.config/dunst/dunstrc`
-
-```ini
-[global]
-    origin = top-right
-    offset = (10, 50)
-    width = 340
-    height = (0, 120)
-    corner_radius = 10
-    frame_width = 2
-    padding = 14
-    horizontal_padding = 14
-    separator_color = frame
-    gap_size = 8
-    font = {{font_ui}} 11
-    markup = full
-    format = "<b>%s</b>\n%b"
-    icon_position = left
-    min_icon_size = 16
-    max_icon_size = 48
-    progress_bar = true
-    progress_bar_height = 8
-    corners = all
-
-[urgency_low]
-    background = "#{{surface}}"
-    foreground = "#{{fg}}"
-    frame_color = "#{{muted}}"
-    timeout = 5
-
-[urgency_normal]
-    background = "#{{surface}}"
-    foreground = "#{{fg}}"
-    frame_color = "#{{accent}}"
-    timeout = 5
-
-[urgency_critical]
-    background = "#{{surface}}"
-    foreground = "#{{fg}}"
-    frame_color = "#{{red}}"
-    timeout = 0
-```
-
-Catppuccin Mocha worked values (per-urgency `background = "#313244"`, `foreground = "#cdd6f4"`):
-normal `frame_color = "#cba6f7"`, critical `frame_color = "#f38ba8"`. dunst transparency is set via
-the 8-digit hex on `background` (e.g. `"#313244ee"`) or the global `transparency` percentage — not
-both.
-
-### swaync — `~/.config/swaync/style.css`
-
-GTK CSS. Define colours up top, then style the toast and the control-center panel. Selectors here
-match current swaync (`.notification-row`, `.notification`, `.control-center`, `.widget-dnd`,
-sliders).
-
-```css
-@define-color bg       #{{bg}};
-@define-color surface  #{{surface}};
-@define-color fg       #{{fg}};
-@define-color muted    #{{muted}};
-@define-color accent   #{{accent}};
-@define-color red      #{{red}};
-
-* { font-family: "{{font_ui}}", "Symbols Nerd Font"; font-size: 14px; }
-
-/* a single toast */
-.notification-row .notification {
-  border-radius: 10px;
-  border: 2px solid @accent;
-  margin: 6px 12px;
-  background: alpha(@surface, 0.93);
-  box-shadow: 0 2px 8px 0 rgba(0,0,0,0.6);
-}
-.notification-row .notification.critical { border-color: @red; }
-.notification .summary { color: @fg; font-weight: bold; }
-.notification .body,
-.notification .time   { color: alpha(@fg, 0.8); }
-.close-button {
-  background: @surface; color: @fg;
-  border-radius: 100%; min-width: 24px; min-height: 24px;
-  margin: 8px 8px 0 0;
-}
-
-/* the slide-out notification center panel */
-.control-center {
-  background: alpha(@bg, 0.95);
-  border: 1px solid @muted;
-  border-radius: 12px;
-  padding: 14px;
-  color: @fg;
-}
-.widget-dnd > switch:checked { background: @accent; }       /* DND toggle */
-.widget-title > button { background: @surface; color: @fg; border-radius: 8px; }
-
-/* volume / brightness sliders -> accent fill */
-trough highlight, scale highlight { background: @accent; }
-slider { background: @fg; border-radius: 100%; }
-```
-
-Catppuccin Mocha: `@define-color bg #1e1e2e; @define-color surface #313244; @define-color fg
-#cdd6f4; @define-color accent #cba6f7; @define-color red #f38ba8;`.
-
 ## Pitfalls
 
 - **mako alpha is an appended hex pair, not a separate key.** Opacity lives in the 8th-7th hex
@@ -346,3 +236,123 @@ Catppuccin Mocha: `@define-color bg #1e1e2e; @define-color surface #313244; @def
 Citations for this file live at `.research/sources/components-notifications-styling.md` (repo root), kept out of
 the load path on purpose. Read them when reviewing a recommendation, not when
 authoring a config.
+
+---
+
+## Validation
+
+
+Parse + sanity checks the writer (or `validate.sh`) runs on the emitted files **before** the
+reload hook fires. A bad config crashes the daemon at startup, which silently drops every toast
+the user sees — so catch parse errors at generate-time.
+
+## Cross-references
+
+- Per-daemon recipes → `template.md`
+- Reload hooks (where the parse check is wedged in) → `reload.md`
+- Color-var contract (the `@var` names the swaync `style.css` may reference) →
+  `../../_shared/colors-contract.md`
+
+---
+
+## Gotchas
+
+
+## Only ONE notification daemon can run
+
+mako, dunst, and swaync all claim the `org.freedesktop.Notifications` D-Bus name. The first
+process to register wins; the second to start logs a "name already in use" / "another notification
+daemon is running" error and exits. Symptoms when you stack two daemons:
+
+- One daemon shows toasts, the other shows nothing — but the user can't tell which is which from
+  the toast alone.
+- After a reboot or a daemon crash + restart, the "wrong" one sometimes wins.
+- DND toggles only affect the daemon that actually owns the name; the other's CLI is a no-op.
+
+**Rule:** rice writes config for exactly one daemon and the `autostart` component emits exactly
+one `exec-once`. If a full **widget shell** (group 7 — eww/ags/quickshell/hyprpanel, or a turnkey
+distro like end-4 / caelestia / noctalia / dankmaterial) ships its own notification daemon, set
+`notifications.daemon = "none"` and let the shell own the D-Bus name. Don't co-install mako
+"as a fallback" — it'll race the shell at login.
+
+## Color keys come from the engine — never hardcode hex
+
+The colors portion of every daemon config is rendered by the rice engine from `palette.conf` via
+the per-daemon `.tmpl` (`mako.tmpl`, `dunst.tmpl`, `swaync.tmpl`). The component writer:
+
+- For **mako** — emits the layout/behavior keys; the `mako.tmpl`-rendered color section is the
+  inline `background-color` / `text-color` / `border-color` block. The two are concatenated into
+  the single `~/.config/mako/config` file.
+- For **dunst** — emits `[global]` and the per-urgency frames; the `dunst.tmpl`-rendered colors
+  are **merged into the same `[urgency_*]` sections** at write-time. dunst has no `@import` — the
+  merge is textual.
+- For **swaync** — emits `style.css` with `@import "colors.css";` at the top; the engine writes
+  `colors.css` separately from `swaync.tmpl`.
+
+Hardcoding hex anywhere in this component's output silently un-themes that surface when the user
+re-themes (rice Mode B). The validator flags any literal `#RRGGBB` in the writer's emitted
+template that isn't a `{{var}}`.
+
+## Waybar `custom/notification` is swaync-only
+
+When waybar is the bar AND it includes the `custom/notification` module, the module reads
+`swaync-client -swb` (subscribe-waybar) for the unread count + DND state. mako and dunst don't
+expose an equivalent waybar-compatible endpoint, so:
+
+- `notifications.daemon == "swaync"` → waybar module works.
+- `notifications.daemon ∈ {mako, dunst}` AND waybar requested `custom/notification` → the writer
+  **omits** the module rather than emit a broken poll. Log the omission so the user knows.
+- The same D-Bus-mutex still applies: the waybar module isn't a second daemon — it just
+  visualizes swaync's state. Only swaync still holds the name.
+
+## Critical urgency never inherits the user's timeout
+
+Whatever the user picks for 9c (`5s` / `3s` / `10s` / `Never`), the template **always overrides
+critical-urgency notifications to `timeout = 0` / `default-timeout = 0`**. That's a styling-library
+invariant (low-battery / screen-share / disk-full warnings must persist until acknowledged), not a
+user knob. If the user picked `Never` for 9c, normal and low urgencies also go to `0`; critical is
+already `0`. See `styling.md` for the full reasoning.
+
+## DND-bind matches the daemon
+
+When `"dnd-bind" ∈ notifications.behavior`, the `keybinds` component emits one bind, and the bind
+**must match the daemon**:
+
+| Daemon | DND-toggle command |
+|---|---|
+| mako   | `makoctl mode -t do-not-disturb` |
+| dunst  | `dunstctl set-paused toggle` |
+| swaync | `swaync-client -d` (note: `-t` toggles the panel, not DND) |
+
+Wiring the mako command to a dunst session (or vice versa) silently no-ops — the CLI talks to
+its own daemon's D-Bus interface, not the freedesktop spec's, so the wrong CLI succeeds with
+nothing happening. The `keybinds` writer reads `notifications.daemon` to pick the right one.
+
+---
+
+## Reload
+
+
+Each daemon has a one-shot CLI to reload its config in place — **only run it when the daemon is
+actually running**. On a fresh install (rice Mode A first run) the daemon hasn't been started
+yet; running `makoctl reload` against no daemon fails with a confusing error. Guard every reload
+on a `pgrep -x <daemon>`.
+
+The autostart `exec-once = <daemon>` lives in `components/autostart/`; rice's first-run flow is
+**write config → start daemon (Hyprland reload runs `exec-once`) → no explicit reload needed**.
+Subsequent edits (rice Mode B re-theme, or `edit-config`) take the reload path below.
+
+## On the very first Mode A run
+
+No daemon is yet running. The reload step is a **no-op** by design (every `pgrep` guard fails).
+The daemon starts when Hyprland processes its `exec-once = <daemon>` line — at that point the
+config is already on disk, so the daemon picks up the rice palette / position / timeout values
+on first boot. **Do not** try to start the daemon from the notifications writer; that races with
+Hyprland's startup and breaks Mode B's re-theme flow (which expects an already-running daemon).
+
+## Cross-references
+
+- Where the autostart `exec-once = <daemon>` is written → `../autostart/template.md`
+- Parse checks that gate the reload → `validation.md`
+- Per-daemon CLI references → `styling.md` (the "What you're styling" table at the top)
+

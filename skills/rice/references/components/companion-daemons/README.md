@@ -68,7 +68,7 @@ before suspend, hyprpaper's IPC socket (on by default since 0.7.x) lets
   Wayland-protocol blur request (compositor-served via `ext-background-effect-v1`, not built-in).
   Hyprland implemented the server in commit `7d1e481` (May 2026); on older Hyprland it silently
   no-ops and a `layerrule = blur, walker` block is required instead. See
-  `../launcher/gotchas.md` and `../window-rules/`.
+  `../launcher/` and `../window-rules/`.
 - [`look-feel`](../look-feel/) — corpus uses two dpms-dispatch forms in `hypridle.conf`: the
   classic-string `hyprctl dispatch dpms off` (binnewbs, Ax-Shell, JaKooLit, dusky, Matt-FTW —
   works on every Hyprland version) and the runtime-Lua form `hyprctl dispatch 'hl.dsp.dpms({

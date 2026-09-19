@@ -43,7 +43,7 @@ For users who want widgets without programming. These are configured through a G
 
 **nwg-shell** (`nwg-piotr`) — a coordinated, **still-maintained** GTK/Python suite for sway *and* Hyprland: **nwg-panel** (the bar — Controls with brightness/volume sliders, clock+calendar, executors, taskbars, workspaces, menu-start, openweather, playerctl, tray), **nwg-drawer** (app grid), **nwg-dock**, **nwg-bar** (power menu). Configured via the `nwg-shell-config` / `nwg-panel-config` GUIs (JSON underneath); themed with a per-panel **`style.css`** (standard GTK CSS — Waybar knowledge transfers directly) plus preset styles. The maintained alternative to HyprPanel for a GUI-configured suite.
 
-**Lower-effort still:** **Waybar `custom/*` modules** + `group/drawer` give you weather, notification bells, todo/pomodoro, and hover-out sliders without a new framework — see [`waybar.md`](../../waybar/styling.md). And **swaync** is the standard drop-in **notification-center widget** for any bar (GTK CSS `~/.config/swaync/style.css`; pair via a `custom/notification` toggle).
+**Lower-effort still:** **Waybar `custom/*` modules** + `group/drawer` give you weather, notification bells, todo/pomodoro, and hover-out sliders without a new framework — see [`waybar.md`](../../../waybar/styling.md). And **swaync** is the standard drop-in **notification-center widget** for any bar (GTK CSS `~/.config/swaync/style.css`; pair via a `custom/notification` toggle).
 
 ---
 
