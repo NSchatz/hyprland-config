@@ -45,6 +45,11 @@ bash tests/run.sh <substring>       # only files matching the substring
 RUN_INTEGRATION=1 bash tests/run.sh # plus Hyprland-in-Docker
 ```
 
+The suite covers the Python too: `test_scripts_syntax.sh` py_compiles every
+shipped module, and `test_context_budgets.sh` holds the context contract (a
+SKILL.md body under 500 lines, and B-6 - what ONE writer agent loads to author
+ONE surface - under 12k tokens).
+
 Exit 0 only if every test passed; skipped is acceptable, failed is not. Plain
 bash, `jq` and `git` - no framework. `tests/README.md` is the table of what each
 file covers.
@@ -67,9 +72,21 @@ tool that edits a live desktop proves its unhappy paths.
   several run in parallel).
 - `commands/` - `reset-config`, which wipes `~/.config/hypr` to a bare-bones
   config behind a full backup, a live test and auto-rollback.
-- `scripts/` - the shared mechanics: `backup-path.sh`, `restore-point.sh`,
-  `rice-restore.sh`, `record-answer.sh`, `install-packages.sh`,
-  `install-record.sh`, `firefox-prefs.sh`, `dotfiles.sh`, `xdg-config.sh`.
+- `scripts/ricelib/` - **the implementation**, in Python. `xdg.py` (the one
+  decision about where configuration lives), `restorepoint.py`, `backuppath.py`,
+  `ricerestore.py`, `installrecord.py`, `installpackages.py`, `firefoxprefs.py`,
+  `firefoxbootstrap.py`, `firefoxrestart.py`, `dotfiles.py`, `clock.py`,
+  `proc.py`, `ricecli.py`, plus `hypr/` (the compositor-facing surface:
+  `safeapply`, `installconfig`, `preflightconfig`, `removedkeys`, `configlang`,
+  `detectversion`, `emitconfig`, `resetconfig`, `migrateconfig`, `ledger`,
+  `currencycheck`, `rendertemplates`, `riceinit`, `setwallpaper`, …) and
+  `desktop/helpers.py` (the keybind-bound desktop helpers).
+- `scripts/*.sh` and `skills/rice/scripts/*.sh` - **dispatchers**, ~30 lines
+  each. They locate the package and hand off. The NAME is the interface every
+  skill doc, agent, test and keybind uses; the implementation is Python.
+- The only two `.sh` files that are implementations, both deliberately:
+  `scripts/ensure-python.sh` (it installs the interpreter, so it cannot be
+  written in it) and `scripts/record-answer.sh` (a shim over `record-answer.py`).
 - `tests/` - the harness, plus `tests/integration/` for the container run.
 
 ## Conventions
