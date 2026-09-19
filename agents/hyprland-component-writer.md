@@ -51,9 +51,17 @@ table if you are unsure which key selects the tool.
 | terminal | `components/terminal/common.md` + `tools/<tool>.md` | `terminal.emulator` |
 | widgets | `components/widgets/common.md` + `tools/<system>.md` | `widgets.system` |
 
+**waybar shards one axis over.** waybar IS the tool, but its look is picked the same way, so read
+the flat set **plus exactly one** `looks/<archetype>.md`:
+
+- always → `components/waybar/{template,gotchas,styling,validation,reload}.md`
+- plus one → `components/waybar/looks/<bar.archetype>.md` (`floating-islands` · `separated-pills`
+  · `single-lozenge` · `edge-to-edge` · `minimal-mono` · `powerline` · `dock`)
+- plus, **only** when `bar.form` is not a single horizontal bar →
+  `components/waybar/forms/vertical-dual-dock.md`. A standard top or bottom bar needs none of it.
+
 Single-tool surfaces keep the flat layout:
 
-- waybar → `components/waybar/{template,gotchas,styling,validation,reload}.md`
 - lock screen (hyprlock) →
   `components/lock-screen/{template,gotchas,styling,validation,packages,reload}.md`
 - widgets (eww / AGS / Quickshell / HyprPanel / turnkey) → **sharded by tool**:

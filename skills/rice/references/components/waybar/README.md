@@ -10,14 +10,37 @@ This is also where waybar's **design** lives — the archetype, corner, transpar
 and motion are *all asked here*, not in [`look-feel`](../look-feel/). `look-feel` only owns the
 compositor's own decorations (gaps, rounding, blur, animations on **windows**).
 
+## What to read
+
+waybar cannot shard by tool - waybar IS the tool - but its look is chosen the same way: one of
+seven archetypes, named by `bar.archetype`. A writer emits ONE. Read the shared recipe set plus
+**only** that archetype's file.
+
+**Always:** `template.md` · `styling.md` · `gotchas.md` · `validation.md` · `reload.md`
+**Plus exactly one** of:
+
+| `bar.archetype` | Read |
+|---|---|
+| `floating-islands` (default) | [`looks/floating-islands.md`](looks/floating-islands.md) |
+| `separated-pills` | [`looks/separated-pills.md`](looks/separated-pills.md) |
+| `single-lozenge` | [`looks/single-lozenge.md`](looks/single-lozenge.md) |
+| `edge-to-edge` | [`looks/edge-to-edge.md`](looks/edge-to-edge.md) |
+| `minimal-mono` | [`looks/minimal-mono.md`](looks/minimal-mono.md) |
+| `powerline` | [`looks/powerline.md`](looks/powerline.md) |
+| `dock` | [`looks/dock.md`](looks/dock.md) |
+
+**Plus, only when `bar.form` is not a single horizontal bar:**
+[`forms/vertical-dual-dock.md`](forms/vertical-dual-dock.md). A standard top or bottom bar needs
+none of it.
+
 ## Files in this folder
 
 | File | What it holds |
 |---|---|
 | `interview.md` | Sub-questions 6a–6n across **4** `AskUserQuestion` calls. The strategy gate (6a) can short-circuit to widgets/HyprPanel; otherwise walk all 14. |
 | `schema.md` | The `bar.*` slice of `answers.json` — strategy, form, height, archetype, corner, transparency, workspace indicator, accent strategy/application, motion, modules. |
-| `template.md` | The recipe — the default `config.jsonc` (modules, on-clicks, format strings, the MDI glyph table) and `style.css` archetype-by-archetype. References [`_shared/colors-contract.md`](../../_shared/colors-contract.md) for the 12 `@define-color` names. |
-| `styling.md` | The full design library — bar form (top/bottom/vertical/dual/dock), the 7 archetypes, every harvested technique from ~55 community configs, system-module recipes. This is the source the interview options are drawn from. |
+| `template.md` | The recipe — the default `config.jsonc` (modules, on-clicks, format strings, the MDI glyph table) and the shared `style.css` parts (workspace indicator, per-module hues, dividers). The per-archetype `style.css` skeletons live in `looks/`. References [`_shared/colors-contract.md`](../../_shared/colors-contract.md) for the 12 `@define-color` names. |
+| `styling.md` | The cross-archetype design library — what you're styling, the design anatomy, every harvested technique from ~55 community configs, system-module recipes, pitfalls. Per-archetype material lives in `looks/`; bar-form material in `forms/`. |
 | `gotchas.md` | JSONC parses comments but trailing commas / unbalanced braces silently kill the bar; the MDI glyph linter strip; plugin dispatchers in module on-clicks; swaync/mako daemon mutex; backlight-only-when-it-exists; layer-namespace blur cross-dep. |
 | `validation.md` | What the validator runs before reload — `json.load` parse, balanced CSS braces, no plugin dispatchers, layerrule namespace match. |
 | `packages.md` | `waybar` itself plus the on-click tools waybar is responsible for: `pavucontrol`, `nm-connection-editor`, `blueman-manager`. |

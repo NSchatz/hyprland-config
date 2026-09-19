@@ -15,7 +15,6 @@ Reload after editing **either** file without a full restart:
 
 ```bash
 killall -SIGUSR2 waybar
-```
 
 `SIGUSR2` re-reads config + CSS in place. (`SIGUSR1` toggles visibility.) If you changed `position`/`exclusive`/`gtk-layer-shell` and things look wrong, do a hard restart: `killall waybar; waybar & disown`.
 
@@ -46,14 +45,7 @@ killall -SIGUSR2 waybar
 
 **Transparency + Hyprland blur.** A translucent bar over a busy wallpaper looks muddy *unless the compositor blurs what's behind it*. Add a layer rule in `hyprland.conf` targeting Waybar's layer namespace (`waybar`). **On Hyprland 0.54.x use the block form — the single-line `layerrule = blur, waybar` is rejected** (`invalid field blur: missing a value`) and fails the whole reload. The current (0.54+) form, with the required `name` key (see `../window-rules/template.md`):
 
-```conf
-layerrule {
-    name = blur-waybar
-    match:namespace = waybar
-    blur = true
     ignore_alpha = 0.1   # don't blur the fully-transparent gaps between pills
-}
-```
 
 On **older targets (pre-0.53)** use the single-line form instead (`layerrule = blur, waybar` / `layerrule = ignorealpha 0.1, waybar`). Pick the form by version; never mix them for one rule.
 
@@ -76,38 +68,6 @@ Confirm the namespace with `hyprctl layers` (look for `namespace: waybar`). Know
 
 Seven recognizable archetypes. Most popular dotfiles ship one of these (the first five are the staples; powerline and dock are the distinctive long tail). These are *horizontal* looks — for **vertical and dual bars** see "Bar form" below.
 
-**(a) Floating island bar** — *the dominant modern look* (HyDE, ml4w themes, countless r/unixporn posts). Bar itself is transparent and detached via `margin`; the three module groups become opaque rounded islands.
-```css
-window#waybar { background: transparent; }
-.modules-left, .modules-center, .modules-right {
-    background: rgba(30, 30, 46, 0.85);
-    border-radius: 14px;
-    padding: 0 8px;
-    margin: 6px;
-}
-```
-Pair with the `layerrule … blur = true` block (above) for the frosted-glass effect.
-
-**(b) Edge-to-edge solid bar** — the classic Waybar default and many minimalist Sway rices. No margins, `exclusive: true`, a solid or lightly-translucent full-width bar, square corners. The official sample uses `background: rgba(43,48,59, 0.5); border-bottom: 3px solid rgba(100,114,125,0.5);` with `#workspaces button.focused { border-bottom: 3px solid white; }`.
-
-**(c) Per-module separated pills** — every module is its own floating capsule. Achieved with `margin` + `border-radius` on **individual** module IDs and a transparent bar. High visual separation; reads "techy".
-```css
-#clock, #battery, #network, #pulseaudio, #tray {
-    background: rgba(49, 50, 68, 0.9);
-    border-radius: 999px;
-    padding: 2px 12px;
-    margin: 6px 3px;
-}
-```
-
-**(d) Single grouped pill** — one continuous rounded capsule per side with `spacing: 0`, internal dividers via subtle `border` between modules. HyDE leans on this with its `group/pill` and `group/leaf-inverse` Waybar groups; the inner radius is computed to match Hyprland's window rounding.
-
-**(e) Minimal mono** — JetBrains/Fira Nerd mono font, near-monochrome (`@text` on transparent), accent used *only* on the active workspace dot. Tiny height, `spacing` tight. Common in "clean desktop" showcases.
-
-**(f) Powerline / segmented** — modules fuse into one continuous strip with angled separators. Two ways: (1) **chained-arrow modules** — interleave `custom/arrow1..N` whose `format` is a single powerline glyph (`` / ``) and whose CSS sets `color` = the next module's bg and `background` = the previous module's bg, so the triangle bridges two solid blocks (cjbassi chains 4, mxkrsv chains 10 into a full gradient; mechabar uses `custom/left_div`/`right_div` slanted divider modules). (2) **End-cap rounding** — give a row of `border-radius: 0` modules rounded caps only on the first (`6px 0 0 6px`) and last (`0 6px 6px 0`) so N differently-colored modules read as one capsule (Prateek7071, DN-debug, oscarcp's directional half-radius weld). Reads "techy/retro"; pairs with per-module solid bg.
-
-**(g) Dock / shelf** — a bottom bar that behaves like a launcher dock. ChromeOS-shelf (cxOrz): `position: bottom`, `border-radius: 24px 24px 0 0` (top corners only), a translucent system "status pill" grouping clock+audio+net+bt+battery via first/last-child rounding, and an active-workspace that morphs a bar into an accent dot. macOS-dock / Win10-taskbar (kamlendras, TheFrankyDoll): a `wlr/taskbar` with `icon-size: 36` as the actual Dock/taskbar, optionally a second top bar. See the recipes under "Bar form".
-
 **Project idioms worth stealing:**
 - **HyDE** (`prasanthrangan/hyprdots`): layouts in `~/.config/waybar/layouts/`, matched style by basename in `styles/`; a 4-layer CSS cascade (`defaults.css` → wallbash-generated palette → `theme.css` → `user-style.css`). Border-radius and font-size live in generated `includes/` files derived from Hyprland's rounding. Don't hand-edit the symlinked `config`/`style.css` — edit `user-style.css`. The wallbash `.dcol` template (`Configs/.config/hyde/wallbash/Wall-Dcol/waybar.dcol`) is HyDE's equivalent of our `waybar.tmpl` and writes exactly six semantic pairs: `bar-bg` / `main-bg` + `main-fg` / `wb-act-bg` + `wb-act-fg` / `wb-hvr-bg` + `wb-hvr-fg` — the bar background is **always fully transparent** (`<wallbash_pry1_rgba(0)>`) and the module group carries the visible color. The composed `theme.css` that ships in-repo confirms the shape (`@define-color bar-bg rgba(0,0,0,0); @define-color main-bg #11111b; @define-color wb-act-bg #a6adc8; …`).
 - **JaKooLit** (`JaKooLit/Hyprland-Dots`): `config` and `style.css` are **symlinks** into `configs/` (44+ layouts: `[TOP] Default`, `[BOT] Default Laptop`, `[LEFT] WestWing v2`, `[TOP & BOT] SummitSplit`, `[TOP] Default-glass` etc.) and `style/` (50+ themes: `[Catppuccin] Mocha.css`, `Crystal Clear Glass.css`, `[Wallust] Chroma Edge.css`, etc.). Switch with `SUPER+ALT+B` (layout) / `SUPER+CTRL+B` (style). Default font-size `97%`. All JaKooLit styles set `font-feature-settings: '"zero", "ss01", "ss02", "ss03", "ss04", "ss05", "cv31"'` to enable JetBrainsMono's dotted-zero + stylistic sets. Every layout file sets `"fixed-center": true` and `"ipc": true` (centered modules-center regardless of left/right width; lets `hyprctl ipc` drive workspace switches). All layout files `"include"` a six-file split: `Modules`, `ModulesWorkspaces`, `ModulesCustom`, `ModulesGroups`, `UserModules` (+ `ModulesVertical` for left/right bars). Edit copies, never the symlinks.
@@ -118,34 +78,6 @@ Pair with the `layerrule … blur = true` block (above) for the frosted-glass ef
 - **Matt-FTW** (`Matt-FTW/dotfiles`): a multi-bar pattern that swaps via one `include` — the root `.config/waybar/config.jsonc` is just `{ "reload_style_on_change": true, "toggle": true, "include": "~/.config/waybar/bars/vertical-bar.jsonc", "layer": "top" }`, and `bars/{top,bottom,vertical}-bar.jsonc` each carry the full per-bar spec. Each bar `include`s the right per-module file from `modules/`, so module configs are written once and reused across all three bar layouts. Cleanest "swap form without duplicating module configs" recipe in the corpus.
 - **linuxmobile** (`linuxmobile/hyprland-dots`): hand-rolled Rose Pine, no engine — everything is literal hex in `style.css`. Notable for the **asymmetric corner pair**: `#custom-launcher { border-radius: 0px 24px 0px 0px }` (top-right rounded only) and `#clock { border-radius: 0px 0px 0px 24px }` (bottom-left rounded only) to weld the launcher and clock into the screen corners with no visible bar background.
 - **end-4** (`end-4/dots-hyprland`) and **caelestia-dots/shell**: *not Waybar* — both use a custom Quickshell shell. Great for visual inspiration, but none of their styling transfers to a `style.css`.
-
-## Bar form — orientation, vertical & multi-bar
-
-Everything above is a *top horizontal* bar. Waybar also does **bottom**, **vertical** (a narrow left/right column), and **multiple bars at once** — these change layout, not just CSS. Pick the form first (it gates the archetype): horizontal islands don't translate to a 32px-wide column, and a dual-bar splits modules across two `config` objects.
-
-**Vertical bar** (`position: "left"` or `"right"`; the niri/ultrawide favorite — saatvik333, Sudhboi, gdots, Pipshag_kitties, EviLuci). Set a **`width`** instead of height (≈ `32`–`44`), and rethink every wide module:
-- **Read direction.** Two strategies: go **icon-only** (saatvik333 — drop text labels, size glyphs with Pango `<span size='14pt'>`), or **`rotate` text modules** so labels read down the column — `"rotate": 90` (or `270`) on `clock`, `network`, `mpris`, `cpu` (Sudhboi, gdots, Pipshag_kitties). `rotate` is a **module-config** key, not CSS.
-- **Stacked formats.** Replace one-line formats with newlines: `"format": "{:%H\n%M}"` for the clock, `"{capacity}\n{icon}"` for battery — no rotation needed.
-- **Vertical sliders.** `pulseaudio/slider` / `backlight/slider` with `"orientation": "vertical"`; style `trough { min-width: 8px; min-height: 70px; border-radius: 8px; }`, `highlight { background: @accent; }`, hide the knob `slider { opacity: 0; }`. Usually revealed inside a `group/drawer` (`"orientation": "inherit"` so the drawer flows vertically too).
-- **Edge-hugging shape.** Round only the inward corners — left bar `border-radius: 0 6px 6px 0`, right bar `6px 0 0 6px` (Sudhboi). A left-edge **`box-shadow: inset 2px 0 @accent`** "color spine" replaces the horizontal underline as the active marker.
-- Workspaces become a vertical stack of dots/numbers; `min-height` (not `min-width`) gives them size.
-
-**Dual bar — top + bottom** (Bwc9876, EviLuci-old, kamlendras, qoheniac). `config.jsonc` becomes a **JSON array of bar objects**, each with a `"name"`. The consistent split: **top = chrome** (clock, tray, system stats, notifications, privacy, media) · **bottom = workspaces + `wlr/taskbar` + sensors**.
-```jsonc
-[
-  { "name": "top",    "position": "top",    "mode": "dock", "exclusive": true,
-    "modules-center": ["clock"], "modules-right": ["tray", "network", "pulseaudio", "battery"] },
-  { "name": "bottom", "position": "bottom", "mode": "dock", "exclusive": true,
-    "modules-left": ["hyprland/workspaces"], "modules-center": ["wlr/taskbar"],
-    "modules-right": ["cpu", "memory", "temperature"] }
-]
-```
-Target a single bar from one stylesheet via its name: `window#waybar.top { … }`, `.bottom#workspaces { … }` (Lynndroid21 also toggles extra bars with `"start_hidden": true` + `"on-sigusr1": "toggle"`).
-
-**Dock / shelf & OS-mimic recipes.**
-- **ChromeOS shelf** (cxOrz): `{"position":"bottom","height":48}`, `window#waybar { border-radius: 24px 24px 0 0; background: alpha(@bg,0.80); }`. Group clock+audio+net+bt+battery into one "status pill" by rounding only the first (`18px 0 0 18px`) and last (`0 18px 18px 0`) member. Active workspace morphs a `min-width:20px;border-radius:4px` bar into a `min-width:8px;border-radius:50%;background:@accent` dot (label `font-size: 0`).
-- **macOS Sequoia** (kamlendras): the look is ~80% **frosted-white translucency + compositor blur**, not heavy CSS. `window#waybar { background: rgba(255,255,255,0.5); color: #000; }` + the `layerrule … blur = true` block. A slim top **menu bar** (`height:24`) whose left side is `custom/launcher` 🔍 (Spotlight → wofi `drun`) followed by plain-text `custom/text*` modules printing **"File" "Edit" "View" "Help"** (`"exec":"echo File"`, each with an on-click app), and `hyprland/window` rewriting an empty class → **"Finder"**. A bottom bar is the **Dock**: `wlr/taskbar` `icon-size:36`. Workspace = neutral-gray tab `border-bottom: 3px solid white` on `.focused`; Apple easing `transition: all .25s cubic-bezier(0.165,0.84,0.44,1)`; color reserved for alerts only.
-- **Windows 10 taskbar** (TheFrankyDoll): `{"position":"bottom","mode":"dock","height":41}`, square corners, `wlr/taskbar` with window title+icon (`min-width:130px`) and an underline-active (`border-bottom:3px solid white`, urgent = `dashed`), a Windows-logo `custom/os_button` launcher, and the **reveal-on-critical** trick (`#temperature{font-size:0;color:transparent}` → `.critical{font-size:initial}`).
 
 ## Battle-tested techniques (harvested from ~55 community configs)
 
@@ -226,163 +158,11 @@ A catalog of concrete, reusable moves pulled from the dotfiles linked off the [W
 - *`gtk-layer-shell: true` + `mode: dock` for dock-like bars* (HyDE bottom bar): forces the bar onto a gtk-layer-shell anchor and tells Hyprland to treat it as a dock for window-avoidance/animations. Required by HyDE's `wlr/taskbar`-as-dock recipe. `mode: dock` doesn't change visuals on its own — without it, certain dock-style behaviours (window-icon picking, taskbar tooltips) misalign.
 - *`"toggle": true` to pre-arm SIGUSR1 visibility* (Matt-FTW root config): together with `"start_hidden": true` and `"on-sigusr1": "toggle"` on a per-bar object, lets `SIGUSR1` flip a bar in/out without a config reload. Useful for a secondary stats bar that's not always visible.
 
-## Tasteful default recipe
-
-A floating-island bar: workspaces left, clock center, system tray + network + volume + battery right. Palette-driven using the plugin's rice keys (hex without `#`). The rice engine renders a `colors.css` for Waybar, so `@import` it and reference the variables.
-
-**`config.jsonc`**
-```jsonc
-{
-    "layer": "top",
-    "position": "top",
-    "height": 36,
-    "spacing": 4,
-    "margin-top": 6,
-    "margin-left": 8,
-    "margin-right": 8,
-
-    "modules-left": ["hyprland/workspaces"],
-    "modules-center": ["clock"],
-    "modules-right": ["tray", "network", "pulseaudio", "battery"],
-
-    "hyprland/workspaces": {
-        "format": "{icon}",
-        "on-click": "activate",
-        "format-icons": {
-            "active": "",
-            "default": ""
-        }
-    },
-    "clock": {
-        "format": "{:%a %d %b  %H:%M}",
-        "format-alt": "{:%Y-%m-%d %H:%M:%S}",
-        "tooltip-format": "<big>{:%Y %B}</big>\n<tt><small>{calendar}</small></tt>"
-    },
-    "tray": { "icon-size": 16, "spacing": 8 },
-    "network": {
-        "format-wifi": "  {signalStrength}%",
-        "format-ethernet": " ",
-        "format-disconnected": "󰖪 ",
-        "tooltip-format": "{ifname} {ipaddr}",
-        "on-click": "nm-connection-editor"
-    },
-    "pulseaudio": {
-        "format": "{icon} {volume}%",
-        "format-muted": "󰝟 muted",
-        "format-icons": { "default": ["", "", ""] },
-        "on-click": "pavucontrol"
-    },
-    "battery": {
-        "states": { "warning": 30, "critical": 15 },
-        "format": "{icon} {capacity}%",
-        "format-charging": "󰂄 {capacity}%",
-        "format-icons": ["", "", "", "", ""]
-    }
-}
-```
-
-**`style.css`** (rice placeholders — `#{{key}}` is substituted by the rice engine)
-```css
-@import "colors.css";
-
-* {
-    font-family: "{{font_mono}}", "Symbols Nerd Font";
-    font-size: 14px;
-    font-weight: bold;
-    min-height: 0;
-}
-
-/* transparent bar -> floating islands */
-window#waybar {
-    background: transparent;
-    color: #{{fg}};
-}
-
-.modules-left, .modules-center, .modules-right {
-    background: rgba({{bg.r}}, {{bg.g}}, {{bg.b}}, 0.85);
-    border-radius: 14px;
-    padding: 0 6px;
-    margin: 4px;
-}
-
-/* workspaces */
-#workspaces button {
-    color: #{{muted}};
-    padding: 0 8px;
-    margin: 4px 2px;
-    border-radius: 10px;
-    background: transparent;
-    transition: all 0.2s ease;
-}
-#workspaces button.active {
-    color: #{{bg}};
-    background: #{{accent}};
-}
-#workspaces button:hover {
-    color: #{{fg}};
-    background: rgba({{surface.r}}, {{surface.g}}, {{surface.b}}, 0.6);
-}
-#workspaces button.urgent {
-    color: #{{bg}};
-    background: #{{red}};
-}
-
-/* center + right modules */
-#clock { color: #{{accent2}}; padding: 0 14px; }
-#tray, #network, #pulseaudio, #battery {
-    padding: 0 10px;
-    margin: 4px 2px;
-}
-#network    { color: #{{blue}}; }
-#pulseaudio { color: #{{cyan}}; }
-#battery    { color: #{{green}}; }
-
-/* states */
-#battery.warning  { color: #{{yellow}}; }
-#battery.critical { color: #{{red}}; }
-#battery.charging { color: #{{green}}; }
-
-/* tooltip */
-tooltip {
-    background: #{{surface}};
-    border: 1px solid #{{accent}};
-    border-radius: 10px;
-}
-tooltip label { color: #{{fg}}; padding: 4px; }
-```
-
-**Worked example — Catppuccin Mocha** (`bg 1e1e2e`, `fg cdd6f4`, `surface 313244`, `accent cba6f7`, `accent2 89b4fa`). Substituting the loadbearing lines:
-```css
-* { font-family: "JetBrainsMono Nerd Font", "Symbols Nerd Font"; }
-window#waybar { background: transparent; color: #cdd6f4; }
-.modules-left, .modules-center, .modules-right {
-    background: rgba(30, 30, 46, 0.85);   /* 1e1e2e @ 0.85 */
-    border-radius: 14px; padding: 0 6px; margin: 4px;
-}
-#workspaces button.active { color: #1e1e2e; background: #cba6f7; }   /* accent on focus */
-#workspaces button:hover  { background: rgba(49, 50, 68, 0.6); }     /* surface 313244 */
-#clock   { color: #89b4fa; }    /* accent2 */
-#battery { color: #a6e3a1; }    /* green */
-tooltip  { background: #313244; border: 1px solid #cba6f7; }
-```
-If you prefer the official Catppuccin port's variable style, `@import "mocha.css";` and reference `@text`, `@base`, `@mauve`, `@blue`, with `alpha(@base, 0.85)` for the translucent group bg.
-
-Then enable blur in `hyprland.conf` (0.54.x block form — see `../window-rules/template.md`):
-```conf
-layerrule {
-    name = blur-waybar
-    match:namespace = waybar
-    blur = true
-    ignore_alpha = 0.1
-}
-```
-
 ## System & ecosystem module recipes
 
 Concrete JSONC for the modules a desktop status cluster usually wants beyond the basics above. Match the `format` glyphs to an installed Nerd Font. On a **desktop** drop `battery`/`backlight` and lean on `cpu`/`memory`/`temperature`; on a **laptop** do the reverse.
 
 **CPU / memory / temperature.** The gotcha is the temperature sensor path. `"thermal-zone": N` works but the zone *number can change across boots*; the stable route on Intel is the `coretemp` hwmon **directory** plus the package-temp input. Find it once with `for h in /sys/class/hwmon/hwmon*; do echo "$h $(cat "$h/name")"; done` and `cat /sys/devices/platform/coretemp.0/hwmon/hwmon*/temp1_label` (look for `Package id 0`). On AMD the sensor is `k10temp` (`Tctl`).
-```jsonc
 "cpu":    { "interval": 2, "format": "  {usage}%",
             "on-click": "kitty -e sh -lc 'command -v btop >/dev/null && btop || top'" },
 "memory": { "interval": 5, "format": "  {percentage}%",
@@ -393,12 +173,9 @@ Concrete JSONC for the modules a desktop status cluster usually wants beyond the
     "critical-threshold": 85,
     "format": "{icon}  {temperatureC}°C",
     "format-icons": ["", "", ""]
-}
-```
 Give cpu/memory/clock a `min-width` in CSS so the bar doesn't reflow every second.
 
 **Now-playing (`mpris`, built-in).** Waybar's own MPRIS module — no script needed (the build must include `-Dmpris=enabled`, which Arch's package does; verify by running waybar and watching for a module-load error). It auto-hides when no player is running, so it's safe to leave in `modules-center` next to the clock:
-```jsonc
 "mpris": {
     "format": "{player_icon}  {title}",
     "format-paused": "{status_icon}  <i>{title}</i>",
@@ -407,13 +184,10 @@ Give cpu/memory/clock a `min-width` in CSS so the bar doesn't reflow every secon
     "max-length": 45,
     "on-click": "playerctl play-pause",
     "on-scroll-up": "playerctl next", "on-scroll-down": "playerctl previous"
-}
-```
 
 **Idle inhibitor (built-in).** A click-toggle that suppresses hypridle (presentations, long videos): `"idle_inhibitor": { "format": "{icon}", "format-icons": { "activated": "", "deactivated": "" } }`. Style `#idle_inhibitor.activated { color: @accent; }`.
 
 **Notification toggle (swaync).** A bell with an unread badge that opens the control center — mirrors the swaync daemon rice autostarts:
-```jsonc
 "custom/notification": {
     "return-type": "json", "exec-if": "which swaync-client", "exec": "swaync-client -swb",
     "on-click": "swaync-client -t -sw", "on-click-right": "swaync-client -d -sw",
@@ -423,20 +197,14 @@ Give cpu/memory/clock a `min-width` in CSS so the bar doesn't reflow every secon
         "dnd-notification": "<span foreground='#f38ba8'><sup></sup></span>", "dnd-none": "",
         "inhibited-notification": "<span foreground='#f38ba8'><sup></sup></span>", "inhibited-none": "",
         "dnd-inhibited-notification": "", "dnd-inhibited-none": ""
-    }
-}
-```
 (For dunst instead, drive a `custom/dunst` toggle off `dunstctl`.)
 
 **Collapsible group (`group/drawer`).** Hide a cluster behind one leader icon that expands on hover — space-saving on a narrow bar (on a wide ultrawide, showing the stats inline is usually better):
-```jsonc
 "modules-right": ["group/stats", "..."],
 "group/stats": {
     "orientation": "horizontal",
     "drawer": { "transition-duration": 350, "children-class": "stat", "transition-left-to-right": false },
     "modules": ["custom/stats-icon", "cpu", "memory", "temperature"]
-}
-```
 The first listed module is the always-visible leader; the rest reveal on hover (or set `"click-to-reveal": true`). Default `children-class` is `drawer-child`. The same pattern wraps a `pulseaudio` + `pulseaudio/slider` pair into a hover-out volume slider (see the techniques catalog above).
 
 ## Pitfalls

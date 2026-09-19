@@ -159,8 +159,17 @@ checked_surfaces=0
 while IFS= read -r toolsdir; do
     comp="$(dirname "$toolsdir")"
     cname="$(basename "$comp")"
+    # The shared half of the pair is `common.md` where a component has one; where it does not
+    # (waybar keeps its flat recipe set beside looks/), the shared half IS that flat set. Not
+    # accounting for it is how waybar measured as 1.5k while really costing 19k.
     common_tok=0
-    [ -f "$comp/common.md" ] && common_tok="$(tok "$comp/common.md")"
+    if [ -f "$comp/common.md" ]; then
+        common_tok="$(tok "$comp/common.md")"
+    else
+        for f in template styling validation gotchas reload; do
+            [ -f "$comp/$f.md" ] && common_tok=$(( common_tok + $(tok "$comp/$f.md") ))
+        done
+    fi
     worst=0; worst_name=""
     for tf in "$toolsdir"/*.md; do
         [ -f "$tf" ] || continue
@@ -170,10 +179,27 @@ while IFS= read -r toolsdir; do
     [ "$worst" -gt 0 ] || continue
     checked_surfaces=$((checked_surfaces + 1))
     total=$(( common_tok + worst ))
-    if [ "$total" -gt "$SURFACE_MAX_TOK" ]; then
+    if [ "$total" -gt "$SURFACE_MAX_TOK" ] && ! is_waived "surface:$cname"; then
         over_surface+=("$cname (worst: $worst_name) ~${total} tok = common ${common_tok} + tool ${worst}, over by $((total - SURFACE_MAX_TOK))")
     fi
-done < <(find "$PLUGIN_ROOT/skills" -type d -name 'tools' | sort)
+done < <(find "$PLUGIN_ROOT/skills" -type d -name 'tools' -o -type d -name 'looks' | sort)
+
+# Surfaces with no variant dir at all: the writer reads the component's flat recipe set. These
+# are measured too - a surface that is merely unsharded must not also be unmeasured, which is
+# how waybar sat at 21k without the gate noticing.
+while IFS= read -r comp; do
+    cname="$(basename "$comp")"
+    [ -d "$comp/tools" ] || [ -d "$comp/looks" ] && continue
+    flat=0
+    for f in template styling validation gotchas reload; do
+        [ -f "$comp/$f.md" ] && flat=$(( flat + $(tok "$comp/$f.md") ))
+    done
+    [ "$flat" -gt 0 ] || continue
+    checked_surfaces=$((checked_surfaces + 1))
+    if [ "$flat" -gt "$SURFACE_MAX_TOK" ] && ! is_waived "surface:$cname"; then
+        over_surface+=("$cname (unsharded) ~${flat} tok flat recipe set, over by $((flat - SURFACE_MAX_TOK))")
+    fi
+done < <(find "$PLUGIN_ROOT/skills/rice/references/components" -mindepth 1 -maxdepth 1 -type d | sort)
 
 if [ "$checked_surfaces" -eq 0 ]; then
     skip "B-6: per-surface writer load" "no tool-sharded components found"
