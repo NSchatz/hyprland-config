@@ -63,15 +63,6 @@ font_ui_scale   # multiplier applied to every visual surface's font-size: 1.0|1.
   were collected (default it to `accent` or a derived neighbour). The `looknfeel.conf` border
   template references it, so a missing value errors the reload.
 
-## Sources
-
-- **Named scheme** → look up the hex in `theming/palettes.md`.
-- **Wallpaper-generated** → run `scripts/palette-from-wallpaper.sh <image>` (matugen or wallust);
-  map matugen's `primary→accent`, `secondary→accent2`, `surface→bg`, `on_surface→fg`,
-  neutrals→`muted`/`surface`, and the source/extended colors → `color0..15`.
-- **Manual hex** → write the user's values directly; derive `accent2` and the `color*` set from
-  the chosen `accent` if not collected.
-
 ## Render flow
 
 `rice apply` → `render-templates.sh`:
@@ -88,3 +79,9 @@ The render-manifest line shape is documented in `theming/engine.md`.
 - Named scheme catalog → `theming/palettes.md`
 - Font handling → `theming/fonts.md`
 - Engine architecture (manifest, override cascade, CLI) → `theming/engine.md`
+
+## Provenance
+
+Citations for this file live at `.research/sources/_shared-palette-schema.md` (repo root), kept out of
+the load path on purpose. Read them when reviewing a recommendation, not when
+authoring a config.
