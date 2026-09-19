@@ -82,28 +82,26 @@ community actually styles a component and distills a palette-driven recipe. Star
 `design-principles.md` (the coherence layer), then the per-app page. Use these whenever building or
 theming a desktop for looks, or when the user asks "how do I make my X look good / nicer / match".
 
-- **`references/styling/README.md`** — index + the rice palette contract every recipe uses.
-- **`references/styling/design-principles.md`** — **read first.** Coherence rules (one palette,
-  accent discipline, spacing, shape, transparency, typography), the aesthetic archetypes
-  (Catppuccin/Tokyo Night/Gruvbox/Nord/Material You/minimal/maximalist), wallpaper-driven theming,
-  a coherence checklist.
-- **`references/styling/hyprland-decoration.md`** — gaps, gradient borders, rounding, blur, shadow,
-  animations/beziers — the compositor's own look.
-- **`references/styling/waybar.md`** — the status bar (`config.jsonc` layout + `style.css`).
-- **`references/styling/widgets.md`** — desktop widgets beyond the bar: choosing a widget system
-  (decision matrix), the widget archetypes, turnkey panels (HyprPanel/nwg-shell), theming flow.
-- **`references/styling/eww.md`** — eww (yuck + SCSS): dashboards, sidebars, OSDs, music, gauges.
-- **`references/styling/ags-astal.md`** — AGS / Astal (JS/TS over GTK): the v1-vs-v2 split, material
-  cards, quick-settings toggles, blurred album-art player, matugen Material You.
-- **`references/styling/quickshell.md`** — QtQuick/QML desktop shells (caelestia, end-4, Noctalia,
-  DankMaterialShell): styling via QML properties (not CSS), the `Theme`/`Colors` singleton + matugen.
-- **`references/styling/launchers.md`** — wofi / rofi / fuzzel / tofi.
-- **`references/styling/notifications.md`** — mako / dunst / swaync.
-- **`references/styling/terminals.md`** — kitty / alacritty / foot / wezterm / ghostty.
-- **`references/styling/hyprlock.md`** — the lock screen.
-- **`references/styling/gtk-qt.md`** — GTK/libadwaita + Qt app theming (themes, icons, cursors).
-- **`references/styling/tui-and-prompt.md`** — btop / cava / fastfetch / starship.
+- **`references/styling/README.md`** — the index, and the rice palette contract every recipe uses.
+- **`references/styling/design-principles.md`** — **read first, and it is the only page here.**
+  Coherence rules (one palette, accent discipline, spacing, shape, transparency, typography), the
+  aesthetic archetypes (Catppuccin/Tokyo Night/Gruvbox/Nord/Material You/minimal/maximalist),
+  wallpaper-driven theming, a coherence checklist.
 
+**Per-surface styling lives with its surface**, not here. Each visual component owns its own
+recipe under `../rice/references/components/<x>/`:
+
+| Surface | Where |
+|---|---|
+| Hyprland decoration (gaps, borders, blur, shadow, animations) | `look-feel/styling.md` |
+| Status bar | `waybar/styling.md` + the one `waybar/looks/<archetype>.md` |
+| Launcher · notifications · terminal · widgets | that component's `common.md` + the one `tools/<tool>.md` |
+| Lock screen | `lock-screen/styling.md` |
+| Shell & prompt (btop / cava / fastfetch / starship) | `shell-prompt/styling.md` |
+| GTK / Qt / icons / cursors / fonts | `../rice/references/theming/gtk-qt.md` |
+
+Multi-tool components are **sharded by tool**: read `common.md` plus the ONE `tools/<tool>.md`
+the user's pick names, never its siblings.
 ## Common pitfalls
 
 - Shadow and blur options moved into `decoration:shadow { }` and `decoration:blur { }`

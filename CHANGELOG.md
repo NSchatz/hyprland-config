@@ -2,6 +2,78 @@
 
 ## Unreleased
 
+Make the authoring context fit what the task actually needs (roadmap phase CONTEXT-1).
+
+The configs this plugin emits were not coming out right, and the cause was upstream of any
+recipe: a component-writer loaded 39,291 tokens of reference to author one eww config, of which
+roughly 8k was about eww. An agent reading five tools' recipes to write one is skimming, not
+reading. Anthropic's skill-authoring guidance puts a SKILL.md body under 500 lines and warns that
+a file past ~100 lines gets PARTIALLY read rather than read whole - which is how a writer ends up
+acting on half a recipe without knowing it.
+
+- **The load unit is now COMPONENT x TOOL.** `launcher`, `notifications`, `terminal` and
+  `widgets` shard into `common.md` plus one `tools/<tool>.md`; `waybar` cannot shard by tool
+  (waybar IS the tool) so it shards one axis over, by `bar.archetype`, into `looks/`, with the
+  vertical/dual/dock material behind `bar.form` in `forms/`. Measured per writer:
+  widgets/hyprpanel -75%, widgets/eww -54%, notifications/mako -36%, launcher/wofi -35%,
+  terminal/kitty -21%, waybar -10%.
+- **`rice/SKILL.md` is a router: 946 lines to 152**, 17,338 tokens to ~3,050. It loaded in full on
+  every invocation whatever the request, so someone cycling their wallpaper paid for the whole
+  from-scratch flow. Mode A is split at the staging/machine line - the invariant this plugin is
+  built on - so the half that can reach a home directory is read as one piece.
+- **~16k tokens of research citations left the load path** for `.research/sources/`, and 86 files
+  over 100 lines gained a table of contents so a partial read still sees what it skipped.
+- **`tests/test_context_budgets.sh`** makes all of it a gate rather than a convention, including
+  **B-6**, the number that actually governs quality: what ONE writer loads to author ONE surface,
+  across every surface including unsharded ones. Four surfaces are waived with the measurement
+  that justifies each - a gate that stays red forever teaches people to ignore it.
+- Not everything that looked movable was. `How the community styles it` and `Battle-tested
+  techniques` read like provenance and are not: they are the archetype catalog and the attributed
+  catalog of concrete moves - the design vocabulary a writer emits from. ~41k tokens looked
+  movable; ~1.1k actually was. Moving the rest would have made generated configs MORE generic.
+
+Stop assuming an interpreter that Arch does not guarantee (roadmap phase PYTHON-1).
+
+The reference layer asserted that "Arch's `pacman` pulls in `python3` as a base dep" and the whole
+generation path rested on it: `answers.py` and `record-answer.py` run during the interview, long
+before `install.sh` exists. It is false. `base` depends on 28 packages and python is not one of
+them; `pacman` lists python only as a CHECK dependency, which runs pacman's own test suite and is
+never installed on a user's machine. On a minimal Arch install - the exact case this path was
+written for - the interview could not record a single answer.
+
+- **`scripts/ensure-python.sh`** (new) is the bootstrap, and it is bash because bash IS in `base`:
+  it is the one script here that cannot assume the interpreter it installs. It asks first (an
+  unanswered prompt is a decline, the same rule as the AUR build), records what it installed
+  through the same install-record component as every other package, and distinguishes
+  present / installed / declined / missing / failed. `rice` runs it before detection and stops on
+  anything else: an interview whose answers cannot be saved should not begin.
+- **`scripts/ricelib/`** (new) begins the cluster port - `xdg.py` and `restorepoint.py` - landed
+  ALONGSIDE the bash, with parity tests that drive both implementations through the same
+  scenarios and compare the ledger and every byte on disk, not just verdicts. `xdg-config.sh`
+  stays bash on purpose: it is sourced by `detect-version.sh` during detection and by the whole
+  write path, and config-path resolution must not gain a new way to fail.
+
+Say true things about what ships.
+
+- **`rice scheme <name>`** now exists. Three reference files cited it as the way out of a fixed
+  high-contrast palette; the CLI had no such subcommand.
+- **`high-contrast-dark` / `high-contrast-light` now ship.** They were described as shipped
+  presets in three places while `assets/profiles/` held twelve files and neither of them, so
+  `rice themes` could not list them. A WCAG-AAA feature announced and absent is worse than one
+  never claimed.
+- Eleven dead per-app styling references removed from `rice/SKILL.md` **and**
+  `hyprland-reference/SKILL.md`; the component counts corrected (22 claimed, 24 on disk) and the
+  four folders with no interview group named with the reason; `qt/` gained the README it lacked.
+- **The suite was not hermetic.** Two tests built their PATH from `/usr/bin`, so on an Arch dev
+  box they found the real `paru` and the assertions that NOTHING gets cloned or built drove the
+  real helper against the live AUR. 22 failures locally, green in CI. `hermetic_bin_path` names
+  the tools a test may reach instead of inheriting them.
+- **B-7** asserts every markdown file closes its code fences, after a refactor in this cycle
+  removed moved blocks by matching line CONTENT rather than position and took
+  `waybar/styling.md` from 26 fence markers to 1 with nothing failing.
+- `tests/README.md` documents all 37 test files plus the report-only `regress_*` probes; it
+  listed 15.
+
 Say what was put on the machine, and what a restore cannot take back (roadmap phase INSTALL-7).
 
 A user who let this plugin install packages and theme their browser had no way, afterwards, to

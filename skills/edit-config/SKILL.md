@@ -15,11 +15,26 @@ Test after **every** change so a broken edit never silently persists.
 
 This skill owns *editing*; from-scratch generation is the **rice** skill. For Hyprland syntax read
 the **hyprland-reference** skill (`testing.md`, `deprecations.md`, `sections.md`,
-`keybindings.md`, `window-rules.md`). For the per-surface recipes, read each component's folder
-under **`../rice/references/components/<x>/`** — `waybar/`, `launcher/`, `notifications/`,
-`terminal/`, `lock-screen/`, `widgets/`, `shell-prompt/` — the same `template.md` (+ `gotchas.md`,
-`styling.md`, `validation.md`, `reload.md`) files rice uses when generating. For coloring any
-surface, drive the rice engine (`../rice/references/theming/engine.md`) rather than hardcoding hex.
+`keybindings.md`, `window-rules.md`). For coloring any surface, drive the rice engine
+(`../rice/references/theming/engine.md`) rather than hardcoding hex.
+
+**Read only the recipe for the tool that is actually installed.** The per-surface recipes live
+under `../rice/references/components/<x>/`, and the multi-tool ones are **sharded by tool** — read
+that component's `common.md` plus the ONE `tools/<tool>.md` matching what the user actually has,
+never its siblings. Reading the recipe for three launchers to edit one is how an edit picks up
+syntax from the wrong tool.
+
+| Editing… | Read |
+|---|---|
+| launcher | `launcher/common.md` + `tools/{wofi,rofi,fuzzel,tofi,walker,vicinae,anyrun}.md` |
+| notifications | `notifications/common.md` + `tools/{mako,dunst,swaync}.md` |
+| terminal | `terminal/common.md` + `tools/{kitty,alacritty,foot,wezterm,ghostty}.md` |
+| widgets | `widgets/common.md` + `tools/{eww,ags,quickshell,hyprpanel,turnkey}.md` |
+| waybar | its flat set + the one `waybar/looks/<archetype>.md` matching the current `style.css` |
+| lock-screen · shell-prompt | the flat `{template,gotchas,styling,validation,reload}.md` set |
+
+Detect which tool is in play from what is on disk (`~/.config/mako` vs `~/.config/dunst`, …),
+not from what the user said — the file that exists is the one being edited.
 
 ## Contents
 
@@ -97,9 +112,9 @@ you want it undone with that apply instead. Two rules that come with it:
 - **Hyprland modular set:** put the change in the right sourced file (new bind → `binds.conf`; gap
   tweak → `looknfeel.conf`; rule → `windowrules.conf`). Monolithic config: edit in place. Avoid
   introducing a duplicate `MODS, KEY` bind — grep the bind files first.
-- **Waybar/launcher/notifications:** edit per the matching component's `template.md` (and its
-  `gotchas.md` / `validation.md`) — `../rice/references/components/waybar/`,
-  `../rice/references/components/launcher/`, `../rice/references/components/notifications/`. Don't
+- **Waybar/launcher/notifications:** edit per the matching component's recipe - for waybar its
+  flat set plus the one `looks/<archetype>.md`, for launcher and notifications `common.md` plus
+  the one `tools/<tool>.md` the installed tool names (see the routing table above). Don't
   hardcode theme colors anywhere — `@import`/include the rice colors file (the engine owns colors).
 - **Shell rc:** put additions in the managed block (`# >>> hyprland-config managed >>>` …
   `# <<< hyprland-config managed <<<`) so re-runs replace rather than duplicate. Guard every
@@ -177,16 +192,16 @@ Recipes are organized per-component under `../rice/references/components/<x>/`. 
 `template.md` (the recipe), `gotchas.md`, and for visual components `styling.md` / `validation.md` /
 `reload.md`. Look up the surface you're editing:
 
-- **`../rice/references/components/waybar/`** — `config.jsonc` + `style.css` recipes, modules,
+- **`../rice/references/components/waybar/`** — `config.jsonc` + `style.css` recipes (+ `looks/<archetype>.md`), modules,
   signals, the JSON-strictness gotcha.
-- **`../rice/references/components/launcher/`** — wofi / rofi / fuzzel / tofi recipes.
-- **`../rice/references/components/notifications/`** — mako / dunst / swaync recipes.
-- **`../rice/references/components/terminal/`** — kitty / alacritty / foot / wezterm recipes.
+- **`../rice/references/components/launcher/`** — wofi / rofi / fuzzel / tofi; `common.md` + one `tools/<tool>.md`.
+- **`../rice/references/components/notifications/`** — mako / dunst / swaync; `common.md` + one `tools/<tool>.md`.
+- **`../rice/references/components/terminal/`** — kitty / alacritty / foot / wezterm; `common.md` + one `tools/<tool>.md`.
 - **`../rice/references/components/lock-screen/`** — hyprlock styling (companion daemon config
   itself lives in `companion-daemons/`).
 - **`../rice/references/components/companion-daemons/`** — `hyprlock.conf` / `hypridle.conf` /
   `hyprpaper.conf` recipes.
-- **`../rice/references/components/widgets/`** — eww / AGS-Astal / Quickshell / HyprPanel recipes.
+- **`../rice/references/components/widgets/`** — eww / AGS-Astal / Quickshell / HyprPanel; `common.md` + one `tools/<tool>.md`.
 - **`../rice/references/components/shell-prompt/`** — per-shell rc locations, the managed block,
   prompt engines (starship/oh-my-posh), aliases/env/history, parse-test recipe.
 - **`../rice/references/components/keybinds/`** — bind syntax, dispatchers, the bind catalog.
