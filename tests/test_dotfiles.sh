@@ -60,6 +60,57 @@ else
     fail "commit creates a commit" "git log empty or wrong subject. output: $out"
 fi
 
+# --- D-EXCL: `add` of a directory must not stage the plugin's own backups ----------------------
+# Every writer here leaves <path>.bak.<id> (and <dir>.bak.<id>/ trees) beside what it protects.
+# `add` used to run `git add -f`, which forced all of them - and __pycache__ - into the repo.
+G=(git --git-dir="$DOTFILES_BARE_DIR" --work-tree="$HOME")
+d="$HOME/.config/hypr-rice"
+mkdir -p "$d/templates" "$d/profiles.bak.20260101-000000" "$d/ricelib/__pycache__" "$HOME/Pictures"
+echo 'scheme=nord'  > "$d/palette.conf"
+echo 'scheme=old'   > "$d/palette.conf.bak.20260101-000000"
+echo 'old'          > "$d/profiles.bak.20260101-000000/nord.conf"
+echo 'x'            > "$d/templates/hyprland.tmpl"
+echo 'x'            > "$d/templates/hyprland.tmpl.bak"
+printf 'pyc'        > "$d/ricelib/__pycache__/xdg.cpython-314.pyc"
+echo 'img'          > "$HOME/Pictures/wall.png"
+ln -s "$HOME/Pictures/wall.png" "$d/current-wallpaper"
+
+out="$(bash "$script" add "$d" 2>&1)"
+tracked="$("${G[@]}" ls-files -- .config/hypr-rice)"
+assert_eq ".config/hypr-rice/palette.conf
+.config/hypr-rice/templates/hyprland.tmpl" "$tracked" \
+    "D-EXCL: add of a directory tracks the config and none of its backups, caches or wallpaper link"
+
+# An explicitly named backup is reported, not silently forced in and not silently dropped.
+out="$(bash "$script" add "$d/palette.conf.bak.20260101-000000" 2>&1)"
+if [[ "$out" == *"SKIP (ignored by an exclude rule)"* ]] \
+   && ! "${G[@]}" ls-files | grep -q 'palette.conf.bak'; then
+    pass "D-EXCL: an explicitly named backup is SKIPPED as ignored"
+else
+    fail "D-EXCL: an explicitly named backup is SKIPPED as ignored" "output: $out"
+fi
+
+# The managed block is written once, survives re-runs, and never eats the user's own lines.
+ex="$DOTFILES_BARE_DIR/info/exclude"
+echo 'my-own-rule' >> "$ex"
+bash "$script" init bare >/dev/null 2>&1
+bash "$script" add "$d" >/dev/null 2>&1
+assert_eq "1" "$(grep -c '>>> hyprland-config dotfiles excludes >>>' "$ex")" \
+    "D-EXCL: the exclude block is written exactly once across init + add re-runs"
+assert_file_contains "$ex" "my-own-rule" "D-EXCL: the user's own exclude lines are kept"
+
+# A repo initialised BEFORE the excludes existed gets them on its next add.
+rm -f "$ex"
+mkdir -p "$HOME/.config/kitty"
+echo 'x' > "$HOME/.config/kitty/kitty.conf"
+echo 'x' > "$HOME/.config/kitty/kitty.conf.bak.20260101-000000"
+bash "$script" add "$HOME/.config/kitty" >/dev/null 2>&1
+if "${G[@]}" ls-files | grep -q 'kitty.conf.bak'; then
+    fail "D-EXCL: a pre-fix repo gets the excludes on its next add" "$("${G[@]}" ls-files -- .config/kitty)"
+else
+    pass "D-EXCL: a pre-fix repo gets the excludes on its next add"
+fi
+
 # stow path errors clearly when stow isn't installed (don't probe the working stow flow — it
 # would need stow on CI). We only test the missing-tool branch.
 if ! command -v stow >/dev/null 2>&1; then

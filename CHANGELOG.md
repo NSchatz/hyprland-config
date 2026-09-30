@@ -15,6 +15,14 @@
   keeps its restore points in `$RICE_DIR/restore`, and `set-wallpaper` only
   links. `tests/test_rice_dir_hermetic.sh` reds on the leak;
   `test_rice_scheme_profiles.sh` now runs in a sandboxed home.
+- **`dotfiles.sh add` no longer force-adds.** It ran `git add -f`, so adding a
+  config directory staged every `*.bak.*` file and `<dir>.bak.*` tree the plugin
+  leaves beside what it protects, plus `__pycache__` and the machine-local
+  `current-wallpaper` link. `init` (and every bare-repo `add`, so older repos
+  catch up) now writes a managed exclude block - `info/exclude` for bare, the
+  repo `.gitignore` for stow, `.chezmoiignore` for chezmoi - and `add` respects
+  it; the stow copy filters the same patterns. An explicitly named ignored path
+  is reported as `SKIP (ignored by an exclude rule)`.
 
 The tooling is Python (roadmap phase PYTHON-2).
 

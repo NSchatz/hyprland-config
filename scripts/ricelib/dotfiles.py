@@ -35,6 +35,46 @@ DEFAULT_NAMES = [
 ]
 
 
+# What a dotfiles repo must never pick up from a tracked config directory. Every writer in this
+# plugin leaves `<path>.bak.<id>` (and whole `<dir>.bak.<id>` trees) BESIDE the file it protects,
+# and the rice engine carries a ricelib copy that grows __pycache__. `current-wallpaper` is a
+# symlink into ~/Pictures - machine-local, and dangling on any other machine.
+EXCLUDES = ["*.bak.*", "*.bak", "__pycache__/", "*.pyc", "**/hypr-rice/current-wallpaper"]
+EXCLUDE_BEGIN = "# >>> hyprland-config dotfiles excludes >>>"
+EXCLUDE_END = "# <<< hyprland-config dotfiles excludes <<<"
+
+
+def ensure_excludes(path):
+    """Write the managed exclude block into an ignore file, replacing a previous copy of it and
+    leaving every other line alone. Returns True when the block is in place."""
+    try:
+        with open(path, encoding="utf-8", errors="replace") as fh:
+            lines = fh.read().split("\n")
+    except OSError:
+        lines = []
+    out, inside = [], False
+    for line in lines:
+        if line == EXCLUDE_BEGIN:
+            inside = True
+            continue
+        if line == EXCLUDE_END:
+            inside = False
+            continue
+        if not inside:
+            out.append(line)
+    while out and out[-1] == "":
+        out.pop()
+    block = [EXCLUDE_BEGIN, *EXCLUDES, EXCLUDE_END]
+    body = "\n".join((out + [""] if out else []) + block) + "\n"
+    try:
+        os.makedirs(os.path.dirname(path) or ".", exist_ok=True)
+        with open(path, "w", encoding="utf-8") as fh:
+            fh.write(body)
+    except OSError:
+        return False
+    return True
+
+
 def _run(cmd, **kw):
     try:
         return subprocess.run(cmd, **kw).returncode
@@ -94,6 +134,7 @@ def cmd_init(c, args):
         if not os.path.isdir(c.bare_dir):
             _quiet(["git", "init", "-q", "--bare", c.bare_dir])
         c.bare_quiet("config", "status.showUntrackedFiles", "no")
+        ensure_excludes(f"{c.bare_dir}/info/exclude")
         if remote:
             c.bare_quiet("remote", "remove", "origin")
             c.bare_quiet("remote", "add", "origin", remote)
@@ -110,6 +151,7 @@ def cmd_init(c, args):
         os.makedirs(c.stow_dir, exist_ok=True)
         if not os.path.isdir(f"{c.stow_dir}/.git"):
             _quiet(["git", "-C", c.stow_dir, "init", "-q"])
+        ensure_excludes(f"{c.stow_dir}/.gitignore")
         if remote:
             _quiet(["git", "-C", c.stow_dir, "remote", "remove", "origin"])
             _quiet(["git", "-C", c.stow_dir, "remote", "add", "origin", remote])
@@ -132,6 +174,8 @@ def cmd_init(c, args):
                                  stderr=subprocess.DEVNULL, text=True).stdout.strip()
         except (OSError, subprocess.SubprocessError):
             src = ""
+        if src:
+            ensure_excludes(f"{src}/.chezmoiignore")
         print(f"DOTFILES_INIT=ok (chezmoi source at {src})")
         return 0
 
@@ -147,14 +191,23 @@ def cmd_add(c, paths):
     if not m:
         print("ERROR: run 'dotfiles.sh init' first", file=sys.stderr)
         return 2
+    if m == "bare":
+        # Re-asserted on every add, so a repo initialised before the excludes existed gets them.
+        ensure_excludes(f"{c.bare_dir}/info/exclude")
     for p in paths:
         pe = (c.home + p[1:]) if p.startswith("~") else p
         if not os.path.lexists(pe):
             print(f"SKIP (missing) {p}")
             continue
         if m == "bare":
-            if c.bare_quiet("add", "-f", pe) == 0:
+            # Never `add -f`: forcing it stages every *.bak.* backup and __pycache__ inside a
+            # tracked directory, straight past the excludes above.
+            if c.bare_quiet("add", pe) == 0:
                 print(f"ADDED {p}")
+            elif c.bare_quiet("check-ignore", "-q", pe) == 0:
+                print(f"SKIP (ignored by an exclude rule) {p}")
+            else:
+                print(f"SKIP (git add failed) {p}")
         elif m == "chezmoi":
             if _quiet(["chezmoi", "add", pe]) == 0:
                 print(f"ADDED {p}")
@@ -165,7 +218,9 @@ def cmd_add(c, paths):
             os.makedirs(os.path.dirname(dest), exist_ok=True)
             try:
                 if os.path.isdir(pe) and not os.path.islink(pe):
-                    shutil.copytree(pe, dest, symlinks=True, dirs_exist_ok=True)
+                    skip = shutil.ignore_patterns("*.bak.*", "*.bak", "__pycache__", "*.pyc",
+                                                  "current-wallpaper")
+                    shutil.copytree(pe, dest, symlinks=True, dirs_exist_ok=True, ignore=skip)
                 else:
                     shutil.copy2(pe, dest, follow_symlinks=False)
             except (OSError, shutil.Error):
