@@ -53,6 +53,7 @@ Exit code: `0` if every test passed (skipped is fine), `1` otherwise.
 | `test_currency_removed_keys.sh` | `validate-removed-keys.sh` refuses a staged config that sets a key removed at the target version, before the compositor is consulted and before anything is backed up or written |
 | `test_regress_0018_F1/F2/F3.sh` · `regress_0018_F4-F7.sh` · `regress_0032_F1.sh` · `regress_0037_F1/F2.sh` · `regress_0037_gate2_acceptance.sh` | Impl-gate regression artifacts, kept in the suite so the holes they found cannot reopen. The `regress_*.sh` (no `test_` prefix) files are **not** picked up by `run.sh`; they are report-only probes run by hand against a checkout. |
 | `test_rice_scheme_profiles.sh` | The two documented-but-absent features: `rice scheme <name>` (swap the palette, keep the wallpaper - the documented way out of a fixed `high-contrast-*` palette) and the fourteen shipped preset profiles. Also pins each profile to the palette contract, and the docs' component / interview-group counts to what is actually on disk. |
+| `test_rice_dir_hermetic.sh` | A detached engine (`RICE_DIR` away from `<config base>/hypr-rice`) stays inside its own directory: `rice-init` writes a manifest into its `out/` tree, `rice scheme nord` renders nothing into a canary home or its state dir, an escaping `~/.config` row is `RENDER_SKIPPED`, `set-wallpaper` only links, and spy stubs prove no running app is reloaded or repainted. A control proves the attached engine still themes the config base. |
 
 ## CI
 

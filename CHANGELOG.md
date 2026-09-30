@@ -2,6 +2,20 @@
 
 ## Unreleased
 
+### Fixed
+
+- **A detached rice engine no longer themes the live desktop.** `RICE_DIR` moved
+  the engine's own directory, but manifest rows reading `~/.config/...` still
+  resolved against the real config base, so a scratch engine running
+  `rice scheme nord` wrote Nord over a real desktop's hypr, kitty, waybar, wofi,
+  rofi and gtk-4.0 colours, left a restore point in the real state dir and
+  reloaded the running apps. When `RICE_DIR` is not `<config base>/hypr-rice`,
+  `rice-init` now writes a manifest into `$RICE_DIR/out/`, `render-templates`
+  skips any output outside `RICE_DIR` (`RENDER_SKIPPED`), reloads nothing and
+  keeps its restore points in `$RICE_DIR/restore`, and `set-wallpaper` only
+  links. `tests/test_rice_dir_hermetic.sh` reds on the leak;
+  `test_rice_scheme_profiles.sh` now runs in a sandboxed home.
+
 The tooling is Python (roadmap phase PYTHON-2).
 
 Forty of forty-two shell files are now dispatchers over `scripts/ricelib/`:

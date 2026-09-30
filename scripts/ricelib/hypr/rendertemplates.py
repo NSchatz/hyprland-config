@@ -167,6 +167,16 @@ def main(argv):
               "was rendered)")
         return 2
 
+    # A detached engine (RICE_DIR away from <config base>/hypr-rice) renders only inside its
+    # own directory, reloads nothing and keeps its restore points beside it - otherwise a
+    # scratch engine themes the live desktop with a palette the user never chose.
+    detached = xdg.detached_engine(env)
+    if detached:
+        env = dict(env)
+        env.setdefault("RICE_RESTORE_DIR", f"{rice_dir}/restore")
+        print(f"RENDER_DETACHED={rice_dir} (RICE_DIR is not <config base>/hypr-rice: outputs "
+              "outside it are skipped and no app is reloaded)")
+
     args = argv[1:]
     reload_apps = True
     if args and args[0] == "--no-reload":
@@ -212,6 +222,10 @@ def main(argv):
             print(f"SKIP {name} (no template: {tmpl})")
             continue
 
+        if detached and not xdg.within(out, rice_dir):
+            print(f"RENDER_SKIPPED {name} -> {out} (outside the detached engine dir {rice_dir})")
+            continue
+
         res = rp.protect(out, env)
         if not res.ok:
             print(f"RENDER_SKIPPED {name} -> {out} ({res.error})")
@@ -223,7 +237,9 @@ def main(argv):
 
         print(f"RENDERED {name} -> {out}")
 
-        if reload_apps and rcmd:
+        if detached and rcmd:
+            print(f"RELOAD_SKIPPED {name} (detached engine)")
+        elif reload_apps and rcmd:
             try:
                 rc = subprocess.run(rcmd, shell=True, stdout=subprocess.DEVNULL,
                                     stderr=subprocess.DEVNULL).returncode
@@ -241,8 +257,9 @@ def main(argv):
         else:
             print(f"{len(names)} surfaces apply on {label}: {', '.join(names)}")
 
-    write_restore_script(rice_dir, env)
-    write_lock_blur(palette_path, env)
+    if not detached:
+        write_restore_script(rice_dir, env)
+        write_lock_blur(palette_path, env)
 
     if env.get("RICE_APPLY_ID"):
         print(f"RESTORE_POINT={env['RICE_APPLY_ID']} (undo every file this apply wrote: "

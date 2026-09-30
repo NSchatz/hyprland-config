@@ -99,6 +99,29 @@ def resolve_base(env=None):
     )
 
 
+def detached_engine(env=None):
+    """True when $RICE_DIR moves the rice engine AWAY from `<config base>/hypr-rice`.
+
+    RICE_DIR moves the engine's own directory, but a manifest row reading `~/.config/...` still
+    resolves against the real config base. A detached engine rendering its manifest would
+    therefore theme the live desktop from a palette the user never chose. Writers use this to
+    confine a detached engine to its own directory: outputs inside it, no app reloads."""
+    env = os.environ if env is None else env
+    override = env.get("RICE_DIR", "")
+    if not override:
+        return False
+    base = resolve_base(env)
+    if not base:
+        return True
+    return os.path.realpath(override) != os.path.realpath(f"{base.path}/hypr-rice")
+
+
+def within(path, root):
+    """True when `path` is `root` or lies beneath it, after resolving symlinks and `..`."""
+    p, r = os.path.realpath(path), os.path.realpath(root)
+    return p == r or p.startswith(r.rstrip("/") + "/")
+
+
 def config_path(name="", override="", env=None):
     """The absolute directory for a config surface (`hypr`, `hypr-rice`, `waybar`, ...).
 

@@ -160,14 +160,17 @@ def main(argv):
     mf = f"{rice_dir}/templates.list"
     if not os.path.isfile(mf) or force:
         T = f"{rice_dir}/templates"
+        # A detached engine (RICE_DIR away from <config base>/hypr-rice) gets a manifest that
+        # renders into its own out/ tree, never into the live desktop's config.
+        C = f"{rice_dir}/out" if xdg.detached_engine(os.environ) else "~/.config"
         rows = [
             "# name\ttemplate\toutput\treload-cmd",
-            f"hyprland\t{T}/hyprland.tmpl\t~/.config/hypr/colors.conf\thyprctl reload",
-            f"kitty\t{T}/kitty.tmpl\t~/.config/kitty/colors.conf\tpkill -SIGUSR1 -x kitty",
-            f"waybar\t{T}/waybar.tmpl\t~/.config/waybar/colors.css\tkillall -SIGUSR2 waybar",
-            f"wofi\t{T}/wofi.tmpl\t~/.config/wofi/colors.css\t",
-            f"rofi\t{T}/rofi.tmpl\t~/.config/rofi/colors.rasi\t",
-            f"gtk4\t{T}/gtk4.tmpl\t~/.config/gtk-4.0/gtk.css\t",
+            f"hyprland\t{T}/hyprland.tmpl\t{C}/hypr/colors.conf\thyprctl reload",
+            f"kitty\t{T}/kitty.tmpl\t{C}/kitty/colors.conf\tpkill -SIGUSR1 -x kitty",
+            f"waybar\t{T}/waybar.tmpl\t{C}/waybar/colors.css\tkillall -SIGUSR2 waybar",
+            f"wofi\t{T}/wofi.tmpl\t{C}/wofi/colors.css\t",
+            f"rofi\t{T}/rofi.tmpl\t{C}/rofi/colors.rasi\t",
+            f"gtk4\t{T}/gtk4.tmpl\t{C}/gtk-4.0/gtk.css\t",
         ]
         try:
             with open(mf, "w", encoding="utf-8") as fh:

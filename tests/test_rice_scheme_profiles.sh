@@ -65,6 +65,10 @@ done
 # --- S-3/S-4/S-5  the `rice scheme` subcommand ------------------------------------------------
 tmp="$(mktemp_test_dir rice-scheme)"
 trap 'rm -rf "$tmp"' EXIT
+# The CLI runs with a stubbed renderer, but a sandboxed home backs that up: if the stub ever goes
+# missing, the real render must land here, not in the developer's live desktop.
+export HOME="$tmp/home" XDG_CONFIG_HOME="$tmp/home/.config" XDG_STATE_HOME="$tmp/home/.local/state"
+mkdir -p "$HOME"
 export RICE_DIR="$tmp/rice"
 mkdir -p "$RICE_DIR/profiles"
 cp "$PROFILES"/high-contrast-dark.conf "$PROFILES"/nord.conf "$RICE_DIR/profiles/"

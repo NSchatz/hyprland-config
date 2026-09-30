@@ -56,6 +56,13 @@ def main(argv):
         except OSError:
             pass
 
+    # A detached engine (RICE_DIR away from <config base>/hypr-rice) must not repaint the live
+    # desktop or write its hyprpaper.conf: it records the choice beside itself and stops.
+    if xdg.detached_engine(env):
+        link_current()
+        print(f"SET_WALLPAPER=detached (linked in {rice_dir}; the running desktop is untouched)")
+        return 0
+
     # --- swww / awww --------------------------------------------------------------------------
     client = daemon = ""
     if have("swww"):
