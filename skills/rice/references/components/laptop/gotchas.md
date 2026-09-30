@@ -158,7 +158,7 @@ Looking at how the top corpus repos actually ship a default lid action splits cl
 
 Both camps are valid; this component's interview picks camp (a) (explicit bind) because the
 chosen action is theming-coherent — e.g. `lid_action == "lock"` flows through `loginctl
-lock-session` → hypridle's `listener { on-lock = hyprlock; }` → hyprlock, which is the
+lock-session` → hypridle's `general:lock_cmd` → hyprlock, which is the
 lock-screen component's themed surface. Delegating to logind would still trigger
 `before_sleep_cmd = loginctl lock-session` (the hypridle pattern every corpus rice uses
 verbatim — see Ax-Shell `config/hypr/hypridle.conf`, JaKooLit `config/hypr/hypridle.conf`),

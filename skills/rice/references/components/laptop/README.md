@@ -101,8 +101,9 @@ so the rice's bar layout shifts; the waybar agent must read this key).
   (universal in the corpus: JaKooLit, Ax-Shell, end-4 all use the same line verbatim).
   If `companion_daemons.hypridle == false`, the suspend path skips the lock entirely.
 - [`companion-daemons`](../companion-daemons/) — owns the hypridle config. The
-  `listener { on-lock = hyprlock; }` line is what makes `loginctl lock-session` actually
-  lock; without it, `lid_action == "lock"` is a no-op. Already documented in `template.md`.
+  `general { lock_cmd = pidof hyprlock || hyprlock }` line is what makes `loginctl
+  lock-session` actually lock; without it, `lid_action == "lock"` is a no-op. (There is no
+  `listener { on-lock = ... }` key - it is a config error.) Documented in `template.md`.
 - [`_interview-protocol.md`](../../_interview-protocol.md) — strict-ask discipline; opt-in gate
   rule (the gate is **always** asked; detection sets the default, not the answer).
 - [`_shared/dispatchers.md`](../../_shared/dispatchers.md) — `bindl` flag semantics ("works while

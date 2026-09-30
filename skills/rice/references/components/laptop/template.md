@@ -34,9 +34,10 @@ bindl = , switch:on:Lid Switch, exec, systemctl suspend
   {{/case}}
   {{#case "lock"}}
 {{!-- `loginctl lock-session` only fires the org.freedesktop.login1.Session.Lock D-Bus
-     signal; it does NOT exec hyprlock. The lock-screen component's hypridle config
-     must contain `listener { on-lock = hyprlock; }` (or an equivalent dbus-listen)
-     for this bind to actually lock. If hypridle is disabled (`companion_daemons.hypridle == false`),
+     signal; it does NOT exec hyprlock. hypridle answers that signal by running
+     `general { lock_cmd = pidof hyprlock || hyprlock }`, so the companion-daemons
+     hypridle config must set lock_cmd for this bind to actually lock. (hypridle has no
+     `on-lock` listener key - `listener { on-lock = ... }` is a config error.) If hypridle is disabled (`companion_daemons.hypridle == false`),
      the generator must substitute `exec, hyprlock` here instead. --}}
 bindl = , switch:on:Lid Switch, exec, loginctl lock-session
   {{/case}}

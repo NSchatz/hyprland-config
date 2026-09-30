@@ -58,7 +58,7 @@ Single-select. Each option lands as a `bindl = , switch:on:Lid Switch, …` line
 | Option | Default | What the bind does |
 |---|---|---|
 | **Suspend** | yes | `bindl = , switch:on:Lid Switch, exec, systemctl suspend` |
-| **Lock (hyprlock)** | | `bindl = , switch:on:Lid Switch, exec, loginctl lock-session`. `loginctl lock-session` only emits the `org.freedesktop.login1.Session.Lock` D-Bus signal — it does **not** run hyprlock directly. The lock-screen component's `hypridle` config must contain a `listener { on-lock = hyprlock; }` (or equivalent `dbus-listen`) for this to actually lock; without it the bind is a no-op. If the user did not enable hypridle, the template falls back to `exec, hyprlock` directly. |
+| **Lock (hyprlock)** | | `bindl = , switch:on:Lid Switch, exec, loginctl lock-session`. `loginctl lock-session` only emits the `org.freedesktop.login1.Session.Lock` D-Bus signal - it does **not** run hyprlock directly. hypridle answers that signal by running `general { lock_cmd = pidof hyprlock || hyprlock }`, so the `hypridle` config must set `lock_cmd` for this to actually lock; without it the bind is a no-op. (hypridle has no `on-lock` listener key - `listener { on-lock = ... }` is a config error.) If the user did not enable hypridle, the template falls back to `exec, hyprlock` directly. |
 | **Clamshell — blank the internal panel, keep externals** | | `bindl = , switch:on:Lid Switch, exec, hyprctl keyword monitor "eDP-1, disable"` + a `bindl = , switch:off:Lid Switch, exec, hyprctl keyword monitor "eDP-1, preferred, auto, 1"` to restore on open. Good when docked. |
 | **Nothing** | | No bind emitted. The desktop ignores the lid; logind may still act unless `HandleLidSwitch*=ignore` is set. |
 

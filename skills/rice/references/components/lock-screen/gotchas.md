@@ -187,3 +187,9 @@ for the default single-screen layout. Setting `monitor = DP-1` scopes the widget
 output — a typo (`monitor = HDMI-A-2` on a single-DP box) means the widget simply doesn't appear,
 no error. The template leaves `monitor =` blank for all widgets; only override if the user asked
 for per-monitor placement.
+
+## Double braces in hyprlock.conf are maths, not text
+
+hyprlang evaluates `{{ ... }}` as arithmetic, so a label running `playerctl --format '{{artist}}'`
+fails ("Invalid expression type") and shows **"Sample Text"**. Put the `--format` call in a
+script. Palette `{{key}}`s are safe only because they are rendered away first.

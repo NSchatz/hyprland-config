@@ -4,6 +4,9 @@
 
 - Companion configs use a different config language from hyprland.conf
 - lock_cmd = pidof hyprlock || hyprlock — don't stack lockers
+- `loginctl lock-session` is served by `general:lock_cmd`. hypridle has NO `on-lock` listener
+  key: `listener { on-lock = hyprlock }` logs "config option <listener:on-lock> does not exist"
+  on every start. Never emit it.
 - before_sleep_cmd — two corpus idioms, both correct
 - before_sleep_cmd = loginctl lock-session — lock BEFORE sleep, not after
 - Lock listener fires BEFORE dpms-off — order matters in the ladder
