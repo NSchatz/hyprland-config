@@ -17,6 +17,7 @@ syntax, see `${CLAUDE_PLUGIN_ROOT}/skills/hyprland-reference/references/keybindi
 - Workspace argument forms
 - Bind-flag composition (quick reference)
 - hyprctl binds -j JSON shape
+- Lua dispatchers (the only form on 0.57)
 
 ## Catalog (core, non-plugin)
 
@@ -154,3 +155,46 @@ The keybind-cheatsheet script reads this. Each entry contains:
 `has_description` (bool), `modmask` (int — bitmap; check live values per-system), `submap` (str),
 `key` (str), `keycode` (int), `catch_all` (bool), `description` (str), `dispatcher` (str),
 `arg` (str). 0.55+ also exposes human-readable `modkeys` ([PR #8607](https://github.com/hyprwm/Hyprland/pull/8607)).
+
+## Lua dispatchers (the only form on 0.57)
+
+A lua config does NOT have the names in the catalog above. `hl.dsp.killactive` is nil, and one
+call to a nil function aborts the file: every bind after it is lost. Each legacy dispatcher has
+a lua call with its own shape ([wiki](https://wiki.hypr.land/0.57.0/configuring/core/dispatchers/)); `skills/rice/scripts/migrate-config.sh` applies
+this table (`scripts/ricelib/hypr/luadispatch.py`) and leaves anything it cannot place as a
+`-- NOT APPLIED` comment rather than guess.
+
+| hyprlang | lua |
+|---|---|
+| `exec, cmd` | `hl.dsp.exec_cmd("cmd")` |
+| `killactive` | `hl.dsp.window.close()` |
+| `togglefloating` | `hl.dsp.window.float({ action = "toggle" })` |
+| `fullscreen` / `fullscreen, 1` | `hl.dsp.window.fullscreen()` / `hl.dsp.window.fullscreen({ mode = "maximized" })` |
+| `pseudo` / `pin` / `centerwindow` | `hl.dsp.window.pseudo()` / `.pin()` / `.center()` |
+| `layoutmsg, msg` | `hl.dsp.layout("msg")` |
+| `movefocus, l` | `hl.dsp.focus({ direction = "left" })` |
+| `movewindow, l` | `hl.dsp.window.move({ direction = "left" })` |
+| `workspace, 3` / `workspace, e+1` | `hl.dsp.focus({ workspace = 3 })` / `hl.dsp.focus({ workspace = "e+1" })` |
+| `movetoworkspace, 3` | `hl.dsp.window.move({ workspace = 3 })` |
+| `movetoworkspacesilent, 3` | `hl.dsp.window.move({ workspace = 3, follow = false })` |
+| `togglespecialworkspace, name` | `hl.dsp.workspace.toggle_special("name")` (no `special:` prefix) |
+| `togglegroup` | `hl.dsp.group.toggle()` |
+| `changegroupactive, f` / `b` | `hl.dsp.group.next()` / `hl.dsp.group.prev()` |
+| `moveoutofgroup` | `hl.dsp.window.move({ out_of_group = true })` |
+| `moveintoorcreategroup, l` | `hl.dsp.window.move({ into_or_create_group = "left" })` |
+| `focuscurrentorlast` | `hl.dsp.focus({ last = true })` |
+| `setprop, active opaque toggle` | `hl.dsp.window.set_prop({ prop = "opaque", value = "toggle" })` |
+| `resizeactive, 10 0` | `hl.dsp.window.resize({ x = 10, y = 0, relative = true })` |
+| `bindm ..., movewindow` / `resizewindow` | `hl.dsp.window.drag()` / `hl.dsp.window.resize()`, with `{ mouse = true }` |
+| `submap, name` | `hl.dsp.submap("name")`; the block is `hl.define_submap("name", function() ... end)` |
+| `dpms, off` | `hl.dsp.dpms({ action = "disable" })` (actions are `toggle` / `enable` / `disable`) |
+| `exit` | `hl.dsp.exit()` |
+
+The key string joins every modifier and the key with ` + `: `hl.bind("SUPER + SHIFT + Q", ...)`.
+`"SUPER SHIFT + Q"` is rejected ("Unknown key: SUPER SHIFT"). Flags are a table:
+`{ repeating = true, locked = true, mouse = true, description = "..." }`.
+
+From a shell the same dispatcher is `hyprctl dispatch 'hl.dsp.window.close()'`. On 0.57 the
+legacy `hyprctl dispatch killactive` and `hyprctl keyword ...` do nothing useful: a script or an
+`exec` bind that calls them loads without error and then silently fails
+([wiki](https://wiki.hypr.land/0.57.0/configuring/core/advanced-configuration/using-hyprctl/)).

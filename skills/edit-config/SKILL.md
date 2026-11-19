@@ -173,6 +173,8 @@ reload: applies immediately; companion daemon: visible on next start).
 To trial one setting live before committing it to disk:
 `hyprctl keyword <category:name> <value>` (e.g. `hyprctl keyword decoration:rounding 0`). It
 applies immediately and is reverted by the next reload — handy for "show me before you save it".
+Under a lua config (always, on Hyprland 0.57) there is no `keyword` command: use
+`hyprctl eval 'hl.config({ decoration = { rounding = 0 } })'` instead.
 
 ## Safety rules
 

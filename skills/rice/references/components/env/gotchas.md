@@ -53,6 +53,11 @@ hl.exec_cmd("dbus-update-activation-environment --all")
 hl.exec_cmd("sleep 1 && dbus-update-activation-environment --systemd WAYLAND_DISPLAY XDG_CURRENT_DESKTOP")
 ```
 
+(Quoted for the `--all` idiom only. Do NOT copy the placement: a top-level `hl.exec_cmd` runs on
+every evaluation of the file, including each reload and `Hyprland --verify-config`, where these
+two lines re-import whatever environment the check happens to run in. In a generated config
+they go inside `hl.on("hyprland.start", function() ... end)`.)
+
 — and koeqaife's greeter does:
 
 ```ini

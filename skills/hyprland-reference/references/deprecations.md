@@ -21,6 +21,7 @@ note on which behavior to expect.
 - Layer rules
 - Dispatchers / binds
 - Removed / moved in 0.55
+- Removed in 0.57 (hyprlang itself)
 - New options to know (not deprecations, but recent additions)
 - Gestures (recent rework)
 - How to verify against the live system
@@ -158,7 +159,8 @@ them. Branch on `hyprctl version`.
   **instead of** `hyprland.conf` when both are present. hyprlang is supported for **1 - 2 releases
   starting from 0.55**, after which it is dropped, and no new config features are added to it
   ([upstream](https://hypr.land/news/26_lua/)), so `.conf` is a closing window, not an
-  indefinite one. What this plugin emits is decided by
+  indefinite one - and it closed in 0.57 (see "Removed in 0.57" below). What this plugin emits
+  is decided by
   `${CLAUDE_PLUGIN_ROOT}/skills/rice/scripts/config-language.sh`, not assumed. See the Lua notes in
   `config-syntax.md` / `keybindings.md`.
 - **User-defined layouts** — a Layout API to define custom layouts in-config, per-workspace /
@@ -171,6 +173,26 @@ them. Branch on `hyprctl version`.
   `expel`/`consume`/`consume_or_expel`, `rotatesplit`); binds flag `auto_consuming`; input
   **device tags** for device-specific binds.
 - Dispatcher `moveintoorcreategroup`; `groupbar:middle_click_close`.
+
+## Removed in 0.57 (hyprlang itself)
+
+Hyprland 0.57 removed hyprlang config support. This is not a deprecation: a `hyprland.conf` is
+read by nothing, and everything on this page that is spelled in hyprlang has to be lua first.
+The record and its citations live in the version-cliff ledger
+(`${CLAUDE_PLUGIN_ROOT}/skills/rice/references/_shared/version-matrix.md`).
+
+| hyprlang / up to 0.56 | 0.57 |
+|---|---|
+| `hyprland.conf` + `source = x.conf` | `hyprland.lua` + `require("x")`; convert with `skills/rice/scripts/migrate-config.sh` |
+| `bind = SUPER SHIFT, Q, killactive` | `hl.bind("SUPER + SHIFT + Q", hl.dsp.window.close())`: every modifier joined with ` + `, and the lua dispatcher, not the hyprlang name (table: `_shared/dispatchers.md`) |
+| `exec-once = cmd` | `hl.on("hyprland.start", function() hl.exec_cmd("cmd") end)`. Never a top-level `hl.exec_cmd`: top-level code runs on every evaluation, `--verify-config` included |
+| `col.active_border = rgb(a) rgb(b) 45deg` | `col = { active_border = { colors = { "rgb(a)", "rgb(b)" }, angle = 45 } }` |
+| `gaps_out = 5,10,15,20` | `gaps_out = { top = 5, right = 10, bottom = 15, left = 20 }` (or one integer) |
+| `$accent = rgb(...)` in a sourced palette | a module: `return { accent = "rgb(...)" }`, read with `local c = require("colors")` |
+| `hyprctl keyword decoration:rounding 0` | `hyprctl eval 'hl.config({ decoration = { rounding = 0 } })'` |
+| `hyprctl dispatch exit` | `hyprctl dispatch 'hl.dsp.exit()'` |
+| `hyprctl getoption general:layout` | `hyprctl getoption general.layout` |
+| `workspace = special:x, on-created-empty:cmd` | `hl.workspace_rule({ workspace = "special:x", on_created_empty = "cmd" })` still works but is deprecated: `hyprctl deprecated-config` |
 
 ## New options to know (not deprecations, but recent additions)
 
@@ -198,5 +220,6 @@ and rejects `gestures:workspace_swipe`, migrate to the `gesture =` form.
 
 - `hyprctl version` — installed version/commit.
 - `hyprctl configerrors` — current parse errors from the running instance.
-- `hyprctl getoption decoration:rounding` — confirm an option exists and its value/type.
+- `hyprctl getoption decoration:rounding` - confirm an option exists and its value/type
+  (`decoration.rounding`, dotted, under a lua config).
 - Official wiki "Configuring" pages are versioned; match the page to the installed release.

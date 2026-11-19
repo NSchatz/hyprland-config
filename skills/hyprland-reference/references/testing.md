@@ -12,7 +12,9 @@ apply→test→rollback pattern the plugin uses.
 
 ## Reading the current config
 
-- Main file: `~/.config/hypr/hyprland.conf` (respects `$XDG_CONFIG_HOME`).
+- Main file: `~/.config/hypr/hyprland.lua` when it exists, else `hyprland.conf` (respects
+  `$XDG_CONFIG_HOME`). From 0.55 the `.lua` is loaded INSTEAD of the `.conf`; Hyprland 0.57
+  removed hyprlang, so there the `.lua` is the only file read and modules are `require()`d.
 - Resolve the full picture by following every `source=` line (and globs like
   `source = ~/.config/hypr/conf.d/*.conf`). Read the main file first, then each sourced file in
   order — later definitions override earlier ones.
@@ -20,7 +22,8 @@ apply→test→rollback pattern the plugin uses.
   `hypridle.conf`, `hyprpaper.conf`, etc. They use their own config languages.
 - Live introspection (read-only, reflects the *running* state, which may differ from the file if
   not yet reloaded):
-  - `hyprctl getoption <category:name>` — current value/type of one option.
+  - `hyprctl getoption <category:name>` - current value/type of one option. Under a lua config
+    the name is DOTTED: `hyprctl getoption general.layout`.
   - `hyprctl binds -j` — all active keybinds (JSON).
   - `hyprctl monitors -j`, `hyprctl clients -j`, `hyprctl layers -j`, `hyprctl workspaces -j`.
   - `hyprctl version` — installed version/commit.
@@ -38,6 +41,23 @@ session, no seat, no `/dev/dri`, so it runs on a CI runner and against a file th
 installed yet. Errors in `source =`d companions are reported against those files' own paths
 and lines.
 
+**For a lua config it does not merely parse: it EVALUATES the file, top-level code included.**
+A top-level `hl.exec_cmd("...")` therefore RUNS during the check, and in a normal shell it runs
+against the live session (this has re-run a desktop's autostart and blanked `WAYLAND_DISPLAY` in
+its systemd user environment). Two rules follow:
+
+- Never put a command at the top level of a config. Autostart goes inside
+  `hl.on("hyprland.start", function() ... end)`.
+- Never run the check in the session's environment. Use `preflight-config.sh`, which builds a
+  scrubbed one, or by hand:
+
+  ```bash
+  env -i HOME="$HOME" PATH=/usr/bin:/bin LANG=C.UTF-8 TERM=dumb \
+      XDG_RUNTIME_DIR="$(mktemp -d)" Hyprland --verify-config -c <file>
+  ```
+
+  A clean config prints a line that is exactly `config ok`.
+
 **Exit 1 is overloaded**: a bad `-c` path, a directory, or an unknown flag also exits 1,
 after printing the usage banner and *no* parsing-result block. So judge by the block, not
 the status. The full measured contract (every exit code, the `~`-expands-from-`$HOME`
@@ -53,22 +73,26 @@ behaviour, the lua form) is in `tests/integration/offline-check-contract.md`.
 3. **Confirm which file it actually loaded.** An empty `configerrors` is *also* exactly what a
    config that was never parsed produces: a `hyprland.lua` shadowing your `hyprland.conf`, or a
    session started with `-c` somewhere else. No `hyprctl` command reports the config path, but
-   the compositor logs `Using config: <path>` for every file it reads and re-logs them on each
-   reload, so `hyprctl rollinglog` will name them.
+   the compositor logs it: `Using config: <path>` up to 0.56, `[cfg] Regular config at <path>`
+   on 0.57 (in the instance log `$XDG_RUNTIME_DIR/hypr/<signature>/hyprland.log`; the rolling
+   log is a tail and may have scrolled past it). `loaded-config.sh` reads both spellings.
 
 So: reload, check `configerrors` is empty, **and** check the compositor names the file you
 wrote. Steps 1 and 2 alone are not the "it works" signal; all three are.
 
 ### Testing a single option without editing files
 
-`hyprctl keyword <name> <value>` applies one setting to the live session immediately, e.g.
-`hyprctl keyword decoration:rounding 0`. Useful to preview a value before persisting it to the
-file. It does not write to disk and is reverted by the next reload.
+Under a hyprlang config, `hyprctl keyword <name> <value>` applies one setting to the live
+session immediately, e.g. `hyprctl keyword decoration:rounding 0`. Under a lua config - always,
+on 0.57 - there is no `keyword` command; the same preview is
+`hyprctl eval 'hl.config({ decoration = { rounding = 0 } })'`. Likewise `hyprctl dispatch` takes
+a lua dispatcher there: `hyprctl dispatch 'hl.dsp.exit()'`, not `hyprctl dispatch exit`. Neither
+form writes to disk, and both are reverted by the next reload.
 
 ### Isolated / nested testing (advanced)
 
 A config can be loaded in a nested Hyprland instance without disturbing the session:
-`Hyprland --config /path/to/hyprland.conf` (best inside an existing session or a headless backend
+`Hyprland --config /path/to/hyprland.lua` (best inside an existing session or a headless backend
 via `WLR_BACKEND=headless`). Heavier and environment-dependent; the reload+configerrors approach
 is preferred for the common case.
 
@@ -91,7 +115,8 @@ The plugin implements this:
 
 - `skills/rice/scripts/preflight-config.sh`: step 0. Copies the staged set into a sandbox
   whose `HOME` is the sandbox (so `source = ~/.config/hypr/…` resolves to the *staged*
-  companions, never the installed ones) and runs the compositor's offline check against it.
+  companions, never the installed ones) and runs the compositor's offline check against it,
+  in a scrubbed environment with no session bus, display or instance signature.
   Prints `PREFLIGHT=ok|errors|unverified|uncheckable`; exit 0/1/2/3. `unverified` means this
   host has no binary offering the check, which is not `ok`.
 - `skills/rice/scripts/verify-config.sh`: step 3 (reload + configerrors, plus `--expect <file>`

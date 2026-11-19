@@ -292,7 +292,10 @@ compositor. This:
 
 dusky (`.config/hypr/source/autostart.lua`) shows the full pattern:
 `hl.exec_cmd("uwsm-app -- awww-daemon")`, `hl.exec_cmd("uwsm-app -- wl-paste --type text --watch
-cliphist store")`, etc.
+cliphist store")`, etc. In a lua config this plugin writes, every such call sits inside
+`hl.on("hyprland.start", function() ... end)` (and `exec-shutdown` inside
+`hl.on("hyprland.shutdown", ...)`): a top-level `hl.exec_cmd` runs again on each reload and under
+`Hyprland --verify-config`, stacking duplicate daemons.
 
 The recipe does **not** emit `uwsm app --` wrappers by default — the user-facing tradeoff is "more
 robust cleanup on logout" vs "lines work whether you launch from uwsm or `Hyprland` bare". Detect

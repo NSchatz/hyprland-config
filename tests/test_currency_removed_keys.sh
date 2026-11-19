@@ -226,7 +226,12 @@ else
 fi
 # The list must actually span the ledger's floor to its newest release, or "every
 # version the plugin claims to support" is whatever the list happens to hold.
-if [ "${targets[0]}" = "0.50.0" ] && [ "${targets[${#targets[@]}-1]}" = "0.56.2" ]; then
+# The newest release is READ from the ledger, not repeated here: bumping that row is the
+# routine "a new Hyprland shipped" edit, and it must not need a second edit in a test.
+ledger_newest="$(sed -n 's/^| `newest-release` | v\([0-9][0-9.]*\).*/\1/p' \
+    "$PLUGIN_ROOT/skills/rice/references/_shared/version-matrix.md")"
+if [ -n "$ledger_newest" ] && [ "${targets[0]}" = "0.50.0" ] \
+        && [ "${targets[${#targets[@]}-1]}" = "$ledger_newest" ]; then
     pass "C6: the list runs from the ledger's support floor to its newest release"
 else
     fail "C6: the list runs from the ledger's support floor to its newest release" "${targets[*]}"

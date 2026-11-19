@@ -67,8 +67,9 @@ Consult these as needed — each is loaded only when relevant:
   replacements (shadow/blur subcategories, `master:new_status`, cursor category, the
   `windowrule`/`windowrulev2` merge, and more). Check this before trusting any older example.
 - **`references/testing.md`** — how to read a config (resolving `source=`) and how to actually
-  test it on a live Hyprland (`hyprctl reload` + `hyprctl configerrors`, `hyprctl keyword` for a
-  single option), plus the safe apply→test→rollback pattern. Use whenever changing a live config.
+  test it on a live Hyprland (`hyprctl reload` + `hyprctl configerrors`, `hyprctl keyword` or,
+  under lua, `hyprctl eval` for a single option), plus the safe apply→test→rollback pattern and
+  why `--verify-config` must run in a scrubbed environment. Use whenever changing a live config.
 - **`references/ecosystem.md`** — the official Hypr ecosystem tools (`hyprlock`, `hypridle`,
   `hyprpaper`, `hyprpicker`, `hyprsunset`, `hyprpolkitagent`, `hyprshot`, portals) plus the
   community packages commonly paired with Hyprland (status bars, launchers, notification

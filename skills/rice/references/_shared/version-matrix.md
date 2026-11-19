@@ -63,7 +63,7 @@ bash "${CLAUDE_PLUGIN_ROOT}/skills/rice/scripts/validate-removed-keys.sh" <stagi
 
 | Field | Value | Source |
 |---|---|---|
-| `newest-release` | v0.56.2 (published 2026-08-05) | [v0.56.2](https://github.com/hyprwm/Hyprland/releases/tag/v0.56.2) |
+| `newest-release` | v0.57.2 (published 2026-11-09) | [v0.57.2](https://github.com/hyprwm/Hyprland/releases/tag/v0.57.2) |
 | `support-floor` | 0.50 | [v0.50.0](https://github.com/hyprwm/Hyprland/releases/tag/v0.50.0) |
 
 `newest-release` is what the currency check measures staleness against when no
@@ -94,6 +94,9 @@ oldest Hyprland the rice targets; a cliff at or below it is not a branch.
 | **0.55+** | `decoration { glow {} }` (new effect), spring-based animation curve `animation = …, …, …, spring` — **but only via the Lua config API**. Hyprlang `.conf` `animation =` parser at v0.55.2 line 1454 still calls `bezierExists()` and rejects spring names. | `look-feel` (spring curves not emittable from `.conf`). | [v0.55.0](https://github.com/hyprwm/Hyprland/releases/tag/v0.55.0) |
 | **0.55+** | Other additions: per-output ICC `icc = "<path>"`, dispatcher `moveintoorcreategroup`, `groupbar:middle_click_close`, scrolling-layout rules/messages (`scrolling_width`, `expel`/`consume`/`consume_or_expel`, `rotatesplit`), input device tags, windowrule `confine_pointer`. | (additive — opt-in surfaces). | [v0.55.0](https://github.com/hyprwm/Hyprland/releases/tag/v0.55.0) |
 | **0.56+** | A freshly installed Hyprland auto-generates a `hyprland.lua` into the config dir the first time it starts (the 0.56.0 release fixed it "auto-generating hyprlang instead of lua config file by default"). So the lua-shadows-hyprlang case is the DEFAULT on a new machine, not an edge case: a `.conf` installed beside it is never read. | `scripts/install-config.sh` (the shadowing refusal), `scripts/migrate-config.sh`. | [v0.56.0](https://github.com/hyprwm/Hyprland/releases/tag/v0.56.0) |
+| **0.57+** | **hyprlang is REMOVED** (release note: "config: remove legacy config support", [PR #15539](https://github.com/hyprwm/Hyprland/pull/15539)). Hyprland loads `hyprland.lua` and nothing else: a `hyprland.conf` is read by nothing, and with no lua config present the compositor writes its own example one. The 1 - 2 release window announced at 0.55 closed here. The running compositor now names its config as `[cfg] Regular config at <path>` where 0.56 and older logged `Using config: <path>`. | **All components: lua is the only config language.** `scripts/config-language.sh` refuses an explicit hyprlang choice for a detected 0.57 or newer; `scripts/migrate-config.sh` is the way forward for an existing `.conf` set; `scripts/loaded-config.sh` reads both log spellings. | [v0.57.0](https://github.com/hyprwm/Hyprland/releases/tag/v0.57.0), [PR #15539](https://github.com/hyprwm/Hyprland/pull/15539) |
+| **0.57+** | **`hyprctl keyword` does not exist, and `hyprctl dispatch` takes a LUA dispatcher**: `hyprctl dispatch 'hl.dsp.exit()'`, which is shorthand for `hyprctl eval 'hl.dispatch(...)'`. Runtime config goes through `hyprctl eval '<lua>'`, e.g. `hyprctl eval 'hl.config({ general = { gaps_in = 0 } })'`. `hyprctl getoption` names are dotted: `general.layout`, `input.touchpad.natural_scroll`. The legacy dispatcher NAMES (`killactive`, `movefocus`, `workspace`, ...) are not lua functions; the table is in `_shared/dispatchers.md`. | `keybinds` (zoom binds, any `exec, hyprctl ...` bind), `companion-daemons` (hypridle dpms lines), `utilities` (power menu, game mode, minimize, layout toggle scripts), `env` (runtime env propagation). | [wiki 0.57 Using hyprctl](https://wiki.hypr.land/0.57.0/configuring/core/advanced-configuration/using-hyprctl/), [wiki 0.57 Dispatchers](https://wiki.hypr.land/0.57.0/configuring/core/dispatchers/) |
+| **0.57+** | The `on_created_empty` workspace rule is DEPRECATED. It still works, but `hyprctl deprecated-config` lists it and suggests an `hl.on("workspace.created")` handler that checks the workspace's `.is_empty` (release note: "config: add deprecation notices"). | `window-rules` / `monitors` (scratchpad workspace rules). | [v0.57.0](https://github.com/hyprwm/Hyprland/releases/tag/v0.57.0) |
 
 ## External (non-Hyprland) version cliffs that matter
 
@@ -137,6 +140,14 @@ if HYPR_VERSION is unknown:
   - the CONFIG LANGUAGE cannot be assumed. config-language.sh reports both
     emittable languages and stops until an explicit choice is supplied
     (HYPR_CONFIG_LANG=lua|hyprlang).
+
+if HYPR_VERSION ≥ 0.57:
+  - everything under "≥ 0.55" below, and:
+  - hyprlang is GONE: lua is the only language; an explicit hyprlang choice is refused
+  - no `hyprctl keyword`: runtime config is `hyprctl eval '<lua>'`
+  - `hyprctl dispatch` takes a lua dispatcher: hyprctl dispatch 'hl.dsp.exit()'
+  - `hyprctl getoption` names are dotted (general.layout)
+  - on_created_empty still works but is deprecated
 
 if HYPR_VERSION ≥ 0.55:
   - config LANGUAGE is lua -> emit hyprland.lua, never hyprland.conf
@@ -206,7 +217,7 @@ bash "${CLAUDE_PLUGIN_ROOT}/skills/rice/scripts/detect-version.sh"
 bash "${CLAUDE_PLUGIN_ROOT}/skills/rice/scripts/config-language.sh"
 # CONFIG_LANGUAGE=hyprlang
 # CONFIG_FILE=hyprland.conf
-# CONFIG_LANGUAGE_RANGE=Hyprland up to 0.54; deprecated since 0.55 and supported for 1 - 2 releases starting from 0.55, after which hyprlang is dropped
+# CONFIG_LANGUAGE_RANGE=Hyprland up to 0.54; deprecated since 0.55 and supported for 1 - 2 releases starting from 0.55, after which hyprlang is dropped (0.57 dropped it: from there Hyprland loads only hyprland.lua)
 ```
 
 If neither `hyprctl` nor `Hyprland` is on PATH the version is `unknown`. **Do not assume a
