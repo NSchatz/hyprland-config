@@ -7,6 +7,10 @@ loads. Running it against the STAGED files, in a sandbox, means a bad config is 
 user's desktop is still untouched: a refusal costs them nothing, where the old order made every
 failure start from an already-overwritten config directory.
 
+The sandbox is an ENVIRONMENT as well as a directory. For a lua config the check evaluates the
+file, so anything it runs at the top level runs during the check; it is given a scrubbed
+environment with no route to the live session (see `sandbox_env`).
+
 The three outcomes are deliberately distinct:
     ok           the compositor parsed the staged files and found nothing wrong
     errors       it parsed them and found something; the lines name the STAGED paths
@@ -31,6 +35,27 @@ from ..proc import have, run
 from . import configlang
 
 PARSE_MARKER = "======== Config parsing result:"
+
+
+# What the check's environment is built from. Everything else the caller has is left behind,
+# which is the point: see the call site.
+PASSED_THROUGH = ("PATH", "LD_LIBRARY_PATH")
+
+
+def sandbox_env(caller, sandbox, sandbox_home, sandbox_run):
+    env = {k: caller[k] for k in PASSED_THROUGH if caller.get(k)}
+    env.setdefault("PATH", "/usr/bin:/bin")
+    env.update({
+        "LANG": "C.UTF-8",
+        "TERM": "dumb",
+        "HOME": sandbox_home,
+        "XDG_RUNTIME_DIR": sandbox_run,
+        "XDG_CACHE_HOME": f"{sandbox}/cache",
+        "XDG_CONFIG_HOME": f"{sandbox_home}/.config",
+        "XDG_DATA_HOME": f"{sandbox_home}/.local/share",
+        "XDG_STATE_HOME": f"{sandbox_home}/.local/state",
+    })
+    return env
 
 
 def _uncheckable(msg, reason):
@@ -117,13 +142,17 @@ def main(argv):
 
         # The check runs entirely inside the sandbox: it must never read or write the user's real
         # config, cache or runtime dir while deciding whether a STAGED file parses.
-        env = dict(os.environ)
-        env.update({
-            "HOME": sandbox_home,
-            "XDG_RUNTIME_DIR": sandbox_run,
-            "XDG_CACHE_HOME": f"{sandbox}/cache",
-            "XDG_CONFIG_HOME": f"{sandbox_home}/.config",
-        })
+        #
+        # And it runs with NOTHING of the session. `--verify-config` does not merely parse a lua
+        # config, it EVALUATES it - top-level code included - so a command a staged config runs
+        # at its top level runs right here, during the "check". Handed the caller's environment
+        # it would act on the live session: evaluating a config outside a scrubbed environment
+        # has re-run its autostart against a running desktop and blanked WAYLAND_DISPLAY in the
+        # systemd user environment. So the environment is built from nothing rather than copied
+        # and patched: a search path, a locale, and the sandbox's own directories. No session
+        # bus, no Wayland or X display, no Hyprland instance signature - nothing such a command
+        # could reach the desktop through.
+        env = sandbox_env(os.environ, sandbox, sandbox_home, sandbox_run)
 
         _, help_out = run([hypr_bin, "--help"], env=env)
         if "--verify-config" not in help_out:

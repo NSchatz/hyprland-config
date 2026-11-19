@@ -26,6 +26,12 @@ tmp="$(mktemp_test_dir preflight)"
 #   * prints `======== Config parsing result:` whenever it actually parsed, and
 #     never when it rejected the invocation
 #   * STUB_HYPR_REJECT=1 rejects the invocation after --help still works
+#
+# The two switches are FILES next to the stub (`stub-no-offline`, `stub-reject`), not just env
+# vars: the preflight hands the compositor a scrubbed environment, so a switch that travelled
+# as a variable would be scrubbed along with everything else. For the same reason the stub
+# records the environment it was verified under in `env.dump` beside itself - that file is how
+# a test sees what the check could have reached.
 write_hypr_stub() {
     mkdir -p "$1"
     cat > "$1/Hyprland" <<'STUB'
@@ -35,6 +41,9 @@ if [ -z "${XDG_RUNTIME_DIR:-}" ]; then
     echo "Critical error thrown: XDG_RUNTIME_DIR is not set!" >&2
     exit 134
 fi
+here="$(cd "$(dirname "$0")" && pwd)"
+[ -e "$here/stub-no-offline" ] && STUB_HYPR_NO_OFFLINE=1
+[ -e "$here/stub-reject" ] && STUB_HYPR_REJECT=1
 usage() {
     printf 'usage: Hyprland [arg [...]].\n\n'
     printf 'Arguments:\n'
@@ -50,7 +59,7 @@ while [ "$#" -gt 0 ]; do
     case "$1" in
         --help|-h)        usage; exit 0 ;;
         --version|-v)     echo "Hyprland 0.56.2 built from branch v0.56.2"; exit 0 ;;
-        --verify-config)  shift ;;
+        --verify-config)  env > "$here/env.dump"; shift ;;
         -c|--config)      cfg="${2:-}"; shift 2 ;;
         *) printf "[ ERROR ] Unknown option '%s' !\n" "$1" >&2; usage; exit 1 ;;
     esac
@@ -331,7 +340,9 @@ $out"
 fi
 
 # The other half of AC-6: a binary that IS there but does not offer the check.
-out="$(PATH="$STUB_PATH" STUB_HYPR_NO_OFFLINE=1 bash "$RS/preflight-config.sh" "$ac6/stage" 2>&1)"; rc=$?
+touch "$stubbin/stub-no-offline"
+out="$(PATH="$STUB_PATH" bash "$RS/preflight-config.sh" "$ac6/stage" 2>&1)"; rc=$?
+rm -f "$stubbin/stub-no-offline"
 assert_eq "2" "$rc" "AC-6: a compositor without --verify-config => unverified, not verified"
 if printf '%s\n' "$out" | grep -q '^PREFLIGHT_REASON=no-offline-check$'; then
     pass "AC-6: the reason names the missing offline check"
@@ -367,7 +378,8 @@ chmod 644 "$ac7/stage-unread/hyprland.conf"
 #     tells them apart - and getting this wrong turns a packaging change into a refusal
 #     that blames the user's config.
 stage_good "$ac7/stage"
-out="$(PATH="$STUB_PATH" STUB_HYPR_REJECT=1 bash "$RS/preflight-config.sh" "$ac7/stage" 2>&1)"; rc=$?
+touch "$stubbin/stub-reject"
+out="$(PATH="$STUB_PATH" bash "$RS/preflight-config.sh" "$ac7/stage" 2>&1)"; rc=$?
 assert_eq "3" "$rc" "AC-7: a rejected invocation is uncheckable (exit 3), not errors (exit 1)"
 assert_eq "invocation-rejected" "$(printf '%s\n' "$out" | sed -n 's/^PREFLIGHT_REASON=//p')" \
     "AC-7: a rejected invocation is named as such"
@@ -381,8 +393,9 @@ fi
 t7="$ac7/target"; mkdir -p "$t7"
 printf 'SENTINEL\n' > "$t7/hyprland.conf"
 before="$(fingerprint "$t7")"; before_sib="$(siblings "$t7")"
-out="$(PATH="$STUB_PATH" STUB_HYPR_REJECT=1 STUB_HYPRCTL_DEAD=1 HYPR_DIR="$t7" \
+out="$(PATH="$STUB_PATH" STUB_HYPRCTL_DEAD=1 HYPR_DIR="$t7" \
        bash "$RS/safe-apply.sh" "$ac7/stage" 2>&1)"; rc=$?
+rm -f "$stubbin/stub-reject"
 assert_eq "preflight-uncheckable" "$(outcome "$out")" \
     "AC-7: safe-apply reports 'preflight-uncheckable', distinct from 'preflight-failed'"
 assert_eq "$before" "$(fingerprint "$t7")" "AC-7: the target is BYTE-IDENTICAL after an uncheckable refusal"
@@ -421,7 +434,9 @@ installed_main_of() { echo "$ac10/t-$1/hyprland.conf"; }
 
 drive pf-failed  'SENTINEL' "$ac10/stage-bad" STUB_HYPRCTL_DEAD=1
 o_pf_failed="$DRIVE_OUT"
-drive pf-unchk   'SENTINEL' "$ac10/stage-ok"  STUB_HYPR_REJECT=1 STUB_HYPRCTL_DEAD=1
+touch "$stubbin/stub-reject"
+drive pf-unchk   'SENTINEL' "$ac10/stage-ok"  STUB_HYPRCTL_DEAD=1
+rm -f "$stubbin/stub-reject"
 o_pf_unchk="$DRIVE_OUT"
 drive untested   'OLD'      "$ac10/stage-ok"  STUB_HYPRCTL_DEAD=1
 o_untested="$DRIVE_OUT"
@@ -488,6 +503,50 @@ if [ "$doc_n" -eq "$doc_u" ] && [ "$doc_n" -ge 9 ]; then
 else
     fail "AC-10: all documented SAFE_APPLY= outcome words are distinct" "$doc_n documented, $doc_u unique:
 $doc_words"
+fi
+
+# ---------------------------------------------------------------------------------------------
+# The check runs with NOTHING of the session
+# ---------------------------------------------------------------------------------------------
+# `--verify-config` evaluates a lua config, top-level code included, so a command at the top
+# level of a staged config runs DURING the check. Handed the caller's environment, it runs
+# against the live session - that has blanked WAYLAND_DISPLAY in a running desktop. So the
+# compositor is started with a scrubbed environment: none of the handles below may reach it.
+scrub="$tmp/scrub"; mkdir -p "$scrub"
+stage_good "$scrub/stage"
+rm -f "$stubbin/env.dump"
+out="$(PATH="$STUB_PATH" HOME="$scrub/realhome" XDG_RUNTIME_DIR="$scrub/realrun" \
+       WAYLAND_DISPLAY=wayland-live DISPLAY=:live \
+       DBUS_SESSION_BUS_ADDRESS=unix:path=/run/user/live/bus \
+       HYPRLAND_INSTANCE_SIGNATURE=live_signature XDG_SESSION_ID=live-session \
+       SSH_AUTH_SOCK=/run/user/live/ssh XAUTHORITY=/home/live/.Xauthority \
+       SOME_APP_TOKEN=secret \
+       bash "$RS/preflight-config.sh" "$scrub/stage" 2>&1)"; rc=$?
+assert_eq "0" "$rc" "scrub: the check still runs and passes"
+assert_file_exists "$stubbin/env.dump" "scrub: the stub recorded the environment it was verified under"
+leaked="$(grep -E '^(WAYLAND_DISPLAY|DISPLAY|DBUS_SESSION_BUS_ADDRESS|HYPRLAND_INSTANCE_SIGNATURE|XDG_SESSION_ID|SSH_AUTH_SOCK|XAUTHORITY|SOME_APP_TOKEN)=' \
+    "$stubbin/env.dump" 2>/dev/null)"
+assert_eq "" "$leaked" "scrub: no session handle reaches the compositor's offline check"
+if grep -q 'live' "$stubbin/env.dump" 2>/dev/null; then
+    fail "scrub: no value of the caller's session appears anywhere in that environment" \
+        "$(grep 'live' "$stubbin/env.dump")"
+else
+    pass "scrub: no value of the caller's session appears anywhere in that environment"
+fi
+dumped_home="$(sed -n 's/^HOME=//p' "$stubbin/env.dump" 2>/dev/null)"
+dumped_run="$(sed -n 's/^XDG_RUNTIME_DIR=//p' "$stubbin/env.dump" 2>/dev/null)"
+case "$dumped_home" in
+    */hypr-preflight.*/home) pass "scrub: HOME is the sandbox's, not the caller's" ;;
+    *) fail "scrub: HOME is the sandbox's, not the caller's" "HOME=$dumped_home" ;;
+esac
+case "$dumped_run" in
+    */hypr-preflight.*/run) pass "scrub: XDG_RUNTIME_DIR is the sandbox's (no session bus in it)" ;;
+    *) fail "scrub: XDG_RUNTIME_DIR is the sandbox's (no session bus in it)" "XDG_RUNTIME_DIR=$dumped_run" ;;
+esac
+if grep -q '^PATH=' "$stubbin/env.dump" 2>/dev/null; then
+    pass "scrub: a search path is still provided"
+else
+    fail "scrub: a search path is still provided"
 fi
 
 rm -rf "$tmp"
