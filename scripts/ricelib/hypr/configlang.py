@@ -1,10 +1,10 @@
 #!/usr/bin/env python3
 """Which config LANGUAGE this Hyprland reads - a DETECTION FACT, never a default.
 
-Since 0.55 Hyprland reads `hyprland.lua` and loads it INSTEAD OF `hyprland.conf`, and since
-0.56.0 a fresh install autogenerates one. Guessing wrong is not a cosmetic error: it is a config
-the compositor never reads, while every check this plugin runs reports success against the file
-it wrote.
+Since 0.55 Hyprland reads `hyprland.lua` and loads it INSTEAD OF `hyprland.conf`, since 0.56.0
+a fresh install autogenerates one, and 0.57 removed hyprlang altogether. Guessing wrong is not
+a cosmetic error: it is a config the compositor never reads, while every check this plugin runs
+reports success against the file it wrote.
 
 So on an undetectable version this REFUSES and asks. `EMITTABLE_LANGUAGES=lua hyprlang` is
 printed with each option's support range, and an explicit `HYPR_CONFIG_LANG` (or `--language`)
@@ -19,12 +19,15 @@ import sys
 
 # The release where lua became the documented config language.
 CLIFF = "0.55"
+# The release that removed hyprlang. From here a `.conf` is read by nothing, so emitting one -
+# even on an explicit request - is writing a config the compositor will never load.
+REMOVED = "0.57"
 
 RANGES = {
     "lua": (f"Hyprland {CLIFF} and newer (lua is the documented config language since {CLIFF})"),
     # Kept on one line on purpose: the published support window is grepped for verbatim by
     # tests/test_lua_emit.sh, and a phrase split across two string literals is not findable.
-    "hyprlang": f"Hyprland up to 0.54; deprecated since {CLIFF} and supported for 1 - 2 releases starting from {CLIFF}, after which hyprlang is dropped",
+    "hyprlang": f"Hyprland up to 0.54; deprecated since {CLIFF} and supported for 1 - 2 releases starting from {CLIFF}, after which hyprlang is dropped ({REMOVED} dropped it: from there Hyprland loads only hyprland.lua)",
 }
 FILES = {"lua": "hyprland.lua", "hyprlang": "hyprland.conf"}
 COMMENTS = {"lua": "--", "hyprlang": "#"}
@@ -78,6 +81,16 @@ def for_version(v):
     return "hyprlang"
 
 
+def reads_hyprlang(v):
+    """False only for a version KNOWN to be at or past the removal. An unreadable version
+    proves nothing either way, and the caller's explicit choice stands."""
+    parts = (v or "").lstrip("v").split(".")
+    if len(parts) < 2 or not parts[0].isdigit() or not parts[1].isdigit():
+        return True
+    removed = [int(x) for x in REMOVED.split(".")]
+    return [int(parts[0]), int(parts[1])] < removed
+
+
 def report_undecided(out=sys.stdout):
     print("CONFIG_LANGUAGE=undecided", file=out)
     print("EMITTABLE_LANGUAGES=lua hyprlang", file=out)
@@ -119,6 +132,13 @@ def resolve(env=None, out=sys.stdout):
     version = detect_version(env)
     print(f"HYPR_VERSION={version}", file=out)
 
+    if choice == "hyprlang" and not reads_hyprlang(version):
+        print(f"ERROR: HYPR_CONFIG_LANG=hyprlang cannot be honoured: Hyprland {version} does not "
+              f"load hyprlang (it was removed in {REMOVED}). A hyprland.conf written for it "
+              "would be read by nothing. Use lua, or migrate-config.sh for an existing .conf.",
+              file=sys.stderr)
+        print("CONFIG_LANGUAGE=refused")
+        return Resolution(version=version, rc=2)
     if choice:
         lang, source = choice, "explicit"
     else:

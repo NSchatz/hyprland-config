@@ -184,6 +184,32 @@ for choice in lua hyprlang; do
         "AC-5: the '$choice' emit records that the choice was explicit, not detected"
 done
 
+# Hyprland 0.57 REMOVED hyprlang. An explicit hyprlang choice for a version known to be past
+# that is not a preference to honour: the .conf it asks for would be read by nothing.
+gone="$tmp/emit-hyprlang-on-057"
+out="$(HYPR_VERSION=0.57.2 HYPR_CONFIG_LANG=hyprlang bash "$emit" "$gone" 2>&1)"; rc=$?
+if [ "$rc" -ne 0 ]; then
+    pass "0.57: an explicit hyprlang choice is refused, not emitted"
+else
+    fail "0.57: an explicit hyprlang choice is refused, not emitted" "exit 0
+$out"
+fi
+if printf '%s\n' "$out" | grep -q 'does not load hyprlang (it was removed in 0\.57)'; then
+    pass "0.57: the refusal says hyprlang was removed, and in which release"
+else
+    fail "0.57: the refusal says hyprlang was removed, and in which release" "$out"
+fi
+if [ -d "$gone" ] && [ -n "$(ls -A "$gone" 2>/dev/null)" ]; then
+    fail "0.57: nothing was written for the refused choice" "$(ls -A "$gone")"
+else
+    pass "0.57: nothing was written for the refused choice"
+fi
+# 0.56 still reads a .conf when no hyprland.lua shadows it, so there the choice stands.
+out="$(HYPR_VERSION=0.56.2 HYPR_CONFIG_LANG=hyprlang bash "$emit" "$tmp/emit-hyprlang-on-056" 2>&1)"; rc=$?
+assert_eq "0" "$rc" "0.56: an explicit hyprlang choice is still honoured"
+assert_eq "lua" "$(HYPR_VERSION=0.57.2 bash "$langsh" 2>/dev/null | sed -n 's/^CONFIG_LANGUAGE=//p' | head -n1)" \
+    "0.57: with no explicit choice the language is lua"
+
 # An unknown language name is rejected rather than silently defaulted.
 out="$(HYPR_VERSION=unknown HYPR_CONFIG_LANG=perl bash "$emit" "$tmp/emit-bogus" 2>&1)"; rc=$?
 if [ "$rc" -ne 0 ]; then
