@@ -10,6 +10,7 @@ or removing a name **breaks the component's styling silently** (CSS no-ops on un
 | Component | Output file | Format | Var names exported |
 |---|---|---|---|
 | hyprland | `~/.config/hypr/colors.conf` | hyprlang `$var = rgb(hex)` | `accent accent2 bg fg surface muted` |
+| hyprland (lua config) | `~/.config/hypr/colors.lua` | lua module `return { name = "rgb(hex)" }`, read with `local c = require("colors")` | `accent accent2 bg fg surface muted` |
 | waybar | `~/.config/waybar/colors.css` | CSS `@define-color` | `bg fg surface muted accent accent2 red green yellow blue magenta cyan` |
 | wofi | `~/.config/wofi/colors.css` | CSS `@define-color` | `bg fg surface accent` |
 | rofi | `~/.config/rofi/colors.rasi` | rasi `* { name: #hex; }` | `bg bg-alt fg muted accent accent2 red green` |

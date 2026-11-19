@@ -284,7 +284,10 @@ printf 'BLURRED\n' > "$out"
 STUB
 chmod +x "$stub/magick"
 
-out="$(HOME="$h" XDG_CONFIG_HOME="$x" PATH="$BIN_PATH" bash "$RS/rice-init.sh" 2>&1)"; rc=$?
+# HYPR_VERSION is pinned: rice-init writes the Hyprland colours row in the language of the
+# detected version (colors.conf below 0.55, colors.lua from it), and this block is about WHERE
+# the surfaces land, on every host.
+out="$(HOME="$h" XDG_CONFIG_HOME="$x" HYPR_VERSION=0.54.3 PATH="$BIN_PATH" bash "$RS/rice-init.sh" 2>&1)"; rc=$?
 assert_eq "0" "$rc" "AC-7: rice-init.sh scaffolds under an absolute XDG_CONFIG_HOME"
 assert_eq "$x/hypr-rice" "$(field RICE_DIR "$out")" "AC-7: the rice state directory resolves beneath XDG_CONFIG_HOME"
 assert_file_exists "$x/hypr-rice/palette.conf" "AC-7: the rice state landed beneath XDG_CONFIG_HOME"

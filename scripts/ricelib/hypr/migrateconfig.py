@@ -207,6 +207,40 @@ def read_lines(path):
     return lines
 
 
+def is_variables_file(lines):
+    """True for text that defines `$variables` and nothing else: a palette file."""
+    code = [split_comment(raw)[0].strip() for raw in lines]
+    code = [c for c in code if c]
+    return bool(code) and all(VAR_LINE.match(c) for c in code)
+
+
+def variables_module(lines, define=lambda name, value: value):
+    """`$accent = rgb(...)` lines as the two halves of a lua module: the comments above the
+    first variable, and the fields of the table it returns. `define` sees each (name, value)
+    and returns the value to store.
+
+    Shared with the theme engine (rendertemplates), which regenerates this same module on every
+    theme change and has to write it the way the converter did."""
+    head, body = [], []
+    for raw in lines:
+        code, comment = split_comment(raw)
+        line = code.strip()
+        if not line:
+            target = body if body else head
+            text = raw.strip()
+            if text.startswith("#"):
+                target.append(lua_comment(text[1:]) if target is head
+                              else "    " + lua_comment(text[1:]))
+            elif not text:
+                target.append("")
+            continue
+        key, _, rest = line.partition("=")
+        name = key.strip()[1:]
+        value = define(name, rest.strip())
+        body.append(with_trailing(f"    {lua_key(name)} = {module_value(value)},", comment))
+    return head, body
+
+
 class ExistingLua(Exception):
     """A `.lua` this conversion would write is already there."""
 
@@ -1012,12 +1046,9 @@ class Converter:
     def is_vars_module(self, path):
         """A sourced file that defines `$variables` and nothing else: the palette file."""
         try:
-            lines = read_lines(path)
+            return is_variables_file(read_lines(path))
         except OSError:
             return False
-        code = [split_comment(raw)[0].strip() for raw in lines]
-        code = [c for c in code if c]
-        return bool(code) and all(VAR_LINE.match(c) for c in code)
 
     def module_alias(self, stem):
         base = stem.rpartition("/")[2]
@@ -1032,27 +1063,16 @@ class Converter:
         """`$accent = rgb(...)` lines -> `return { accent = "rgb(...)", ... }`."""
         stem = self.lua_stem(src)
         alias = self.module_alias(stem)
-        head, body = [], []
-        for lineno, raw in enumerate(read_lines(src), 1):
-            code, comment = split_comment(raw)
-            line = code.strip()
-            if not line:
-                target = body if body else head
-                text = raw.strip()
-                if text.startswith("#"):
-                    target.append(lua_comment(text[1:]) if target is head
-                                  else "    " + lua_comment(text[1:]))
-                elif not text:
-                    target.append("")
-                continue
-            key, _, rest = line.partition("=")
-            name = key.strip()[1:]
+
+        def define(name, raw_value):
             # A variable built from other variables is stored expanded: a table constructor
             # cannot read its own earlier fields.
-            value = self.expand(rest.strip())
+            value = self.expand(raw_value)
             self.vars.pop(name, None)
             self.modvars[name] = (alias, stem, value)
-            body.append(with_trailing(f"    {lua_key(name)} = {module_value(value)},", comment))
+            return value
+
+        head, body = variables_module(read_lines(src), define)
         return [
             "-- This file only defined $variables, so it became a module that RETURNS them. lua "
             "has no",

@@ -18,6 +18,7 @@ import shutil
 import sys
 
 from .. import xdg
+from . import configlang
 
 # Shipped components copied beside the engine, and whether they need the executable bit.
 PLUGIN_SCRIPTS = [
@@ -64,6 +65,38 @@ color15=a6adc8
 font_ui=Inter 11
 font_mono=JetBrainsMono Nerd Font 11
 """
+
+
+def hyprland_colours_row(templates, env, base="~/.config", ask_compositor=True):
+    """The manifest row for Hyprland's own colours, in the LANGUAGE the config is in.
+
+    A hyprlang palette (`$accent = rgb(...)`, sourced from hyprland.conf) and a lua one (a
+    module the other files `require`) are different files with different names. Writing the
+    hyprlang one beside a lua config themes nothing: Hyprland loads hyprland.lua and never
+    reads a .conf. The config that is already there decides; with none yet, the detected
+    version does; and when neither says, the hyprlang row is kept - the render pass still
+    refreshes a lua palette that exists beside it (see rendertemplates).
+
+    `base` is where the row renders to: the live config base, or a detached engine's own
+    out/ tree, which must never be the live desktop's config. A detached engine also passes
+    `ask_compositor=False`: it reads the version from HYPR_VERSION when that is set and
+    otherwise does not ask, because a scratch engine leaves the running desktop alone, and
+    asking it its version is still talking to it."""
+    lang = ""
+    try:
+        hypr = xdg.config_path("hypr", env.get("HYPR_DIR", ""), env)
+    except xdg.NoConfigDirError:
+        hypr = ""
+    if hypr and os.path.isfile(f"{hypr}/hyprland.lua"):
+        lang = "lua"
+    elif hypr and os.path.isfile(f"{hypr}/hyprland.conf"):
+        lang = "hyprlang"
+    else:
+        version = configlang.detect_version(env) if ask_compositor else env.get("HYPR_VERSION", "")
+        lang = configlang.for_version(version)
+    if lang == "lua":
+        return f"hyprland\t{templates}/hyprland-lua.tmpl\t{base}/hypr/colors.lua\thyprctl reload"
+    return f"hyprland\t{templates}/hyprland.tmpl\t{base}/hypr/colors.conf\thyprctl reload"
 
 
 def _copy(src, dest, executable=False, force=True):
@@ -162,10 +195,11 @@ def main(argv):
         T = f"{rice_dir}/templates"
         # A detached engine (RICE_DIR away from <config base>/hypr-rice) gets a manifest that
         # renders into its own out/ tree, never into the live desktop's config.
-        C = f"{rice_dir}/out" if xdg.detached_engine(os.environ) else "~/.config"
+        detached = xdg.detached_engine(os.environ)
+        C = f"{rice_dir}/out" if detached else "~/.config"
         rows = [
             "# name\ttemplate\toutput\treload-cmd",
-            f"hyprland\t{T}/hyprland.tmpl\t{C}/hypr/colors.conf\thyprctl reload",
+            hyprland_colours_row(T, env, C, ask_compositor=not detached),
             f"kitty\t{T}/kitty.tmpl\t{C}/kitty/colors.conf\tpkill -SIGUSR1 -x kitty",
             f"waybar\t{T}/waybar.tmpl\t{C}/waybar/colors.css\tkillall -SIGUSR2 waybar",
             f"wofi\t{T}/wofi.tmpl\t{C}/wofi/colors.css\t",

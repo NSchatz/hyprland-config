@@ -12,6 +12,10 @@ trap 'rm -rf "$tmp"' EXIT
 # an inherited XDG_CONFIG_HOME in place would send this test's writes outside its sandbox.
 unset XDG_CONFIG_HOME
 export HOME="$tmp"
+# The Hyprland colours row is written in the language of the detected version, so the version
+# is pinned: this file covers the hyprlang row (colors.conf) on every host. The lua row and
+# everything else about a lua config is tests/test_render_lua.sh.
+export HYPR_VERSION=0.54.3
 export RICE_DIR="$HOME/.config/hypr-rice"
 export CLAUDE_PLUGIN_ROOT="$PLUGIN_ROOT"
 
