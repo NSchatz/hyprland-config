@@ -7,8 +7,15 @@ picks the best available backend and tells the user what happened via `notify-se
 keybind that silently does nothing is indistinguishable from a keybind that is not bound.
 
 Nothing here writes config. Nothing here needs a backup: the screenshot/recording outputs are
-new files in the user's Pictures/Videos, and the `hyprctl keyword` toggles are reverted by the
-next `hyprctl reload`.
+new files in the user's Pictures/Videos, and the runtime toggles are reverted by the next
+`hyprctl reload`.
+
+The toggles talk to the RUNNING compositor, and how depends on its config language. Under
+hyprlang that is `hyprctl keyword a:b v` and `hyprctl dispatch exit`. Under lua - always, on
+Hyprland 0.57 - `keyword` does not exist and `dispatch` wants a lua dispatcher, so the same
+actions are `hyprctl eval 'hl.config({...})'` and `hyprctl dispatch 'hl.dsp.exit()'`. A helper
+that picked the wrong one would not fail loudly: the key would just do nothing. `_lua_session`
+decides, once per run.
 
     helpers.py screenshot [region|window|output] [edit]
     helpers.py screenrecord [region|output] [audio]      (a second call STOPS a running one)
@@ -48,18 +55,76 @@ def _xdg_user_dir(name, default):
     return os.environ.get(name) or f"{os.environ.get('HOME', '')}/{default}"
 
 
-def _hypr_int_option(name, default=1):
-    """One integer option out of `hyprctl getoption -j`. Used by the toggles to read the CURRENT
-    state rather than keeping their own, which would drift the moment the config is reloaded."""
+def _lua_session():
+    """True when the running Hyprland is on a lua config.
+
+    0.57 and newer: always, hyprlang is gone. 0.55 and 0.56: when the config dir holds a
+    `hyprland.lua`, which those releases load instead of the `.conf`. Older, or a version nobody
+    can read: no - the hyprlang forms are what every release before the change understands."""
+    from ..hypr import configlang, detectversion
+    from .. import xdg
+    version = detectversion.hypr_version()
+    if configlang.for_version(version) != "lua":
+        return False
+    if not configlang.reads_hyprlang(version):
+        return True
+    try:
+        hypr = xdg.config_path("hypr", os.environ.get("HYPR_DIR", ""))
+    except xdg.NoConfigDirError:
+        return False
+    return os.path.isfile(f"{hypr}/hyprland.lua")
+
+
+def _hypr_int_option(name, default=1, lua=False):
+    """One on/off or integer option out of `hyprctl getoption -j`. Used by the toggles to read
+    the CURRENT state rather than keeping their own, which would drift the moment the config is
+    reloaded.
+
+    `name` is the hyprlang spelling (`decoration:blur:enabled`); under lua the documented name
+    is dotted. The answer's key differs too: hyprlang reports `"int": 1`, a lua session reports
+    `"bool": true` for the same option - and reading only `int` there would return the default
+    every time, i.e. a toggle that can switch off and never back on."""
+    if lua:
+        name = name.replace(":", ".")
     try:
         data = json.loads(out(["hyprctl", "getoption", name, "-j"]) or "{}")
     except ValueError:
         return default
-    v = data.get("int", data.get("value", default))
-    try:
-        return int(v)
-    except (TypeError, ValueError):
-        return default
+    for key in ("int", "bool", "value"):
+        if key in data:
+            try:
+                return int(data[key])
+            except (TypeError, ValueError):
+                return default
+    return default
+
+
+def _lua_table(options):
+    """`[("decoration:blur:enabled", 0), ("general:gaps_in", 0)]` as the nested table hl.config
+    takes: `{ decoration = { blur = { enabled = 0 } }, general = { gaps_in = 0 } }`. A number
+    is accepted for an on/off option, so the values need no typing."""
+    tree = {}
+    for name, value in options:
+        node = tree
+        parts = name.split(":")
+        for part in parts[:-1]:
+            node = node.setdefault(part, {})
+        node[parts[-1]] = value
+
+    def render(node):
+        fields = [f"{k} = {render(v) if isinstance(v, dict) else v}" for k, v in node.items()]
+        return "{ " + ", ".join(fields) + " }"
+
+    return render(tree)
+
+
+def _set_options(options, lua):
+    """Apply runtime options to the live session, in the form its config language takes."""
+    if lua:
+        return ok(["hyprctl", "eval", f"hl.config({_lua_table(options)})"])
+    if len(options) == 1:
+        return ok(["hyprctl", "keyword", options[0][0], str(options[0][1])])
+    return ok(["hyprctl", "--batch", ";".join(f"keyword {n} {v}" for n, v in options)])
 
 
 def _dmenu(prompt, lines, width=""):
@@ -211,7 +276,7 @@ def powermenu(argv):
         else:
             ok(["loginctl", "lock-session"])
     elif chosen == "Logout":
-        ok(["hyprctl", "dispatch", "exit"])
+        ok(["hyprctl", "dispatch", "hl.dsp.exit()" if _lua_session() else "exit"])
     elif chosen == "Suspend":
         ok(["systemctl", "suspend"])
     elif chosen == "Reboot":
@@ -222,8 +287,9 @@ def powermenu(argv):
 
 
 def blur_toggle(argv):
-    on = _hypr_int_option("decoration:blur:enabled") == 1
-    ok(["hyprctl", "keyword", "decoration:blur:enabled", "0" if on else "1"])
+    lua = _lua_session()
+    on = _hypr_int_option("decoration:blur:enabled", lua=lua) == 1
+    _set_options([("decoration:blur:enabled", 0 if on else 1)], lua)
     notify("Blur", "Off" if on else "On")
     return 0
 
@@ -233,16 +299,18 @@ def gamemode(argv):
 
     A reload puts the user's real config back, which is correct even if the config changed while
     game mode was on - a remembered set of previous values would not be."""
-    on = _hypr_int_option("animations:enabled") == 1
+    lua = _lua_session()
+    on = _hypr_int_option("animations:enabled", lua=lua) == 1
     if on:
-        ok(["hyprctl", "--batch",
-            "keyword animations:enabled 0;"
-            "keyword decoration:shadow:enabled 0;"
-            "keyword decoration:blur:enabled 0;"
-            "keyword general:gaps_in 0;"
-            "keyword general:gaps_out 0;"
-            "keyword general:border_size 1;"
-            "keyword decoration:rounding 0"])
+        _set_options([
+            ("animations:enabled", 0),
+            ("decoration:shadow:enabled", 0),
+            ("decoration:blur:enabled", 0),
+            ("general:gaps_in", 0),
+            ("general:gaps_out", 0),
+            ("general:border_size", 1),
+            ("decoration:rounding", 0),
+        ], lua)
         notify("Game mode", "ON - effects disabled")
     else:
         ok(["hyprctl", "reload"])
