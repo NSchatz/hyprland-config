@@ -48,6 +48,55 @@ else
     pass "AC-2: no hyprlang assignment syntax leaked into the lua config"
 fi
 
+# The bare-bones config is the RECOVERY point: what reset-config installs when a desktop is
+# broken. It used to bind `hl.dsp.killactive()` and friends, which are the hyprlang dispatcher
+# NAMES and are nil in the lua API - so the first bind aborted the file and the "working
+# baseline" came up with no keybinds at all. The same holds for a `"SUPER SHIFT + 1"` chord.
+legacy="$(grep -nE 'hl\.dsp\.(killactive|togglefloating|movefocus|movewindow|resizewindow|workspace|movetoworkspace)\(' \
+    "$luadir/hyprland.lua")"
+assert_eq "" "$legacy" "AC-2: the lua config calls no hyprlang dispatcher name (nil in the lua API)"
+assert_file_contains "$luadir/hyprland.lua" 'hl.dsp.window.close()' \
+    "AC-2: close-window is the lua dispatcher"
+assert_file_contains "$luadir/hyprland.lua" 'hl.dsp.focus({ workspace = i })' \
+    "AC-2: workspace switching is the lua dispatcher"
+assert_file_contains "$luadir/hyprland.lua" 'mainMod .. " + SHIFT + " .. i' \
+    "AC-2: a two-modifier chord joins both modifiers with ' + '"
+if grep -qE '^hl\.exec_cmd' "$luadir/hyprland.lua"; then
+    fail "AC-2: the lua config runs nothing at the top level"
+else
+    pass "AC-2: the lua config runs nothing at the top level"
+fi
+
+# Run it. First against a mock of the lua API (needs only a standalone lua), then through the
+# compositor's own offline check when a Hyprland that reads lua is installed.
+if lua_bin="$(lua_interpreter)"; then
+    mout="$("$lua_bin" "$PLUGIN_ROOT/tests/fixtures/hl-mock.lua" "$luadir" 2>&1)"; rc=$?
+    if [ "$rc" -eq 0 ]; then
+        pass "AC-2: the lua config runs to the end against the lua API"
+    else
+        fail "AC-2: the lua config runs to the end against the lua API" "$mout"
+    fi
+    assert_eq "21" "$(printf '%s\n' "$mout" | sed -n 's/^BINDS=//p')" \
+        "AC-2: all 21 recovery keybinds register"
+    assert_eq "0" "$(printf '%s\n' "$mout" | sed -n 's/^EXEC_AT_LOAD=//p')" \
+        "AC-2: evaluating the config runs no command"
+else
+    skip "AC-2: the lua config runs to the end against the lua API" \
+        "no standalone lua interpreter installed"
+fi
+if hyprland_reads_lua; then
+    vout="$(verify_config_isolated "$luadir/hyprland.lua")"
+    if printf '%s\n' "$vout" | grep -qx 'config ok'; then
+        pass "AC-2: Hyprland's own offline check accepts the lua config (config ok)"
+    else
+        fail "AC-2: Hyprland's own offline check accepts the lua config (config ok)" \
+            "$(printf '%s\n' "$vout" | sed -n '/Config parsing result/,$p')"
+    fi
+else
+    skip "AC-2: Hyprland's own offline check accepts the lua config" \
+        "no Hyprland 0.55 or newer on this host"
+fi
+
 # --------------------------------------------------------------------------------------------
 # AC-6 - a hyprlang-language version (below 0.55) yields hyprlang and NOT lua
 # --------------------------------------------------------------------------------------------

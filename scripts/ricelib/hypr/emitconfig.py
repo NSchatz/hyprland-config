@@ -19,12 +19,57 @@ from . import configlang
 
 HYPRLANG_BODY = '$mainMod  = SUPER\n\nmonitor = , preferred, auto, auto\n\ngeneral {\n    gaps_in = 5\n    gaps_out = 10\n    border_size = 2\n    layout = dwindle\n}\n\ninput {\n    kb_layout = us\n    follow_mouse = 1\n}\n\nbind = $mainMod, Return, exec, $terminal\nbind = $mainMod, Q, killactive,\nbind = $mainMod, M, exit,\nbind = $mainMod, D, exec, $menu\nbind = $mainMod, Space, togglefloating,\nbind = $mainMod, left,  movefocus, l\nbind = $mainMod, right, movefocus, r\nbind = $mainMod, up,    movefocus, u\nbind = $mainMod, down,  movefocus, d\nbind = $mainMod, 1, workspace, 1\nbind = $mainMod, 2, workspace, 2\nbind = $mainMod, 3, workspace, 3\nbind = $mainMod, 4, workspace, 4\nbind = $mainMod, 5, workspace, 5\nbind = $mainMod SHIFT, 1, movetoworkspace, 1\nbind = $mainMod SHIFT, 2, movetoworkspace, 2\nbind = $mainMod SHIFT, 3, movetoworkspace, 3\nbind = $mainMod SHIFT, 4, movetoworkspace, 4\nbind = $mainMod SHIFT, 5, movetoworkspace, 5\nbindm = $mainMod, mouse:272, movewindow\nbindm = $mainMod, mouse:273, resizewindow\n'
 
-LUA_BODY = 'local mainMod  = "SUPER"\n\n-- Minimal look - small gaps, a visible border, dwindle tiling.\nhl.config({\n    general = {\n        gaps_in = 5,\n        gaps_out = 10,\n        border_size = 2,\n        layout = "dwindle",\n    },\n    input = {\n        kb_layout = "us",\n        follow_mouse = 1,\n    },\n})\n\n-- Monitors - auto-detect everything (adjust with `hyprctl monitors`).\n-- An empty output matches every monitor, like `monitor = , ...` in hyprlang.\nhl.monitor({ output = "", mode = "preferred", position = "auto", scale = "auto" })\n\n-- Essential keybinds - enough to open a terminal, launch apps, and exit.\nhl.bind(mainMod .. " + Return", hl.dsp.exec_cmd(terminal))\nhl.bind(mainMod .. " + Q", hl.dsp.killactive())\nhl.bind(mainMod .. " + M", hl.dsp.exit())\nhl.bind(mainMod .. " + D", hl.dsp.exec_cmd(menu))\nhl.bind(mainMod .. " + Space", hl.dsp.togglefloating())\n\n-- Move focus\nhl.bind(mainMod .. " + left",  hl.dsp.movefocus("l"))\nhl.bind(mainMod .. " + right", hl.dsp.movefocus("r"))\nhl.bind(mainMod .. " + up",    hl.dsp.movefocus("u"))\nhl.bind(mainMod .. " + down",  hl.dsp.movefocus("d"))\n\n-- Workspaces 1-5\nfor i = 1, 5 do\n    hl.bind(mainMod .. " + " .. i, hl.dsp.workspace(i))\n    hl.bind(mainMod .. " SHIFT + " .. i, hl.dsp.movetoworkspace(i))\nend\n\n-- Mouse move/resize\nhl.bind(mainMod .. " + mouse:272", hl.dsp.movewindow(), { mouse = true })\nhl.bind(mainMod .. " + mouse:273", hl.dsp.resizewindow(), { mouse = true })\n'
+LUA_BODY = """local mainMod  = "SUPER"
+
+-- Minimal look - small gaps, a visible border, dwindle tiling.
+hl.config({
+    general = {
+        gaps_in = 5,
+        gaps_out = 10,
+        border_size = 2,
+        layout = "dwindle",
+    },
+    input = {
+        kb_layout = "us",
+        follow_mouse = 1,
+    },
+})
+
+-- Monitors - auto-detect everything (adjust with `hyprctl monitors`).
+-- An empty output matches every monitor, like `monitor = , ...` in hyprlang.
+hl.monitor({ output = "", mode = "preferred", position = "auto", scale = "auto" })
+
+-- Essential keybinds - enough to open a terminal, launch apps, and exit.
+-- The lua dispatchers are NOT the hyprlang names: hl.dsp.killactive is nil, and one call to a
+-- nil function aborts the file, taking every bind after it along. A key chord joins every
+-- modifier and the key with " + "; "SUPER SHIFT + 1" is rejected.
+hl.bind(mainMod .. " + Return", hl.dsp.exec_cmd(terminal))
+hl.bind(mainMod .. " + Q", hl.dsp.window.close())
+hl.bind(mainMod .. " + M", hl.dsp.exit())
+hl.bind(mainMod .. " + D", hl.dsp.exec_cmd(menu))
+hl.bind(mainMod .. " + Space", hl.dsp.window.float({ action = "toggle" }))
+
+-- Move focus
+hl.bind(mainMod .. " + left",  hl.dsp.focus({ direction = "left" }))
+hl.bind(mainMod .. " + right", hl.dsp.focus({ direction = "right" }))
+hl.bind(mainMod .. " + up",    hl.dsp.focus({ direction = "up" }))
+hl.bind(mainMod .. " + down",  hl.dsp.focus({ direction = "down" }))
+
+-- Workspaces 1-5
+for i = 1, 5 do
+    hl.bind(mainMod .. " + " .. i, hl.dsp.focus({ workspace = i }))
+    hl.bind(mainMod .. " + SHIFT + " .. i, hl.dsp.window.move({ workspace = i }))
+end
+
+-- Mouse move/resize
+hl.bind(mainMod .. " + mouse:272", hl.dsp.window.drag(), { mouse = true })
+hl.bind(mainMod .. " + mouse:273", hl.dsp.window.resize(), { mouse = true })
+"""
 
 LUA_HEADER = """-- A minimal, working baseline. Rebuild with /hyprland-config:rice
 -- (full interview) or extend piecemeal with /hyprland-config:edit-config.
--- Config surface: hl.config / hl.monitor / hl.bind + hl.dsp.<dispatcher>().
--- See <https://wiki.hypr.land/Configuring/Start/> for the full lua API.
+-- Config surface: hl.config / hl.monitor / hl.bind + the hl.dsp.* dispatchers.
+-- See <https://wiki.hypr.land/configuring/> for the full lua API.
 local terminal = "{terminal}"
 local menu     = "{menu}"
 """
