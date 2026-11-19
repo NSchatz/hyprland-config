@@ -178,3 +178,49 @@ assert_hermetic() {
 $(printf '  %s\n' "${found[@]}")"
     fi
 }
+
+# ---------------------------------------------------------------------------------------------
+# Checking a generated lua config against the real thing.
+#
+# `Hyprland --verify-config` does not merely parse a lua config: it EVALUATES it, top-level code
+# included. A config with a top-level `hl.exec_cmd()` therefore runs that command while being
+# "checked" - and in a normal environment it runs against the live session. That has blanked
+# WAYLAND_DISPLAY in a systemd user environment. So the check is only ever run ISOLATED: an
+# empty environment, a throwaway HOME, a throwaway XDG_RUNTIME_DIR. Nothing the config spawns
+# can find a session bus, a Wayland socket or a Hyprland instance to act on.
+
+# `hyprland_reads_lua` - 0 when a Hyprland that reads a lua config (0.55 or newer) is installed.
+hyprland_reads_lua() {
+    local bin v major minor
+    bin="$(command -v Hyprland 2>/dev/null)" || return 1
+    v="$("$bin" --version 2>/dev/null \
+        | sed -n 's/^Hyprland v\{0,1\}\([0-9][0-9]*\.[0-9][0-9]*\).*/\1/p' | head -n1)"
+    [ -n "$v" ] || return 1
+    major="${v%%.*}"; minor="${v#*.}"
+    [ "$major" -ge 1 ] || [ "$minor" -ge 55 ]
+}
+
+# `verify_config_isolated <file>` - the compositor's own offline check, isolated as above.
+# Prints what the check printed; a clean config yields a line that is exactly `config ok`.
+verify_config_isolated() {
+    local file="$1" bin sandbox rc
+    bin="$(command -v Hyprland 2>/dev/null)" || return 127
+    sandbox="$(mktemp -d "/tmp/hypr-verify.XXXXXX")" || return 126
+    mkdir -p "$sandbox/home" "$sandbox/run"
+    chmod 700 "$sandbox/run"
+    env -i HOME="$sandbox/home" PATH=/usr/bin:/bin LANG=C.UTF-8 TERM=dumb \
+        XDG_RUNTIME_DIR="$sandbox/run" "$bin" --verify-config -c "$file" 2>&1
+    rc=$?
+    rm -rf "$sandbox"
+    return "$rc"
+}
+
+# `lua_interpreter` - echo a standalone lua (5.3 or newer) if one is installed.
+# tests/fixtures/hl-mock.lua runs a generated config under it, which needs no Hyprland at all.
+lua_interpreter() {
+    local l
+    for l in lua lua5.4 lua5.3 lua5.5; do
+        if command -v "$l" >/dev/null 2>&1; then printf '%s' "$l"; return 0; fi
+    done
+    return 1
+}

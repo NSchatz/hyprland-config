@@ -1,7 +1,8 @@
 #!/usr/bin/env bash
 # Offer to convert a hyprlang `.conf` configuration - the kind earlier releases of
 # this plugin wrote - into the lua config Hyprland reads from 0.55 on, keeping the
-# `.conf` as a backup rather than deleting it.
+# `.conf` as a backup rather than deleting it. Hyprland 0.57 removed hyprlang: there
+# a `.conf` is loaded by nothing, and this conversion is the way forward.
 #
 # Usage:
 #   migrate-config.sh              THE OFFER: report exactly what a conversion
@@ -28,33 +29,55 @@
 #   - the backup step does not produce a readable, byte-identical copy of every
 #     `.conf` it is about to convert. Then it aborts BEFORE writing any lua.
 #
-# A construct that PARSES but has no documented lua mapping is NOT a refusal.
-# Refusing there means the configs this plugin itself generates - which use
-# `bezier`, `animation` and `gesture`, none of which has a documented lua form -
-# get no conversion at all, on exactly the 0.56 machines where the compositor has
-# stopped reading their `.conf`. Instead each such line is CARRIED ACROSS into the
-# lua as a `-- NOT APPLIED` comment at its original position, reported line by
-# line (`WOULD_NOT_APPLY=` in the offer, `NOT_APPLIED=` in the run), summarised in
-# the header of every file that has one, and left intact in the `.conf`, which is
-# kept. Nothing is dropped silently; the run says `MIGRATE=ok-with-unmapped`.
+# A construct that PARSES but has no lua form the converter can write is NOT a
+# refusal. Each such line is CARRIED ACROSS into the lua as a `-- NOT APPLIED`
+# comment at its original position, reported line by line (`WOULD_NOT_APPLY=` in
+# the offer, `NOT_APPLIED=` in the run), summarised in the header of every file that
+# has one, and left intact in the `.conf`, which is kept. Nothing is dropped
+# silently; the run says `MIGRATE=ok-with-unmapped`. Today that is: a dispatcher
+# with no lua counterpart, an `exec` with a `[rules]` prefix, a bind flag or
+# monitor form the converter does not know, the reload-time `exec` keyword, and
+# a key Hyprland removed before lua existed (`dwindle:pseudotile`).
 #
-# Constructs it converts:
-#   comments, blank lines, `$var = value` (expanded textually, as hyprlang does),
-#   `source = <a .conf under the config dir>` -> `require("<stem>")`,
-#   `section { key = value }` (nestable) -> `hl.config({ section = { ... } })`,
-#     a key that is not a lua identifier (`col.active_border`, `tap-to-click`)
-#     becomes a bracket key: `["col.active_border"] = ...`,
+# A line that DID convert but deserves a second look is marked `-- REVIEW` and
+# reported (`WOULD_REVIEW=` / `REVIEW=`): a gap list hyprlang read differently from
+# how it was written, an `on-created-empty` rule (deprecated in 0.57), a shell
+# command that calls `hyprctl keyword` or a legacy `hyprctl dispatch`.
+#
+# What it writes is the lua API as Hyprland documents it:
+#   comments and blank lines, in place (a trailing `# note` becomes `-- note`),
+#   `$var = value` -> expanded where it is used, as hyprlang does - EXCEPT a sourced
+#     file that defines nothing but `$variables` (the palette the theme engine
+#     regenerates): that becomes a module, `return { accent = "rgb(...)", ... }`,
+#     and each file that uses a value reads it with `local c = require("colors")`,
+#   `source = <a .conf under the config dir>` -> `require("<stem>")`, converted at
+#     the source line so what it defines is visible to the lines after it,
+#   `section { key = value }` (nestable) -> `hl.config({ section = { ... } })`, with
+#     values typed by the option: `col.active_border = rgb(a) rgb(b) 45deg` is
+#     `col = { active_border = { colors = {...}, angle = 45 } }`, a css gap is an
+#     integer or a `{ top, right, bottom, left }` table, `tap-to-click` is
+#     `tap_to_click`, `kb_layout = no` stays the string "no",
 #   `windowrule { match:class = ... }` -> `hl.window_rule({ match = { class = ... } })`,
 #   `layerrule { match:namespace = ... }` -> `hl.layer_rule({ match = { ... } })`,
-#   `monitor = out, mode, pos, scale` -> `hl.monitor({...})`,
-#   `bind[flags] = MODS, KEY, DISPATCHER[, ARGS]` -> `hl.bind(..., hl.dsp.*)`,
-#   `exec-once = cmd` -> `hl.exec_cmd("cmd")`,
-#   `env`/`envd = NAME,value` -> `hl.env("NAME", "value")`.
+#     and their 0.53 one-line form (`windowrule = float on, match:class kitty`),
+#   `device { name = ... }` -> `hl.device({...})`, `monitorv2 { }` -> `hl.monitor({...})`,
+#   `monitor = out, mode, pos, scale[, key, value]` -> `hl.monitor({...})`,
+#   `workspace = sel, rule:value, ...` -> `hl.workspace_rule({...})`,
+#   `bezier` -> `hl.curve(...)`, `animation` -> `hl.animation({...})`,
+#   `gesture` -> `hl.gesture({...})`, `permission` -> `hl.permission({...})`,
+#   `bind[flags] = MODS, KEY, DISPATCHER[, ARGS]` -> `hl.bind("MOD + MOD + KEY", ...)`
+#     with the LUA dispatcher (`killactive` is `hl.dsp.window.close()`; the legacy
+#     names are nil in lua - see scripts/ricelib/hypr/luadispatch.py),
+#   `submap = name` ... `submap = reset` -> `hl.define_submap("name", function() ... end)`,
+#   `exec-once = cmd` -> `hl.exec_cmd("cmd")` INSIDE `hl.on("hyprland.start", ...)`, and
+#     `exec-shutdown` inside `hl.on("hyprland.shutdown", ...)`. Never at the top level:
+#     top-level code runs on every evaluation, including `Hyprland --verify-config`,
+#   `env = NAME,value` -> `hl.env("NAME", "value")`; `envd` adds `, true`.
 #
 # Output:
 #   MIGRATE_OFFER=<what would happen>   (offer mode)
-#   WOULD_WRITE= / WOULD_KEEP= / WOULD_BACK_UP= / WOULD_NOT_APPLY=
-#   BACKUP=<dir> / BACKED_UP=<path> / WROTE=<path> / KEPT=<path> / NOT_APPLIED=
+#   WOULD_WRITE= / WOULD_KEEP= / WOULD_BACK_UP= / WOULD_NOT_APPLY= / WOULD_REVIEW=
+#   BACKUP=<dir> / BACKED_UP=<path> / WROTE=<path> / KEPT=<path> / NOT_APPLIED= / REVIEW=
 #   MIGRATE=ok | ok-with-unmapped | offered | nothing-to-convert
 #         | refused-existing-lua | refused-unparseable | refused-unresolvable-source
 #         | refused-no-config-dir | aborted-backup-failed

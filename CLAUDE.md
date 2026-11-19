@@ -78,9 +78,10 @@ tool that edits a live desktop proves its unhappy paths.
   `firefoxbootstrap.py`, `firefoxrestart.py`, `dotfiles.py`, `clock.py`,
   `proc.py`, `ricecli.py`, plus `hypr/` (the compositor-facing surface:
   `safeapply`, `installconfig`, `preflightconfig`, `removedkeys`, `configlang`,
-  `detectversion`, `emitconfig`, `resetconfig`, `migrateconfig`, `ledger`,
-  `currencycheck`, `rendertemplates`, `riceinit`, `setwallpaper`, …) and
-  `desktop/helpers.py` (the keybind-bound desktop helpers).
+  `detectversion`, `emitconfig`, `resetconfig`, `migrateconfig`,
+  `luadispatch`, `ledger`, `currencycheck`, `rendertemplates`, `riceinit`,
+  `setwallpaper`, …) and `desktop/helpers.py` (the keybind-bound desktop
+  helpers).
 - `scripts/*.sh` and `skills/rice/scripts/*.sh` - **dispatchers**, ~30 lines
   each. They locate the package and hand off. The NAME is the interface every
   skill doc, agent, test and keybind uses; the implementation is Python.

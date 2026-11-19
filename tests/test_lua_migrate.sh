@@ -126,8 +126,10 @@ assert_file_contains "$dir/hyprland.lua" 'require("extra")' \
     "AC-4: the main lua requires the converted module"
 assert_file_contains "$dir/extra.lua" 'hl.env("XCURSOR_SIZE", "24")' \
     "AC-4: env lines became hl.env"
-assert_file_contains "$dir/extra.lua" 'hl.exec_cmd("waybar")' \
-    "AC-4: exec-once lines became hl.exec_cmd"
+assert_grep '^    hl\.exec_cmd\("waybar"\)$' "$dir/extra.lua" \
+    "AC-4: exec-once lines became hl.exec_cmd, inside a handler"
+assert_grep '^hl\.on\("hyprland\.start", function\(\)$' "$dir/extra.lua" \
+    "AC-4: the handler is the hyprland.start event exec-once was queued on"
 
 # --------------------------------------------------------------------------------------------
 # AC-4, the shape the plugin ACTUALLY installs: the modular `source = ~/.config/hypr/*.conf`
@@ -190,10 +192,13 @@ for b in "$dir"/*.conf.pre-lua.*; do
 done
 
 # The documented lua vocabulary the plugin's own output needs.
-assert_grep '^\s+\["col\.active_border"\] = "rgb\(cba6f7\) rgb\(89b4fa\) 45deg",$' "$dir/looknfeel.lua" \
-    "AC-4: a hyprlang key that is not a lua identifier becomes a lua bracket key, \$vars expanded"
-assert_grep '^\s+\["tap-to-click"\] = true,$' "$dir/input.lua" \
-    "AC-4: a hyphenated hyprlang key becomes a lua bracket key too"
+assert_grep '^        col = \{$' "$dir/looknfeel.lua" \
+    "AC-4: a dotted hyprlang key (col.active_border) lands in the lua col = { } sub-table"
+assert_grep '^            active_border = \{ colors = \{ c\.accent, c\.accent2 \}, angle = 45 \},$' \
+    "$dir/looknfeel.lua" \
+    "AC-4: the gradient is a colors/angle table that reads the palette module, not one string"
+assert_grep '^\s+tap_to_click = true,$' "$dir/input.lua" \
+    "AC-4: a hyphenated hyprlang key takes its lua name (tap_to_click)"
 assert_file_contains "$dir/windowrules.lua" 'hl.window_rule({' \
     "AC-4: a windowrule block became hl.window_rule"
 assert_file_contains "$dir/windowrules.lua" 'hl.layer_rule({' \
@@ -203,17 +208,32 @@ assert_grep '^\s+class = "\^\(pavucontrol\|nm-connection-editor\|blueman-manager
 assert_file_contains "$dir/monitors.lua" 'hl.monitor({ output = ""' \
     "AC-4: the monitor line became hl.monitor"
 
+# bezier, animation and gesture are statements with a lua form each. They were once carried
+# across as comments, which cost the converted desktop every animation it had.
+assert_eq "5" "$(grep -c '^hl\.curve(' "$dir/looknfeel.lua")" \
+    "AC-4: all 5 bezier lines became hl.curve calls"
+assert_eq "12" "$(grep -c '^hl\.animation(' "$dir/looknfeel.lua")" \
+    "AC-4: all 12 animation lines became hl.animation calls"
+assert_grep '^hl\.gesture\(\{ fingers = 3, direction = "horizontal", action = "workspace" \}\)$' \
+    "$dir/input.lua" "AC-4: the gesture line became hl.gesture"
+
 # ... and what it cannot map is carried across, marked, counted and reported - never dropped.
-if printf '%s\n' "$out" | grep -q '^NOT_APPLIED_COUNT=18$'; then
-    pass "AC-4: all 18 unmappable lines (5 bezier, 12 animation, 1 gesture) are reported"
+# The sample set has exactly one such line: dwindle:pseudotile, removed in 0.55, which is the
+# first release that reads lua - so no lua config can set it.
+if printf '%s\n' "$out" | grep -q '^NOT_APPLIED_COUNT=1$'; then
+    pass "AC-4: the one line with no lua form (dwindle:pseudotile) is reported"
 else
-    fail "AC-4: all 18 unmappable lines (5 bezier, 12 animation, 1 gesture) are reported" \
-        "$(printf '%s\n' "$out" | grep '^NOT_APPLIED_COUNT=' || echo '<none>')"
+    fail "AC-4: the one line with no lua form (dwindle:pseudotile) is reported" \
+        "$(printf '%s\n' "$out" | grep '^NOT_APPLIED' || echo '<none>')"
 fi
-assert_grep "^ +-- NOT APPLIED \('animation' is a repeatable" "$dir/looknfeel.lua" \
-    "AC-4: the animation lines are in the lua as marked comments, not dropped"
-assert_grep "^-- NOT APPLIED \('gesture' has no documented" "$dir/input.lua" \
-    "AC-4: the gesture line is in the lua as a marked comment, not dropped"
+assert_grep "^ +-- NOT APPLIED \('dwindle:pseudotile' was removed in Hyprland 0\.55" \
+    "$dir/looknfeel.lua" \
+    "AC-4: the removed key is in the lua as a marked comment, not dropped"
+if grep -qE '^\s*pseudotile = ' "$dir/looknfeel.lua"; then
+    fail "AC-4: the removed key is not ALSO emitted as a live option"
+else
+    pass "AC-4: the removed key is not ALSO emitted as a live option"
+fi
 if grep -qE '^\s*(bezier|animation|gesture) = ' "$dir/looknfeel.lua" "$dir/input.lua"; then
     fail "AC-4: no unmapped hyprlang keyword leaked into the lua as a table key"
 else
@@ -268,13 +288,16 @@ else
     pass "AC-9: no offer is made for a config that does not parse"
 fi
 
-# AC-9's boundary. A construct that PARSES but has no documented lua mapping is a
+# AC-9's boundary. A construct that PARSES but has no lua form the converter can write is a
 # different thing, and must not be reported as unparseable: that is what made the
 # plugin's own generated config unconvertible at impl-gate loop 1 (finding F1).
 # It is carried across as a marked comment and reported line by line instead.
+#
+# The construct here is a bind whose dispatcher the converter has no lua call for. `bezier`
+# used to stand in for it; it has a lua form (hl.curve) and now converts.
 dir="$tmp/unmappable"
 seed_conf "$dir"
-printf '\nbezier = wind, 0.05, 0.9, 0.1, 1.05\n' >> "$dir/hyprland.conf"
+printf '\nbind = SUPER, F12, nosuchdispatcher, 1\n' >> "$dir/hyprland.conf"
 conf_before="$(cat "$dir/hyprland.conf")"
 out="$(HYPR_DIR="$dir" bash "$migrate" --convert 2>&1)"; rc=$?
 assert_eq "0" "$rc" "AC-9 boundary: a parseable-but-unmappable construct is NOT refused"
@@ -288,13 +311,18 @@ if printf '%s\n' "$out" | grep -q '^MIGRATE=refused-unparseable'; then
 else
     pass "AC-9 boundary: an unmappable construct is not called unparseable"
 fi
-if printf '%s\n' "$out" | grep -q "^NOT_APPLIED=.*hyprland\.conf:.*'bezier' has no documented lua mapping"; then
+if printf '%s\n' "$out" | grep -q "^NOT_APPLIED=.*hyprland\.conf:.*dispatcher 'nosuchdispatcher' has no lua form"; then
     pass "AC-9 boundary: the run names the construct it could not map, by file and line"
 else
     fail "AC-9 boundary: the run names the construct it could not map, by file and line" "$out"
 fi
-assert_grep '^-- NOT APPLIED \(.*bezier = wind, 0\.05' "$dir/hyprland.lua" \
+assert_grep '^-- NOT APPLIED \(.*bind = SUPER, F12, nosuchdispatcher, 1$' "$dir/hyprland.lua" \
     "AC-9 boundary: the unmapped line is carried into the lua verbatim, marked NOT APPLIED"
+if grep -q 'hl\.dsp\.nosuchdispatcher' "$dir/hyprland.lua"; then
+    fail "AC-9 boundary: an unknown dispatcher is never emitted as a call to a function that does not exist"
+else
+    pass "AC-9 boundary: an unknown dispatcher is never emitted as a call to a function that does not exist"
+fi
 assert_grep '^-- NOT APPLIED: 1 line' "$dir/hyprland.lua" \
     "AC-9 boundary: the produced file's header counts what does not apply"
 assert_eq "$conf_before" "$(cat "$dir/hyprland.conf")" \
@@ -303,11 +331,11 @@ assert_eq "$conf_before" "$(cat "$dir/hyprland.conf")" \
 # The offer says so BEFORE anything is accepted.
 dir="$tmp/unmappable-offer"
 seed_conf "$dir"
-printf '\nbezier = wind, 0.05, 0.9, 0.1, 1.05\n' >> "$dir/hyprland.conf"
+printf '\nbind = SUPER, F12, nosuchdispatcher, 1\n' >> "$dir/hyprland.conf"
 before_listing="$(cd "$dir" && ls -A | sort | tr '\n' ' ')"
 out="$(HYPR_DIR="$dir" bash "$migrate" 2>&1)"; rc=$?
 assert_eq "0" "$rc" "AC-4: the offer for a partly-unmappable config still succeeds"
-if printf '%s\n' "$out" | grep -q "^WOULD_NOT_APPLY=.*'bezier'"; then
+if printf '%s\n' "$out" | grep -q "^WOULD_NOT_APPLY=.*'nosuchdispatcher'"; then
     pass "AC-4: the offer warns which lines would stop applying, before you accept"
 else
     fail "AC-4: the offer warns which lines would stop applying, before you accept" "$out"
