@@ -186,7 +186,9 @@ omit both the env var and the `exec-once` line.
      line it could not map (`NOT_APPLIED=`, `MIGRATE=ok-with-unmapped`); (b) ask the user to
      move `hyprland.lua` aside themselves and re-run; (c) a bare lua baseline via
      `HYPR_CONFIG_LANG=lua bash "${CLAUDE_PLUGIN_ROOT}/skills/rice/scripts/reset-config.sh"`,
-     which is a minimal config, not this rice.
+     which is a minimal config, not this rice. **On Hyprland 0.57 or newer (b) is not an
+     option**: hyprlang was removed there, so a `.conf` is loaded by nothing whether or not a
+     `hyprland.lua` shadows it. Only (a) and (c) lead to a config that loads.
    - **`REFUSED=mixed-staging`** means the staging dir holds files in both config languages;
      only one set would be installed. Stage exactly one language and re-run.
 5. **Install the shell configs:** only after `ok`/`installed-untested`, back up then install the staged

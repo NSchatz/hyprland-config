@@ -2,6 +2,88 @@
 
 ## Unreleased
 
+Hyprland 0.57 loads only lua, and the lua this plugin wrote did not load.
+
+0.57 removed hyprlang ("config: remove legacy config support"): a `hyprland.conf` is read
+by nothing. That turned `migrate-config.sh` from a convenience into the only way an
+existing config keeps working, and the first real config it was run on came out broken.
+Each defect below was found on that config and is pinned by a test that fails without
+the fix.
+
+The converter (`migrate-config.sh`, `scripts/ricelib/hypr/migrateconfig.py`):
+
+- **Dispatchers.** Every non-exec bind became `hl.dsp.<hyprlang name>()`. Those names are
+  nil in the lua API, and one call to a nil function aborts the file. The new
+  `luadispatch.py` maps each legacy dispatcher to its documented lua call
+  (`killactive` -> `hl.dsp.window.close()`, `workspace, 3` -> `hl.dsp.focus({ workspace = 3 })`,
+  `movetoworkspacesilent` -> `window.move` with `follow = false`, `bindm movewindow` ->
+  `window.drag()`, and the rest). A dispatcher it does not know stays a reported
+  `-- NOT APPLIED` comment; it is never emitted as a call.
+- **Key chords.** `"SUPER SHIFT + Q"` is "Unknown key: SUPER SHIFT". Every modifier and the
+  key are joined with ` + `.
+- **Gradients** are `{ colors = {...}, angle = 45 }`, not one string. **CSS gaps** are an
+  integer or a `{ top, right, bottom, left }` table; a space-separated list is emitted as
+  the single integer hyprlang actually read it as, and flagged.
+- **Autostart ran during the check.** `exec-once` became a top-level `hl.exec_cmd()`. Top-level
+  code runs on every evaluation of the file, including each reload and
+  `Hyprland --verify-config` - so checking a config ran its autostart against the live
+  session. `exec-once` now goes inside `hl.on("hyprland.start", ...)` and `exec-shutdown`
+  inside `hl.on("hyprland.shutdown", ...)`.
+- **`envd`** kept its `d`: it is `hl.env`'s third argument.
+- **`bezier`, `animation`, workspace rules, submaps and gestures** were reported as having no
+  lua mapping. They are `hl.curve`, `hl.animation`, `hl.workspace_rule`, `hl.define_submap`
+  and `hl.gesture`.
+- **The palette was frozen into every file.** `$accent`-style variables were expanded inline,
+  while the theme engine regenerates only the colours file. A sourced file that defines
+  nothing but `$variables` now becomes a module that returns a table, and the files that
+  use a value read it with `require()`.
+- Also: option values are typed by the lua option, not by how the text looks
+  (`kb_layout = no` stays `"no"`, `tap-to-click` is `tap_to_click`, a vec2 is a table); a
+  sourced file is converted at its `source =` line; a key removed before lua existed is
+  `NOT APPLIED` instead of an "unknown config key" error; trailing comments survive; a `#[[`
+  comment no longer opens a lua block comment; a `source =` that climbs out of the config
+  dir is refused; and a shell command that calls `hyprctl keyword` or a legacy
+  `hyprctl dispatch` is rewritten when that is safe and flagged when it is not.
+- **`REVIEW`** is new output: a line that converted but deserves a second look is marked in
+  the lua and reported as `REVIEW=` / `WOULD_REVIEW=`.
+
+Around it:
+
+- **The bare-bones lua config had no working keybinds.** `emit-config.sh` (what
+  `reset-config` installs as the recovery point) bound the same nil dispatcher names. Fixed.
+- **`preflight-config.sh` runs the offline check with nothing of the session.** It sandboxed
+  the directories but copied the caller's environment, so a top-level command in a staged
+  config ran holding the live bus address, Wayland display and instance signature. The
+  environment is now built from nothing.
+- **`loaded-config.sh` recognises 0.57's log line.** 0.57 logs `Regular config at <path>`
+  where 0.56 logged `Using config: <path>`; unrecognised, every apply ended `unconfirmed`.
+- **`config-language.sh` refuses an explicit hyprlang choice on 0.57 or newer.**
+- **The theme engine themes a lua config.** `hyprland-lua.tmpl` ships; `rice-init.sh` writes
+  the Hyprland colours row in the language of the config; the render pass refreshes a lua
+  palette that sits beside a hyprlang one (a manifest older than the conversion); and a
+  palette's `cursor_theme` is persisted into `env.lua` when that is the env file Hyprland
+  loads, behind a verified backup.
+- **Game mode, the blur toggle and the power menu's Logout work on a lua session**, through
+  `hyprctl eval` and `hyprctl dispatch 'hl.dsp.exit()'`. They also read option state from
+  the `bool` a lua session reports, not only the `int` hyprlang does.
+- **Reference docs record 0.57**: the ledger's newest release is v0.57.2 with three cited
+  0.57 records; `testing.md` says `--verify-config` evaluates top-level code and gives the
+  scrubbed invocation; `deprecations.md` and `_shared/dispatchers.md` carry the hyprlang to
+  lua tables.
+
+Not done, and it matters: the from-scratch generate flow still AUTHORS hyprlang. The
+component templates emit `.conf`, so on 0.57 a generated config has to go through the
+converter to be loaded at all, and the templates still contain hyprlang-only runtime calls
+(hypridle `hyprctl dispatch dpms off`, lid-switch `hyprctl keyword monitor`, the wlogout
+`hyprctl dispatch exit 0`). The converter flags the ones inside a Hyprland config; a
+hypridle.conf is not a Hyprland config and is not converted.
+
+Tests: `test_lua_migrate_api.sh` (the converter's output, asserted as text, executed against
+a mock of the lua API, and put through Hyprland's own offline check where one is installed),
+`test_render_lua.sh`, `test_desktop_helpers.sh`, and new blocks in `test_lua_emit.sh`,
+`test_preflight.sh` and `test_preflight_live.sh`. `test_lua_migrate.sh` keeps the safety half;
+its assertions that encoded the old output are retargeted.
+
 ### Fixed
 
 - **A detached rice engine no longer themes the live desktop.** `RICE_DIR` moved
