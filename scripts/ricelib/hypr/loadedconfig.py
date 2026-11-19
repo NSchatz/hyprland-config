@@ -7,6 +7,12 @@ a caller can compare that against the file it just wrote.
 
 Three sources, in order of directness: the rolling log, the instance log file, then systeminfo.
 
+What the line looks like depends on the release, and missing the current spelling does not fail
+loudly: every apply simply ends `unconfirmed`. So each one is recognised:
+    Using config: <path>                          up to 0.56
+    [cfg] Regular config at <path>                0.57, the default location
+    User-specified config location: '<path>'      0.57, an instance started with -c / --config
+
 Output: one LOADED_CONFIG=<path> per file named, then LOADED_CONFIG_SOURCE=<where it came from>
 Exit:   0 named, 2 no running instance, 3 running but it did not say.
 """
@@ -16,13 +22,17 @@ import sys
 
 from ..proc import have, ok, out
 
-USING = re.compile(r"Using config:\s*(.+?)\s*$")
+NAMED = (
+    re.compile(r"Using config:\s*(.+?)\s*$"),
+    re.compile(r"Regular config at\s+(.+?)\s*$"),
+    re.compile(r"User-specified config location:\s*'(.+?)'\s*$"),
+)
 
 
 def paths_from(text):
     seen, found = set(), []
     for line in (text or "").splitlines():
-        m = USING.search(line)
+        m = next((hit for hit in (pat.search(line) for pat in NAMED) if hit), None)
         if not m:
             continue
         p = m.group(1).strip()

@@ -36,6 +36,8 @@ STUB
 #   STUB_HYPRCTL_ERRORS=<text>  what `configerrors` prints
 #   STUB_HYPRCTL_LOADED=<path>  the config the rolling log says was loaded
 #   STUB_HYPRCTL_NOLOG=1        `rollinglog` works but names no config at all
+#   STUB_HYPRCTL_LOGSTYLE=<v>   how the log spells it: unset = up to 0.56 (`Using config:`),
+#                               `0.57` = `Regular config at`, `0.57-explicit` = started with -c
 cat > "$stubbin/hyprctl" <<'STUB'
 #!/usr/bin/env bash
 set -uo pipefail
@@ -50,7 +52,12 @@ case "${1:-}" in
     rollinglog)
         echo "[LOG] Creating the ConfigManager!"
         if [ -z "${STUB_HYPRCTL_NOLOG:-}" ] && [ -n "${STUB_HYPRCTL_LOADED:-}" ]; then
-            echo "Using config: ${STUB_HYPRCTL_LOADED}"
+            case "${STUB_HYPRCTL_LOGSTYLE:-}" in
+                0.57)          echo "DEBUG ]: [Config::initConfigManager] [cfg] Regular config at ${STUB_HYPRCTL_LOADED}" ;;
+                0.57-explicit) echo "DEBUG ]: [main] User-specified config location: '${STUB_HYPRCTL_LOADED}'"
+                               echo "DEBUG ]: [Config::initConfigManager] [cfg] Config is either explicit or special" ;;
+                *)             echo "Using config: ${STUB_HYPRCTL_LOADED}" ;;
+            esac
         fi
         echo "[LOG] Hyprland init finished."
         exit 0 ;;
@@ -78,6 +85,20 @@ assert_eq "LOADED_CONFIG=/home/u/.config/hypr/hyprland.conf" \
     "loaded-config: reports the path the compositor logged"
 assert_eq "LOADED_CONFIG_SOURCE=rollinglog" "$(printf '%s\n' "$out" | grep '^LOADED_CONFIG_SOURCE=')" \
     "loaded-config: names the route it used"
+
+# Hyprland 0.57 words the line differently (`Regular config at <path>` where 0.56 logged
+# `Using config: <path>`). Not recognising it is silent: every apply ends `unconfirmed`.
+for style in 0.57 0.57-explicit; do
+    out="$(PATH="$STUB_PATH" STUB_HYPRCTL_LOGSTYLE="$style" \
+           STUB_HYPRCTL_LOADED=/home/u/.config/hypr/hyprland.lua bash "$RS/loaded-config.sh" 2>&1)"; rc=$?
+    assert_eq "0" "$rc" "loaded-config: the $style log line names the config too"
+    assert_eq "LOADED_CONFIG=/home/u/.config/hypr/hyprland.lua" \
+        "$(printf '%s\n' "$out" | grep '^LOADED_CONFIG=' | head -n1)" \
+        "loaded-config: ...and the path is read out of it exactly"
+done
+out="$(PATH="$STUB_PATH" STUB_HYPRCTL_LOGSTYLE=0.57 STUB_HYPRCTL_LOADED=/home/u/.config/hypr/hyprland.lua \
+       bash "$RS/verify-config.sh" --expect /home/u/.config/hypr/hyprland.lua 2>&1)"; rc=$?
+assert_eq "0" "$rc" "AC-3: on a 0.57 log a confirmed match still verifies ok, not unconfirmed"
 
 out="$(PATH="$STUB_PATH" STUB_HYPRCTL_DEAD=1 bash "$RS/loaded-config.sh" 2>&1)"; rc=$?
 assert_eq "2" "$rc" "loaded-config: no running instance exits 2"
